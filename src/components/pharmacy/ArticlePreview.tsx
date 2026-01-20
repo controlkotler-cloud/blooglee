@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Download, X, Globe } from "lucide-react";
+import { Copy, Download, Globe, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Articulo, ArticleContent } from "@/hooks/useArticulos";
 
@@ -10,9 +10,11 @@ interface ArticlePreviewProps {
   article: Articulo | null;
   pharmacyName: string;
   onClose: () => void;
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
 }
 
-export function ArticlePreview({ article, pharmacyName, onClose }: ArticlePreviewProps) {
+export function ArticlePreview({ article, pharmacyName, onClose, onRegenerate, isRegenerating }: ArticlePreviewProps) {
   const [language, setLanguage] = useState<"spanish" | "catalan">("spanish");
 
   if (!article) return null;
@@ -139,7 +141,7 @@ ${content.content}
           />
 
           {/* Actions */}
-          <div className="flex gap-2 pt-4 border-t">
+          <div className="flex flex-wrap gap-2 pt-4 border-t">
             <Button onClick={copyToClipboard} variant="outline">
               <Copy className="w-4 h-4 mr-2" />
               Copiar HTML
@@ -148,6 +150,20 @@ ${content.content}
               <Download className="w-4 h-4 mr-2" />
               Descargar HTML
             </Button>
+            {onRegenerate && (
+              <Button 
+                onClick={onRegenerate} 
+                disabled={isRegenerating}
+                variant="secondary"
+              >
+                {isRegenerating ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Regenerar artículo
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

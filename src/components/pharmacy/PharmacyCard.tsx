@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Play, Eye, Edit3, Trash2, Check, Globe } from "lucide-react";
+import { Loader2, Play, Eye, Edit3, Trash2, Check, Globe, RefreshCw } from "lucide-react";
 import type { Farmacia } from "@/hooks/useFarmacias";
 import type { Articulo } from "@/hooks/useArticulos";
 import type { SeasonalTopic } from "@/lib/seasonalTopics";
@@ -13,6 +13,7 @@ interface PharmacyCardProps {
   isGenerating: boolean;
   onGenerate: () => void;
   onPreview: () => void;
+  onRegenerate: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }
@@ -24,6 +25,7 @@ export function PharmacyCard({
   isGenerating,
   onGenerate,
   onPreview,
+  onRegenerate,
   onEdit,
   onDelete,
 }: PharmacyCardProps) {
@@ -60,14 +62,30 @@ export function PharmacyCard({
 
           <div className="flex items-center gap-1">
             {hasArticle ? (
-              <Button size="sm" variant="outline" onClick={onPreview}>
-                <Eye className="w-4 h-4" />
-              </Button>
+              <>
+                <Button size="sm" variant="outline" onClick={onPreview} title="Ver artículo">
+                  <Eye className="w-4 h-4" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={onRegenerate} 
+                  disabled={isGenerating}
+                  title="Regenerar artículo"
+                >
+                  {isGenerating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                </Button>
+              </>
             ) : (
               <Button
                 size="sm"
                 onClick={onGenerate}
                 disabled={isGenerating}
+                title="Generar artículo"
               >
                 {isGenerating ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -76,10 +94,10 @@ export function PharmacyCard({
                 )}
               </Button>
             )}
-            <Button size="sm" variant="ghost" onClick={onEdit}>
+            <Button size="sm" variant="ghost" onClick={onEdit} title="Editar farmacia">
               <Edit3 className="w-4 h-4" />
             </Button>
-            <Button size="sm" variant="ghost" onClick={onDelete}>
+            <Button size="sm" variant="ghost" onClick={onDelete} title="Eliminar farmacia">
               <Trash2 className="w-4 h-4" />
             </Button>
           </div>
