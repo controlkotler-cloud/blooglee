@@ -14,7 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      articulos: {
+        Row: {
+          content_catalan: Json | null
+          content_spanish: Json | null
+          farmacia_id: string
+          generated_at: string
+          id: string
+          image_photographer: string | null
+          image_photographer_url: string | null
+          image_url: string | null
+          month: number
+          topic: string
+          year: number
+        }
+        Insert: {
+          content_catalan?: Json | null
+          content_spanish?: Json | null
+          farmacia_id: string
+          generated_at?: string
+          id?: string
+          image_photographer?: string | null
+          image_photographer_url?: string | null
+          image_url?: string | null
+          month: number
+          topic: string
+          year: number
+        }
+        Update: {
+          content_catalan?: Json | null
+          content_spanish?: Json | null
+          farmacia_id?: string
+          generated_at?: string
+          id?: string
+          image_photographer?: string | null
+          image_photographer_url?: string | null
+          image_url?: string | null
+          month?: number
+          topic?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "articulos_farmacia_id_fkey"
+            columns: ["farmacia_id"]
+            isOneToOne: false
+            referencedRelation: "farmacias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      farmacias: {
+        Row: {
+          created_at: string
+          id: string
+          languages: string[]
+          location: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          languages?: string[]
+          location: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          languages?: string[]
+          location?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
