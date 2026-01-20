@@ -178,11 +178,3 @@ export function usePublishToWordPress() {
     },
   });
 }
-        toast.success("Artículo guardado correctamente");
-      }
-    },
-    onError: (error) => {
-      toast.error(`Error al publicar: ${error.message}`);
-    },
-  });
-}
