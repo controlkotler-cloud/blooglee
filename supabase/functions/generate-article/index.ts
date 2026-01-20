@@ -35,7 +35,9 @@ serve(async (req) => {
       throw new Error("PEXELS_API_KEY is not configured");
     }
 
+    console.log("Pharmacy languages received:", pharmacy.languages);
     const includesCatalan = pharmacy.languages?.includes("catalan");
+    console.log("Includes Catalan:", includesCatalan);
     
     const languageInstructions = includesCatalan
       ? `Genera DOS versiones del artículo: una en ESPAÑOL y otra en CATALÁN (no traducción, escribe nativamente en cada idioma).`
@@ -80,7 +82,7 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
   }` : ""}
 }`;
 
-    console.log("Generating article for:", pharmacy.name, "Topic:", topic.tema);
+    console.log("Generating article for:", pharmacy.name, "Topic:", topic.tema, "Languages:", pharmacy.languages?.join(", "));
 
     // Generate article content using Lovable AI
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -141,8 +143,12 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
       throw new Error("Failed to parse AI response as JSON");
     }
 
-    // Search for image on Pexels
-    console.log("Searching Pexels for:", topic.pexels_query);
+    console.log("Article content parsed. Has Catalan:", !!articleContent.catalan);
+
+    // Search for image on Pexels with pharmacy-friendly terms
+    // Add pharmaceutical context to the query for softer, more appropriate images
+    const enhancedQuery = `${topic.pexels_query} wellness`;
+    console.log("Searching Pexels for:", enhancedQuery);
     
     let imageData = {
       url: "https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg",
@@ -152,20 +158,46 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
 
     try {
       const pexelsResponse = await fetch(
-        `https://api.pexels.com/v1/search?query=${encodeURIComponent(topic.pexels_query)}&per_page=10&orientation=landscape`,
+        `https://api.pexels.com/v1/search?query=${encodeURIComponent(enhancedQuery)}&per_page=15&orientation=landscape`,
         { headers: { Authorization: PEXELS_API_KEY } }
       );
 
       if (pexelsResponse.ok) {
         const pexelsData = await pexelsResponse.json();
         if (pexelsData.photos && pexelsData.photos.length > 0) {
-          const randomPhoto = pexelsData.photos[Math.floor(Math.random() * pexelsData.photos.length)];
+          // Filter to prefer photos with softer, more professional looking images
+          // Prefer images with average color that's not too intense
+          const suitablePhotos = pexelsData.photos.filter((photo: { avg_color: string }) => {
+            // Parse the average color to check if it's not too intense/saturated
+            const avgColor = photo.avg_color;
+            if (!avgColor) return true;
+            
+            // Simple heuristic: prefer photos that aren't too dark or too saturated
+            const r = parseInt(avgColor.slice(1, 3), 16);
+            const g = parseInt(avgColor.slice(3, 5), 16);
+            const b = parseInt(avgColor.slice(5, 7), 16);
+            
+            // Avoid very dark or very saturated images
+            const brightness = (r + g + b) / 3;
+            const maxChannel = Math.max(r, g, b);
+            const minChannel = Math.min(r, g, b);
+            const saturation = maxChannel > 0 ? (maxChannel - minChannel) / maxChannel : 0;
+            
+            return brightness > 80 && brightness < 230 && saturation < 0.8;
+          });
+          
+          const photosToUse = suitablePhotos.length > 0 ? suitablePhotos : pexelsData.photos;
+          const randomPhoto = photosToUse[Math.floor(Math.random() * Math.min(5, photosToUse.length))];
+          
           imageData = {
             url: randomPhoto.src.large,
             photographer: randomPhoto.photographer,
             photographer_url: randomPhoto.photographer_url,
           };
+          console.log("Selected image from photographer:", randomPhoto.photographer);
         }
+      } else {
+        console.error("Pexels API error:", pexelsResponse.status);
       }
     } catch (pexelsError) {
       console.error("Pexels error (using fallback):", pexelsError);

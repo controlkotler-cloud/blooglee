@@ -14,6 +14,32 @@ interface ImportExportProps {
   onImportFarmacias: (farmacias: Omit<Farmacia, "id" | "created_at" | "updated_at">[]) => void;
 }
 
+// Poblaciones y provincias donde se habla catalán
+const CATALAN_LOCATIONS = [
+  // Provincias catalanas
+  "barcelona", "tarragona", "lleida", "girona", "lérida", "gerona",
+  // Ciudades principales
+  "hospitalet", "badalona", "terrassa", "sabadell", "mataró", "santa coloma",
+  "cornellà", "sant boi", "sant cugat", "rubí", "manresa", "vilanova",
+  "viladecans", "granollers", "cerdanyola", "mollet", "castelldefels",
+  "gavà", "esplugues", "sant feliu", "vic", "igualada", "reus", "figueres",
+  // Baleares
+  "mallorca", "palma", "menorca", "ibiza", "eivissa", "formentera", "illes balears", "baleares",
+  // Valencia (opcional, valenciano)
+  "valència", "valencia", "alicante", "alacant", "castellón", "castelló",
+  // Andorra
+  "andorra",
+  // Términos generales
+  "catalunya", "cataluña", "catalán", "català"
+];
+
+function shouldIncludeCatalan(location: string): boolean {
+  const normalizedLocation = location.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return CATALAN_LOCATIONS.some(catalanLoc => 
+    normalizedLocation.includes(catalanLoc.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))
+  );
+}
+
 export function ImportExport({
   farmacias,
   articulos,
@@ -81,21 +107,38 @@ export function ImportExport({
         // Skip header
         const dataLines = lines.slice(1);
         
+        let catalanAutoDetected = 0;
+        
         const newFarmacias = dataLines.map((line) => {
           const parts = line.split(",").map((p) => p.trim().replace(/^"|"$/g, ""));
+          const name = parts[0];
+          const location = parts[1];
           const languages = ["spanish"];
-          if (parts[2]?.toLowerCase() === "sí" || parts[2]?.toLowerCase() === "si") {
+          
+          // Check explicit catalan column first
+          const explicitCatalan = parts[2]?.toLowerCase();
+          if (explicitCatalan === "sí" || explicitCatalan === "si" || explicitCatalan === "yes") {
             languages.push("catalan");
+          } else if (explicitCatalan !== "no" && shouldIncludeCatalan(location)) {
+            // Auto-detect based on location if not explicitly set to "no"
+            languages.push("catalan");
+            catalanAutoDetected++;
           }
+          
           return {
-            name: parts[0],
-            location: parts[1],
+            name,
+            location,
             languages,
           };
         }).filter((f) => f.name && f.location);
 
         onImportFarmacias(newFarmacias);
-        toast.success(`${newFarmacias.length} farmacias importadas`);
+        
+        let message = `${newFarmacias.length} farmacias importadas`;
+        if (catalanAutoDetected > 0) {
+          message += ` (${catalanAutoDetected} con catalán auto-detectado por ubicación)`;
+        }
+        toast.success(message);
       } catch (error) {
         toast.error("Error al importar CSV");
       }
@@ -152,9 +195,12 @@ export function ImportExport({
           </Button>
         </div>
 
-        <div className="p-3 bg-muted rounded-lg">
+        <div className="p-3 bg-muted rounded-lg space-y-1">
           <p className="text-xs text-muted-foreground">
             <strong>Formato CSV:</strong> nombre, localidad, catalan (sí/no)
+          </p>
+          <p className="text-xs text-muted-foreground">
+            💡 El catalán se detecta automáticamente para farmacias de Catalunya, Baleares y Valencia
           </p>
         </div>
       </CardContent>
