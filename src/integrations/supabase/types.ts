@@ -25,6 +25,7 @@ export type Database = {
           image_photographer_url: string | null
           image_url: string | null
           month: number
+          pexels_query: string | null
           topic: string
           year: number
         }
@@ -38,6 +39,7 @@ export type Database = {
           image_photographer_url?: string | null
           image_url?: string | null
           month: number
+          pexels_query?: string | null
           topic: string
           year: number
         }
@@ -51,6 +53,7 @@ export type Database = {
           image_photographer_url?: string | null
           image_url?: string | null
           month?: number
+          pexels_query?: string | null
           topic?: string
           year?: number
         }

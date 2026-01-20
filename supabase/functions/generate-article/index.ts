@@ -373,6 +373,7 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
           catalan: catalanArticle,
         },
         image: imageData,
+        pexels_query: topic.pexels_query, // Devolver el query para guardarlo
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface RequestBody {
-  topic: string;
+  pexelsQuery: string;  // Query específico del tema para búsquedas relevantes
   usedImageUrls?: string[];
 }
 
@@ -38,7 +38,7 @@ serve(async (req) => {
   }
 
   try {
-    const { topic, usedImageUrls = [] }: RequestBody = await req.json();
+    const { pexelsQuery, usedImageUrls = [] }: RequestBody = await req.json();
     
     const PEXELS_API_KEY = Deno.env.get("PEXELS_API_KEY");
     
@@ -46,15 +46,16 @@ serve(async (req) => {
       throw new Error("PEXELS_API_KEY is not configured");
     }
 
-    console.log("Regenerating image for topic:", topic);
+    if (!pexelsQuery) {
+      throw new Error("pexelsQuery is required");
+    }
+
+    console.log("Regenerating image with pexelsQuery:", pexelsQuery);
     console.log("Excluding URLs:", usedImageUrls.length, "images");
 
-    // Seleccionar query de bienestar aleatorio
-    const randomWellnessQuery = WELLNESS_QUERIES[Math.floor(Math.random() * WELLNESS_QUERIES.length)];
-    
-    // Limpiar el topic de términos farmacéuticos
-    const cleanTopic = topic.replace(/pharmacy|medicine|drug|pill|capsule|bottle|farmacia|medicamento|pastilla/gi, "wellness");
-    const enhancedQuery = `${cleanTopic} ${randomWellnessQuery}`;
+    // Usar directamente el pexelsQuery específico del tema (ya está optimizado)
+    const cleanQuery = pexelsQuery.replace(/pharmacy|medicine|drug|pill|capsule|bottle/gi, "wellness");
+    const enhancedQuery = cleanQuery;
     
     console.log("Searching Pexels for:", enhancedQuery);
     
