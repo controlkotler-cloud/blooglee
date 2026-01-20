@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.regenerate-image]
 verify_jwt = false
+
+[functions.generate-monthly-articles]
+verify_jwt = false
