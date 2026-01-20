@@ -31,7 +31,7 @@ export default function Index() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingPharmacy, setEditingPharmacy] = useState<Farmacia | null>(null);
   const [deletingPharmacy, setDeletingPharmacy] = useState<Farmacia | null>(null);
-  const [previewArticle, setPreviewArticle] = useState<{ article: Articulo; pharmacyName: string } | null>(null);
+  const [previewArticle, setPreviewArticle] = useState<{ article: Articulo; pharmacyName: string; pharmacyIndex: number; pharmacy: Farmacia } | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [generatingAll, setGeneratingAll] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
@@ -214,7 +214,21 @@ export default function Index() {
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {farmacias.map((pharmacy, index) => (
-                    <PharmacyCard key={pharmacy.id} pharmacy={pharmacy} topic={getAssignedTopic(index, selectedMonth)} article={getArticleForPharmacy(pharmacy.id)} isGenerating={generatingId === pharmacy.id} onGenerate={() => handleGenerateArticle(pharmacy, index)} onPreview={() => { const article = getArticleForPharmacy(pharmacy.id); if (article) setPreviewArticle({ article, pharmacyName: pharmacy.name }); }} onEdit={() => setEditingPharmacy(pharmacy)} onDelete={() => setDeletingPharmacy(pharmacy)} />
+                    <PharmacyCard 
+                      key={pharmacy.id} 
+                      pharmacy={pharmacy} 
+                      topic={getAssignedTopic(index, selectedMonth)} 
+                      article={getArticleForPharmacy(pharmacy.id)} 
+                      isGenerating={generatingId === pharmacy.id} 
+                      onGenerate={() => handleGenerateArticle(pharmacy, index)} 
+                      onRegenerate={() => handleGenerateArticle(pharmacy, index)}
+                      onPreview={() => { 
+                        const article = getArticleForPharmacy(pharmacy.id); 
+                        if (article) setPreviewArticle({ article, pharmacyName: pharmacy.name, pharmacyIndex: index, pharmacy }); 
+                      }} 
+                      onEdit={() => setEditingPharmacy(pharmacy)} 
+                      onDelete={() => setDeletingPharmacy(pharmacy)} 
+                    />
                   ))}
                 </div>
               )}
@@ -231,7 +245,16 @@ export default function Index() {
 
       <PharmacyForm open={showAddForm} onClose={() => setShowAddForm(false)} onSubmit={handleCreateFarmacia} isLoading={createFarmacia.isPending} />
       <PharmacyForm open={!!editingPharmacy} onClose={() => setEditingPharmacy(null)} onSubmit={handleUpdateFarmacia} initialData={editingPharmacy} isLoading={updateFarmacia.isPending} />
-      <ArticlePreview article={previewArticle?.article || null} pharmacyName={previewArticle?.pharmacyName || ""} onClose={() => setPreviewArticle(null)} />
+      <ArticlePreview 
+        article={previewArticle?.article || null} 
+        pharmacyName={previewArticle?.pharmacyName || ""} 
+        onClose={() => setPreviewArticle(null)} 
+        onRegenerate={previewArticle ? () => {
+          handleGenerateArticle(previewArticle.pharmacy, previewArticle.pharmacyIndex);
+          setPreviewArticle(null);
+        } : undefined}
+        isRegenerating={previewArticle ? generatingId === previewArticle.pharmacy.id : false}
+      />
 
       <AlertDialog open={!!deletingPharmacy} onOpenChange={() => setDeletingPharmacy(null)}>
         <AlertDialogContent>
