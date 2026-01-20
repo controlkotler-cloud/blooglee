@@ -17,13 +17,38 @@ interface PharmacyData {
   languages: string[];
 }
 
+interface RequestBody {
+  pharmacy: PharmacyData;
+  topic: TopicData;
+  month: number;
+  year: number;
+  usedImageUrls?: string[];
+}
+
+// Términos a excluir en búsquedas de Pexels para evitar productos farmacéuticos
+const EXCLUDED_TERMS = ["pill", "capsule", "medicine", "drug", "pharmaceutical", "bottle", "tablet", "prescription"];
+
+// Queries genéricos de bienestar para diversificar imágenes
+const WELLNESS_QUERIES = [
+  "wellness nature peaceful calm",
+  "healthy lifestyle botanical garden",
+  "spa relaxation natural beauty",
+  "meditation calm serene nature",
+  "botanical herbs plants natural",
+  "fresh healthy outdoor wellness",
+  "calm peaceful woman nature",
+  "natural beauty care wellness",
+  "healthy food nutrition colorful",
+  "yoga relaxation peaceful outdoor"
+];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { pharmacy, topic }: { pharmacy: PharmacyData; topic: TopicData } = await req.json();
+    const { pharmacy, topic, month, year, usedImageUrls = [] }: RequestBody = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const PEXELS_API_KEY = Deno.env.get("PEXELS_API_KEY");
@@ -35,9 +60,21 @@ serve(async (req) => {
       throw new Error("PEXELS_API_KEY is not configured");
     }
 
+    // Obtener fecha real para el prompt
+    const monthNames = [
+      "enero", "febrero", "marzo", "abril", "mayo", "junio",
+      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+    ];
+    const currentMonth = month || new Date().getMonth() + 1;
+    const currentYear = year || new Date().getFullYear();
+    const monthName = monthNames[currentMonth - 1];
+    const dateContext = `${monthName} de ${currentYear}`;
+
     console.log("Pharmacy languages received:", pharmacy.languages);
     const includesCatalan = pharmacy.languages?.includes("catalan");
     console.log("Includes Catalan:", includesCatalan);
+    console.log("Date context:", dateContext);
+    console.log("Used image URLs count:", usedImageUrls.length);
     
     const languageInstructions = includesCatalan
       ? `Genera DOS versiones del artículo: una en ESPAÑOL y otra en CATALÁN (no traducción, escribe nativamente en cada idioma).`
@@ -46,6 +83,7 @@ serve(async (req) => {
     const systemPrompt = `Eres un redactor experto en contenido farmacéutico y SEO. Generas artículos de blog profesionales para farmacias.
 
 REGLAS IMPORTANTES:
+- La fecha actual es ${dateContext.toUpperCase()}. TODAS las referencias temporales deben ser coherentes con esta fecha.
 - Genera contenido de ~2000 palabras
 - Incluye título H1 atractivo con keyword principal y ubicación
 - Meta descripción de 150-160 caracteres
@@ -54,35 +92,44 @@ REGLAS IMPORTANTES:
 - Menciona la farmacia 2-3 veces y la población 2-3 veces
 - Tono profesional pero cercano
 - El contenido debe estar en formato HTML con tags <h2>, <p>, <ul>, <li>
+- IMPORTANTE: Personaliza el contenido según la ubicación geográfica de la farmacia. Incluye referencias locales, clima de la zona, y particularidades regionales.
+- VARIEDAD: Aunque el tema sea similar, cada artículo debe tener un enfoque único basado en la farmacia y su ubicación.
 
 RESPONDE SIEMPRE EN JSON VÁLIDO.`;
 
     const userPrompt = `FARMACIA: ${pharmacy.name}
 POBLACIÓN: ${pharmacy.location}
+FECHA DEL ARTÍCULO: ${dateContext} (usa esta fecha para cualquier referencia temporal)
 IDIOMAS REQUERIDOS: ${pharmacy.languages?.join(", ") || "spanish"}
 
 TEMA DEL ARTÍCULO: ${topic.tema}
 Keywords SEO: ${topic.keywords.join(", ")}
+
+INSTRUCCIONES ESPECIALES:
+- El artículo debe ser para ${dateContext}, asegúrate de que todas las referencias temporales sean correctas.
+- Personaliza el contenido para ${pharmacy.location}: menciona características locales, clima de la zona, costumbres regionales si aplica.
+- Evita comenzar con "Guía de..." o "Guía para..." - usa títulos más creativos y variados.
+- Haz que el contenido sea único y específico para esta farmacia en particular.
 
 ${languageInstructions}
 
 Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exacto:
 {
   "spanish": {
-    "title": "Título H1 del artículo en español",
+    "title": "Título H1 del artículo en español (creativo, no empieces con 'Guía')",
     "meta_description": "Meta descripción de 150-160 caracteres",
     "slug": "slug-url-amigable-sin-tildes",
     "content": "<h2>Primera sección</h2><p>Contenido...</p><h2>Segunda sección</h2><p>Más contenido...</p>"
   }${includesCatalan ? `,
   "catalan": {
-    "title": "Títol H1 de l'article en català",
+    "title": "Títol H1 de l'article en català (creatiu, no comencis amb 'Guia')",
     "meta_description": "Meta descripció de 150-160 caràcters",
     "slug": "slug-url-amigable-sense-accents",
     "content": "<h2>Primera secció</h2><p>Contingut...</p>"
   }` : ""}
 }`;
 
-    console.log("Generating article for:", pharmacy.name, "Topic:", topic.tema, "Languages:", pharmacy.languages?.join(", "));
+    console.log("Generating article for:", pharmacy.name, "Topic:", topic.tema, "Languages:", pharmacy.languages?.join(", "), "Date:", dateContext);
 
     // Generate article content using Lovable AI
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -145,10 +192,14 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
 
     console.log("Article content parsed. Has Catalan:", !!articleContent.catalan);
 
-    // Search for image on Pexels with pharmacy-friendly terms
-    // Add pharmaceutical context to the query for softer, more appropriate images
-    const enhancedQuery = `${topic.pexels_query} wellness`;
+    // Search for image on Pexels with wellness-focused terms
+    // Combine topic query with random wellness query for variety
+    const randomWellnessQuery = WELLNESS_QUERIES[Math.floor(Math.random() * WELLNESS_QUERIES.length)];
+    const baseQuery = topic.pexels_query.replace(/pharmacy|medicine|drug|pill|capsule|bottle/gi, "wellness");
+    const enhancedQuery = `${baseQuery} ${randomWellnessQuery.split(" ").slice(0, 2).join(" ")}`;
+    
     console.log("Searching Pexels for:", enhancedQuery);
+    console.log("Excluding URLs:", usedImageUrls.length, "images");
     
     let imageData = {
       url: "https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg",
@@ -157,17 +208,34 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
     };
 
     try {
+      // Request more photos to have better variety
       const pexelsResponse = await fetch(
-        `https://api.pexels.com/v1/search?query=${encodeURIComponent(enhancedQuery)}&per_page=15&orientation=landscape`,
+        `https://api.pexels.com/v1/search?query=${encodeURIComponent(enhancedQuery)}&per_page=50&orientation=landscape`,
         { headers: { Authorization: PEXELS_API_KEY } }
       );
 
       if (pexelsResponse.ok) {
         const pexelsData = await pexelsResponse.json();
         if (pexelsData.photos && pexelsData.photos.length > 0) {
-          // Filter to prefer photos with softer, more professional looking images
-          // Prefer images with average color that's not too intense
-          const suitablePhotos = pexelsData.photos.filter((photo: { avg_color: string }) => {
+          // Filter out already used images and inappropriate images
+          const suitablePhotos = pexelsData.photos.filter((photo: { 
+            avg_color: string; 
+            src: { large: string };
+            alt?: string;
+          }) => {
+            // Exclude already used URLs
+            if (usedImageUrls.includes(photo.src.large)) {
+              console.log("Excluding already used image:", photo.src.large.substring(0, 50));
+              return false;
+            }
+            
+            // Check alt text for excluded terms
+            const altText = (photo.alt || "").toLowerCase();
+            if (EXCLUDED_TERMS.some(term => altText.includes(term))) {
+              console.log("Excluding image with pharmaceutical content:", photo.alt);
+              return false;
+            }
+            
             // Parse the average color to check if it's not too intense/saturated
             const avgColor = photo.avg_color;
             if (!avgColor) return true;
@@ -186,15 +254,45 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
             return brightness > 80 && brightness < 230 && saturation < 0.8;
           });
           
-          const photosToUse = suitablePhotos.length > 0 ? suitablePhotos : pexelsData.photos;
-          const randomPhoto = photosToUse[Math.floor(Math.random() * Math.min(5, photosToUse.length))];
+          console.log("Suitable photos after filtering:", suitablePhotos.length, "out of", pexelsData.photos.length);
           
-          imageData = {
-            url: randomPhoto.src.large,
-            photographer: randomPhoto.photographer,
-            photographer_url: randomPhoto.photographer_url,
-          };
-          console.log("Selected image from photographer:", randomPhoto.photographer);
+          if (suitablePhotos.length > 0) {
+            // Select a random photo from the suitable ones (first 15 for quality)
+            const randomIndex = Math.floor(Math.random() * Math.min(15, suitablePhotos.length));
+            const selectedPhoto = suitablePhotos[randomIndex];
+            
+            imageData = {
+              url: selectedPhoto.src.large,
+              photographer: selectedPhoto.photographer,
+              photographer_url: selectedPhoto.photographer_url,
+            };
+            console.log("Selected image from photographer:", selectedPhoto.photographer);
+          } else {
+            // Try a fallback query if no suitable photos found
+            console.log("No suitable photos, trying fallback query...");
+            const fallbackQuery = "wellness nature botanical peaceful";
+            const fallbackResponse = await fetch(
+              `https://api.pexels.com/v1/search?query=${encodeURIComponent(fallbackQuery)}&per_page=30&orientation=landscape`,
+              { headers: { Authorization: PEXELS_API_KEY } }
+            );
+            
+            if (fallbackResponse.ok) {
+              const fallbackData = await fallbackResponse.json();
+              const fallbackPhotos = fallbackData.photos?.filter((p: { src: { large: string } }) => 
+                !usedImageUrls.includes(p.src.large)
+              ) || [];
+              
+              if (fallbackPhotos.length > 0) {
+                const randomFallback = fallbackPhotos[Math.floor(Math.random() * Math.min(10, fallbackPhotos.length))];
+                imageData = {
+                  url: randomFallback.src.large,
+                  photographer: randomFallback.photographer,
+                  photographer_url: randomFallback.photographer_url,
+                };
+                console.log("Selected fallback image from photographer:", randomFallback.photographer);
+              }
+            }
+          }
         }
       } else {
         console.error("Pexels API error:", pexelsResponse.status);
@@ -203,7 +301,7 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
       console.error("Pexels error (using fallback):", pexelsError);
     }
 
-    console.log("Article generated successfully");
+    console.log("Article generated successfully with image:", imageData.url.substring(0, 50));
 
     return new Response(
       JSON.stringify({

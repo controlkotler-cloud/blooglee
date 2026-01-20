@@ -32,6 +32,7 @@ interface GenerateArticleParams {
   topic: SeasonalTopic;
   month: number;
   year: number;
+  usedImageUrls?: string[];
 }
 
 export function useArticulos(month: number, year: number) {
@@ -50,12 +51,36 @@ export function useArticulos(month: number, year: number) {
   });
 }
 
+/**
+ * Obtiene todas las URLs de imágenes ya usadas en artículos del mes/año actual
+ */
+export async function getUsedImageUrls(month: number, year: number): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("articulos")
+    .select("image_url")
+    .eq("month", month)
+    .eq("year", year);
+
+  if (error) {
+    console.error("Error fetching used image URLs:", error);
+    return [];
+  }
+
+  return data
+    .map((a) => a.image_url)
+    .filter((url): url is string => url !== null);
+}
+
 export function useGenerateArticle() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (params: GenerateArticleParams) => {
       console.log("Generating article for:", params.pharmacyName, "Languages:", params.pharmacyLanguages);
+      
+      // Obtener URLs de imágenes ya usadas para este mes/año
+      const usedImageUrls = params.usedImageUrls || await getUsedImageUrls(params.month, params.year);
+      console.log("Passing", usedImageUrls.length, "used image URLs to edge function");
       
       const { data, error } = await supabase.functions.invoke("generate-article", {
         body: {
@@ -65,6 +90,9 @@ export function useGenerateArticle() {
             languages: params.pharmacyLanguages,
           },
           topic: params.topic,
+          month: params.month,
+          year: params.year,
+          usedImageUrls,
         },
       });
 

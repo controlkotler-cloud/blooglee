@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Plus, Play, LayoutDashboard, Building2, Settings } from "lucide-react";
 import { useFarmacias, useCreateFarmacia, useUpdateFarmacia, useDeleteFarmacia, type Farmacia } from "@/hooks/useFarmacias";
-import { useArticulos, useGenerateArticle, type Articulo } from "@/hooks/useArticulos";
+import { useArticulos, useGenerateArticle, getUsedImageUrls, type Articulo } from "@/hooks/useArticulos";
 import { getAssignedTopic, MONTH_NAMES } from "@/lib/seasonalTopics";
 import { Dashboard } from "@/components/pharmacy/Dashboard";
 import { PharmacyCard } from "@/components/pharmacy/PharmacyCard";
@@ -25,6 +25,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
+// Configuración de reintentos
+const MAX_RETRIES = 3;
+const RETRY_DELAYS = [2000, 4000, 8000]; // 2s, 4s, 8s
+
 export default function Index() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -35,6 +39,7 @@ export default function Index() {
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [generatingAll, setGeneratingAll] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
+  const [currentRetry, setCurrentRetry] = useState(0);
 
   const { data: farmacias = [], isLoading: loadingFarmacias } = useFarmacias();
   const { data: articulos = [], isLoading: loadingArticulos } = useArticulos(selectedMonth, selectedYear);
@@ -68,23 +73,51 @@ export default function Index() {
     });
   };
 
-  const handleGenerateArticle = async (pharmacy: Farmacia, index: number) => {
-    const topic = getAssignedTopic(index, selectedMonth);
+  /**
+   * Genera un artículo con reintentos automáticos
+   */
+  const handleGenerateArticle = async (pharmacy: Farmacia, index: number, usedImageUrls?: string[]) => {
+    const topic = getAssignedTopic(index, selectedMonth, pharmacy.id);
     setGeneratingId(pharmacy.id);
+    setCurrentRetry(0);
 
-    try {
-      await generateArticle.mutateAsync({
-        farmaciaId: pharmacy.id,
-        pharmacyName: pharmacy.name,
-        pharmacyLocation: pharmacy.location,
-        pharmacyLanguages: pharmacy.languages,
-        topic,
-        month: selectedMonth,
-        year: selectedYear,
-      });
-    } finally {
-      setGeneratingId(null);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        await generateArticle.mutateAsync({
+          farmaciaId: pharmacy.id,
+          pharmacyName: pharmacy.name,
+          pharmacyLocation: pharmacy.location,
+          pharmacyLanguages: pharmacy.languages,
+          topic,
+          month: selectedMonth,
+          year: selectedYear,
+          usedImageUrls,
+        });
+        // Éxito - salir del bucle
+        setGeneratingId(null);
+        setCurrentRetry(0);
+        return true;
+      } catch (error) {
+        console.error(`Intento ${attempt + 1}/${MAX_RETRIES + 1} fallido para ${pharmacy.name}:`, error);
+        
+        if (attempt < MAX_RETRIES) {
+          const delay = RETRY_DELAYS[attempt];
+          setCurrentRetry(attempt + 1);
+          toast.info(`Reintentando ${pharmacy.name} (${attempt + 1}/${MAX_RETRIES})...`, {
+            duration: delay,
+          });
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          // Último intento fallido
+          toast.error(`Error generando artículo para ${pharmacy.name} después de ${MAX_RETRIES} reintentos`);
+          setGeneratingId(null);
+          setCurrentRetry(0);
+          return false;
+        }
+      }
     }
+    
+    return false;
   };
 
   const handleGenerateAll = async () => {
@@ -98,14 +131,58 @@ export default function Index() {
     setGeneratingAll(true);
     setGenerationProgress(0);
 
+    // Obtener URLs de imágenes usadas una vez al inicio
+    let usedImageUrls = await getUsedImageUrls(selectedMonth, selectedYear);
+    const failedPharmacies: Farmacia[] = [];
+    let successCount = 0;
+
     for (let i = 0; i < pending.length; i++) {
       const pharmacy = pending[i];
       const pharmacyIndex = farmacias.findIndex((p) => p.id === pharmacy.id);
-      const topic = getAssignedTopic(pharmacyIndex, selectedMonth);
-
+      
       setGeneratingId(pharmacy.id);
       setGenerationProgress(Math.round(((i + 1) / pending.length) * 100));
 
+      const success = await handleGenerateArticleWithRetry(pharmacy, pharmacyIndex, usedImageUrls);
+      
+      if (success) {
+        successCount++;
+        // Actualizar lista de URLs usadas después de cada éxito
+        usedImageUrls = await getUsedImageUrls(selectedMonth, selectedYear);
+      } else {
+        failedPharmacies.push(pharmacy);
+      }
+
+      // Delay entre generaciones para evitar rate limiting
+      if (i < pending.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    }
+
+    setGeneratingAll(false);
+    setGeneratingId(null);
+    setGenerationProgress(0);
+    
+    if (failedPharmacies.length === 0) {
+      toast.success(`🎉 Se han generado ${successCount} artículos correctamente`);
+    } else {
+      toast.warning(
+        `Se generaron ${successCount} artículos. ${failedPharmacies.length} fallaron: ${failedPharmacies.map(p => p.name).join(", ")}`
+      );
+    }
+  };
+
+  /**
+   * Versión interna con reintentos para handleGenerateAll
+   */
+  const handleGenerateArticleWithRetry = async (
+    pharmacy: Farmacia, 
+    index: number, 
+    usedImageUrls: string[]
+  ): Promise<boolean> => {
+    const topic = getAssignedTopic(index, selectedMonth, pharmacy.id);
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
         await generateArticle.mutateAsync({
           farmaciaId: pharmacy.id,
@@ -115,20 +192,24 @@ export default function Index() {
           topic,
           month: selectedMonth,
           year: selectedYear,
+          usedImageUrls,
         });
+        return true;
       } catch (error) {
-        console.error("Error generating article:", error);
-      }
-
-      if (i < pending.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        console.error(`Intento ${attempt + 1}/${MAX_RETRIES + 1} fallido para ${pharmacy.name}:`, error);
+        
+        if (attempt < MAX_RETRIES) {
+          const delay = RETRY_DELAYS[attempt];
+          setCurrentRetry(attempt + 1);
+          toast.info(`Reintentando ${pharmacy.name} (${attempt + 1}/${MAX_RETRIES})...`, {
+            duration: delay,
+          });
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
       }
     }
-
-    setGeneratingAll(false);
-    setGeneratingId(null);
-    setGenerationProgress(0);
-    toast.success(`🎉 Se han generado ${pending.length} artículos`);
+    
+    return false;
   };
 
   const handleImportFarmacias = async (newFarmacias: { name: string; location: string; languages: string[] }[]) => {
@@ -159,7 +240,7 @@ export default function Index() {
               <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
                 <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {[2024, 2025, 2026].map((year) => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}
+                  {[2024, 2025, 2026, 2027].map((year) => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
@@ -172,7 +253,10 @@ export default function Index() {
           <div className="container mx-auto flex items-center gap-4">
             <Loader2 className="w-5 h-5 animate-spin text-primary" />
             <Progress value={generationProgress} className="flex-1 h-2" />
-            <span className="text-sm font-medium">{generationProgress}%</span>
+            <span className="text-sm font-medium">
+              {generationProgress}%
+              {currentRetry > 0 && ` (reintento ${currentRetry}/${MAX_RETRIES})`}
+            </span>
           </div>
         </div>
       )}
@@ -217,7 +301,7 @@ export default function Index() {
                     <PharmacyCard 
                       key={pharmacy.id} 
                       pharmacy={pharmacy} 
-                      topic={getAssignedTopic(index, selectedMonth)} 
+                      topic={getAssignedTopic(index, selectedMonth, pharmacy.id)} 
                       article={getArticleForPharmacy(pharmacy.id)} 
                       isGenerating={generatingId === pharmacy.id} 
                       onGenerate={() => handleGenerateArticle(pharmacy, index)} 
