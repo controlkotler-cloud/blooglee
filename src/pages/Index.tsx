@@ -4,7 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Plus, Play, LayoutDashboard, Building2, Settings } from "lucide-react";
+import { Loader2, Plus, Play, LayoutDashboard, Building2, Settings, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { useFarmacias, useCreateFarmacia, useUpdateFarmacia, useDeleteFarmacia, type Farmacia } from "@/hooks/useFarmacias";
 import { useArticulos, useGenerateArticle, useRegenerateImage, getUsedImageUrls, type Articulo } from "@/hooks/useArticulos";
 import { getAssignedTopic, MONTH_NAMES } from "@/lib/seasonalTopics";
@@ -30,6 +31,7 @@ const MAX_RETRIES = 3;
 const RETRY_DELAYS = [2000, 4000, 8000]; // 2s, 4s, 8s
 
 export default function Index() {
+  const { signOut } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [showAddForm, setShowAddForm] = useState(false);
@@ -41,6 +43,10 @@ export default function Index() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [currentRetry, setCurrentRetry] = useState(0);
   const [regeneratingImageId, setRegeneratingImageId] = useState<string | null>(null);
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   const { data: farmacias = [], isLoading: loadingFarmacias } = useFarmacias();
   const { data: articulos = [], isLoading: loadingArticulos } = useArticulos(selectedMonth, selectedYear);
@@ -245,6 +251,9 @@ export default function Index() {
                   {[2024, 2025, 2026, 2027].map((year) => (<SelectItem key={year} value={String(year)}>{year}</SelectItem>))}
                 </SelectContent>
               </Select>
+              <Button variant="ghost" size="icon" onClick={handleSignOut} title="Cerrar sesión">
+                <LogOut className="w-4 h-4" />
+              </Button>
             </div>
           </div>
         </div>
