@@ -55,6 +55,8 @@ export function useGenerateArticle() {
 
   return useMutation({
     mutationFn: async (params: GenerateArticleParams) => {
+      console.log("Generating article for:", params.pharmacyName, "Languages:", params.pharmacyLanguages);
+      
       const { data, error } = await supabase.functions.invoke("generate-article", {
         body: {
           pharmacy: {
@@ -66,8 +68,21 @@ export function useGenerateArticle() {
         },
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (error) {
+        console.error("Edge function error:", error);
+        throw error;
+      }
+      
+      if (data.error) {
+        console.error("Article generation error:", data.error);
+        throw new Error(data.error);
+      }
+
+      console.log("Article data received:", {
+        hasSpanish: !!data.content?.spanish,
+        hasCatalan: !!data.content?.catalan,
+        imageUrl: data.image?.url
+      });
 
       // Save the article to the database
       const articleData = {
@@ -82,13 +97,47 @@ export function useGenerateArticle() {
         image_photographer_url: data.image.photographer_url,
       };
 
-      const { data: savedArticle, error: saveError } = await supabase
-        .from("articulos")
-        .upsert(articleData, { onConflict: "farmacia_id,month,year" })
-        .select()
-        .single();
+      console.log("Saving article to database:", { farmaciaId: params.farmaciaId, month: params.month, year: params.year });
 
-      if (saveError) throw saveError;
+      // Try insert first, then update if conflict
+      const { data: existingArticle } = await supabase
+        .from("articulos")
+        .select("id")
+        .eq("farmacia_id", params.farmaciaId)
+        .eq("month", params.month)
+        .eq("year", params.year)
+        .maybeSingle();
+
+      let savedArticle;
+      let saveError;
+
+      if (existingArticle) {
+        // Update existing
+        const result = await supabase
+          .from("articulos")
+          .update(articleData)
+          .eq("id", existingArticle.id)
+          .select()
+          .single();
+        savedArticle = result.data;
+        saveError = result.error;
+      } else {
+        // Insert new
+        const result = await supabase
+          .from("articulos")
+          .insert(articleData)
+          .select()
+          .single();
+        savedArticle = result.data;
+        saveError = result.error;
+      }
+
+      if (saveError) {
+        console.error("Database save error:", saveError);
+        throw new Error(`Error guardando en base de datos: ${saveError.message}`);
+      }
+
+      console.log("Article saved successfully:", savedArticle?.id);
       return savedArticle as unknown as Articulo;
     },
     onSuccess: (_, params) => {
@@ -96,6 +145,7 @@ export function useGenerateArticle() {
       toast.success(`Artículo generado para ${params.pharmacyName}`);
     },
     onError: (error) => {
+      console.error("useGenerateArticle error:", error);
       toast.error(`Error: ${error.message}`);
     },
   });
