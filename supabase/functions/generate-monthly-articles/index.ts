@@ -15,6 +15,113 @@ const MONTH_NAMES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ];
 
+interface SeasonalTopic {
+  tema: string;
+  keywords: string[];
+  pexels_query: string;
+}
+
+// Seasonal topics por mes (copia de src/lib/seasonalTopics.ts)
+const SEASONAL_TOPICS: Record<number, SeasonalTopic[]> = {
+  1: [
+    { tema: "Propósitos saludables de año nuevo", keywords: ["hábitos saludables", "vitaminas", "detox", "ejercicio"], pexels_query: "morning wellness nature fresh start" },
+    { tema: "Combatir la gripe y resfriados de invierno", keywords: ["sistema inmune", "vitamina C", "propóleo"], pexels_query: "herbal tea warm cozy winter comfort" },
+    { tema: "Cuidado de la piel en invierno", keywords: ["hidratación", "cremas", "labios agrietados"], pexels_query: "spa beauty natural skincare woman face" },
+    { tema: "Blue Monday: cuidar la salud mental", keywords: ["ánimo", "vitamina D", "bienestar emocional"], pexels_query: "calm meditation peaceful mindfulness nature" },
+    { tema: "Recuperarse de los excesos navideños", keywords: ["digestión", "hígado", "probióticos"], pexels_query: "healthy food vegetables salad nutrition" },
+  ],
+  2: [
+    { tema: "Alergias de invierno y calefacción", keywords: ["humidificadores", "piel seca", "alergias ácaros"], pexels_query: "cozy home wellness comfortable living room" },
+    { tema: "San Valentín: cosmética y cuidado personal", keywords: ["perfumes", "cosmética", "regalo pareja"], pexels_query: "beauty spa romantic self care woman" },
+    { tema: "Preparar el cuerpo para la primavera", keywords: ["depuración", "energía", "complementos"], pexels_query: "spring nature fresh flowers wellness" },
+    { tema: "Salud cardiovascular", keywords: ["colesterol", "omega 3", "corazón sano"], pexels_query: "heart healthy walking nature outdoor" },
+    { tema: "Bienestar digestivo en invierno", keywords: ["probióticos", "fibra", "digestión"], pexels_query: "healthy breakfast yogurt fruit nutrition" },
+  ],
+  3: [
+    { tema: "Alergias primaverales: preparación y prevención", keywords: ["antihistamínicos", "polen", "conjuntivitis"], pexels_query: "spring garden flowers peaceful nature" },
+    { tema: "Cambio de hora y su efecto en el sueño", keywords: ["melatonina", "insomnio", "ritmo circadiano"], pexels_query: "peaceful sleep bedroom rest calm cozy" },
+    { tema: "Detox primaveral", keywords: ["depurativo", "hígado", "drenante"], pexels_query: "green smoothie healthy detox natural" },
+    { tema: "Astenia primaveral: combatir el cansancio", keywords: ["jalea real", "ginseng", "energía"], pexels_query: "morning energy vitality outdoor nature" },
+    { tema: "Cuidado de la piel al aire libre", keywords: ["protección solar", "hidratación", "exposición"], pexels_query: "outdoor nature spring woman wellness" },
+  ],
+  4: [
+    { tema: "Alergias en plena primavera", keywords: ["polen", "rinitis", "colirios"], pexels_query: "spring nature outdoor peaceful garden" },
+    { tema: "Preparar la piel para el sol", keywords: ["protección solar", "vitamina E", "antioxidantes"], pexels_query: "sunlight nature beauty woman outdoor" },
+    { tema: "Semana Santa: botiquín de viaje", keywords: ["primeros auxilios", "medicamentos viaje"], pexels_query: "travel nature adventure wellness outdoor" },
+    { tema: "Salud digestiva y probióticos", keywords: ["flora intestinal", "digestión", "prebióticos"], pexels_query: "healthy food yogurt nutrition breakfast" },
+    { tema: "Fitness y tonificación primaveral", keywords: ["ejercicio", "músculos", "definición"], pexels_query: "fitness outdoor spring exercise nature" },
+  ],
+  5: [
+    { tema: "Día de la madre: belleza y bienestar", keywords: ["cosmética", "regalo", "antiedad"], pexels_query: "beauty spa wellness relaxation woman care" },
+    { tema: "Operación bikini saludable", keywords: ["nutrición", "complementos", "ejercicio"], pexels_query: "healthy lifestyle walking beach wellness" },
+    { tema: "Protección solar: guía completa", keywords: ["SPF", "fotoprotección", "melanoma"], pexels_query: "sunlight beach summer protection nature" },
+    { tema: "Piernas cansadas con el calor", keywords: ["circulación", "varices", "medias compresión"], pexels_query: "legs wellness massage relaxation woman" },
+    { tema: "Exámenes: concentración y memoria", keywords: ["omega 3", "vitaminas B", "estrés estudiantes"], pexels_query: "study focus calm concentration desk" },
+  ],
+  6: [
+    { tema: "Protección solar para toda la familia", keywords: ["niños sol", "after sun", "quemaduras"], pexels_query: "family outdoor summer beach happy" },
+    { tema: "Botiquín de verano", keywords: ["picaduras", "diarrea viajero", "mareo"], pexels_query: "summer travel beach vacation wellness" },
+    { tema: "Hidratación en verano", keywords: ["sales minerales", "agua", "electrolitos"], pexels_query: "water hydration fresh summer healthy" },
+    { tema: "Cuidado del cabello en verano", keywords: ["cloro", "sal", "mascarillas capilares"], pexels_query: "hair care summer beach woman beauty" },
+    { tema: "Hongos y piscinas: prevención", keywords: ["pie de atleta", "antifúngicos"], pexels_query: "swimming pool summer wellness healthy" },
+  ],
+  7: [
+    { tema: "Viajes y salud: preparación completa", keywords: ["vacunas", "botiquín viaje", "jet lag"], pexels_query: "travel vacation adventure nature beautiful" },
+    { tema: "Golpes de calor: prevención y actuación", keywords: ["hidratación", "ancianos", "niños"], pexels_query: "summer cool water hydration refresh" },
+    { tema: "Cuidado de la piel tras el sol", keywords: ["after sun", "aloe vera", "hidratación"], pexels_query: "aloe vera skincare natural plant care" },
+    { tema: "Alimentación saludable en verano", keywords: ["frutas", "ensaladas", "digestiones"], pexels_query: "summer fruits salad healthy colorful" },
+    { tema: "Piernas ligeras en verano", keywords: ["retención líquidos", "calor", "circulación"], pexels_query: "legs wellness summer beach woman" },
+  ],
+  8: [
+    { tema: "Mantener la rutina saludable en vacaciones", keywords: ["ejercicio verano", "alimentación"], pexels_query: "vacation wellness healthy lifestyle outdoor" },
+    { tema: "Picaduras de insectos: prevención y tratamiento", keywords: ["mosquitos", "medusas", "repelentes"], pexels_query: "summer outdoor nature peaceful garden" },
+    { tema: "Preparar la vuelta al cole", keywords: ["vitaminas niños", "piojos", "revisiones"], pexels_query: "children happy school books backpack" },
+    { tema: "Recuperar la piel tras vacaciones", keywords: ["hidratación", "reparación", "manchas"], pexels_query: "skincare beauty spa facial treatment" },
+    { tema: "Retomar hábitos saludables post-vacaciones", keywords: ["rutinas", "alimentación", "ejercicio"], pexels_query: "morning routine healthy lifestyle wellness" },
+  ],
+  9: [
+    { tema: "Vuelta al cole saludable", keywords: ["vitaminas", "sistema inmune", "meriendas"], pexels_query: "school children happy backpack outdoor" },
+    { tema: "Estrés de la vuelta a la rutina", keywords: ["adaptógenos", "sueño", "ansiedad"], pexels_query: "calm relaxation nature peaceful morning" },
+    { tema: "Caída del cabello otoñal", keywords: ["biotina", "champús fortalecedores"], pexels_query: "hair beauty autumn woman natural" },
+    { tema: "Preparar las defensas para el otoño", keywords: ["propóleo", "equinácea", "vitamina C"], pexels_query: "autumn nature wellness healthy outdoor" },
+    { tema: "Cuidado de la piel tras el verano", keywords: ["reparación", "manchas", "hidratación"], pexels_query: "skincare beauty autumn woman face" },
+  ],
+  10: [
+    { tema: "Prevención de resfriados", keywords: ["vitamina C", "equinácea", "zinc"], pexels_query: "autumn cozy tea warm wellness" },
+    { tema: "Cambio de hora otoñal y sueño", keywords: ["melatonina", "ritmo circadiano", "descanso"], pexels_query: "cozy bedroom sleep autumn peaceful" },
+    { tema: "Cuidado de la piel en otoño", keywords: ["hidratación", "antioxidantes", "vitaminas"], pexels_query: "autumn beauty skincare woman nature" },
+    { tema: "Fortalecimiento del sistema inmune", keywords: ["defensas", "propóleo", "hongos medicinales"], pexels_query: "healthy food autumn vegetables nutrition" },
+    { tema: "Halloween y maquillaje seguro", keywords: ["desmaquillantes", "piel sensible", "alergias"], pexels_query: "makeup beauty creative woman face" },
+  ],
+  11: [
+    { tema: "Preparación para el invierno", keywords: ["vitaminas", "defensas", "nutrición"], pexels_query: "autumn winter transition nature cozy" },
+    { tema: "Día del hombre: cuidado masculino", keywords: ["afeitado", "cosmética masculina"], pexels_query: "man grooming wellness care handsome" },
+    { tema: "Alergia a ácaros en otoño", keywords: ["humedad", "purificadores", "antialérgicos"], pexels_query: "cozy home clean wellness living" },
+    { tema: "Black Friday: cuidado con las compras impulsivas", keywords: ["cosmética", "ofertas", "calidad"], pexels_query: "shopping beauty products wellness care" },
+    { tema: "Cuidado articular con el frío", keywords: ["colágeno", "glucosamina", "movilidad"], pexels_query: "walking nature autumn wellness outdoor" },
+  ],
+  12: [
+    { tema: "Cuidados de la piel en invierno", keywords: ["hidratación", "labios", "manos"], pexels_query: "winter skincare cozy woman beauty" },
+    { tema: "Navidad saludable: evitar excesos", keywords: ["digestión", "probióticos", "moderación"], pexels_query: "healthy food christmas festive nutrition" },
+    { tema: "Regalos de salud y bienestar", keywords: ["cosmética natural", "sets regalo", "bienestar"], pexels_query: "gift christmas wellness beauty care" },
+    { tema: "Sistema inmune en Navidades", keywords: ["vitaminas", "resfriados", "defensas"], pexels_query: "winter wellness cozy healthy indoor" },
+    { tema: "Fin de año: propósitos de salud", keywords: ["hábitos", "planificación", "bienestar"], pexels_query: "new year wellness healthy lifestyle" },
+  ],
+};
+
+// Función para obtener un tema aleatorio del mes
+function getRandomTopic(month: number, usedTopics: string[]): SeasonalTopic | null {
+  const monthTopics = SEASONAL_TOPICS[month] || SEASONAL_TOPICS[1];
+  const availableTopics = monthTopics.filter(t => !usedTopics.includes(t.tema));
+  
+  if (availableTopics.length === 0) {
+    // Si ya se usaron todos, seleccionar cualquiera aleatorio
+    return monthTopics[Math.floor(Math.random() * monthTopics.length)];
+  }
+  
+  return availableTopics[Math.floor(Math.random() * availableTopics.length)];
+}
+
 interface GenerationResult {
   farmaciaName: string;
   success: boolean;
@@ -111,10 +218,20 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate articles for each farmacia
     const results: GenerationResult[] = [];
     const generateArticleUrl = `${supabaseUrl}/functions/v1/generate-article`;
+    const usedTopics: string[] = [];
 
     for (let i = 0; i < farmaciasToProcess.length; i++) {
       const farmacia = farmaciasToProcess[i];
-      console.log(`[${i + 1}/${farmaciasToProcess.length}] Generating article for ${farmacia.name}`);
+      
+      // Seleccionar un tema aleatorio del mes que no se haya usado aún
+      const topic = getRandomTopic(currentMonth, usedTopics);
+      if (!topic) {
+        console.error(`No topic found for month ${currentMonth}`);
+        continue;
+      }
+      usedTopics.push(topic.tema);
+      
+      console.log(`[${i + 1}/${farmaciasToProcess.length}] Generating article for ${farmacia.name} - Topic: ${topic.tema}`);
 
       try {
         const response = await fetch(generateArticleUrl, {
@@ -130,6 +247,11 @@ const handler = async (req: Request): Promise<Response> => {
               location: farmacia.location,
               languages: farmacia.languages,
             },
+            topic: {
+              tema: topic.tema,
+              keywords: topic.keywords,
+              pexels_query: topic.pexels_query,
+            },
             month: currentMonth,
             year: currentYear,
           }),
@@ -140,8 +262,30 @@ const handler = async (req: Request): Promise<Response> => {
           throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
-        const result = await response.json();
-        console.log(`✓ Generated article for ${farmacia.name}: ${result.topic}`);
+        const generatedData = await response.json();
+        console.log(`✓ Generated article content for ${farmacia.name}`);
+        
+        // Guardar el artículo en la base de datos
+        const { error: insertError } = await supabase
+          .from("articulos")
+          .insert({
+            farmacia_id: farmacia.id,
+            month: currentMonth,
+            year: currentYear,
+            topic: topic.tema,
+            content_spanish: generatedData.content?.spanish || null,
+            content_catalan: generatedData.content?.catalan || null,
+            image_url: generatedData.image?.url || null,
+            image_photographer: generatedData.image?.photographer || null,
+            image_photographer_url: generatedData.image?.photographer_url || null,
+            pexels_query: generatedData.pexels_query || topic.pexels_query,
+          });
+
+        if (insertError) {
+          throw new Error(`Error saving article: ${insertError.message}`);
+        }
+
+        console.log(`✓ Saved article for ${farmacia.name}: ${topic.tema}`);
         
         results.push({
           farmaciaName: farmacia.name,
