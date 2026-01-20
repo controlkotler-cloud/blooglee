@@ -130,30 +130,13 @@ ${content.content}
           {/* Image with regenerate button */}
           {article.image_url && (
             <div className="space-y-2">
-              <div className="relative group">
+              <a href={article.image_url} target="_blank" rel="noopener noreferrer">
                 <img
                   src={article.image_url}
                   alt={content.title}
-                  className="w-full h-64 object-cover rounded-lg"
+                  className="w-full h-64 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                 />
-                {onRegenerateImage && (
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                    <Button 
-                      onClick={onRegenerateImage} 
-                      disabled={isRegeneratingImage}
-                      variant="secondary"
-                      size="sm"
-                    >
-                      {isRegeneratingImage ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <ImagePlus className="w-4 h-4 mr-2" />
-                      )}
-                      Cambiar imagen
-                    </Button>
-                  </div>
-                )}
-              </div>
+              </a>
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
                   Foto: <a href={article.image_photographer_url || "#"} target="_blank" rel="noopener noreferrer" className="underline">{article.image_photographer}</a> en Pexels
