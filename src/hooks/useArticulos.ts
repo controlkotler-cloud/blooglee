@@ -16,6 +16,7 @@ export interface Articulo {
   month: number;
   year: number;
   topic: string;
+  pexels_query: string | null;
   content_spanish: ArticleContent | null;
   content_catalan: ArticleContent | null;
   image_url: string | null;
@@ -37,7 +38,7 @@ interface GenerateArticleParams {
 
 interface RegenerateImageParams {
   articleId: string;
-  topic: string;
+  pexelsQuery: string;
   month: number;
   year: number;
 }
@@ -125,6 +126,7 @@ export function useGenerateArticle() {
         month: params.month,
         year: params.year,
         topic: params.topic.tema,
+        pexels_query: data.pexels_query || params.topic.pexels_query,
         content_spanish: data.content.spanish,
         content_catalan: data.content.catalan || null,
         image_url: data.image.url,
@@ -194,7 +196,7 @@ export function useRegenerateImage() {
 
   return useMutation({
     mutationFn: async (params: RegenerateImageParams) => {
-      console.log("Regenerating image for article:", params.articleId, "Topic:", params.topic);
+      console.log("Regenerating image for article:", params.articleId, "pexelsQuery:", params.pexelsQuery);
       
       // Obtener URLs de imágenes ya usadas para este mes/año
       const usedImageUrls = await getUsedImageUrls(params.month, params.year);
@@ -202,7 +204,7 @@ export function useRegenerateImage() {
       
       const { data, error } = await supabase.functions.invoke("regenerate-image", {
         body: {
-          topic: params.topic,
+          pexelsQuery: params.pexelsQuery,
           usedImageUrls,
         },
       });

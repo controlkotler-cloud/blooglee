@@ -1,0 +1,1 @@
+ALTER TABLE public.articulos ADD COLUMN pexels_query TEXT;

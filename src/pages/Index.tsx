@@ -344,9 +344,13 @@ export default function Index() {
           if (!previewArticle?.article) return;
           setRegeneratingImageId(previewArticle.article.id);
           try {
+            // Usar el pexels_query guardado, o fallback al topic del tema asignado
+            const pexelsQuery = previewArticle.article.pexels_query || 
+              getAssignedTopic(previewArticle.pharmacyIndex, selectedMonth, previewArticle.pharmacy.id).pexels_query;
+            
             const updatedArticle = await regenerateImage.mutateAsync({
               articleId: previewArticle.article.id,
-              topic: previewArticle.article.topic,
+              pexelsQuery,
               month: selectedMonth,
               year: selectedYear,
             });
