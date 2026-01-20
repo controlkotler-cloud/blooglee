@@ -2,13 +2,16 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Download, Globe, RefreshCw, Loader2, ImagePlus } from "lucide-react";
+import { Copy, Download, Globe, RefreshCw, Loader2, ImagePlus, Send } from "lucide-react";
 import { toast } from "sonner";
 import type { Articulo, ArticleContent } from "@/hooks/useArticulos";
+import { WordPressPublishDialog } from "./WordPressPublishDialog";
 
 interface ArticlePreviewProps {
   article: Articulo | null;
   pharmacyName: string;
+  farmaciaId: string;
+  hasWordPress: boolean;
   onClose: () => void;
   onRegenerate?: () => void;
   isRegenerating?: boolean;
@@ -18,7 +21,9 @@ interface ArticlePreviewProps {
 
 export function ArticlePreview({ 
   article, 
-  pharmacyName, 
+  pharmacyName,
+  farmaciaId,
+  hasWordPress,
   onClose, 
   onRegenerate, 
   isRegenerating,
@@ -26,6 +31,7 @@ export function ArticlePreview({
   isRegeneratingImage 
 }: ArticlePreviewProps) {
   const [language, setLanguage] = useState<"spanish" | "catalan">("spanish");
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
 
   if (!article) return null;
 
@@ -194,8 +200,25 @@ ${content.content}
                 Regenerar artículo
               </Button>
             )}
+            <Button 
+              onClick={() => setShowPublishDialog(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Publicar en WordPress
+            </Button>
           </div>
         </div>
+
+        {/* WordPress Publish Dialog */}
+        <WordPressPublishDialog
+          open={showPublishDialog}
+          onClose={() => setShowPublishDialog(false)}
+          article={article}
+          farmaciaId={farmaciaId}
+          pharmacyName={pharmacyName}
+          hasWordPress={hasWordPress}
+        />
       </DialogContent>
     </Dialog>
   );

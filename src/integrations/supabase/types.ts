@@ -94,6 +94,44 @@ export type Database = {
         }
         Relationships: []
       }
+      wordpress_sites: {
+        Row: {
+          created_at: string
+          farmacia_id: string
+          id: string
+          site_url: string
+          updated_at: string
+          wp_app_password: string
+          wp_username: string
+        }
+        Insert: {
+          created_at?: string
+          farmacia_id: string
+          id?: string
+          site_url: string
+          updated_at?: string
+          wp_app_password: string
+          wp_username: string
+        }
+        Update: {
+          created_at?: string
+          farmacia_id?: string
+          id?: string
+          site_url?: string
+          updated_at?: string
+          wp_app_password?: string
+          wp_username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wordpress_sites_farmacia_id_fkey"
+            columns: ["farmacia_id"]
+            isOneToOne: true
+            referencedRelation: "farmacias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
