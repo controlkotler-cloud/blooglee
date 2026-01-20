@@ -8,6 +8,7 @@ import { Loader2, Plus, Play, LayoutDashboard, Building2, Settings, LogOut } fro
 import { useAuth } from "@/hooks/useAuth";
 import { useFarmacias, useCreateFarmacia, useUpdateFarmacia, useDeleteFarmacia, type Farmacia } from "@/hooks/useFarmacias";
 import { useArticulos, useGenerateArticle, useRegenerateImage, getUsedImageUrls, type Articulo } from "@/hooks/useArticulos";
+import { useWordPressSites } from "@/hooks/useWordPressSites";
 import { getAssignedTopic, MONTH_NAMES } from "@/lib/seasonalTopics";
 import { Dashboard } from "@/components/pharmacy/Dashboard";
 import { PharmacyCard } from "@/components/pharmacy/PharmacyCard";
@@ -56,6 +57,9 @@ export default function Index() {
   const deleteFarmacia = useDeleteFarmacia();
   const generateArticle = useGenerateArticle();
   const regenerateImage = useRegenerateImage();
+  const { data: wpSites = [] } = useWordPressSites();
+
+  const hasWordPress = (pharmacyId: string) => wpSites.some(wp => wp.farmacia_id === pharmacyId);
 
   const getArticleForPharmacy = (pharmacyId: string) => {
     return articulos.find((a) => a.farmacia_id === pharmacyId) || null;
@@ -314,7 +318,8 @@ export default function Index() {
                       pharmacy={pharmacy} 
                       topic={getAssignedTopic(index, selectedMonth, pharmacy.id)} 
                       article={getArticleForPharmacy(pharmacy.id)} 
-                      isGenerating={generatingId === pharmacy.id} 
+                      isGenerating={generatingId === pharmacy.id}
+                      hasWordPress={hasWordPress(pharmacy.id)}
                       onGenerate={() => handleGenerateArticle(pharmacy, index)} 
                       onRegenerate={() => handleGenerateArticle(pharmacy, index)}
                       onPreview={() => { 
@@ -342,8 +347,10 @@ export default function Index() {
       <PharmacyForm open={!!editingPharmacy} onClose={() => setEditingPharmacy(null)} onSubmit={handleUpdateFarmacia} initialData={editingPharmacy} isLoading={updateFarmacia.isPending} />
       <ArticlePreview 
         article={previewArticle?.article || null} 
-        pharmacyName={previewArticle?.pharmacyName || ""} 
-        onClose={() => setPreviewArticle(null)} 
+        pharmacyName={previewArticle?.pharmacyName || ""}
+        farmaciaId={previewArticle?.pharmacy.id || ""}
+        hasWordPress={previewArticle ? hasWordPress(previewArticle.pharmacy.id) : false}
+        onClose={() => setPreviewArticle(null)}
         onRegenerate={previewArticle ? () => {
           handleGenerateArticle(previewArticle.pharmacy, previewArticle.pharmacyIndex);
           setPreviewArticle(null);

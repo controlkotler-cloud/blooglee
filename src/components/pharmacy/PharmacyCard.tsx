@@ -11,6 +11,7 @@ interface PharmacyCardProps {
   topic: SeasonalTopic;
   article: Articulo | null;
   isGenerating: boolean;
+  hasWordPress?: boolean;
   onGenerate: () => void;
   onPreview: () => void;
   onRegenerate: () => void;
@@ -23,6 +24,7 @@ export function PharmacyCard({
   topic,
   article,
   isGenerating,
+  hasWordPress,
   onGenerate,
   onPreview,
   onRegenerate,
@@ -43,6 +45,11 @@ export function PharmacyCard({
                 <Badge variant="outline" className="text-xs">
                   <Globe className="w-3 h-3 mr-1" />
                   ES/CA
+                </Badge>
+              )}
+              {hasWordPress && (
+                <Badge variant="outline" className="text-xs bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-300">
+                  WP
                 </Badge>
               )}
               {hasArticle && (

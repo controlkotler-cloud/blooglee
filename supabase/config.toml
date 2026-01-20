@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.generate-monthly-articles]
 verify_jwt = false
+
+[functions.upload-wordpress-media]
+verify_jwt = false
+
+[functions.publish-to-wordpress]
+verify_jwt = false
