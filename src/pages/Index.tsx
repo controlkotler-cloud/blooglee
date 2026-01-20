@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Plus, Play, LayoutDashboard, Building2, Settings } from "lucide-react";
 import { useFarmacias, useCreateFarmacia, useUpdateFarmacia, useDeleteFarmacia, type Farmacia } from "@/hooks/useFarmacias";
-import { useArticulos, useGenerateArticle, getUsedImageUrls, type Articulo } from "@/hooks/useArticulos";
+import { useArticulos, useGenerateArticle, useRegenerateImage, getUsedImageUrls, type Articulo } from "@/hooks/useArticulos";
 import { getAssignedTopic, MONTH_NAMES } from "@/lib/seasonalTopics";
 import { Dashboard } from "@/components/pharmacy/Dashboard";
 import { PharmacyCard } from "@/components/pharmacy/PharmacyCard";
@@ -40,6 +40,7 @@ export default function Index() {
   const [generatingAll, setGeneratingAll] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [currentRetry, setCurrentRetry] = useState(0);
+  const [regeneratingImageId, setRegeneratingImageId] = useState<string | null>(null);
 
   const { data: farmacias = [], isLoading: loadingFarmacias } = useFarmacias();
   const { data: articulos = [], isLoading: loadingArticulos } = useArticulos(selectedMonth, selectedYear);
@@ -48,6 +49,7 @@ export default function Index() {
   const updateFarmacia = useUpdateFarmacia();
   const deleteFarmacia = useDeleteFarmacia();
   const generateArticle = useGenerateArticle();
+  const regenerateImage = useRegenerateImage();
 
   const getArticleForPharmacy = (pharmacyId: string) => {
     return articulos.find((a) => a.farmacia_id === pharmacyId) || null;
@@ -338,6 +340,26 @@ export default function Index() {
           setPreviewArticle(null);
         } : undefined}
         isRegenerating={previewArticle ? generatingId === previewArticle.pharmacy.id : false}
+        onRegenerateImage={previewArticle?.article ? async () => {
+          if (!previewArticle?.article) return;
+          setRegeneratingImageId(previewArticle.article.id);
+          try {
+            const updatedArticle = await regenerateImage.mutateAsync({
+              articleId: previewArticle.article.id,
+              topic: previewArticle.article.topic,
+              month: selectedMonth,
+              year: selectedYear,
+            });
+            // Update the preview with the new image
+            setPreviewArticle(prev => prev ? {
+              ...prev,
+              article: updatedArticle
+            } : null);
+          } finally {
+            setRegeneratingImageId(null);
+          }
+        } : undefined}
+        isRegeneratingImage={previewArticle?.article ? regeneratingImageId === previewArticle.article.id : false}
       />
 
       <AlertDialog open={!!deletingPharmacy} onOpenChange={() => setDeletingPharmacy(null)}>

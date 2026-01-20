@@ -75,12 +75,9 @@ serve(async (req) => {
     console.log("Includes Catalan:", includesCatalan);
     console.log("Date context:", dateContext);
     console.log("Used image URLs count:", usedImageUrls.length);
-    
-    const languageInstructions = includesCatalan
-      ? `Genera DOS versiones del artículo: una en ESPAÑOL y otra en CATALÁN (no traducción, escribe nativamente en cada idioma).`
-      : `Genera el artículo en ESPAÑOL.`;
 
-    const systemPrompt = `Eres un redactor experto en contenido farmacéutico y SEO. Generas artículos de blog profesionales para farmacias.
+    // ========== PASO 1: Generar artículo en español ==========
+    const spanishSystemPrompt = `Eres un redactor experto en contenido farmacéutico y SEO. Generas artículos de blog profesionales para farmacias.
 
 REGLAS IMPORTANTES:
 - La fecha actual es ${dateContext.toUpperCase()}. TODAS las referencias temporales deben ser coherentes con esta fecha.
@@ -97,10 +94,9 @@ REGLAS IMPORTANTES:
 
 RESPONDE SIEMPRE EN JSON VÁLIDO.`;
 
-    const userPrompt = `FARMACIA: ${pharmacy.name}
+    const spanishUserPrompt = `FARMACIA: ${pharmacy.name}
 POBLACIÓN: ${pharmacy.location}
 FECHA DEL ARTÍCULO: ${dateContext} (usa esta fecha para cualquier referencia temporal)
-IDIOMAS REQUERIDOS: ${pharmacy.languages?.join(", ") || "spanish"}
 
 TEMA DEL ARTÍCULO: ${topic.tema}
 Keywords SEO: ${topic.keywords.join(", ")}
@@ -111,28 +107,18 @@ INSTRUCCIONES ESPECIALES:
 - Evita comenzar con "Guía de..." o "Guía para..." - usa títulos más creativos y variados.
 - Haz que el contenido sea único y específico para esta farmacia en particular.
 
-${languageInstructions}
-
-Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exacto:
+Genera el artículo completo EN ESPAÑOL. RESPONDE SOLO CON JSON VÁLIDO en este formato exacto:
 {
-  "spanish": {
-    "title": "Título H1 del artículo en español (creativo, no empieces con 'Guía')",
-    "meta_description": "Meta descripción de 150-160 caracteres",
-    "slug": "slug-url-amigable-sin-tildes",
-    "content": "<h2>Primera sección</h2><p>Contenido...</p><h2>Segunda sección</h2><p>Más contenido...</p>"
-  }${includesCatalan ? `,
-  "catalan": {
-    "title": "Títol H1 de l'article en català (creatiu, no comencis amb 'Guia')",
-    "meta_description": "Meta descripció de 150-160 caràcters",
-    "slug": "slug-url-amigable-sense-accents",
-    "content": "<h2>Primera secció</h2><p>Contingut...</p>"
-  }` : ""}
+  "title": "Título H1 del artículo en español (creativo, no empieces con 'Guía')",
+  "meta_description": "Meta descripción de 150-160 caracteres",
+  "slug": "slug-url-amigable-sin-tildes",
+  "content": "<h2>Primera sección</h2><p>Contenido...</p><h2>Segunda sección</h2><p>Más contenido...</p>"
 }`;
 
-    console.log("Generating article for:", pharmacy.name, "Topic:", topic.tema, "Languages:", pharmacy.languages?.join(", "), "Date:", dateContext);
+    console.log("Generating Spanish article for:", pharmacy.name, "Topic:", topic.tema, "Date:", dateContext);
 
-    // Generate article content using Lovable AI
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Generate Spanish article
+    const spanishResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -141,59 +127,147 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
+          { role: "system", content: spanishSystemPrompt },
+          { role: "user", content: spanishUserPrompt },
         ],
         max_tokens: 8000,
       }),
     });
 
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
+    if (!spanishResponse.ok) {
+      if (spanishResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (aiResponse.status === 402) {
+      if (spanishResponse.status === 402) {
         return new Response(JSON.stringify({ error: "Payment required. Please add credits to your workspace." }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
-      throw new Error(`AI gateway error: ${aiResponse.status}`);
+      const errorText = await spanishResponse.text();
+      console.error("AI gateway error (Spanish):", spanishResponse.status, errorText);
+      throw new Error(`AI gateway error: ${spanishResponse.status}`);
     }
 
-    const aiData = await aiResponse.json();
-    const aiContent = aiData.choices?.[0]?.message?.content;
+    const spanishData = await spanishResponse.json();
+    const spanishContent = spanishData.choices?.[0]?.message?.content;
     
-    if (!aiContent) {
-      throw new Error("No content received from AI");
+    if (!spanishContent) {
+      throw new Error("No Spanish content received from AI");
     }
 
-    console.log("AI response received, parsing JSON...");
+    console.log("Spanish AI response received, parsing JSON...");
 
-    // Parse the JSON from AI response
-    let articleContent;
+    // Parse Spanish JSON
+    let spanishArticle;
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+      const jsonMatch = spanishContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        articleContent = JSON.parse(jsonMatch[0]);
+        spanishArticle = JSON.parse(jsonMatch[0]);
       } else {
-        throw new Error("No JSON found in response");
+        throw new Error("No JSON found in Spanish response");
       }
     } catch (parseError) {
-      console.error("JSON parse error:", parseError, "Content:", aiContent.substring(0, 500));
-      throw new Error("Failed to parse AI response as JSON");
+      console.error("JSON parse error (Spanish):", parseError, "Content:", spanishContent.substring(0, 500));
+      throw new Error("Failed to parse Spanish AI response as JSON");
     }
 
-    console.log("Article content parsed. Has Catalan:", !!articleContent.catalan);
+    console.log("Spanish article parsed successfully. Title:", spanishArticle.title?.substring(0, 50));
 
-    // Search for image on Pexels with wellness-focused terms
-    // Combine topic query with random wellness query for variety
+    // ========== PASO 2: Generar versión en catalán (si es necesario) ==========
+    let catalanArticle = null;
+    
+    if (includesCatalan) {
+      console.log("Generating Catalan version from Spanish content...");
+      
+      const catalanSystemPrompt = `Ets un redactor professional NADIU de català. La teva tasca és redactar articles en un català correcte, natural i fluid.
+
+REGLES IMPORTANTS:
+- NO TRADUEIXIS literalment del castellà. REDACTA de nou en català com ho faria un parlant nadiu.
+- Utilitza vocabulari genuïnament català, evitant castellanismes.
+- Usa expressions i girs propis del català.
+- Mantén l'estructura i el contingut de l'article original, però adapta'l al català natural.
+- Ortografia i gramàtica catalana impecables (accent obert/tancat, ela geminada, etc.).
+- Meta descripció de 150-160 caràcters en català correcte.
+- Slug URL sense accents ni caràcters especials.
+
+EXEMPLES DE BON CATALÀ:
+- "desenvolupament" (no "desarrollo")
+- "assolir" (no "aconseguir" quan significa "lograr")
+- "arreu" (no "per tot arreu")
+- "malgrat" (no "a pesar de")
+- "enguany" (no "aquest any")
+- "també" / "tampoc" (mai amb accent gràfic en certes formes)
+
+RESPÓN SEMPRE EN JSON VÀLID.`;
+
+      const catalanUserPrompt = `A partir de l'article següent en castellà, redacta una versió en CATALÀ CORRECTE i NATURAL.
+
+ARTICLE ORIGINAL EN CASTELLÀ:
+Títol: ${spanishArticle.title}
+Meta descripció: ${spanishArticle.meta_description}
+Contingut: ${spanishArticle.content}
+
+FARMÀCIA: ${pharmacy.name}
+POBLACIÓ: ${pharmacy.location}
+DATA: ${dateContext}
+
+IMPORTANT: 
+- Redacta com un parlant nadiu de català, NO tradueixis literalment.
+- Adapta expressions, vocabulari i sintaxi al català natural.
+- Mantén les mencions a la farmàcia i la població.
+- Assegura't que totes les paraules estiguin correctament escrites en català.
+
+RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
+{
+  "title": "Títol H1 de l'article en català correcte",
+  "meta_description": "Meta descripció de 150-160 caràcters en català",
+  "slug": "slug-url-amigable-sense-accents",
+  "content": "<h2>Primera secció</h2><p>Contingut en català natural...</p>"
+}`;
+
+      const catalanResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: catalanSystemPrompt },
+            { role: "user", content: catalanUserPrompt },
+          ],
+          max_tokens: 8000,
+        }),
+      });
+
+      if (catalanResponse.ok) {
+        const catalanData = await catalanResponse.json();
+        const catalanContent = catalanData.choices?.[0]?.message?.content;
+        
+        if (catalanContent) {
+          try {
+            const jsonMatch = catalanContent.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              catalanArticle = JSON.parse(jsonMatch[0]);
+              console.log("Catalan article parsed successfully. Title:", catalanArticle.title?.substring(0, 50));
+            }
+          } catch (parseError) {
+            console.error("JSON parse error (Catalan):", parseError);
+            // Continue without Catalan if parsing fails
+          }
+        }
+      } else {
+        console.error("Catalan generation failed:", catalanResponse.status);
+        // Continue without Catalan if generation fails
+      }
+    }
+
+    // ========== PASO 3: Buscar imagen en Pexels ==========
     const randomWellnessQuery = WELLNESS_QUERIES[Math.floor(Math.random() * WELLNESS_QUERIES.length)];
     const baseQuery = topic.pexels_query.replace(/pharmacy|medicine|drug|pill|capsule|bottle/gi, "wellness");
     const enhancedQuery = `${baseQuery} ${randomWellnessQuery.split(" ").slice(0, 2).join(" ")}`;
@@ -208,7 +282,6 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
     };
 
     try {
-      // Request more photos to have better variety
       const pexelsResponse = await fetch(
         `https://api.pexels.com/v1/search?query=${encodeURIComponent(enhancedQuery)}&per_page=50&orientation=landscape`,
         { headers: { Authorization: PEXELS_API_KEY } }
@@ -217,35 +290,27 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
       if (pexelsResponse.ok) {
         const pexelsData = await pexelsResponse.json();
         if (pexelsData.photos && pexelsData.photos.length > 0) {
-          // Filter out already used images and inappropriate images
           const suitablePhotos = pexelsData.photos.filter((photo: { 
             avg_color: string; 
             src: { large: string };
             alt?: string;
           }) => {
-            // Exclude already used URLs
             if (usedImageUrls.includes(photo.src.large)) {
-              console.log("Excluding already used image:", photo.src.large.substring(0, 50));
               return false;
             }
             
-            // Check alt text for excluded terms
             const altText = (photo.alt || "").toLowerCase();
             if (EXCLUDED_TERMS.some(term => altText.includes(term))) {
-              console.log("Excluding image with pharmaceutical content:", photo.alt);
               return false;
             }
             
-            // Parse the average color to check if it's not too intense/saturated
             const avgColor = photo.avg_color;
             if (!avgColor) return true;
             
-            // Simple heuristic: prefer photos that aren't too dark or too saturated
             const r = parseInt(avgColor.slice(1, 3), 16);
             const g = parseInt(avgColor.slice(3, 5), 16);
             const b = parseInt(avgColor.slice(5, 7), 16);
             
-            // Avoid very dark or very saturated images
             const brightness = (r + g + b) / 3;
             const maxChannel = Math.max(r, g, b);
             const minChannel = Math.min(r, g, b);
@@ -257,7 +322,6 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
           console.log("Suitable photos after filtering:", suitablePhotos.length, "out of", pexelsData.photos.length);
           
           if (suitablePhotos.length > 0) {
-            // Select a random photo from the suitable ones (first 15 for quality)
             const randomIndex = Math.floor(Math.random() * Math.min(15, suitablePhotos.length));
             const selectedPhoto = suitablePhotos[randomIndex];
             
@@ -268,7 +332,6 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
             };
             console.log("Selected image from photographer:", selectedPhoto.photographer);
           } else {
-            // Try a fallback query if no suitable photos found
             console.log("No suitable photos, trying fallback query...");
             const fallbackQuery = "wellness nature botanical peaceful";
             const fallbackResponse = await fetch(
@@ -305,7 +368,10 @@ Genera el artículo completo. RESPONDE SOLO CON JSON VÁLIDO en este formato exa
 
     return new Response(
       JSON.stringify({
-        content: articleContent,
+        content: {
+          spanish: spanishArticle,
+          catalan: catalanArticle,
+        },
         image: imageData,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

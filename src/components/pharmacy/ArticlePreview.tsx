@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Download, Globe, RefreshCw, Loader2 } from "lucide-react";
+import { Copy, Download, Globe, RefreshCw, Loader2, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 import type { Articulo, ArticleContent } from "@/hooks/useArticulos";
 
@@ -12,9 +12,19 @@ interface ArticlePreviewProps {
   onClose: () => void;
   onRegenerate?: () => void;
   isRegenerating?: boolean;
+  onRegenerateImage?: () => void;
+  isRegeneratingImage?: boolean;
 }
 
-export function ArticlePreview({ article, pharmacyName, onClose, onRegenerate, isRegenerating }: ArticlePreviewProps) {
+export function ArticlePreview({ 
+  article, 
+  pharmacyName, 
+  onClose, 
+  onRegenerate, 
+  isRegenerating,
+  onRegenerateImage,
+  isRegeneratingImage 
+}: ArticlePreviewProps) {
   const [language, setLanguage] = useState<"spanish" | "catalan">("spanish");
 
   if (!article) return null;
@@ -117,17 +127,54 @@ ${content.content}
             </p>
           </div>
 
-          {/* Image */}
+          {/* Image with regenerate button */}
           {article.image_url && (
             <div className="space-y-2">
-              <img
-                src={article.image_url}
-                alt={content.title}
-                className="w-full h-64 object-cover rounded-lg"
-              />
-              <p className="text-xs text-muted-foreground">
-                Foto: <a href={article.image_photographer_url || "#"} target="_blank" rel="noopener noreferrer" className="underline">{article.image_photographer}</a> en Pexels
-              </p>
+              <div className="relative group">
+                <img
+                  src={article.image_url}
+                  alt={content.title}
+                  className="w-full h-64 object-cover rounded-lg"
+                />
+                {onRegenerateImage && (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                    <Button 
+                      onClick={onRegenerateImage} 
+                      disabled={isRegeneratingImage}
+                      variant="secondary"
+                      size="sm"
+                    >
+                      {isRegeneratingImage ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <ImagePlus className="w-4 h-4 mr-2" />
+                      )}
+                      Cambiar imagen
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  Foto: <a href={article.image_photographer_url || "#"} target="_blank" rel="noopener noreferrer" className="underline">{article.image_photographer}</a> en Pexels
+                </p>
+                {onRegenerateImage && (
+                  <Button 
+                    onClick={onRegenerateImage} 
+                    disabled={isRegeneratingImage}
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    {isRegeneratingImage ? (
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    ) : (
+                      <ImagePlus className="w-3 h-3 mr-1" />
+                    )}
+                    Cambiar
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 

@@ -35,6 +35,13 @@ interface GenerateArticleParams {
   usedImageUrls?: string[];
 }
 
+interface RegenerateImageParams {
+  articleId: string;
+  topic: string;
+  month: number;
+  year: number;
+}
+
 export function useArticulos(month: number, year: number) {
   return useQuery({
     queryKey: ["articulos", month, year],
@@ -174,6 +181,70 @@ export function useGenerateArticle() {
     },
     onError: (error) => {
       console.error("useGenerateArticle error:", error);
+      toast.error(`Error: ${error.message}`);
+    },
+  });
+}
+
+/**
+ * Hook para regenerar solo la imagen de un artículo existente
+ */
+export function useRegenerateImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: RegenerateImageParams) => {
+      console.log("Regenerating image for article:", params.articleId, "Topic:", params.topic);
+      
+      // Obtener URLs de imágenes ya usadas para este mes/año
+      const usedImageUrls = await getUsedImageUrls(params.month, params.year);
+      console.log("Excluding", usedImageUrls.length, "used image URLs");
+      
+      const { data, error } = await supabase.functions.invoke("regenerate-image", {
+        body: {
+          topic: params.topic,
+          usedImageUrls,
+        },
+      });
+
+      if (error) {
+        console.error("Edge function error:", error);
+        throw error;
+      }
+      
+      if (data.error) {
+        console.error("Image regeneration error:", data.error);
+        throw new Error(data.error);
+      }
+
+      console.log("New image received:", data.image?.url?.substring(0, 50));
+
+      // Update only image fields in the database
+      const { data: updatedArticle, error: updateError } = await supabase
+        .from("articulos")
+        .update({
+          image_url: data.image.url,
+          image_photographer: data.image.photographer,
+          image_photographer_url: data.image.photographer_url,
+        })
+        .eq("id", params.articleId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error("Database update error:", updateError);
+        throw new Error(`Error actualizando imagen: ${updateError.message}`);
+      }
+
+      console.log("Image updated successfully for article:", updatedArticle?.id);
+      return updatedArticle as unknown as Articulo;
+    },
+    onSuccess: (_, params) => {
+      queryClient.invalidateQueries({ queryKey: ["articulos", params.month, params.year] });
+      toast.success("Imagen actualizada correctamente");
+    },
+    onError: (error) => {
+      console.error("useRegenerateImage error:", error);
       toast.error(`Error: ${error.message}`);
     },
   });
