@@ -364,11 +364,17 @@ export default function Index() {
             const pexelsQuery = previewArticle.article.pexels_query || 
               getAssignedTopic(previewArticle.pharmacyIndex, selectedMonth, previewArticle.pharmacy.id).pexels_query;
             
+            // Obtener título y contenido del artículo para que la IA genere un query relevante
+            const articleTitle = previewArticle.article.content_spanish?.title || previewArticle.article.topic;
+            const articleContent = previewArticle.article.content_spanish?.content || "";
+            
             const updatedArticle = await regenerateImage.mutateAsync({
               articleId: previewArticle.article.id,
               pexelsQuery,
               month: selectedMonth,
               year: selectedYear,
+              articleTitle,
+              articleContent,
             });
             // Update the preview with the new image
             setPreviewArticle(prev => prev ? {

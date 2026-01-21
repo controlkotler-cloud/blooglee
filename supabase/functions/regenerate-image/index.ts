@@ -6,24 +6,21 @@ const corsHeaders = {
 };
 
 interface RequestBody {
-  pexelsQuery: string;  // Query específico del tema para búsquedas relevantes
+  pexelsQuery: string;
   usedImageUrls?: string[];
+  articleTitle?: string;
+  articleContent?: string;
 }
 
-// Queries genéricos de bienestar para diversificar imágenes en Unsplash
-const WELLNESS_QUERIES = [
-  "wellness nature peaceful",
-  "healthy lifestyle botanical",
-  "spa relaxation natural",
-  "meditation calm serene",
-  "botanical herbs plants",
-  "fresh healthy outdoor",
-  "natural beauty care",
-  "yoga relaxation peaceful",
-  "nature landscape peaceful",
-  "flowers garden beautiful",
-  "sunrise peaceful morning",
-  "ocean calm relaxation"
+// Fallback queries for when AI query generation fails
+const FALLBACK_QUERIES = [
+  "natural wellness beauty care",
+  "healthy lifestyle nature",
+  "botanical plants herbs natural",
+  "fresh fruits vegetables healthy",
+  "skincare cream beauty treatment",
+  "woman relaxation spa wellness",
+  "natural ingredients organic beauty"
 ];
 
 serve(async (req) => {
@@ -32,37 +29,117 @@ serve(async (req) => {
   }
 
   try {
-    const { pexelsQuery, usedImageUrls = [] }: RequestBody = await req.json();
+    const { pexelsQuery, usedImageUrls = [], articleTitle, articleContent }: RequestBody = await req.json();
     
     const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!UNSPLASH_ACCESS_KEY) {
       throw new Error("UNSPLASH_ACCESS_KEY is not configured");
     }
 
-    if (!pexelsQuery) {
-      throw new Error("pexelsQuery is required");
-    }
-
-    console.log("Regenerating image with query:", pexelsQuery);
+    console.log("Regenerating image for article:", articleTitle || "No title provided");
     console.log("Excluding URLs:", usedImageUrls.length, "images");
 
-    // Limpiar query de términos farmacéuticos
-    const cleanQuery = pexelsQuery
-      .replace(/pharmacy|medicine|drug|pill|capsule|bottle|pharmaceutical/gi, "")
-      .trim();
-    
-    const randomWellness = WELLNESS_QUERIES[Math.floor(Math.random() * WELLNESS_QUERIES.length)];
-    const enhancedQuery = `${cleanQuery} ${randomWellness.split(" ").slice(0, 2).join(" ")}`.trim();
-    
-    console.log("Searching Unsplash for:", enhancedQuery);
+    let searchQuery = FALLBACK_QUERIES[Math.floor(Math.random() * FALLBACK_QUERIES.length)];
+
+    // Si tenemos título y contenido del artículo, usar IA para generar query
+    if (LOVABLE_API_KEY && (articleTitle || articleContent)) {
+      console.log("Generating image search query with AI...");
+      
+      const cleanTextContent = articleContent
+        ?.replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .substring(0, 500) || '';
+
+      const imageQueryPrompt = `Analiza el siguiente artículo y genera UN ÚNICO query de búsqueda para encontrar una imagen de stock relevante en Unsplash.
+
+TÍTULO DEL ARTÍCULO: ${articleTitle || "Sin título"}
+EXTRACTO DEL CONTENIDO: ${cleanTextContent || "Sin contenido"}
+
+REGLAS ESTRICTAS para el query:
+1. Máximo 4-5 palabras en INGLÉS (Unsplash funciona mejor en inglés)
+2. PROHIBIDO TOTALMENTE incluir estas palabras: pharmacy, pharmacist, pharmacies, medicine, medicines, pills, pill, drugs, drug, doctor, doctors, hospital, medical, medications, medication, capsule, capsules, prescription, prescriptions, bottle, bottles, pharmaceutical, clinic, nurse, patient, healthcare, health care, treatment
+3. PROHIBIDO incluir nombres de marcas comerciales
+4. Busca conceptos VISUALES y NATURALES relacionados con el tema
+5. Enfócate en: ingredientes naturales, texturas, ambientes relajantes, elementos de la naturaleza, estilo de vida saludable, bienestar
+6. Piensa en imágenes bonitas y evocadoras, no clínicas ni médicas
+7. IMPORTANTE: Genera un query DIFERENTE al anterior para obtener variedad
+
+EJEMPLOS DE BUENOS QUERIES:
+- Para artículo de cosmética natural: "natural skincare cream woman face"
+- Para artículo de vitaminas: "fresh citrus fruits orange healthy"
+- Para artículo de cuidado capilar: "woman beautiful hair care natural"
+- Para artículo de hidratación: "woman drinking water healthy lifestyle"
+- Para artículo de protección solar: "woman beach sunlight summer skin"
+- Para artículo de defensas: "fresh vegetables fruits colorful healthy"
+
+EJEMPLOS DE MALOS QUERIES (NUNCA USES ESTOS):
+- "pharmacy medicine pills" ❌
+- "doctor patient consultation" ❌
+- "medical treatment hospital" ❌
+- "drug store pharmacist" ❌
+
+RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin puntuación final.`;
+
+      try {
+        const imageQueryResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "user", content: imageQueryPrompt },
+            ],
+            max_tokens: 50,
+          }),
+        });
+
+        if (imageQueryResponse.ok) {
+          const queryData = await imageQueryResponse.json();
+          const rawQuery = queryData.choices?.[0]?.message?.content?.trim();
+          
+          if (rawQuery && rawQuery.length > 5 && rawQuery.length < 100) {
+            // Limpiar cualquier término prohibido que se haya colado
+            const cleanedQuery = rawQuery
+              .toLowerCase()
+              .replace(/pharmacy|pharmacist|pharmacies|medicine|medicines|pills?|drugs?|doctor|doctors?|hospital|medical|medications?|capsules?|prescriptions?|bottles?|pharmaceutical|clinic|nurse|patient|healthcare|treatment/gi, "")
+              .replace(/\s+/g, " ")
+              .trim();
+            
+            if (cleanedQuery.length > 5) {
+              searchQuery = cleanedQuery;
+              console.log("AI generated image query:", searchQuery);
+            } else {
+              console.warn("AI query was cleaned to empty, using fallback");
+            }
+          } else {
+            console.warn("AI query response invalid, using fallback");
+          }
+        } else {
+          console.warn("Failed to generate AI image query, status:", imageQueryResponse.status);
+        }
+      } catch (queryError) {
+        console.error("Error generating AI image query:", queryError);
+      }
+    } else if (pexelsQuery) {
+      // Si no tenemos IA pero tenemos el query anterior, usarlo limpio
+      searchQuery = pexelsQuery
+        .replace(/pharmacy|pharmacist|medicine|pills?|drugs?|doctor|hospital|medical|medications?|capsules?|pharmaceutical/gi, "")
+        .trim() || searchQuery;
+    }
+
+    console.log("Searching Unsplash for:", searchQuery);
     
     let imageData = null;
 
     try {
-      // Primera búsqueda con el topic
+      // Primera búsqueda con el query de IA
       const unsplashResponse = await fetch(
-        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(enhancedQuery)}&per_page=30&orientation=landscape`,
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(searchQuery)}&per_page=30&orientation=landscape`,
         { 
           headers: { 
             Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` 
@@ -95,10 +172,10 @@ serve(async (req) => {
         }
       }
       
-      // Si no encontramos foto, intentar con query genérico
+      // Si no encontramos foto, intentar con query genérico de bienestar
       if (!imageData) {
         console.log("No suitable photos found, trying fallback query...");
-        const fallbackQuery = WELLNESS_QUERIES[Math.floor(Math.random() * WELLNESS_QUERIES.length)];
+        const fallbackQuery = FALLBACK_QUERIES[Math.floor(Math.random() * FALLBACK_QUERIES.length)];
         
         const fallbackResponse = await fetch(
           `https://api.unsplash.com/search/photos?query=${encodeURIComponent(fallbackQuery)}&per_page=20&orientation=landscape`,

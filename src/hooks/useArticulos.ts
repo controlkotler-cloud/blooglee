@@ -41,6 +41,8 @@ interface RegenerateImageParams {
   pexelsQuery: string;
   month: number;
   year: number;
+  articleTitle?: string;
+  articleContent?: string;
 }
 
 export function useArticulos(month: number, year: number) {
@@ -206,6 +208,8 @@ export function useRegenerateImage() {
         body: {
           pexelsQuery: params.pexelsQuery,
           usedImageUrls,
+          articleTitle: params.articleTitle,
+          articleContent: params.articleContent,
         },
       });
 
