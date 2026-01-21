@@ -10,23 +10,17 @@ interface RequestBody {
   usedImageUrls?: string[];
 }
 
-// Términos a excluir en búsquedas de Pexels para evitar productos farmacéuticos
-const EXCLUDED_TERMS = ["pill", "capsule", "medicine", "drug", "pharmaceutical", "bottle", "tablet", "prescription"];
-
-// Queries genéricos de bienestar para diversificar imágenes
+// Queries genéricos de bienestar para diversificar imágenes en Unsplash
 const WELLNESS_QUERIES = [
-  "wellness nature peaceful calm",
-  "healthy lifestyle botanical garden",
-  "spa relaxation natural beauty",
-  "meditation calm serene nature",
-  "botanical herbs plants natural",
-  "fresh healthy outdoor wellness",
-  "calm peaceful woman nature",
-  "natural beauty care wellness",
-  "healthy food nutrition colorful",
-  "yoga relaxation peaceful outdoor",
+  "wellness nature peaceful",
+  "healthy lifestyle botanical",
+  "spa relaxation natural",
+  "meditation calm serene",
+  "botanical herbs plants",
+  "fresh healthy outdoor",
+  "natural beauty care",
+  "yoga relaxation peaceful",
   "nature landscape peaceful",
-  "plants green botanical",
   "flowers garden beautiful",
   "sunrise peaceful morning",
   "ocean calm relaxation"
@@ -40,82 +34,63 @@ serve(async (req) => {
   try {
     const { pexelsQuery, usedImageUrls = [] }: RequestBody = await req.json();
     
-    const PEXELS_API_KEY = Deno.env.get("PEXELS_API_KEY");
+    const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
     
-    if (!PEXELS_API_KEY) {
-      throw new Error("PEXELS_API_KEY is not configured");
+    if (!UNSPLASH_ACCESS_KEY) {
+      throw new Error("UNSPLASH_ACCESS_KEY is not configured");
     }
 
     if (!pexelsQuery) {
       throw new Error("pexelsQuery is required");
     }
 
-    console.log("Regenerating image with pexelsQuery:", pexelsQuery);
+    console.log("Regenerating image with query:", pexelsQuery);
     console.log("Excluding URLs:", usedImageUrls.length, "images");
 
-    // Usar directamente el pexelsQuery específico del tema (ya está optimizado)
-    const cleanQuery = pexelsQuery.replace(/pharmacy|medicine|drug|pill|capsule|bottle/gi, "wellness");
-    const enhancedQuery = cleanQuery;
+    // Limpiar query de términos farmacéuticos
+    const cleanQuery = pexelsQuery
+      .replace(/pharmacy|medicine|drug|pill|capsule|bottle|pharmaceutical/gi, "")
+      .trim();
     
-    console.log("Searching Pexels for:", enhancedQuery);
+    const randomWellness = WELLNESS_QUERIES[Math.floor(Math.random() * WELLNESS_QUERIES.length)];
+    const enhancedQuery = `${cleanQuery} ${randomWellness.split(" ").slice(0, 2).join(" ")}`.trim();
+    
+    console.log("Searching Unsplash for:", enhancedQuery);
     
     let imageData = null;
 
     try {
       // Primera búsqueda con el topic
-      const pexelsResponse = await fetch(
-        `https://api.pexels.com/v1/search?query=${encodeURIComponent(enhancedQuery)}&per_page=80&orientation=landscape`,
-        { headers: { Authorization: PEXELS_API_KEY } }
+      const unsplashResponse = await fetch(
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(enhancedQuery)}&per_page=30&orientation=landscape`,
+        { 
+          headers: { 
+            Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` 
+          } 
+        }
       );
 
-      if (pexelsResponse.ok) {
-        const pexelsData = await pexelsResponse.json();
-        if (pexelsData.photos && pexelsData.photos.length > 0) {
-          const suitablePhotos = pexelsData.photos.filter((photo: { 
-            avg_color: string; 
-            src: { large: string };
-            alt?: string;
-          }) => {
-            // Excluir URLs ya usadas
-            if (usedImageUrls.includes(photo.src.large)) {
-              return false;
-            }
-            
-            // Revisar alt text para términos excluidos
-            const altText = (photo.alt || "").toLowerCase();
-            if (EXCLUDED_TERMS.some(term => altText.includes(term))) {
-              return false;
-            }
-            
-            // Filtrar por brillo y saturación
-            const avgColor = photo.avg_color;
-            if (!avgColor) return true;
-            
-            const r = parseInt(avgColor.slice(1, 3), 16);
-            const g = parseInt(avgColor.slice(3, 5), 16);
-            const b = parseInt(avgColor.slice(5, 7), 16);
-            
-            const brightness = (r + g + b) / 3;
-            const maxChannel = Math.max(r, g, b);
-            const minChannel = Math.min(r, g, b);
-            const saturation = maxChannel > 0 ? (maxChannel - minChannel) / maxChannel : 0;
-            
-            return brightness > 80 && brightness < 230 && saturation < 0.8;
-          });
+      if (unsplashResponse.ok) {
+        const unsplashData = await unsplashResponse.json();
+        if (unsplashData.results && unsplashData.results.length > 0) {
+          // Filtrar URLs ya usadas
+          const availablePhotos = unsplashData.results.filter(
+            (photo: { urls: { regular: string } }) => !usedImageUrls.includes(photo.urls.regular)
+          );
           
-          console.log("Suitable photos after filtering:", suitablePhotos.length, "out of", pexelsData.photos.length);
+          console.log("Available photos after filtering:", availablePhotos.length, "out of", unsplashData.results.length);
           
-          if (suitablePhotos.length > 0) {
-            // Seleccionar foto aleatoria de las primeras 20
-            const randomIndex = Math.floor(Math.random() * Math.min(20, suitablePhotos.length));
-            const selectedPhoto = suitablePhotos[randomIndex];
+          if (availablePhotos.length > 0) {
+            // Seleccionar foto aleatoria de las primeras 15
+            const randomIndex = Math.floor(Math.random() * Math.min(15, availablePhotos.length));
+            const selectedPhoto = availablePhotos[randomIndex];
             
             imageData = {
-              url: selectedPhoto.src.large,
-              photographer: selectedPhoto.photographer,
-              photographer_url: selectedPhoto.photographer_url,
+              url: selectedPhoto.urls.regular,
+              photographer: selectedPhoto.user.name,
+              photographer_url: selectedPhoto.user.links.html,
             };
-            console.log("Selected image from photographer:", selectedPhoto.photographer);
+            console.log("Selected image from photographer:", selectedPhoto.user.name);
           }
         }
       }
@@ -126,24 +101,28 @@ serve(async (req) => {
         const fallbackQuery = WELLNESS_QUERIES[Math.floor(Math.random() * WELLNESS_QUERIES.length)];
         
         const fallbackResponse = await fetch(
-          `https://api.pexels.com/v1/search?query=${encodeURIComponent(fallbackQuery)}&per_page=50&orientation=landscape`,
-          { headers: { Authorization: PEXELS_API_KEY } }
+          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(fallbackQuery)}&per_page=20&orientation=landscape`,
+          { 
+            headers: { 
+              Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` 
+            } 
+          }
         );
         
         if (fallbackResponse.ok) {
           const fallbackData = await fallbackResponse.json();
-          const fallbackPhotos = fallbackData.photos?.filter((p: { src: { large: string } }) => 
-            !usedImageUrls.includes(p.src.large)
+          const fallbackPhotos = fallbackData.results?.filter(
+            (p: { urls: { regular: string } }) => !usedImageUrls.includes(p.urls.regular)
           ) || [];
           
           if (fallbackPhotos.length > 0) {
-            const randomFallback = fallbackPhotos[Math.floor(Math.random() * Math.min(15, fallbackPhotos.length))];
+            const randomFallback = fallbackPhotos[Math.floor(Math.random() * Math.min(10, fallbackPhotos.length))];
             imageData = {
-              url: randomFallback.src.large,
-              photographer: randomFallback.photographer,
-              photographer_url: randomFallback.photographer_url,
+              url: randomFallback.urls.regular,
+              photographer: randomFallback.user.name,
+              photographer_url: randomFallback.user.links.html,
             };
-            console.log("Selected fallback image from photographer:", randomFallback.photographer);
+            console.log("Selected fallback image from photographer:", randomFallback.user.name);
           }
         }
       }
@@ -151,19 +130,19 @@ serve(async (req) => {
       // Fallback final si todo falla
       if (!imageData) {
         imageData = {
-          url: "https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg",
-          photographer: "Pexels",
-          photographer_url: "https://pexels.com",
+          url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200",
+          photographer: "Unsplash",
+          photographer_url: "https://unsplash.com",
         };
         console.log("Using default fallback image");
       }
 
-    } catch (pexelsError) {
-      console.error("Pexels error:", pexelsError);
+    } catch (unsplashError) {
+      console.error("Unsplash error:", unsplashError);
       imageData = {
-        url: "https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg",
-        photographer: "Pexels",
-        photographer_url: "https://pexels.com",
+        url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200",
+        photographer: "Unsplash",
+        photographer_url: "https://unsplash.com",
       };
     }
 

@@ -28,6 +28,7 @@ export interface PublishToWordPressInput {
   date?: string;
   image_url?: string;
   image_alt?: string;
+  meta_description?: string;
 }
 
 export interface PublishResult {
