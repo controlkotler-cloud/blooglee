@@ -25,18 +25,13 @@ interface RequestBody {
   usedImageUrls?: string[];
 }
 
-// Queries genéricos de bienestar para diversificar imágenes en Unsplash
-const WELLNESS_QUERIES = [
-  "wellness nature peaceful",
-  "healthy lifestyle botanical",
-  "spa relaxation natural",
-  "meditation calm serene",
-  "botanical herbs plants",
-  "fresh healthy outdoor",
-  "natural beauty care",
-  "yoga relaxation peaceful",
-  "nature landscape peaceful",
-  "flowers garden beautiful"
+// Fallback queries for when AI query generation fails
+const FALLBACK_QUERIES = [
+  "natural wellness beauty care",
+  "healthy lifestyle nature",
+  "botanical plants herbs natural",
+  "fresh fruits vegetables healthy",
+  "skincare cream beauty treatment"
 ];
 
 serve(async (req) => {
@@ -272,15 +267,93 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
       }
     }
 
-    // ========== PASO 3: Buscar imagen en Unsplash ==========
-    const randomWellnessQuery = WELLNESS_QUERIES[Math.floor(Math.random() * WELLNESS_QUERIES.length)];
-    // Limpiar el query de términos farmacéuticos
-    const baseQuery = topic.pexels_query
-      .replace(/pharmacy|medicine|drug|pill|capsule|bottle|pharmaceutical/gi, "")
-      .trim();
-    const enhancedQuery = `${baseQuery} ${randomWellnessQuery.split(" ").slice(0, 2).join(" ")}`.trim();
+    // ========== PASO 2.5: Generar query de imagen con IA ==========
+    console.log("Generating image search query with AI...");
     
-    console.log("Searching Unsplash for:", enhancedQuery);
+    // Extraer texto limpio del contenido HTML para el análisis
+    const cleanTextContent = spanishArticle.content
+      ?.replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .substring(0, 800) || '';
+
+    const imageQueryPrompt = `Analiza el siguiente artículo y genera UN ÚNICO query de búsqueda para encontrar una imagen de stock relevante en Unsplash.
+
+TÍTULO DEL ARTÍCULO: ${spanishArticle.title}
+TEMA PRINCIPAL: ${topic.tema}
+EXTRACTO DEL CONTENIDO: ${cleanTextContent.substring(0, 500)}
+
+REGLAS ESTRICTAS para el query:
+1. Máximo 4-5 palabras en INGLÉS (Unsplash funciona mejor en inglés)
+2. PROHIBIDO TOTALMENTE incluir estas palabras: pharmacy, pharmacist, pharmacies, medicine, medicines, pills, pill, drugs, drug, doctor, doctors, hospital, medical, medications, medication, capsule, capsules, prescription, prescriptions, bottle, bottles, pharmaceutical, clinic, nurse, patient, healthcare, health care, treatment
+3. PROHIBIDO incluir nombres de marcas comerciales
+4. Busca conceptos VISUALES y NATURALES relacionados con el tema
+5. Enfócate en: ingredientes naturales, texturas, ambientes relajantes, elementos de la naturaleza, estilo de vida saludable, bienestar
+6. Piensa en imágenes bonitas y evocadoras, no clínicas ni médicas
+
+EJEMPLOS DE BUENOS QUERIES:
+- Para artículo de cosmética natural: "natural skincare cream woman face"
+- Para artículo de vitaminas: "fresh citrus fruits orange healthy"
+- Para artículo de cuidado capilar: "woman beautiful hair care natural"
+- Para artículo de hidratación: "woman drinking water healthy lifestyle"
+- Para artículo de protección solar: "woman beach sunlight summer skin"
+- Para artículo de defensas: "fresh vegetables fruits colorful healthy"
+
+EJEMPLOS DE MALOS QUERIES (NUNCA USES ESTOS):
+- "pharmacy medicine pills" ❌
+- "doctor patient consultation" ❌
+- "medical treatment hospital" ❌
+- "drug store pharmacist" ❌
+
+RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin puntuación final.`;
+
+    let aiGeneratedQuery = FALLBACK_QUERIES[Math.floor(Math.random() * FALLBACK_QUERIES.length)];
+
+    try {
+      const imageQueryResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "user", content: imageQueryPrompt },
+          ],
+          max_tokens: 50,
+        }),
+      });
+
+      if (imageQueryResponse.ok) {
+        const queryData = await imageQueryResponse.json();
+        const rawQuery = queryData.choices?.[0]?.message?.content?.trim();
+        
+        if (rawQuery && rawQuery.length > 5 && rawQuery.length < 100) {
+          // Limpiar cualquier término prohibido que se haya colado (doble seguridad)
+          const cleanedQuery = rawQuery
+            .toLowerCase()
+            .replace(/pharmacy|pharmacist|pharmacies|medicine|medicines|pills?|drugs?|doctor|doctors?|hospital|medical|medications?|capsules?|prescriptions?|bottles?|pharmaceutical|clinic|nurse|patient|healthcare|treatment/gi, "")
+            .replace(/\s+/g, " ")
+            .trim();
+          
+          if (cleanedQuery.length > 5) {
+            aiGeneratedQuery = cleanedQuery;
+            console.log("AI generated image query:", aiGeneratedQuery);
+          } else {
+            console.warn("AI query was cleaned to empty, using fallback");
+          }
+        } else {
+          console.warn("AI query response invalid, using fallback. Raw:", rawQuery);
+        }
+      } else {
+        console.warn("Failed to generate AI image query, status:", imageQueryResponse.status);
+      }
+    } catch (queryError) {
+      console.error("Error generating AI image query:", queryError);
+    }
+
+    // ========== PASO 3: Buscar imagen en Unsplash con query generado por IA ==========
+    console.log("Searching Unsplash with AI-generated query:", aiGeneratedQuery);
     console.log("Excluding URLs:", usedImageUrls.length, "images");
     
     let imageData = {
@@ -291,7 +364,7 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
 
     try {
       const unsplashResponse = await fetch(
-        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(enhancedQuery)}&per_page=30&orientation=landscape`,
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(aiGeneratedQuery)}&per_page=30&orientation=landscape`,
         { 
           headers: { 
             Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` 
@@ -320,9 +393,9 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
             };
             console.log("Selected Unsplash image from photographer:", selectedPhoto.user.name);
           } else {
-            console.log("No available photos, trying fallback query...");
-            // Fallback con query genérico
-            const fallbackQuery = "wellness nature health botanical";
+            console.log("No available photos with AI query, trying fallback...");
+            // Fallback con query genérico de bienestar
+            const fallbackQuery = "natural wellness beauty botanical healthy";
             const fallbackResponse = await fetch(
               `https://api.unsplash.com/search/photos?query=${encodeURIComponent(fallbackQuery)}&per_page=20&orientation=landscape`,
               { 
@@ -366,7 +439,7 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
           catalan: catalanArticle,
         },
         image: imageData,
-        pexels_query: topic.pexels_query, // Mantener para compatibilidad
+        pexels_query: aiGeneratedQuery, // Ahora contiene el query generado por IA
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
