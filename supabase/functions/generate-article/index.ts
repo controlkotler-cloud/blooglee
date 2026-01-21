@@ -203,13 +203,32 @@ REGLES IMPORTANTS:
 - Meta descripció de 150-160 caràcters en català correcte.
 - Slug URL sense accents ni caràcters especials.
 
+TRADUCCIONS OBLIGATÒRIES - MAI USAR PARAULES CASTELLANES AL TÍTOL:
+- "vence" / "vencer" → "venç" / "vèncer" (AMB ACCENT!) o millor "supera" / "derrota" / "guanya"
+- "consigue" / "conseguir" → "aconsegueix" / "aconseguir" o "obté" / "obtenir"  
+- "gripe" → "grip" (correcte, però vigila la resta del títol!)
+- "combate" / "combatir" → "combat" / "combatre" o "lluita contra"
+- "protege" / "proteger" → "protegeix" / "protegir"
+- "alcanza" / "alcanzar" → "assoleix" / "assolir" o "arriba a"
+- "refuerza" / "reforzar" → "reforça" / "reforçar"
+- "cuida" → "cuida" (igual en català)
+- "mejora" / "mejorar" → "millora" / "millorar"
+
+EXEMPLES DE TÍTOLS CORRECTES EN CATALÀ:
+- "Supera la grip: reforça les teves defenses" ✓
+- "Protegeix la pell del fred aquest hivern" ✓
+- "Combat el cansament amb vitamines naturals" ✓
+
+EXEMPLES DE TÍTOLS INCORRECTES (BARREJA CASTELLÀ-CATALÀ):
+- "Vence la grip: com reforçar el sistema immunitari" ✗ (VENCE és castellà!)
+- "Consigue una piel radiante" ✗ (CONSIGUE és castellà!)
+
 EXEMPLES DE BON CATALÀ:
 - "desenvolupament" (no "desarrollo")
 - "assolir" (no "aconseguir" quan significa "lograr")
 - "arreu" (no "per tot arreu")
 - "malgrat" (no "a pesar de")
 - "enguany" (no "aquest any")
-- "també" / "tampoc" (mai amb accent gràfic en certes formes)
 
 RESPÓN SEMPRE EN JSON VÀLID.`;
 
@@ -229,11 +248,12 @@ IMPORTANT:
 - Adapta expressions, vocabulari i sintaxi al català natural.
 - Mantén les mencions a la farmàcia i la població EN EL CONTINGUT (1-2 vegades).
 - El TÍTOL ha de ser curt (màx 60 caràcters) i SENSE nom de farmàcia ni població.
+- VERIFICA que el TÍTOL NO contingui cap paraula castellana (vence, consigue, combate, protege, etc.).
 - Assegura't que totes les paraules estiguin correctament escrites en català.
 
 RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
 {
-  "title": "Títol H1 curt i atractiu (màx 60 caràcters, sense farmàcia ni població)",
+  "title": "Títol H1 curt i atractiu en CATALÀ PUR (màx 60 caràcters, sense farmàcia ni població)",
   "meta_description": "Meta descripció de 150-160 caràcters en català",
   "slug": "slug-url-amigable-sense-accents",
   "content": "<h2>Primera secció</h2><p>Contingut en català natural...</p>"
@@ -265,6 +285,36 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
             if (jsonMatch) {
               catalanArticle = JSON.parse(jsonMatch[0]);
               console.log("Catalan article parsed successfully. Title:", catalanArticle.title?.substring(0, 50));
+              
+              // Validar que el título no contenga palabras españolas comunes
+              if (catalanArticle?.title) {
+                const spanishWordsInTitle = ["vence", "consigue", "alcanza", "combate", "protege", "mejora", "cuida tu", "descubre", "aprende"];
+                const titleLower = catalanArticle.title.toLowerCase();
+                const hasSpanishWord = spanishWordsInTitle.some(w => titleLower.includes(w));
+                
+                if (hasSpanishWord) {
+                  console.warn("Catalan title contains Spanish words, applying fix...");
+                  // Corrección automática de palabras españolas comunes en el título
+                  let fixedTitle = catalanArticle.title
+                    .replace(/\bVence\b/gi, "Venç")
+                    .replace(/\bvence\b/gi, "venç")
+                    .replace(/\bConsigue\b/gi, "Aconsegueix")
+                    .replace(/\bconsigue\b/gi, "aconsegueix")
+                    .replace(/\bCombate\b/gi, "Combat")
+                    .replace(/\bcombate\b/gi, "combat")
+                    .replace(/\bProtege\b/gi, "Protegeix")
+                    .replace(/\bprotege\b/gi, "protegeix")
+                    .replace(/\bMejora\b/gi, "Millora")
+                    .replace(/\bmejora\b/gi, "millora")
+                    .replace(/\bDescubre\b/gi, "Descobreix")
+                    .replace(/\bdescubre\b/gi, "descobreix")
+                    .replace(/\bAprende\b/gi, "Aprèn")
+                    .replace(/\baprende\b/gi, "aprèn");
+                  
+                  catalanArticle.title = fixedTitle;
+                  console.log("Fixed Catalan title:", fixedTitle);
+                }
+              }
             }
           } catch (parseError) {
             console.error("JSON parse error (Catalan):", parseError);
