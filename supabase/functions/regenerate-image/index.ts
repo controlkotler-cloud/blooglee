@@ -23,14 +23,14 @@ const FALLBACK_QUERIES = [
   "natural ingredients organic beauty"
 ];
 
-// Fallback images when Unsplash search fails (NO yoga images)
+// Fallback images when Unsplash search fails - INGREDIENTS/TEXTURES ONLY, NO BRANDED PACKAGING
 const FALLBACK_IMAGES = [
-  { url: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=1200", photographer: "Christin Hume", photographer_url: "https://unsplash.com/@christinhumephoto" }, // skincare routine
-  { url: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=1200", photographer: "Jess Bailey", photographer_url: "https://unsplash.com/@jessbaileydesigns" }, // natural cosmetics
-  { url: "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=1200", photographer: "Katherine Hanlon", photographer_url: "https://unsplash.com/@tinymountain" }, // botanical beauty
-  { url: "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=1200", photographer: "Lena Taranenko", photographer_url: "https://unsplash.com/@lena_taranenko" }, // spa wellness
-  { url: "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=1200", photographer: "Content Pixie", photographer_url: "https://unsplash.com/@contentpixie" }, // skincare products
-  { url: "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=1200", photographer: "Towfiqu Barbhuiya", photographer_url: "https://unsplash.com/@towfiqu999999" }, // natural ingredients
+  { url: "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=1200", photographer: "Chelsea shapouri", photographer_url: "https://unsplash.com/@theamomento" }, // Essential oils close-up
+  { url: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200", photographer: "Anna Pelzer", photographer_url: "https://unsplash.com/@annapelzer" }, // Fresh vegetables colorful
+  { url: "https://images.unsplash.com/photo-1519824145371-296894a0daa9?w=1200", photographer: "Conscious Design", photographer_url: "https://unsplash.com/@conscious_design" }, // Spa stones bamboo
+  { url: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200", photographer: "Ale Sat", photographer_url: "https://unsplash.com/@alexsat" }, // Spa candles towels
+  { url: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=1200", photographer: "Daiga Ellaby", photographer_url: "https://unsplash.com/@daiga_ellaby" }, // Lavender natural
+  { url: "https://images.unsplash.com/photo-1556760544-74068565f05c?w=1200", photographer: "Amplitude Magazin", photographer_url: "https://unsplash.com/@amplitudemagazin" }, // Cream texture macro
 ];
 
 serve(async (req) => {
@@ -69,26 +69,26 @@ EXTRACTO DEL CONTENIDO: ${cleanTextContent || "Sin contenido"}
 
 REGLAS ESTRICTAS para el query:
 1. Máximo 4-5 palabras en INGLÉS (Unsplash funciona mejor en inglés)
-2. PROHIBIDO TOTALMENTE incluir estas palabras: pharmacy, pharmacist, pharmacies, medicine, medicines, pills, pill, drugs, drug, doctor, doctors, hospital, medical, medications, medication, capsule, capsules, prescription, prescriptions, bottle, bottles, pharmaceutical, clinic, nurse, patient, healthcare, health care, treatment
+2. PROHIBIDO TOTALMENTE incluir estas palabras: pharmacy, pharmacist, pharmacies, medicine, medicines, pills, pill, drugs, drug, doctor, doctors, hospital, medical, medications, medication, capsule, capsules, prescription, prescriptions, bottle, bottles, pharmaceutical, clinic, nurse, patient, healthcare, health care, treatment, product, container, packaging, jar, tube, cosmetic product
 3. PROHIBIDO incluir nombres de marcas comerciales
-4. Busca conceptos VISUALES y NATURALES relacionados con el tema
-5. Enfócate en: ingredientes naturales, texturas, ambientes relajantes, elementos de la naturaleza, estilo de vida saludable, bienestar
-6. Piensa en imágenes bonitas y evocadoras, no clínicas ni médicas
+4. PROHIBIDO buscar imágenes de PRODUCTOS o ENVASES - busca INGREDIENTES, TEXTURAS o PERSONAS
+5. Enfócate en: ingredientes naturales (aceites, plantas, frutas), texturas de crema/serum sin envase, manos aplicando producto, rostros de personas, paisajes de bienestar
+6. Prioriza conceptos abstractos y naturales: gotas de agua, pétalos, hojas, manos, piel, rostro
 7. IMPORTANTE: Genera un query DIFERENTE al anterior para obtener variedad
 
-EJEMPLOS DE BUENOS QUERIES:
-- Para artículo de cosmética natural: "natural skincare cream woman face"
-- Para artículo de vitaminas: "fresh citrus fruits orange healthy"
-- Para artículo de cuidado capilar: "woman beautiful hair care natural"
-- Para artículo de hidratación: "woman drinking water healthy lifestyle"
-- Para artículo de protección solar: "woman beach sunlight summer skin"
-- Para artículo de defensas: "fresh vegetables fruits colorful healthy"
+EJEMPLOS DE BUENOS QUERIES (SIN PRODUCTOS):
+- Para cosmética natural: "woman hands applying cream skin closeup" (manos, no envase)
+- Para vitaminas: "fresh citrus fruits orange slices colorful"
+- Para cuidado capilar: "woman beautiful shiny hair natural light"
+- Para hidratación: "water droplets clear skin woman face"
+- Para protección solar: "woman face sunlight golden hour smile"
+- Para skincare: "rose petals natural oils texture macro"
 
 EJEMPLOS DE MALOS QUERIES (NUNCA USES ESTOS):
-- "pharmacy medicine pills" ❌
-- "doctor patient consultation" ❌
-- "medical treatment hospital" ❌
-- "drug store pharmacist" ❌
+- "skincare products bottles" ❌ (muestra envases)
+- "cosmetic cream jar" ❌ (muestra packaging)
+- "beauty products display" ❌ (muestra productos)
+- "serum bottle dropper" ❌ (muestra envase)
 
 RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin puntuación final.`;
 
