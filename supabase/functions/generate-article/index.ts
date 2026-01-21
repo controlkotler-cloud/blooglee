@@ -25,21 +25,18 @@ interface RequestBody {
   usedImageUrls?: string[];
 }
 
-// Términos a excluir en búsquedas de Pexels para evitar productos farmacéuticos
-const EXCLUDED_TERMS = ["pill", "capsule", "medicine", "drug", "pharmaceutical", "bottle", "tablet", "prescription"];
-
-// Queries genéricos de bienestar para diversificar imágenes
+// Queries genéricos de bienestar para diversificar imágenes en Unsplash
 const WELLNESS_QUERIES = [
-  "wellness nature peaceful calm",
-  "healthy lifestyle botanical garden",
-  "spa relaxation natural beauty",
-  "meditation calm serene nature",
-  "botanical herbs plants natural",
-  "fresh healthy outdoor wellness",
-  "calm peaceful woman nature",
-  "natural beauty care wellness",
-  "healthy food nutrition colorful",
-  "yoga relaxation peaceful outdoor"
+  "wellness nature peaceful",
+  "healthy lifestyle botanical",
+  "spa relaxation natural",
+  "meditation calm serene",
+  "botanical herbs plants",
+  "fresh healthy outdoor",
+  "natural beauty care",
+  "yoga relaxation peaceful",
+  "nature landscape peaceful",
+  "flowers garden beautiful"
 ];
 
 serve(async (req) => {
@@ -51,13 +48,13 @@ serve(async (req) => {
     const { pharmacy, topic, month, year, usedImageUrls = [] }: RequestBody = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const PEXELS_API_KEY = Deno.env.get("PEXELS_API_KEY");
+    const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
-    if (!PEXELS_API_KEY) {
-      throw new Error("PEXELS_API_KEY is not configured");
+    if (!UNSPLASH_ACCESS_KEY) {
+      throw new Error("UNSPLASH_ACCESS_KEY is not configured");
     }
 
     // Obtener fecha real para el prompt
@@ -82,11 +79,12 @@ serve(async (req) => {
 REGLAS IMPORTANTES:
 - La fecha actual es ${dateContext.toUpperCase()}. TODAS las referencias temporales deben ser coherentes con esta fecha.
 - Genera contenido de ~2000 palabras
-- Incluye título H1 atractivo con keyword principal y ubicación
+- TÍTULO H1: Máximo 60 caracteres, atractivo, con keyword principal. NUNCA incluyas el nombre de la farmacia, la población, ni palabras como "Cierzo", "Guía de", etc.
 - Meta descripción de 150-160 caracteres
 - Slug URL amigable sin tildes ni caracteres especiales
 - Estructura: introducción + 4-5 secciones H2 + conclusión con CTA
-- Menciona la farmacia 2-3 veces y la población 2-3 veces
+- Menciona la farmacia 1-2 veces en el CONTENIDO (nunca en el título)
+- Menciona la población 1-2 veces en el contenido cuando sea natural
 - Tono profesional pero cercano
 - El contenido debe estar en formato HTML con tags <h2>, <p>, <ul>, <li>
 - IMPORTANTE: Personaliza el contenido según la ubicación geográfica de la farmacia. Incluye referencias locales, clima de la zona, y particularidades regionales.
@@ -104,12 +102,17 @@ Keywords SEO: ${topic.keywords.join(", ")}
 INSTRUCCIONES ESPECIALES:
 - El artículo debe ser para ${dateContext}, asegúrate de que todas las referencias temporales sean correctas.
 - Personaliza el contenido para ${pharmacy.location}: menciona características locales, clima de la zona, costumbres regionales si aplica.
-- Evita comenzar con "Guía de..." o "Guía para..." - usa títulos más creativos y variados.
-- Haz que el contenido sea único y específico para esta farmacia en particular.
+
+REGLAS CRÍTICAS PARA EL TÍTULO:
+- MÁXIMO 60 caracteres
+- NUNCA incluyas: nombre de farmacia, población, "Guía de...", "Cierzo", ni referencias geográficas específicas
+- Debe ser atractivo y directo al tema
+- Ejemplos BUENOS: "Protege tu piel del frío este invierno", "Vitaminas esenciales para el sistema inmune", "Cuidado capilar: Frena la caída estacional"
+- Ejemplos MALOS: "Guía de Farmacia X en Ciudad Y para...", "El Cierzo y tu piel: cómo protegerte en Zaragoza"
 
 Genera el artículo completo EN ESPAÑOL. RESPONDE SOLO CON JSON VÁLIDO en este formato exacto:
 {
-  "title": "Título H1 del artículo en español (creativo, no empieces con 'Guía')",
+  "title": "Título H1 corto y atractivo (máx 60 caracteres, sin farmacia ni población)",
   "meta_description": "Meta descripción de 150-160 caracteres",
   "slug": "slug-url-amigable-sin-tildes",
   "content": "<h2>Primera sección</h2><p>Contenido...</p><h2>Segunda sección</h2><p>Más contenido...</p>"
@@ -191,6 +194,7 @@ REGLES IMPORTANTS:
 - Usa expressions i girs propis del català.
 - Mantén l'estructura i el contingut de l'article original, però adapta'l al català natural.
 - Ortografia i gramàtica catalana impecables (accent obert/tancat, ela geminada, etc.).
+- TÍTOL: Màxim 60 caràcters, atractiu, SENSE nom de farmàcia ni població.
 - Meta descripció de 150-160 caràcters en català correcte.
 - Slug URL sense accents ni caràcters especials.
 
@@ -218,12 +222,13 @@ DATA: ${dateContext}
 IMPORTANT: 
 - Redacta com un parlant nadiu de català, NO tradueixis literalment.
 - Adapta expressions, vocabulari i sintaxi al català natural.
-- Mantén les mencions a la farmàcia i la població.
+- Mantén les mencions a la farmàcia i la població EN EL CONTINGUT (1-2 vegades).
+- El TÍTOL ha de ser curt (màx 60 caràcters) i SENSE nom de farmàcia ni població.
 - Assegura't que totes les paraules estiguin correctament escrites en català.
 
 RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
 {
-  "title": "Títol H1 de l'article en català correcte",
+  "title": "Títol H1 curt i atractiu (màx 60 caràcters, sense farmàcia ni població)",
   "meta_description": "Meta descripció de 150-160 caràcters en català",
   "slug": "slug-url-amigable-sense-accents",
   "content": "<h2>Primera secció</h2><p>Contingut en català natural...</p>"
@@ -267,101 +272,89 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
       }
     }
 
-    // ========== PASO 3: Buscar imagen en Pexels ==========
+    // ========== PASO 3: Buscar imagen en Unsplash ==========
     const randomWellnessQuery = WELLNESS_QUERIES[Math.floor(Math.random() * WELLNESS_QUERIES.length)];
-    const baseQuery = topic.pexels_query.replace(/pharmacy|medicine|drug|pill|capsule|bottle/gi, "wellness");
-    const enhancedQuery = `${baseQuery} ${randomWellnessQuery.split(" ").slice(0, 2).join(" ")}`;
+    // Limpiar el query de términos farmacéuticos
+    const baseQuery = topic.pexels_query
+      .replace(/pharmacy|medicine|drug|pill|capsule|bottle|pharmaceutical/gi, "")
+      .trim();
+    const enhancedQuery = `${baseQuery} ${randomWellnessQuery.split(" ").slice(0, 2).join(" ")}`.trim();
     
-    console.log("Searching Pexels for:", enhancedQuery);
+    console.log("Searching Unsplash for:", enhancedQuery);
     console.log("Excluding URLs:", usedImageUrls.length, "images");
     
     let imageData = {
-      url: "https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg",
-      photographer: "Pexels",
-      photographer_url: "https://pexels.com",
+      url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200",
+      photographer: "Unsplash",
+      photographer_url: "https://unsplash.com",
     };
 
     try {
-      const pexelsResponse = await fetch(
-        `https://api.pexels.com/v1/search?query=${encodeURIComponent(enhancedQuery)}&per_page=50&orientation=landscape`,
-        { headers: { Authorization: PEXELS_API_KEY } }
+      const unsplashResponse = await fetch(
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(enhancedQuery)}&per_page=30&orientation=landscape`,
+        { 
+          headers: { 
+            Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` 
+          } 
+        }
       );
 
-      if (pexelsResponse.ok) {
-        const pexelsData = await pexelsResponse.json();
-        if (pexelsData.photos && pexelsData.photos.length > 0) {
-          const suitablePhotos = pexelsData.photos.filter((photo: { 
-            avg_color: string; 
-            src: { large: string };
-            alt?: string;
-          }) => {
-            if (usedImageUrls.includes(photo.src.large)) {
-              return false;
-            }
-            
-            const altText = (photo.alt || "").toLowerCase();
-            if (EXCLUDED_TERMS.some(term => altText.includes(term))) {
-              return false;
-            }
-            
-            const avgColor = photo.avg_color;
-            if (!avgColor) return true;
-            
-            const r = parseInt(avgColor.slice(1, 3), 16);
-            const g = parseInt(avgColor.slice(3, 5), 16);
-            const b = parseInt(avgColor.slice(5, 7), 16);
-            
-            const brightness = (r + g + b) / 3;
-            const maxChannel = Math.max(r, g, b);
-            const minChannel = Math.min(r, g, b);
-            const saturation = maxChannel > 0 ? (maxChannel - minChannel) / maxChannel : 0;
-            
-            return brightness > 80 && brightness < 230 && saturation < 0.8;
-          });
+      if (unsplashResponse.ok) {
+        const unsplashData = await unsplashResponse.json();
+        if (unsplashData.results && unsplashData.results.length > 0) {
+          // Filtrar imágenes ya usadas
+          const availablePhotos = unsplashData.results.filter(
+            (photo: { urls: { regular: string } }) => !usedImageUrls.includes(photo.urls.regular)
+          );
           
-          console.log("Suitable photos after filtering:", suitablePhotos.length, "out of", pexelsData.photos.length);
+          console.log("Available photos after filtering:", availablePhotos.length, "out of", unsplashData.results.length);
           
-          if (suitablePhotos.length > 0) {
-            const randomIndex = Math.floor(Math.random() * Math.min(15, suitablePhotos.length));
-            const selectedPhoto = suitablePhotos[randomIndex];
+          if (availablePhotos.length > 0) {
+            const randomIndex = Math.floor(Math.random() * Math.min(10, availablePhotos.length));
+            const selectedPhoto = availablePhotos[randomIndex];
             
             imageData = {
-              url: selectedPhoto.src.large,
-              photographer: selectedPhoto.photographer,
-              photographer_url: selectedPhoto.photographer_url,
+              url: selectedPhoto.urls.regular,
+              photographer: selectedPhoto.user.name,
+              photographer_url: selectedPhoto.user.links.html,
             };
-            console.log("Selected image from photographer:", selectedPhoto.photographer);
+            console.log("Selected Unsplash image from photographer:", selectedPhoto.user.name);
           } else {
-            console.log("No suitable photos, trying fallback query...");
-            const fallbackQuery = "wellness nature botanical peaceful";
+            console.log("No available photos, trying fallback query...");
+            // Fallback con query genérico
+            const fallbackQuery = "wellness nature health botanical";
             const fallbackResponse = await fetch(
-              `https://api.pexels.com/v1/search?query=${encodeURIComponent(fallbackQuery)}&per_page=30&orientation=landscape`,
-              { headers: { Authorization: PEXELS_API_KEY } }
+              `https://api.unsplash.com/search/photos?query=${encodeURIComponent(fallbackQuery)}&per_page=20&orientation=landscape`,
+              { 
+                headers: { 
+                  Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` 
+                } 
+              }
             );
             
             if (fallbackResponse.ok) {
               const fallbackData = await fallbackResponse.json();
-              const fallbackPhotos = fallbackData.photos?.filter((p: { src: { large: string } }) => 
-                !usedImageUrls.includes(p.src.large)
+              const fallbackPhotos = fallbackData.results?.filter(
+                (p: { urls: { regular: string } }) => !usedImageUrls.includes(p.urls.regular)
               ) || [];
               
               if (fallbackPhotos.length > 0) {
                 const randomFallback = fallbackPhotos[Math.floor(Math.random() * Math.min(10, fallbackPhotos.length))];
                 imageData = {
-                  url: randomFallback.src.large,
-                  photographer: randomFallback.photographer,
-                  photographer_url: randomFallback.photographer_url,
+                  url: randomFallback.urls.regular,
+                  photographer: randomFallback.user.name,
+                  photographer_url: randomFallback.user.links.html,
                 };
-                console.log("Selected fallback image from photographer:", randomFallback.photographer);
+                console.log("Selected fallback Unsplash image from:", randomFallback.user.name);
               }
             }
           }
         }
       } else {
-        console.error("Pexels API error:", pexelsResponse.status);
+        console.error("Unsplash API error:", unsplashResponse.status);
       }
-    } catch (pexelsError) {
-      console.error("Pexels error (using fallback):", pexelsError);
+    } catch (unsplashError) {
+      console.error("Unsplash error (using fallback):", unsplashError);
     }
 
     console.log("Article generated successfully with image:", imageData.url.substring(0, 50));
@@ -373,7 +366,7 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
           catalan: catalanArticle,
         },
         image: imageData,
-        pexels_query: topic.pexels_query, // Devolver el query para guardarlo
+        pexels_query: topic.pexels_query, // Mantener para compatibilidad
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -15,6 +15,7 @@ interface PublishRequest {
   date?: string; // ISO 8601 format
   image_url?: string;
   image_alt?: string;
+  meta_description?: string; // For Yoast SEO
 }
 
 serve(async (req) => {
@@ -24,7 +25,7 @@ serve(async (req) => {
   }
 
   try {
-    const { farmacia_id, title, content, slug, status, date, image_url, image_alt } = await req.json() as PublishRequest;
+    const { farmacia_id, title, content, slug, status, date, image_url, image_alt, meta_description } = await req.json() as PublishRequest;
 
     console.log(`[publish-to-wordpress] Starting publication for farmacia: ${farmacia_id}`);
     console.log(`[publish-to-wordpress] Title: ${title}`);
@@ -127,6 +128,10 @@ serve(async (req) => {
       content,
       slug,
       status: finalStatus,
+      // Meta description for Yoast SEO (requires Yoast and REST API meta registration)
+      meta: {
+        _yoast_wpseo_metadesc: meta_description || '',
+      },
     };
 
     if (date) {
