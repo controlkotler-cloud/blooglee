@@ -137,8 +137,13 @@ serve(async (req) => {
       postData.featured_media = featuredMediaId;
     }
 
+    // Normalizar URL: quitar /wp-admin si el usuario lo incluyó por error
+    const normalizedSiteUrl = wpSite.site_url
+      .replace(/\/wp-admin\/?$/, '')
+      .replace(/\/$/, '');
+    
     // Publish to WordPress
-    const wpApiUrl = `${wpSite.site_url.replace(/\/$/, '')}/wp-json/wp/v2/posts`;
+    const wpApiUrl = `${normalizedSiteUrl}/wp-json/wp/v2/posts`;
     console.log(`[publish-to-wordpress] Publishing to WordPress: ${wpApiUrl}`);
 
     const wpResponse = await fetch(wpApiUrl, {
@@ -150,7 +155,23 @@ serve(async (req) => {
       body: JSON.stringify(postData),
     });
 
-    const wpResult = await wpResponse.json();
+    // Leer respuesta como texto primero para mejor diagnóstico
+    const responseText = await wpResponse.text();
+    console.log(`[publish-to-wordpress] Response status: ${wpResponse.status}`);
+    
+    let wpResult;
+    try {
+      wpResult = JSON.parse(responseText);
+    } catch {
+      console.error('[publish-to-wordpress] Response is not valid JSON:', responseText.substring(0, 500));
+      return new Response(
+        JSON.stringify({ 
+          error: 'WordPress returned an invalid response. Check if the site URL is correct and the REST API is enabled.',
+          details: responseText.substring(0, 200)
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!wpResponse.ok) {
       console.error('[publish-to-wordpress] WordPress API error:', wpResult);
