@@ -23,6 +23,16 @@ const FALLBACK_QUERIES = [
   "natural ingredients organic beauty"
 ];
 
+// Fallback images when Unsplash search fails (NO yoga images)
+const FALLBACK_IMAGES = [
+  { url: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=1200", photographer: "Christin Hume", photographer_url: "https://unsplash.com/@christinhumephoto" }, // skincare routine
+  { url: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=1200", photographer: "Jess Bailey", photographer_url: "https://unsplash.com/@jessbaileydesigns" }, // natural cosmetics
+  { url: "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=1200", photographer: "Katherine Hanlon", photographer_url: "https://unsplash.com/@tinymountain" }, // botanical beauty
+  { url: "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=1200", photographer: "Lena Taranenko", photographer_url: "https://unsplash.com/@lena_taranenko" }, // spa wellness
+  { url: "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=1200", photographer: "Content Pixie", photographer_url: "https://unsplash.com/@contentpixie" }, // skincare products
+  { url: "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=1200", photographer: "Towfiqu Barbhuiya", photographer_url: "https://unsplash.com/@towfiqu999999" }, // natural ingredients
+];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -147,8 +157,12 @@ RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin punt
         }
       );
 
+      console.log("Unsplash response status:", unsplashResponse.status);
+
       if (unsplashResponse.ok) {
         const unsplashData = await unsplashResponse.json();
+        console.log("Unsplash results count:", unsplashData.results?.length || 0);
+        
         if (unsplashData.results && unsplashData.results.length > 0) {
           // Filtrar URLs ya usadas
           const availablePhotos = unsplashData.results.filter(
@@ -170,6 +184,9 @@ RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin punt
             console.log("Selected image from photographer:", selectedPhoto.user.name);
           }
         }
+      } else {
+        const errorText = await unsplashResponse.text();
+        console.error("Unsplash API error:", unsplashResponse.status, errorText);
       }
       
       // Si no encontramos foto, intentar con query genérico de bienestar
@@ -186,8 +203,12 @@ RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin punt
           }
         );
         
+        console.log("Fallback Unsplash response status:", fallbackResponse.status);
+        
         if (fallbackResponse.ok) {
           const fallbackData = await fallbackResponse.json();
+          console.log("Fallback results count:", fallbackData.results?.length || 0);
+          
           const fallbackPhotos = fallbackData.results?.filter(
             (p: { urls: { regular: string } }) => !usedImageUrls.includes(p.urls.regular)
           ) || [];
@@ -201,26 +222,24 @@ RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin punt
             };
             console.log("Selected fallback image from photographer:", randomFallback.user.name);
           }
+        } else {
+          const errorText = await fallbackResponse.text();
+          console.error("Fallback Unsplash API error:", fallbackResponse.status, errorText);
         }
       }
       
-      // Fallback final si todo falla
+      // Fallback final si todo falla - usar imagen variada, NO yoga
       if (!imageData) {
-        imageData = {
-          url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200",
-          photographer: "Unsplash",
-          photographer_url: "https://unsplash.com",
-        };
-        console.log("Using default fallback image");
+        const randomFallbackImage = FALLBACK_IMAGES[Math.floor(Math.random() * FALLBACK_IMAGES.length)];
+        imageData = randomFallbackImage;
+        console.log("Using random fallback image from:", randomFallbackImage.photographer);
       }
 
     } catch (unsplashError) {
       console.error("Unsplash error:", unsplashError);
-      imageData = {
-        url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200",
-        photographer: "Unsplash",
-        photographer_url: "https://unsplash.com",
-      };
+      const randomFallbackImage = FALLBACK_IMAGES[Math.floor(Math.random() * FALLBACK_IMAGES.length)];
+      imageData = randomFallbackImage;
+      console.log("Error fallback - using image from:", randomFallbackImage.photographer);
     }
 
     console.log("Image regenerated successfully:", imageData.url.substring(0, 50));

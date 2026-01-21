@@ -34,6 +34,16 @@ const FALLBACK_QUERIES = [
   "skincare cream beauty treatment"
 ];
 
+// Fallback images when Unsplash search fails (NO yoga images)
+const FALLBACK_IMAGES = [
+  { url: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=1200", photographer: "Christin Hume", photographer_url: "https://unsplash.com/@christinhumephoto" },
+  { url: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=1200", photographer: "Jess Bailey", photographer_url: "https://unsplash.com/@jessbaileydesigns" },
+  { url: "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=1200", photographer: "Katherine Hanlon", photographer_url: "https://unsplash.com/@tinymountain" },
+  { url: "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=1200", photographer: "Lena Taranenko", photographer_url: "https://unsplash.com/@lena_taranenko" },
+  { url: "https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=1200", photographer: "Content Pixie", photographer_url: "https://unsplash.com/@contentpixie" },
+  { url: "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=1200", photographer: "Towfiqu Barbhuiya", photographer_url: "https://unsplash.com/@towfiqu999999" },
+];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -356,11 +366,9 @@ RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin punt
     console.log("Searching Unsplash with AI-generated query:", aiGeneratedQuery);
     console.log("Excluding URLs:", usedImageUrls.length, "images");
     
-    let imageData = {
-      url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200",
-      photographer: "Unsplash",
-      photographer_url: "https://unsplash.com",
-    };
+    // Seleccionar imagen fallback aleatoria (no yoga)
+    const randomFallbackImage = FALLBACK_IMAGES[Math.floor(Math.random() * FALLBACK_IMAGES.length)];
+    let imageData = { ...randomFallbackImage };
 
     try {
       const unsplashResponse = await fetch(
@@ -372,8 +380,12 @@ RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin punt
         }
       );
 
+      console.log("Unsplash response status:", unsplashResponse.status);
+      
       if (unsplashResponse.ok) {
         const unsplashData = await unsplashResponse.json();
+        console.log("Unsplash results count:", unsplashData.results?.length || 0);
+        
         if (unsplashData.results && unsplashData.results.length > 0) {
           // Filtrar imágenes ya usadas
           const availablePhotos = unsplashData.results.filter(
@@ -424,7 +436,8 @@ RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin punt
           }
         }
       } else {
-        console.error("Unsplash API error:", unsplashResponse.status);
+        const errorText = await unsplashResponse.text();
+        console.error("Unsplash API error:", unsplashResponse.status, errorText);
       }
     } catch (unsplashError) {
       console.error("Unsplash error (using fallback):", unsplashError);
