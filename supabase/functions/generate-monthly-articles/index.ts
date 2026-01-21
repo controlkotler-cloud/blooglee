@@ -122,10 +122,18 @@ function getRandomTopic(month: number, usedTopics: string[]): SeasonalTopic | nu
   return availableTopics[Math.floor(Math.random() * availableTopics.length)];
 }
 
+interface WordPressPublishResult {
+  success: boolean;
+  postUrl?: string;
+  error?: string;
+}
+
 interface GenerationResult {
   farmaciaName: string;
   success: boolean;
   error?: string;
+  wpSpanish?: WordPressPublishResult;
+  wpCatalan?: WordPressPublishResult;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -287,9 +295,103 @@ const handler = async (req: Request): Promise<Response> => {
 
         console.log(`✓ Saved article for ${farmacia.name}: ${topic.tema}`);
         
+        // ========== PUBLICACIÓN AUTOMÁTICA A WORDPRESS ==========
+        let wpSpanish: WordPressPublishResult | undefined;
+        let wpCatalan: WordPressPublishResult | undefined;
+        
+        // Verificar si la farmacia tiene WordPress configurado
+        const { data: wpSite } = await supabase
+          .from("wordpress_sites")
+          .select("*")
+          .eq("farmacia_id", farmacia.id)
+          .maybeSingle();
+
+        if (wpSite) {
+          console.log(`WordPress configured for ${farmacia.name}, publishing...`);
+          const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress`;
+          
+          // Publicar versión ESPAÑOL
+          if (generatedData.content?.spanish) {
+            try {
+              console.log(`Publishing Spanish version for ${farmacia.name}...`);
+              const spanishPublishResponse = await fetch(publishUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({
+                  farmacia_id: farmacia.id,
+                  title: generatedData.content.spanish.title,
+                  content: generatedData.content.spanish.content,
+                  slug: generatedData.content.spanish.slug,
+                  status: "publish",
+                  image_url: generatedData.image?.url,
+                  image_alt: generatedData.content.spanish.title,
+                  meta_description: generatedData.content.spanish.meta_description,
+                }),
+              });
+              
+              const spanishResult = await spanishPublishResponse.json();
+              if (spanishResult.success) {
+                wpSpanish = { success: true, postUrl: spanishResult.post_url };
+                console.log(`✓ Published Spanish to WordPress: ${spanishResult.post_url}`);
+              } else {
+                wpSpanish = { success: false, error: spanishResult.error || "Unknown error" };
+                console.error(`✗ Failed to publish Spanish:`, spanishResult.error);
+              }
+            } catch (wpError) {
+              const wpErrorMsg = wpError instanceof Error ? wpError.message : String(wpError);
+              wpSpanish = { success: false, error: wpErrorMsg };
+              console.error(`✗ Error publishing Spanish to WordPress:`, wpError);
+            }
+          }
+          
+          // Publicar versión CATALÁN (con sufijo -ca en slug)
+          if (generatedData.content?.catalan) {
+            try {
+              console.log(`Publishing Catalan version for ${farmacia.name}...`);
+              const catalanPublishResponse = await fetch(publishUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({
+                  farmacia_id: farmacia.id,
+                  title: generatedData.content.catalan.title,
+                  content: generatedData.content.catalan.content,
+                  slug: `${generatedData.content.catalan.slug}-ca`, // Sufijo para identificar catalán
+                  status: "publish",
+                  image_url: generatedData.image?.url,
+                  image_alt: generatedData.content.catalan.title,
+                  meta_description: generatedData.content.catalan.meta_description,
+                }),
+              });
+              
+              const catalanResult = await catalanPublishResponse.json();
+              if (catalanResult.success) {
+                wpCatalan = { success: true, postUrl: catalanResult.post_url };
+                console.log(`✓ Published Catalan to WordPress: ${catalanResult.post_url}`);
+              } else {
+                wpCatalan = { success: false, error: catalanResult.error || "Unknown error" };
+                console.error(`✗ Failed to publish Catalan:`, catalanResult.error);
+              }
+            } catch (wpError) {
+              const wpErrorMsg = wpError instanceof Error ? wpError.message : String(wpError);
+              wpCatalan = { success: false, error: wpErrorMsg };
+              console.error(`✗ Error publishing Catalan to WordPress:`, wpError);
+            }
+          }
+        } else {
+          console.log(`No WordPress configured for ${farmacia.name}, skipping auto-publish`);
+        }
+        
         results.push({
           farmaciaName: farmacia.name,
           success: true,
+          wpSpanish,
+          wpCatalan,
         });
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -316,7 +418,23 @@ const handler = async (req: Request): Promise<Response> => {
       .map(r => `<li><strong>${r.farmaciaName}:</strong> ${r.error}</li>`)
       .join("");
 
+    // WordPress publish summary
+    const wpResults = results.filter(r => r.wpSpanish || r.wpCatalan);
+    const wpSpanishSuccess = results.filter(r => r.wpSpanish?.success).length;
+    const wpCatalanSuccess = results.filter(r => r.wpCatalan?.success).length;
+    
+    const wpPublishDetails = wpResults.map(r => {
+      const esLink = r.wpSpanish?.success && r.wpSpanish.postUrl 
+        ? `<a href="${r.wpSpanish.postUrl}" style="color: #4F46E5;">ES ✓</a>` 
+        : (r.wpSpanish ? `<span style="color: #DC2626;">ES ✗</span>` : '');
+      const caLink = r.wpCatalan?.success && r.wpCatalan.postUrl 
+        ? `<a href="${r.wpCatalan.postUrl}" style="color: #4F46E5;">CA ✓</a>` 
+        : (r.wpCatalan ? `<span style="color: #DC2626;">CA ✗</span>` : '');
+      return `<li><strong>${r.farmaciaName}:</strong> ${[esLink, caLink].filter(Boolean).join(' | ')}</li>`;
+    }).join("");
+
     console.log(`Generation complete: ${successCount} success, ${errorCount} errors`);
+    console.log(`WordPress publish: ${wpSpanishSuccess} Spanish, ${wpCatalanSuccess} Catalan`);
 
     // Send notification email
     const emailResult = await resend.emails.send({
@@ -328,19 +446,29 @@ const handler = async (req: Request): Promise<Response> => {
         <p>Hola,</p>
         <p>Se han generado automáticamente los artículos de blog para el mes de <strong>${MONTH_NAMES[currentMonth - 1]} ${currentYear}</strong>.</p>
         
-        <h2>Resumen</h2>
+        <h2>Resumen de generación</h2>
         <ul>
           <li><strong>Farmacias procesadas:</strong> ${farmaciasToProcess.length}</li>
           <li><strong>Artículos generados correctamente:</strong> ${successCount}</li>
           <li><strong>Errores:</strong> ${errorCount}</li>
         </ul>
         
+        ${wpResults.length > 0 ? `
+        <h2>Publicaciones a WordPress</h2>
+        <ul>
+          <li><strong>Posts en Español publicados:</strong> ${wpSpanishSuccess}</li>
+          <li><strong>Posts en Catalán publicados:</strong> ${wpCatalanSuccess}</li>
+        </ul>
+        <h3>Detalle por farmacia</h3>
+        <ul>${wpPublishDetails}</ul>
+        ` : ""}
+        
         ${errorCount > 0 ? `
         <h2>Detalle de errores</h2>
         <ul>${errorDetails}</ul>
         ` : ""}
         
-        <p>Accede al portal para revisar y publicar los artículos:</p>
+        <p>Accede al portal para revisar los artículos:</p>
         <p><a href="${PORTAL_URL}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Acceder al portal</a></p>
         
         <p>Saludos,<br>PharmaBlog Manager</p>

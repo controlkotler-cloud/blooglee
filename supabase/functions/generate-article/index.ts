@@ -275,9 +275,12 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
         }),
       });
 
+      console.log("Catalan AI response status:", catalanResponse.status);
+
       if (catalanResponse.ok) {
         const catalanData = await catalanResponse.json();
         const catalanContent = catalanData.choices?.[0]?.message?.content;
+        console.log("Catalan AI content received:", catalanContent ? "yes" : "no", "length:", catalanContent?.length || 0);
         
         if (catalanContent) {
           try {
@@ -315,14 +318,19 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
                   console.log("Fixed Catalan title:", fixedTitle);
                 }
               }
+            } else {
+              console.error("No JSON found in Catalan response. Content preview:", catalanContent.substring(0, 200));
             }
           } catch (parseError) {
-            console.error("JSON parse error (Catalan):", parseError);
+            console.error("JSON parse error (Catalan):", parseError, "Content preview:", catalanContent?.substring(0, 200));
             // Continue without Catalan if parsing fails
           }
+        } else {
+          console.error("Catalan content is empty or undefined");
         }
       } else {
-        console.error("Catalan generation failed:", catalanResponse.status);
+        const errorText = await catalanResponse.text();
+        console.error("Catalan generation failed. Status:", catalanResponse.status, "Error:", errorText);
         // Continue without Catalan if generation fails
       }
     }
