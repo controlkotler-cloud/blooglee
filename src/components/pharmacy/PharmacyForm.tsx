@@ -68,9 +68,14 @@ export function PharmacyForm({ open, onClose, onSubmit, initialData, isLoading }
     
     // If editing and has WordPress config, save it
     if (initialData && wpSiteUrl && wpUsername && wpAppPassword) {
+      // Normalizar URL: quitar /wp-admin y barra final
+      const normalizedUrl = wpSiteUrl
+        .replace(/\/wp-admin\/?$/, '')
+        .replace(/\/$/, '');
+      
       await upsertWpSite.mutateAsync({
         farmacia_id: initialData.id,
-        site_url: wpSiteUrl,
+        site_url: normalizedUrl,
         wp_username: wpUsername,
         wp_app_password: wpAppPassword,
       });
@@ -157,7 +162,7 @@ export function PharmacyForm({ open, onClose, onSubmit, initialData, isLoading }
                     id="wp-url"
                     value={wpSiteUrl}
                     onChange={(e) => setWpSiteUrl(e.target.value)}
-                    placeholder="https://farmacia.com"
+                    placeholder="https://tudominio.com (sin /wp-admin)"
                     disabled={isLoadingWp}
                   />
                 </div>
