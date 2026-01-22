@@ -30,6 +30,8 @@ interface GenerateArticleParams {
   pharmacyName: string;
   pharmacyLocation: string;
   pharmacyLanguages: string[];
+  pharmacyBlogUrl?: string;
+  pharmacyInstagramUrl?: string;
   topic: SeasonalTopic;
   month: number;
   year: number;
@@ -98,6 +100,8 @@ export function useGenerateArticle() {
             name: params.pharmacyName,
             location: params.pharmacyLocation,
             languages: params.pharmacyLanguages,
+            blog_url: params.pharmacyBlogUrl,
+            instagram_url: params.pharmacyInstagramUrl,
           },
           topic: params.topic,
           month: params.month,
