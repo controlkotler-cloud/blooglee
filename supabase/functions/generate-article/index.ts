@@ -185,7 +185,10 @@ Genera el artículo completo EN ESPAÑOL. RESPONDE SOLO CON JSON VÁLIDO en este
       throw new Error("Failed to parse Spanish AI response as JSON");
     }
 
-    // ========== AÑADIR ENLACES SEO AL CONTENIDO ==========
+    // Guardar contenido español SIN enlaces SEO para usar en el prompt catalán
+    const spanishContentWithoutSeoLinks = spanishArticle?.content || '';
+
+    // ========== AÑADIR ENLACES SEO AL CONTENIDO ESPAÑOL ==========
     if (spanishArticle?.content) {
       const seoLinks: string[] = [];
       
@@ -258,7 +261,7 @@ RESPÓN SEMPRE EN JSON VÀLID.`;
 ARTICLE ORIGINAL EN CASTELLÀ:
 Títol: ${spanishArticle.title}
 Meta descripció: ${spanishArticle.meta_description}
-Contingut: ${spanishArticle.content}
+Contingut: ${spanishContentWithoutSeoLinks}
 
 FARMÀCIA: ${pharmacy.name}
 POBLACIÓ: ${pharmacy.location}

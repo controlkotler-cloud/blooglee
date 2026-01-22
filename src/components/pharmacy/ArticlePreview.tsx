@@ -45,7 +45,7 @@ export function ArticlePreview({
     const htmlContent = `
 <h1>${content.title}</h1>
 ${article.image_url ? `<img src="${article.image_url}" alt="${content.title}" />
-<p><em>Foto: <a href="${article.image_photographer_url}">${article.image_photographer}</a> en Pexels</em></p>` : ""}
+<p><em>Foto: <a href="${article.image_photographer_url}">${article.image_photographer}</a> en Unsplash</em></p>` : ""}
 ${content.content}
     `.trim();
 
@@ -72,7 +72,7 @@ ${content.content}
   <article>
     <h1>${content.title}</h1>
     ${article.image_url ? `<img src="${article.image_url}" alt="${content.title}" />
-    <p><em>Foto: <a href="${article.image_photographer_url}">${article.image_photographer}</a> en Pexels</em></p>` : ""}
+    <p><em>Foto: <a href="${article.image_photographer_url}">${article.image_photographer}</a> en Unsplash</em></p>` : ""}
     ${content.content}
   </article>
 </body>
@@ -145,7 +145,7 @@ ${content.content}
               </a>
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
-                  Foto: <a href={article.image_photographer_url || "#"} target="_blank" rel="noopener noreferrer" className="underline">{article.image_photographer}</a> en Pexels
+                  Foto: <a href={article.image_photographer_url || "#"} target="_blank" rel="noopener noreferrer" className="underline">{article.image_photographer}</a> en Unsplash
                 </p>
                 {onRegenerateImage && (
                   <Button 
