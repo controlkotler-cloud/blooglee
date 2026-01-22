@@ -15,6 +15,8 @@ interface PharmacyData {
   name: string;
   location: string;
   languages: string[];
+  blog_url?: string;
+  instagram_url?: string;
 }
 
 interface RequestBody {
@@ -183,6 +185,25 @@ Genera el artículo completo EN ESPAÑOL. RESPONDE SOLO CON JSON VÁLIDO en este
       throw new Error("Failed to parse Spanish AI response as JSON");
     }
 
+    // ========== AÑADIR ENLACES SEO AL CONTENIDO ==========
+    if (spanishArticle?.content) {
+      const seoLinks: string[] = [];
+      
+      if (pharmacy.blog_url) {
+        seoLinks.push(`<a href="${pharmacy.blog_url}" target="_blank" rel="noopener">nuestro blog</a>`);
+      }
+      if (pharmacy.instagram_url) {
+        seoLinks.push(`<a href="${pharmacy.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
+      }
+      
+      if (seoLinks.length > 0) {
+        const linksText = seoLinks.join(' y ');
+        const closingParagraph = `<p><strong>¿Quieres más consejos de salud?</strong> Visita ${linksText} para descubrir más contenido de ${pharmacy.name}.</p>`;
+        spanishArticle.content += closingParagraph;
+        console.log("Added SEO links to Spanish content");
+      }
+    }
+
     console.log("Spanish article parsed successfully. Title:", spanishArticle.title?.substring(0, 50));
 
     // ========== PASO 2: Generar versión en catalán (si es necesario) ==========
@@ -316,6 +337,25 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
                   
                   catalanArticle.title = fixedTitle;
                   console.log("Fixed Catalan title:", fixedTitle);
+                }
+              }
+              
+              // Añadir enlaces SEO al contenido catalán
+              if (catalanArticle?.content) {
+                const seoLinksCa: string[] = [];
+                
+                if (pharmacy.blog_url) {
+                  seoLinksCa.push(`<a href="${pharmacy.blog_url}" target="_blank" rel="noopener">el nostre blog</a>`);
+                }
+                if (pharmacy.instagram_url) {
+                  seoLinksCa.push(`<a href="${pharmacy.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
+                }
+                
+                if (seoLinksCa.length > 0) {
+                  const linksTextCa = seoLinksCa.join(' i ');
+                  const closingParagraphCa = `<p><strong>Vols més consells de salut?</strong> Visita ${linksTextCa} per descobrir més contingut de ${pharmacy.name}.</p>`;
+                  catalanArticle.content += closingParagraphCa;
+                  console.log("Added SEO links to Catalan content");
                 }
               }
             } else {

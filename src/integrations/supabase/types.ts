@@ -69,24 +69,30 @@ export type Database = {
       }
       farmacias: {
         Row: {
+          blog_url: string | null
           created_at: string
           id: string
+          instagram_url: string | null
           languages: string[]
           location: string
           name: string
           updated_at: string
         }
         Insert: {
+          blog_url?: string | null
           created_at?: string
           id?: string
+          instagram_url?: string | null
           languages?: string[]
           location: string
           name: string
           updated_at?: string
         }
         Update: {
+          blog_url?: string | null
           created_at?: string
           id?: string
+          instagram_url?: string | null
           languages?: string[]
           location?: string
           name?: string

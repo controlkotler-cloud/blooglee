@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const PORTAL_URL = "https://id-preview--7642327a-37a5-4883-a473-7870867f7567.lovable.app";
-const NOTIFICATION_EMAIL = "control@mkpro.es";
+const NOTIFICATION_EMAILS = ["control@mkpro.es", "laura@mkpro.es"];
 
 const MONTH_NAMES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -196,7 +196,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       await resend.emails.send({
         from: "PharmaBlog Manager <onboarding@resend.dev>",
-        to: [NOTIFICATION_EMAIL],
+        to: NOTIFICATION_EMAILS,
         subject: `Posts de ${MONTH_NAMES[currentMonth - 1]} ${currentYear} - Sin cambios`,
         html: `
           <h1>PharmaBlog Manager</h1>
@@ -254,6 +254,8 @@ const handler = async (req: Request): Promise<Response> => {
               name: farmacia.name,
               location: farmacia.location,
               languages: farmacia.languages,
+              blog_url: farmacia.blog_url || undefined,
+              instagram_url: farmacia.instagram_url || undefined,
             },
             topic: {
               tema: topic.tema,
@@ -329,6 +331,7 @@ const handler = async (req: Request): Promise<Response> => {
                   image_url: generatedData.image?.url,
                   image_alt: generatedData.content.spanish.title,
                   meta_description: generatedData.content.spanish.meta_description,
+                  lang: "es", // For Polylang - Spanish
                 }),
               });
               
@@ -366,6 +369,7 @@ const handler = async (req: Request): Promise<Response> => {
                   image_url: generatedData.image?.url,
                   image_alt: generatedData.content.catalan.title,
                   meta_description: generatedData.content.catalan.meta_description,
+                  lang: "ca", // For Polylang - Catalan
                 }),
               });
               
@@ -436,10 +440,10 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Generation complete: ${successCount} success, ${errorCount} errors`);
     console.log(`WordPress publish: ${wpSpanishSuccess} Spanish, ${wpCatalanSuccess} Catalan`);
 
-    // Send notification email
+    // Send notification email to both recipients
     const emailResult = await resend.emails.send({
       from: "PharmaBlog Manager <onboarding@resend.dev>",
-      to: [NOTIFICATION_EMAIL],
+      to: NOTIFICATION_EMAILS,
       subject: `Posts de ${MONTH_NAMES[currentMonth - 1]} ${currentYear} generados${errorCount > 0 ? ` (${errorCount} errores)` : ""}`,
       html: `
         <h1>PharmaBlog Manager</h1>
@@ -502,7 +506,7 @@ const handler = async (req: Request): Promise<Response> => {
         const resend = new Resend(resendApiKey);
         await resend.emails.send({
           from: "PharmaBlog Manager <onboarding@resend.dev>",
-          to: [NOTIFICATION_EMAIL],
+          to: NOTIFICATION_EMAILS,
           subject: "ERROR en generación automática de posts",
           html: `
             <h1>PharmaBlog Manager - Error</h1>

@@ -16,6 +16,7 @@ interface PublishRequest {
   image_url?: string;
   image_alt?: string;
   meta_description?: string; // For Yoast SEO
+  lang?: 'es' | 'ca'; // For Polylang integration
 }
 
 serve(async (req) => {
@@ -25,7 +26,7 @@ serve(async (req) => {
   }
 
   try {
-    const { farmacia_id, title, content, slug, status, date, image_url, image_alt, meta_description } = await req.json() as PublishRequest;
+    const { farmacia_id, title, content, slug, status, date, image_url, image_alt, meta_description, lang } = await req.json() as PublishRequest;
 
     console.log(`[publish-to-wordpress] Starting publication for farmacia: ${farmacia_id}`);
     console.log(`[publish-to-wordpress] Title: ${title}`);
@@ -128,6 +129,8 @@ serve(async (req) => {
       content,
       slug,
       status: finalStatus,
+      // Language for Polylang (requires wp-rest-polylang plugin or custom REST registration)
+      lang: lang || 'es',
       // Meta description for Yoast SEO (requires Yoast and REST API meta registration)
       meta: {
         _yoast_wpseo_metadesc: meta_description || '',

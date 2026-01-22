@@ -65,13 +65,13 @@ export default function Index() {
     return articulos.find((a) => a.farmacia_id === pharmacyId) || null;
   };
 
-  const handleCreateFarmacia = (data: { name: string; location: string; languages: string[] }) => {
+  const handleCreateFarmacia = (data: { name: string; location: string; languages: string[]; blog_url?: string; instagram_url?: string }) => {
     createFarmacia.mutate(data, {
       onSuccess: () => setShowAddForm(false),
     });
   };
 
-  const handleUpdateFarmacia = (data: { name: string; location: string; languages: string[] }) => {
+  const handleUpdateFarmacia = (data: { name: string; location: string; languages: string[]; blog_url?: string; instagram_url?: string }) => {
     if (!editingPharmacy) return;
     updateFarmacia.mutate({ id: editingPharmacy.id, ...data }, {
       onSuccess: () => setEditingPharmacy(null),
@@ -226,7 +226,7 @@ export default function Index() {
 
   const handleImportFarmacias = async (newFarmacias: { name: string; location: string; languages: string[] }[]) => {
     for (const farmacia of newFarmacias) {
-      await createFarmacia.mutateAsync(farmacia);
+      await createFarmacia.mutateAsync({ ...farmacia, blog_url: null, instagram_url: null });
     }
   };
 
