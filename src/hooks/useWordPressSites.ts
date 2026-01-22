@@ -29,6 +29,7 @@ export interface PublishToWordPressInput {
   image_url?: string;
   image_alt?: string;
   meta_description?: string;
+  lang?: 'es' | 'ca';
 }
 
 export interface PublishResult {
