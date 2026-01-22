@@ -7,6 +7,8 @@ export interface Farmacia {
   name: string;
   location: string;
   languages: string[];
+  blog_url: string | null;
+  instagram_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -30,10 +32,16 @@ export function useCreateFarmacia() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (farmacia: Omit<Farmacia, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (farmacia: { name: string; location: string; languages: string[]; blog_url?: string | null; instagram_url?: string | null }) => {
       const { data, error } = await supabase
         .from("farmacias")
-        .insert(farmacia)
+        .insert({
+          name: farmacia.name,
+          location: farmacia.location,
+          languages: farmacia.languages,
+          blog_url: farmacia.blog_url || null,
+          instagram_url: farmacia.instagram_url || null,
+        })
         .select()
         .single();
 
@@ -61,6 +69,8 @@ export function useUpdateFarmacia() {
           name: farmacia.name,
           location: farmacia.location,
           languages: farmacia.languages,
+          blog_url: farmacia.blog_url,
+          instagram_url: farmacia.instagram_url,
         })
         .eq("id", farmacia.id)
         .select()

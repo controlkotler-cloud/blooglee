@@ -5,14 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Globe, Eye, EyeOff, Trash2 } from "lucide-react";
+import { Globe, Eye, EyeOff, Trash2, Link2, Instagram } from "lucide-react";
 import type { Farmacia } from "@/hooks/useFarmacias";
 import { useWordPressSite, useUpsertWordPressSite, useDeleteWordPressSite } from "@/hooks/useWordPressSites";
 
 interface PharmacyFormProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; location: string; languages: string[] }) => void;
+  onSubmit: (data: { name: string; location: string; languages: string[]; blog_url?: string; instagram_url?: string }) => void;
   initialData?: Farmacia | null;
   isLoading?: boolean;
 }
@@ -21,6 +21,10 @@ export function PharmacyForm({ open, onClose, onSubmit, initialData, isLoading }
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [includesCatalan, setIncludesCatalan] = useState(false);
+  
+  // SEO fields
+  const [blogUrl, setBlogUrl] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
   
   // WordPress fields
   const [wpSiteUrl, setWpSiteUrl] = useState("");
@@ -38,10 +42,14 @@ export function PharmacyForm({ open, onClose, onSubmit, initialData, isLoading }
       setName(initialData.name);
       setLocation(initialData.location);
       setIncludesCatalan(initialData.languages?.includes("catalan") || false);
+      setBlogUrl(initialData.blog_url || "");
+      setInstagramUrl(initialData.instagram_url || "");
     } else {
       setName("");
       setLocation("");
       setIncludesCatalan(false);
+      setBlogUrl("");
+      setInstagramUrl("");
     }
   }, [initialData, open]);
 
@@ -64,7 +72,13 @@ export function PharmacyForm({ open, onClose, onSubmit, initialData, isLoading }
     if (includesCatalan) languages.push("catalan");
     
     // Save pharmacy first
-    onSubmit({ name, location, languages });
+    onSubmit({ 
+      name, 
+      location, 
+      languages,
+      blog_url: blogUrl || undefined,
+      instagram_url: instagramUrl || undefined,
+    });
     
     // If editing and has WordPress config, save it
     if (initialData && wpSiteUrl && wpUsername && wpAppPassword) {
@@ -129,6 +143,41 @@ export function PharmacyForm({ open, onClose, onSubmit, initialData, isLoading }
             <Label htmlFor="catalan" className="cursor-pointer">
               Generar también en catalán
             </Label>
+          </div>
+
+          {/* SEO Links Section */}
+          <Separator className="my-4" />
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Link2 className="w-4 h-4" />
+              <Label className="font-medium">Enlaces SEO</Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Estos enlaces se añadirán automáticamente al final de cada artículo.
+            </p>
+            
+            <div className="space-y-2">
+              <Label htmlFor="blog-url">URL del Blog</Label>
+              <Input
+                id="blog-url"
+                value={blogUrl}
+                onChange={(e) => setBlogUrl(e.target.value)}
+                placeholder="https://farmacia.com/blog"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="instagram-url" className="flex items-center gap-1">
+                <Instagram className="w-3 h-3" />
+                Instagram
+              </Label>
+              <Input
+                id="instagram-url"
+                value={instagramUrl}
+                onChange={(e) => setInstagramUrl(e.target.value)}
+                placeholder="https://instagram.com/farmacia"
+              />
+            </div>
           </div>
 
           {/* WordPress Configuration - only show when editing */}

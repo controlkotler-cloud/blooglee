@@ -11,7 +11,7 @@ interface ImportExportProps {
   articulos: Articulo[];
   selectedMonth: number;
   selectedYear: number;
-  onImportFarmacias: (farmacias: Omit<Farmacia, "id" | "created_at" | "updated_at">[]) => void;
+  onImportFarmacias: (farmacias: { name: string; location: string; languages: string[] }[]) => void;
 }
 
 // Poblaciones y provincias donde se habla catalán
