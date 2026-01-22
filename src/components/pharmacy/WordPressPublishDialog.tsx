@@ -94,6 +94,7 @@ export function WordPressPublishDialog({
           image_url: article.image_url || undefined,
           image_alt: content.title,
           meta_description: content.meta_description,
+          lang: lang === 'catalan' ? 'ca' : 'es',
         });
 
         results[lang] = result;
