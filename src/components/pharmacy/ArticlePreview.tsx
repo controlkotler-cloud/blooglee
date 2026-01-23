@@ -89,7 +89,7 @@ ${content.content}
   };
 
   return (
-    <Dialog open={!!article} onOpenChange={onClose}>
+    <Dialog open={!!article} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
