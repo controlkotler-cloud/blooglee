@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Tag, FolderOpen } from "lucide-react";
 import {
@@ -26,11 +25,23 @@ export function TaxonomySelector({
 }: TaxonomySelectorProps) {
   const { data: taxonomies, isLoading: isLoadingTaxonomies } = useTaxonomies(wordpressSiteId);
   const { data: defaults, isLoading: isLoadingDefaults } = useDefaultTaxonomies(wordpressSiteId);
-  const [initialized, setInitialized] = useState(false);
+  const initializedForSiteRef = useRef<string | null>(null);
 
-  // Initialize with defaults on first load
+  // Reset initialization when site changes
   useEffect(() => {
-    if (defaults && !initialized && taxonomies) {
+    if (wordpressSiteId !== initializedForSiteRef.current) {
+      initializedForSiteRef.current = null;
+    }
+  }, [wordpressSiteId]);
+
+  // Initialize with defaults on first load - using ref to prevent loops
+  useEffect(() => {
+    if (
+      defaults &&
+      taxonomies &&
+      wordpressSiteId &&
+      initializedForSiteRef.current !== wordpressSiteId
+    ) {
       const defaultCategoryIds = defaults
         .filter((d) => d.taxonomy?.taxonomy_type === "category")
         .map((d) => d.taxonomy?.wp_id)
@@ -41,15 +52,17 @@ export function TaxonomySelector({
         .map((d) => d.taxonomy?.wp_id)
         .filter((id): id is number => id !== undefined);
 
+      initializedForSiteRef.current = wordpressSiteId;
+      
       if (defaultCategoryIds.length > 0) {
         onCategoriesChange(defaultCategoryIds);
       }
       if (defaultTagIds.length > 0) {
         onTagsChange(defaultTagIds);
       }
-      setInitialized(true);
     }
-  }, [defaults, initialized, taxonomies, onCategoriesChange, onTagsChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaults, taxonomies, wordpressSiteId]);
 
   const toggleCategory = (wpId: number) => {
     if (selectedCategoryIds.includes(wpId)) {
