@@ -137,6 +137,230 @@ interface GenerationResult {
   wpCatalan?: WordPressPublishResult;
 }
 
+interface TaxonomyItem {
+  wp_id: number;
+  name: string;
+  taxonomy_type: string;
+}
+
+// Function to select taxonomies intelligently based on article content
+async function selectTaxonomiesWithAI(
+  articleTitle: string,
+  articleContent: string,
+  categories: TaxonomyItem[],
+  tags: TaxonomyItem[],
+  lovableApiKey: string
+): Promise<{ categoryIds: number[]; tagIds: number[] }> {
+  // If no categories, return empty
+  if (categories.length === 0) {
+    // Handle tags separately
+    if (tags.length === 0) return { categoryIds: [], tagIds: [] };
+    if (tags.length === 1) return { categoryIds: [], tagIds: [tags[0].wp_id] };
+    // Multiple tags - use AI
+  }
+  
+  // If only 1 category, use it directly
+  if (categories.length === 1) {
+    let tagIds: number[] = [];
+    if (tags.length === 1) {
+      tagIds = [tags[0].wp_id];
+    } else if (tags.length > 1) {
+      // Use AI just for tags
+      try {
+        const tagSelection = await selectTagsWithAI(articleTitle, articleContent, tags, lovableApiKey);
+        tagIds = tagSelection;
+      } catch {
+        console.log("AI tag selection failed, using no tags");
+      }
+    }
+    return { categoryIds: [categories[0].wp_id], tagIds };
+  }
+  
+  // Multiple categories - use AI
+  const prompt = `Eres un experto en clasificación de contenido para blogs.
+
+Dado este artículo:
+Título: "${articleTitle}"
+Contenido (primeros 500 caracteres): "${articleContent.substring(0, 500)}"
+
+Categorías disponibles: ${categories.map(c => `${c.wp_id}:${c.name}`).join(', ')}
+Tags disponibles: ${tags.length > 0 ? tags.map(t => `${t.wp_id}:${t.name}`).join(', ') : 'ninguno'}
+
+Selecciona:
+- 1 categoría que MEJOR represente el tema principal del artículo
+- 0-3 tags relevantes (solo si aplican directamente al contenido)
+
+IMPORTANTE: Responde ÚNICAMENTE con JSON válido, sin explicaciones:
+{"category_id": number, "tag_ids": number[]}`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.2,
+        max_tokens: 100,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI response not ok: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content?.trim();
+    
+    if (!content) {
+      throw new Error("Empty AI response");
+    }
+    
+    // Parse JSON from response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No JSON found in response");
+    }
+    
+    const parsed = JSON.parse(jsonMatch[0]);
+    const categoryId = parsed.category_id;
+    const tagIds = Array.isArray(parsed.tag_ids) ? parsed.tag_ids : [];
+    
+    // Validate IDs exist in our lists
+    const validCategoryIds = categories.some(c => c.wp_id === categoryId) ? [categoryId] : [];
+    const validTagIds = tagIds.filter((id: number) => tags.some(t => t.wp_id === id));
+    
+    console.log(`AI selected category: ${validCategoryIds}, tags: ${validTagIds}`);
+    
+    return { categoryIds: validCategoryIds, tagIds: validTagIds };
+  } catch (error) {
+    console.error("AI taxonomy selection failed:", error);
+    // Fallback: use first category if available
+    return { 
+      categoryIds: categories.length > 0 ? [categories[0].wp_id] : [], 
+      tagIds: [] 
+    };
+  }
+}
+
+// Helper function to select only tags with AI
+async function selectTagsWithAI(
+  articleTitle: string,
+  articleContent: string,
+  tags: TaxonomyItem[],
+  lovableApiKey: string
+): Promise<number[]> {
+  const prompt = `Eres un experto en clasificación de contenido.
+
+Artículo:
+Título: "${articleTitle}"
+Contenido (primeros 300 chars): "${articleContent.substring(0, 300)}"
+
+Tags disponibles: ${tags.map(t => `${t.wp_id}:${t.name}`).join(', ')}
+
+Selecciona 0-3 tags que apliquen directamente al contenido.
+Responde SOLO con JSON: {"tag_ids": number[]}`;
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${lovableApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash-lite",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
+      max_tokens: 50,
+    }),
+  });
+
+  if (!response.ok) throw new Error("AI failed");
+  
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content?.trim();
+  const jsonMatch = content?.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return [];
+  
+  const parsed = JSON.parse(jsonMatch[0]);
+  const tagIds = Array.isArray(parsed.tag_ids) ? parsed.tag_ids : [];
+  
+  return tagIds.filter((id: number) => tags.some(t => t.wp_id === id));
+}
+
+// Get taxonomies for a WordPress site and select appropriate ones
+async function getTaxonomiesForPublish(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  wpSiteId: string,
+  articleTitle: string,
+  articleContent: string,
+  lovableApiKey: string | undefined
+): Promise<{ categoryIds: number[]; tagIds: number[] }> {
+  try {
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Get all synced taxonomies for this WordPress site
+    const { data: allTaxonomies, error } = await supabaseClient
+      .from("wordpress_taxonomies")
+      .select("wp_id, name, taxonomy_type")
+      .eq("wordpress_site_id", wpSiteId);
+
+    if (error || !allTaxonomies || allTaxonomies.length === 0) {
+      console.log("No taxonomies found for site, skipping taxonomy selection");
+      return { categoryIds: [], tagIds: [] };
+    }
+
+    const categories: TaxonomyItem[] = allTaxonomies
+      .filter(t => t.taxonomy_type === "category")
+      .map(t => ({ wp_id: t.wp_id as number, name: t.name as string, taxonomy_type: t.taxonomy_type as string }));
+    const tags: TaxonomyItem[] = allTaxonomies
+      .filter(t => t.taxonomy_type === "tag")
+      .map(t => ({ wp_id: t.wp_id as number, name: t.name as string, taxonomy_type: t.taxonomy_type as string }));
+
+    console.log(`Found ${categories.length} categories and ${tags.length} tags for site`);
+
+    // Apply selection logic
+    // 0 categories = no category
+    if (categories.length === 0) {
+      // Handle tags
+      if (tags.length === 0) return { categoryIds: [], tagIds: [] };
+      if (tags.length === 1) return { categoryIds: [], tagIds: [tags[0].wp_id] };
+      // Multiple tags without AI key = no tags
+      if (!lovableApiKey) return { categoryIds: [], tagIds: [] };
+      // Use AI for tags only
+      const tagIds = await selectTagsWithAI(articleTitle, articleContent, tags, lovableApiKey);
+      return { categoryIds: [], tagIds };
+    }
+
+    // 1 category = use that one
+    if (categories.length === 1) {
+      let tagIds: number[] = [];
+      if (tags.length === 1) {
+        tagIds = [tags[0].wp_id];
+      } else if (tags.length > 1 && lovableApiKey) {
+        tagIds = await selectTagsWithAI(articleTitle, articleContent, tags, lovableApiKey);
+      }
+      return { categoryIds: [categories[0].wp_id], tagIds };
+    }
+
+    // Multiple categories = use AI
+    if (!lovableApiKey) {
+      console.log("LOVABLE_API_KEY not available for AI taxonomy selection, using first category");
+      const tagIds = tags.length === 1 ? [tags[0].wp_id] : [];
+      return { categoryIds: [categories[0].wp_id], tagIds };
+    }
+
+    return await selectTaxonomiesWithAI(articleTitle, articleContent, categories, tags, lovableApiKey);
+  } catch (error) {
+    console.error("Error getting taxonomies for publish:", error);
+    return { categoryIds: [], tagIds: [] };
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("=== GENERATE MONTHLY ARTICLES STARTED ===");
   
@@ -149,6 +373,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
 
     if (!resendApiKey) {
       throw new Error("RESEND_API_KEY not configured");
@@ -314,6 +539,20 @@ const handler = async (req: Request): Promise<Response> => {
           console.log(`WordPress configured for ${farmacia.name}, publishing...`);
           const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress`;
           
+          // Get taxonomies for this article
+          const articleTitle = generatedData.content?.spanish?.title || topic.tema;
+          const articleContent = generatedData.content?.spanish?.content || "";
+          const { categoryIds, tagIds } = await getTaxonomiesForPublish(
+            supabaseUrl,
+            supabaseServiceKey,
+            wpSite.id,
+            articleTitle,
+            articleContent,
+            lovableApiKey
+          );
+          
+          console.log(`Using categories: [${categoryIds.join(",")}], tags: [${tagIds.join(",")}]`);
+          
           // Publicar versión ESPAÑOL
           if (generatedData.content?.spanish) {
             try {
@@ -333,7 +572,9 @@ const handler = async (req: Request): Promise<Response> => {
                   image_url: generatedData.image?.url,
                   image_alt: generatedData.content.spanish.title,
                   meta_description: generatedData.content.spanish.meta_description,
-                  lang: "es", // For Polylang - Spanish
+                  lang: "es",
+                  category_ids: categoryIds,
+                  tag_ids: tagIds,
                 }),
               });
               
@@ -366,12 +607,14 @@ const handler = async (req: Request): Promise<Response> => {
                   farmacia_id: farmacia.id,
                   title: generatedData.content.catalan.title,
                   content: generatedData.content.catalan.content,
-                  slug: `${generatedData.content.catalan.slug}-ca`, // Sufijo para identificar catalán
+                  slug: `${generatedData.content.catalan.slug}-ca`,
                   status: "publish",
                   image_url: generatedData.image?.url,
                   image_alt: generatedData.content.catalan.title,
                   meta_description: generatedData.content.catalan.meta_description,
-                  lang: "ca", // For Polylang - Catalan
+                  lang: "ca",
+                  category_ids: categoryIds,
+                  tag_ids: tagIds,
                 }),
               });
               
@@ -455,7 +698,6 @@ const handler = async (req: Request): Promise<Response> => {
           // Generate topic using AI
           console.log(`Generating AI topic for empresa ${empresa.name}...`);
           
-          const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
           if (!lovableApiKey) {
             console.error("LOVABLE_API_KEY not configured, skipping empresa");
             continue;
@@ -592,6 +834,20 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
             console.log(`WordPress configured for empresa ${empresa.name}, publishing...`);
             const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress`;
             
+            // Get taxonomies for this article
+            const articleTitle = generatedData.content?.spanish?.title || topic.tema;
+            const articleContent = generatedData.content?.spanish?.content || "";
+            const { categoryIds, tagIds } = await getTaxonomiesForPublish(
+              supabaseUrl,
+              supabaseServiceKey,
+              wpSite.id,
+              articleTitle,
+              articleContent,
+              lovableApiKey
+            );
+            
+            console.log(`Using categories: [${categoryIds.join(",")}], tags: [${tagIds.join(",")}]`);
+            
             // Publish Spanish version
             if (generatedData.content?.spanish) {
               try {
@@ -612,6 +868,8 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
                     image_alt: generatedData.content.spanish.title,
                     meta_description: generatedData.content.spanish.meta_description,
                     lang: "es",
+                    category_ids: categoryIds,
+                    tag_ids: tagIds,
                   }),
                 });
                 
@@ -650,6 +908,8 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
                     image_alt: generatedData.content.catalan.title,
                     meta_description: generatedData.content.catalan.meta_description,
                     lang: "ca",
+                    category_ids: categoryIds,
+                    tag_ids: tagIds,
                   }),
                 });
                 
@@ -699,84 +959,108 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
 
     // Calculate summary
     const successCount = results.filter(r => r.success).length;
-    const errorCount = results.filter(r => !r.success).length;
-    const farmaciaResults = results.filter(r => r.entityType === 'farmacia');
-    const empresaResults = results.filter(r => r.entityType === 'empresa');
-    
-    const errorDetails = results
-      .filter(r => !r.success)
-      .map(r => `<li><strong>${r.entityName} (${r.entityType}):</strong> ${r.error}</li>`)
-      .join("");
+    const failCount = results.filter(r => !r.success).length;
+    const wpPublished = results.filter(r => r.wpSpanish?.success || r.wpCatalan?.success).length;
 
-    // WordPress publish summary
-    const wpResults = results.filter(r => r.wpSpanish || r.wpCatalan);
-    const wpSpanishSuccess = results.filter(r => r.wpSpanish?.success).length;
-    const wpCatalanSuccess = results.filter(r => r.wpCatalan?.success).length;
-    
-    const wpPublishDetails = wpResults.map(r => {
-      const esLink = r.wpSpanish?.success && r.wpSpanish.postUrl 
-        ? `<a href="${r.wpSpanish.postUrl}" style="color: #4F46E5;">ES ✓</a>` 
-        : (r.wpSpanish ? `<span style="color: #DC2626;">ES ✗</span>` : '');
-      const caLink = r.wpCatalan?.success && r.wpCatalan.postUrl 
-        ? `<a href="${r.wpCatalan.postUrl}" style="color: #4F46E5;">CA ✓</a>` 
-        : (r.wpCatalan ? `<span style="color: #DC2626;">CA ✗</span>` : '');
-      return `<li><strong>${r.entityName} (${r.entityType}):</strong> ${[esLink, caLink].filter(Boolean).join(' | ')}</li>`;
-    }).join("");
+    console.log(`=== GENERATION COMPLETE ===`);
+    console.log(`Success: ${successCount}, Failed: ${failCount}, WP Published: ${wpPublished}`);
 
-    console.log(`Generation complete: ${successCount} success, ${errorCount} errors`);
-    console.log(`WordPress publish: ${wpSpanishSuccess} Spanish, ${wpCatalanSuccess} Catalan`);
+    // Build email content
+    const successResults = results.filter(r => r.success);
+    const failedResults = results.filter(r => !r.success);
 
-    // Send notification email to both recipients
-    const emailResult = await resend.emails.send({
+    let successTableRows = '';
+    for (const result of successResults) {
+      const wpStatus = [];
+      if (result.wpSpanish?.success) wpStatus.push(`<a href="${result.wpSpanish.postUrl}">ES ✓</a>`);
+      if (result.wpSpanish && !result.wpSpanish.success) wpStatus.push(`ES ✗`);
+      if (result.wpCatalan?.success) wpStatus.push(`<a href="${result.wpCatalan.postUrl}">CA ✓</a>`);
+      if (result.wpCatalan && !result.wpCatalan.success) wpStatus.push(`CA ✗`);
+      
+      successTableRows += `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #ddd;">${result.entityName}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${result.entityType === 'farmacia' ? 'Farmacia' : 'Empresa'}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${wpStatus.length > 0 ? wpStatus.join(' | ') : 'No WP'}</td>
+        </tr>
+      `;
+    }
+
+    let failedTableRows = '';
+    for (const result of failedResults) {
+      failedTableRows += `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #ddd;">${result.entityName}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${result.entityType === 'farmacia' ? 'Farmacia' : 'Empresa'}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; color: red;">${result.error || 'Unknown error'}</td>
+        </tr>
+      `;
+    }
+
+    const emailHtml = `
+      <h1>PharmaBlog Manager - Generación Automática</h1>
+      <p>Hola,</p>
+      <p>Se ha completado la generación automática de artículos para <strong>${MONTH_NAMES[currentMonth - 1]} ${currentYear}</strong>.</p>
+      
+      <h2>Resumen</h2>
+      <ul>
+        <li><strong>Artículos generados:</strong> ${successCount}</li>
+        <li><strong>Errores:</strong> ${failCount}</li>
+        <li><strong>Publicados en WordPress:</strong> ${wpPublished}</li>
+      </ul>
+      
+      ${successCount > 0 ? `
+        <h2>✓ Artículos Generados</h2>
+        <table style="border-collapse: collapse; width: 100%;">
+          <thead>
+            <tr style="background-color: #f2f2f2;">
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Entidad</th>
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Tipo</th>
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">WordPress</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${successTableRows}
+          </tbody>
+        </table>
+      ` : ''}
+      
+      ${failCount > 0 ? `
+        <h2>✗ Errores</h2>
+        <table style="border-collapse: collapse; width: 100%;">
+          <thead>
+            <tr style="background-color: #f2f2f2;">
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Entidad</th>
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Tipo</th>
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${failedTableRows}
+          </tbody>
+        </table>
+      ` : ''}
+      
+      <p><a href="${PORTAL_URL}">Acceder al portal</a></p>
+      <p>Saludos,<br>PharmaBlog Manager</p>
+    `;
+
+    // Send notification email
+    await resend.emails.send({
       from: "PharmaBlog Manager <onboarding@resend.dev>",
       to: NOTIFICATION_EMAILS,
-      subject: `Posts de ${MONTH_NAMES[currentMonth - 1]} ${currentYear} generados${errorCount > 0 ? ` (${errorCount} errores)` : ""}`,
-      html: `
-        <h1>PharmaBlog Manager</h1>
-        <p>Hola,</p>
-        <p>Se han generado automáticamente los artículos de blog para el mes de <strong>${MONTH_NAMES[currentMonth - 1]} ${currentYear}</strong>.</p>
-        
-        <h2>Resumen de generación</h2>
-        <ul>
-          <li><strong>Farmacias procesadas:</strong> ${farmaciaResults.length} (${farmaciaResults.filter(r => r.success).length} correctos)</li>
-          <li><strong>Empresas procesadas:</strong> ${empresaResults.length} (${empresaResults.filter(r => r.success).length} correctos)</li>
-          <li><strong>Total artículos generados:</strong> ${successCount}</li>
-          <li><strong>Errores:</strong> ${errorCount}</li>
-        </ul>
-        
-        ${wpResults.length > 0 ? `
-        <h2>Publicaciones a WordPress</h2>
-        <ul>
-          <li><strong>Posts en Español publicados:</strong> ${wpSpanishSuccess}</li>
-          <li><strong>Posts en Catalán publicados:</strong> ${wpCatalanSuccess}</li>
-        </ul>
-        <h3>Detalle por entidad</h3>
-        <ul>${wpPublishDetails}</ul>
-        ` : ""}
-        
-        ${errorCount > 0 ? `
-        <h2>Detalle de errores</h2>
-        <ul>${errorDetails}</ul>
-        ` : ""}
-        
-        <p>Accede al portal para revisar los artículos:</p>
-        <p><a href="${PORTAL_URL}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Acceder al portal</a></p>
-        
-        <p>Saludos,<br>PharmaBlog Manager</p>
-      `,
+      subject: `Posts de ${MONTH_NAMES[currentMonth - 1]} ${currentYear} - ${successCount} generados`,
+      html: emailHtml,
     });
 
-    console.log("Notification email sent:", emailResult);
-    console.log("=== GENERATE MONTHLY ARTICLES COMPLETED ===");
+    console.log("Notification email sent");
 
     return new Response(
       JSON.stringify({
         message: "Generation complete",
-        month: currentMonth,
-        year: currentYear,
-        processed: farmaciasToProcess.length,
         success: successCount,
-        errors: errorCount,
+        failed: failCount,
+        wpPublished,
         results,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -785,7 +1069,7 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Fatal error in generate-monthly-articles:", error);
-    
+
     // Try to send error notification
     try {
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -794,18 +1078,17 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
         await resend.emails.send({
           from: "PharmaBlog Manager <onboarding@resend.dev>",
           to: NOTIFICATION_EMAILS,
-          subject: "ERROR en generación automática de posts",
+          subject: "ERROR - Generación automática de artículos",
           html: `
-            <h1>PharmaBlog Manager - Error</h1>
-            <p>Ha ocurrido un error durante la generación automática de artículos:</p>
-            <pre style="background: #f3f4f6; padding: 12px; border-radius: 6px;">${errorMessage}</pre>
-            <p>Por favor, revisa el portal y genera los artículos manualmente si es necesario:</p>
+            <h1>Error en PharmaBlog Manager</h1>
+            <p>Se ha producido un error durante la generación automática de artículos:</p>
+            <pre style="background: #f5f5f5; padding: 15px; border-radius: 5px;">${errorMessage}</pre>
             <p><a href="${PORTAL_URL}">Acceder al portal</a></p>
           `,
         });
       }
     } catch (emailError) {
-      console.error("Failed to send error notification:", emailError);
+      console.error("Failed to send error email:", emailError);
     }
 
     return new Response(
