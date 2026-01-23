@@ -1,12 +1,6 @@
-import { useRef, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Tag, FolderOpen } from "lucide-react";
-import {
-  useTaxonomies,
-  useDefaultTaxonomies,
-  WordPressTaxonomy,
-} from "@/hooks/useWordPressTaxonomies";
+import { Loader2 } from "lucide-react";
+import { useTaxonomies } from "@/hooks/useWordPressTaxonomies";
 
 interface TaxonomySelectorProps {
   wordpressSiteId: string | undefined;
@@ -23,153 +17,87 @@ export function TaxonomySelector({
   onCategoriesChange,
   onTagsChange,
 }: TaxonomySelectorProps) {
-  const { data: taxonomies, isLoading: isLoadingTaxonomies } = useTaxonomies(wordpressSiteId);
-  const { data: defaults, isLoading: isLoadingDefaults } = useDefaultTaxonomies(wordpressSiteId);
-  const initializedRef = useRef(false);
-  const lastSiteIdRef = useRef<string | undefined>(undefined);
-
-  // Stable callback refs to avoid triggering effects
-  const onCategoriesChangeRef = useRef(onCategoriesChange);
-  const onTagsChangeRef = useRef(onTagsChange);
-  
-  useEffect(() => {
-    onCategoriesChangeRef.current = onCategoriesChange;
-    onTagsChangeRef.current = onTagsChange;
-  });
-
-  // Reset initialization when site changes
-  useEffect(() => {
-    if (wordpressSiteId !== lastSiteIdRef.current) {
-      lastSiteIdRef.current = wordpressSiteId;
-      initializedRef.current = false;
-    }
-  }, [wordpressSiteId]);
-
-  // Initialize with defaults on first load
-  useEffect(() => {
-    // Skip if already initialized, no data, or no site
-    if (initializedRef.current || !defaults || !taxonomies || !wordpressSiteId) {
-      return;
-    }
-
-    // Mark as initialized immediately to prevent re-runs
-    initializedRef.current = true;
-
-    const defaultCategoryIds = defaults
-      .filter((d) => d.taxonomy?.taxonomy_type === "category")
-      .map((d) => d.taxonomy?.wp_id)
-      .filter((id): id is number => id !== undefined);
-    
-    const defaultTagIds = defaults
-      .filter((d) => d.taxonomy?.taxonomy_type === "tag")
-      .map((d) => d.taxonomy?.wp_id)
-      .filter((id): id is number => id !== undefined);
-
-    // Use refs to call the callbacks to avoid dependency issues
-    if (defaultCategoryIds.length > 0) {
-      onCategoriesChangeRef.current(defaultCategoryIds);
-    }
-    if (defaultTagIds.length > 0) {
-      onTagsChangeRef.current(defaultTagIds);
-    }
-  }, [defaults, taxonomies, wordpressSiteId]);
-
-  const toggleCategory = (wpId: number) => {
-    if (selectedCategoryIds.includes(wpId)) {
-      onCategoriesChange(selectedCategoryIds.filter((id) => id !== wpId));
-    } else {
-      onCategoriesChange([...selectedCategoryIds, wpId]);
-    }
-  };
-
-  const toggleTag = (wpId: number) => {
-    if (selectedTagIds.includes(wpId)) {
-      onTagsChange(selectedTagIds.filter((id) => id !== wpId));
-    } else {
-      onTagsChange([...selectedTagIds, wpId]);
-    }
-  };
+  const { data: taxonomies, isLoading } = useTaxonomies(wordpressSiteId);
 
   if (!wordpressSiteId) return null;
 
-  const isLoading = isLoadingTaxonomies || isLoadingDefaults;
-  const hasTaxonomies =
-    (taxonomies?.categories?.length || 0) > 0 || (taxonomies?.tags?.length || 0) > 0;
-
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
         Cargando taxonomías...
       </div>
     );
   }
 
-  if (!hasTaxonomies) {
+  const categories = taxonomies?.categories || [];
+  const tags = taxonomies?.tags || [];
+
+  if (categories.length === 0 && tags.length === 0) {
     return (
-      <p className="text-xs text-muted-foreground">
-        No hay categorías ni tags configurados. Puedes sincronizarlos desde la configuración de la empresa/farmacia.
+      <p className="text-sm text-muted-foreground">
+        No hay categorías ni tags sincronizados.
       </p>
     );
   }
 
+  const handleCategoryChange = (wpId: number, checked: boolean) => {
+    if (checked) {
+      onCategoriesChange([...selectedCategoryIds, wpId]);
+    } else {
+      onCategoriesChange(selectedCategoryIds.filter(id => id !== wpId));
+    }
+  };
+
+  const handleTagChange = (wpId: number, checked: boolean) => {
+    if (checked) {
+      onTagsChange([...selectedTagIds, wpId]);
+    } else {
+      onTagsChange(selectedTagIds.filter(id => id !== wpId));
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      {/* Categories */}
-      {(taxonomies?.categories?.length || 0) > 0 && (
-        <div className="space-y-2">
-          <Label className="flex items-center gap-1 text-xs">
-            <FolderOpen className="h-3 w-3" />
-            Categorías
-          </Label>
-          <div className="flex flex-wrap gap-1.5">
-            {taxonomies?.categories.map((cat: WordPressTaxonomy) => (
-              <div
+    <div className="space-y-3">
+      {categories.length > 0 && (
+        <div>
+          <Label className="text-xs text-muted-foreground">Categorías</Label>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {categories.map((cat) => (
+              <label
                 key={cat.id}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs border cursor-pointer transition-colors ${
-                  selectedCategoryIds.includes(cat.wp_id)
-                    ? "bg-primary/10 border-primary text-primary"
-                    : "bg-muted/50 border-transparent hover:border-muted-foreground/30"
-                }`}
-                onClick={() => toggleCategory(cat.wp_id)}
+                className="flex items-center gap-1.5 text-xs cursor-pointer"
               >
-                <Checkbox
+                <input
+                  type="checkbox"
                   checked={selectedCategoryIds.includes(cat.wp_id)}
-                  onCheckedChange={() => toggleCategory(cat.wp_id)}
-                  className="h-3 w-3"
+                  onChange={(e) => handleCategoryChange(cat.wp_id, e.target.checked)}
+                  className="h-3 w-3 rounded border-input"
                 />
                 <span>{cat.name}</span>
-              </div>
+              </label>
             ))}
           </div>
         </div>
       )}
 
-      {/* Tags */}
-      {(taxonomies?.tags?.length || 0) > 0 && (
-        <div className="space-y-2">
-          <Label className="flex items-center gap-1 text-xs">
-            <Tag className="h-3 w-3" />
-            Tags
-          </Label>
-          <div className="flex flex-wrap gap-1.5">
-            {taxonomies?.tags.map((tag: WordPressTaxonomy) => (
-              <div
+      {tags.length > 0 && (
+        <div>
+          <Label className="text-xs text-muted-foreground">Tags</Label>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {tags.map((tag) => (
+              <label
                 key={tag.id}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs border cursor-pointer transition-colors ${
-                  selectedTagIds.includes(tag.wp_id)
-                    ? "bg-primary/10 border-primary text-primary"
-                    : "bg-muted/50 border-transparent hover:border-muted-foreground/30"
-                }`}
-                onClick={() => toggleTag(tag.wp_id)}
+                className="flex items-center gap-1.5 text-xs cursor-pointer"
               >
-                <Checkbox
+                <input
+                  type="checkbox"
                   checked={selectedTagIds.includes(tag.wp_id)}
-                  onCheckedChange={() => toggleTag(tag.wp_id)}
-                  className="h-3 w-3"
+                  onChange={(e) => handleTagChange(tag.wp_id, e.target.checked)}
+                  className="h-3 w-3 rounded border-input"
                 />
                 <span>{tag.name}</span>
-              </div>
+              </label>
             ))}
           </div>
         </div>
