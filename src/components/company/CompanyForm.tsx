@@ -30,7 +30,7 @@ interface CompanyFormProps {
     blog_url?: string;
     instagram_url?: string;
     auto_generate?: boolean;
-    custom_topic: string;
+    custom_topic?: string | null;
   }) => void;
   initialData?: Empresa | null;
   isLoading?: boolean;
@@ -112,7 +112,7 @@ export function CompanyForm({
       blog_url: blogUrl || undefined,
       instagram_url: instagramUrl || undefined,
       auto_generate: autoGenerate,
-      custom_topic: customTopic,
+      custom_topic: autoGenerate ? null : (customTopic || null),
     });
 
     // Save WordPress config if editing and has values
@@ -190,26 +190,11 @@ export function CompanyForm({
             </Label>
           </div>
 
-          {/* Tema personalizado - siempre visible y obligatorio */}
+          {/* Generación automática */}
           <div className="space-y-3 pt-2 border-t">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Cog className="h-4 w-4" />
-              Tema del Artículo
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="customTopic">Tema personalizado *</Label>
-              <Textarea
-                id="customTopic"
-                value={customTopic}
-                onChange={(e) => setCustomTopic(e.target.value)}
-                placeholder="Ej: Blanqueamiento dental: guía completa para una sonrisa perfecta"
-                rows={2}
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Este tema se usará para generar el artículo mensual
-              </p>
+              Generación de Artículos
             </div>
 
             <div className="flex items-center space-x-2">
@@ -222,6 +207,27 @@ export function CompanyForm({
                 Generación automática mensual
               </Label>
             </div>
+
+            {autoGenerate ? (
+              <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                La IA generará automáticamente un tema SEO basado en el nombre de la empresa, sector, localidad y época del año.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="customTopic">Tema del artículo *</Label>
+                <Textarea
+                  id="customTopic"
+                  value={customTopic}
+                  onChange={(e) => setCustomTopic(e.target.value)}
+                  placeholder="Ej: Blanqueamiento dental: guía completa para una sonrisa perfecta"
+                  rows={2}
+                  required={!autoGenerate}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Este tema se usará cuando generes el artículo manualmente
+                </p>
+              </div>
+            )}
           </div>
 
           {/* SEO Links */}
@@ -340,7 +346,7 @@ export function CompanyForm({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading || !customTopic.trim()}>
+            <Button type="submit" disabled={isLoading || (!autoGenerate && !customTopic.trim())}>
               {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {isEditing ? "Guardar" : "Crear"}
             </Button>

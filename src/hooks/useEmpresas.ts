@@ -11,7 +11,7 @@ export interface Empresa {
   blog_url: string | null;
   instagram_url: string | null;
   auto_generate: boolean;
-  custom_topic: string;
+  custom_topic: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,7 +43,7 @@ export function useCreateEmpresa() {
       blog_url?: string | null;
       instagram_url?: string | null;
       auto_generate?: boolean;
-      custom_topic: string;
+      custom_topic?: string | null;
     }) => {
       const { data, error } = await supabase
         .from("empresas")

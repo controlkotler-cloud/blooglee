@@ -58,10 +58,15 @@ export function CompanyCard({
             )}
           </div>
           <div className="flex gap-1 flex-wrap justify-end">
-            {isManual && (
+            {isManual ? (
               <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
                 <Hand className="h-3 w-3 mr-1" />
                 Manual
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                <Sparkles className="h-3 w-3 mr-1" />
+                Auto
               </Badge>
             )}
             <Badge variant="outline">ES</Badge>
@@ -76,11 +81,21 @@ export function CompanyCard({
         <h3 className="font-semibold text-lg leading-tight break-words">{company.name}</h3>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex flex-wrap gap-1">
-          <Badge variant="secondary" className="text-xs">
-            {company.custom_topic}
-          </Badge>
-        </div>
+        {/* Topic display - only show if it's manual and has a custom topic */}
+        {isManual && company.custom_topic && (
+          <div className="flex flex-wrap gap-1">
+            <Badge variant="secondary" className="text-xs">
+              Tema: {company.custom_topic}
+            </Badge>
+          </div>
+        )}
+        
+        {/* Auto-generate explanation */}
+        {!isManual && (
+          <p className="text-xs text-muted-foreground">
+            La IA generará el tema automáticamente
+          </p>
+        )}
 
         {hasArticle && (
           <Badge className="bg-green-100 text-green-800 hover:bg-green-100">

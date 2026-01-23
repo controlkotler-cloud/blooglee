@@ -125,7 +125,7 @@ export type Database = {
           auto_generate: boolean
           blog_url: string | null
           created_at: string
-          custom_topic: string
+          custom_topic: string | null
           id: string
           instagram_url: string | null
           languages: string[]
@@ -138,7 +138,7 @@ export type Database = {
           auto_generate?: boolean
           blog_url?: string | null
           created_at?: string
-          custom_topic: string
+          custom_topic?: string | null
           id?: string
           instagram_url?: string | null
           languages?: string[]
@@ -151,7 +151,7 @@ export type Database = {
           auto_generate?: boolean
           blog_url?: string | null
           created_at?: string
-          custom_topic?: string
+          custom_topic?: string | null
           id?: string
           instagram_url?: string | null
           languages?: string[]

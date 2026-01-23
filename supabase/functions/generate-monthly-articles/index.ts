@@ -448,11 +448,77 @@ const handler = async (req: Request): Promise<Response> => {
       for (let i = 0; i < empresasToProcess.length; i++) {
         const empresa = empresasToProcess[i];
         
-        // Empresas always use their custom_topic
+        // Generate topic: use custom_topic if exists, otherwise AI generates one
+        let topicTema = empresa.custom_topic;
+        
+        if (!topicTema) {
+          // Generate topic using AI
+          console.log(`Generating AI topic for empresa ${empresa.name}...`);
+          
+          const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+          if (!lovableApiKey) {
+            console.error("LOVABLE_API_KEY not configured, skipping empresa");
+            continue;
+          }
+          
+          const topicPrompt = `Eres un experto en SEO y marketing de contenidos para el sector ${empresa.sector || "servicios profesionales"}.
+Genera UN SOLO tema para un artículo de blog optimizado para SEO.
+
+Empresa: ${empresa.name}
+Sector: ${empresa.sector || "servicios profesionales"}
+Localidad: ${empresa.location}
+Mes: ${MONTH_NAMES[currentMonth - 1]} ${currentYear}
+
+El tema debe:
+- Ser MUY relevante para el sector de la empresa
+- Tener en cuenta la época del año (${MONTH_NAMES[currentMonth - 1]}) y tendencias actuales de ${currentYear}
+- Ser atractivo para SEO local en ${empresa.location}
+- Máximo 60 caracteres
+- NO incluir el nombre de la empresa en el tema
+- Ser específico y útil para los clientes potenciales
+
+Responde SOLO con el tema, sin explicaciones ni comillas.`;
+
+          try {
+            const topicResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${lovableApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [{ role: "user", content: topicPrompt }],
+                max_tokens: 100,
+              }),
+            });
+
+            if (!topicResponse.ok) {
+              const errorText = await topicResponse.text();
+              console.error(`AI topic generation failed: ${errorText}`);
+              throw new Error("AI topic generation failed");
+            }
+
+            const topicData = await topicResponse.json();
+            topicTema = topicData.choices?.[0]?.message?.content?.trim() || null;
+            
+            if (!topicTema) {
+              throw new Error("Empty topic from AI");
+            }
+            
+            console.log(`✓ AI generated topic: ${topicTema}`);
+          } catch (topicError) {
+            console.error(`Failed to generate AI topic for ${empresa.name}:`, topicError);
+            // Fallback to a generic topic based on sector
+            topicTema = `Novedades en ${empresa.sector || "servicios profesionales"} para ${MONTH_NAMES[currentMonth - 1]}`;
+            console.log(`Using fallback topic: ${topicTema}`);
+          }
+        }
+        
         const topic = {
-          tema: empresa.custom_topic,
+          tema: topicTema,
           keywords: [],
-          pexels_query: "business professional wellness"
+          pexels_query: empresa.sector ? `${empresa.sector} professional business` : "business professional wellness"
         };
         
         console.log(`[${i + 1}/${empresasToProcess.length}] Generating article for empresa ${empresa.name} - Topic: ${topic.tema}`);

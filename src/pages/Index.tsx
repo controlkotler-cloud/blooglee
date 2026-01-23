@@ -178,11 +178,11 @@ export default function Index() {
   };
 
   // Company handlers
-  const handleCreateEmpresa = (data: { name: string; location: string; sector?: string | null; languages: string[]; blog_url?: string; instagram_url?: string; auto_generate?: boolean; custom_topic: string }) => {
+  const handleCreateEmpresa = (data: { name: string; location: string; sector?: string | null; languages: string[]; blog_url?: string; instagram_url?: string; auto_generate?: boolean; custom_topic?: string | null }) => {
     createEmpresa.mutate(data, { onSuccess: () => setShowAddCompanyForm(false) });
   };
 
-  const handleUpdateEmpresa = (data: { name: string; location: string; sector?: string | null; languages: string[]; blog_url?: string; instagram_url?: string; auto_generate?: boolean; custom_topic: string }) => {
+  const handleUpdateEmpresa = (data: { name: string; location: string; sector?: string | null; languages: string[]; blog_url?: string; instagram_url?: string; auto_generate?: boolean; custom_topic?: string | null }) => {
     if (!editingCompany) return;
     updateEmpresa.mutate({ id: editingCompany.id, ...data }, { onSuccess: () => setEditingCompany(null) });
   };
@@ -199,10 +199,11 @@ export default function Index() {
         empresaId: company.id,
         companyName: company.name,
         companyLocation: company.location,
+        companySector: company.sector,
         companyLanguages: company.languages,
         companyBlogUrl: company.blog_url || undefined,
         companyInstagramUrl: company.instagram_url || undefined,
-        topic: company.custom_topic,
+        topic: company.custom_topic || undefined, // If null/undefined, AI will generate
         month: selectedMonth,
         year: selectedYear,
         usedImageUrls,
