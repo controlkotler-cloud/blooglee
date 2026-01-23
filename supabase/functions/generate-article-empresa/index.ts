@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,12 +26,15 @@ interface RequestBody {
   autoGenerateTopic?: boolean;
 }
 
-// Sector-specific image contexts for better image matching
-const SECTOR_IMAGE_CONTEXTS: Record<string, {
+interface SectorContext {
   examples: string[];
   prohibitedTerms: string[];
   fallbackQuery: string;
-}> = {
+  toneDescription?: string;
+}
+
+// Sector-specific image contexts (hardcoded base sectors)
+const SECTOR_IMAGE_CONTEXTS: Record<string, SectorContext> = {
   marketing: {
     examples: [
       "business team meeting modern office laptop",
@@ -288,10 +292,176 @@ function detectSectorCategory(sector: string | null | undefined): string {
   return "default";
 }
 
-// Get sector image context
-function getSectorImageContext(sector: string | null | undefined) {
-  const category = detectSectorCategory(sector);
-  return SECTOR_IMAGE_CONTEXTS[category] || SECTOR_IMAGE_CONTEXTS.default;
+// Generate sector context with AI for unknown sectors
+async function generateSectorContextWithAI(sector: string, lovableApiKey: string): Promise<{
+  keywords: string[];
+  examples: string[];
+  prohibitedTerms: string[];
+  fallbackQuery: string;
+  toneDescription: string;
+}> {
+  console.log(`Generating sector context with AI for: "${sector}"`);
+  
+  const prompt = `Eres un experto en marketing y fotografía profesional. 
+  
+Para el sector empresarial "${sector}", genera un contexto de imágenes profesionales y tono de comunicación.
+
+Responde SOLO con un JSON válido (sin markdown, sin backticks) con esta estructura:
+{
+  "keywords": ["palabra1", "palabra2", "palabra3"],
+  "examples": [
+    "query unsplash 1 en inglés 4-6 palabras",
+    "query unsplash 2 en inglés 4-6 palabras",
+    "query unsplash 3 en inglés 4-6 palabras",
+    "query unsplash 4 en inglés 4-6 palabras",
+    "query unsplash 5 en inglés 4-6 palabras"
+  ],
+  "prohibitedTerms": ["término1 en inglés", "término2 en inglés"],
+  "fallbackQuery": "query genérico profesional en inglés 4-5 palabras",
+  "toneDescription": "Descripción breve del tono y enfoque que deben tener los artículos para este sector"
+}
+
+REGLAS:
+- keywords: 3-5 palabras clave en ESPAÑOL para detectar este sector en el futuro
+- examples: queries de búsqueda para Unsplash en INGLÉS, profesionales y positivos
+- prohibitedTerms: cosas que NO queremos que aparezcan en las imágenes (en inglés)
+- fallbackQuery: un query genérico pero seguro para el sector (en inglés)
+- toneDescription: cómo debe ser el tono de los artículos (en español)`;
+
+  try {
+    const response = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${lovableApiKey}`
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+        max_tokens: 800
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI response not ok: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const content = result.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error("No content in AI response");
+    }
+    
+    // Clean and parse JSON
+    const cleanContent = content
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/i, '');
+    const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+    
+    if (!jsonMatch) {
+      throw new Error("No JSON found in AI response");
+    }
+    
+    const parsed = JSON.parse(jsonMatch[0]);
+    console.log(`AI generated sector context for "${sector}":`, parsed);
+    return parsed;
+  } catch (error) {
+    console.error(`Error generating sector context with AI for "${sector}":`, error);
+    // Return a safe default
+    return {
+      keywords: [sector.toLowerCase()],
+      examples: [
+        "professional team collaboration office",
+        "business success growth abstract",
+        "modern workspace minimal clean"
+      ],
+      prohibitedTerms: [],
+      fallbackQuery: "professional business modern office",
+      toneDescription: "Profesional, informativo y orientado al cliente"
+    };
+  }
+}
+
+// Get or create sector context (checks hardcoded, then DB, then generates with AI)
+async function getOrCreateSectorContext(
+  sector: string | null | undefined,
+  supabaseClient: any,
+  lovableApiKey: string
+): Promise<SectorContext> {
+  if (!sector) {
+    return SECTOR_IMAGE_CONTEXTS.default;
+  }
+
+  // 1. Check hardcoded sectors first
+  const detectedCategory = detectSectorCategory(sector);
+  if (detectedCategory !== "default" && SECTOR_IMAGE_CONTEXTS[detectedCategory]) {
+    console.log(`Using hardcoded sector context: ${detectedCategory}`);
+    return SECTOR_IMAGE_CONTEXTS[detectedCategory];
+  }
+
+  // 2. Search in database for existing dynamic sector
+  const sectorLower = sector.toLowerCase();
+  console.log(`Searching database for sector: "${sectorLower}"`);
+  
+  try {
+    const { data: existingSector, error } = await supabaseClient
+      .from('sector_contexts')
+      .select('*')
+      .or(`sector_key.eq.${sectorLower.replace(/\s+/g, '_')},sector_keywords.cs.{"${sectorLower}"}`)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error querying sector_contexts:", error);
+    }
+
+    if (existingSector) {
+      console.log(`Found existing dynamic sector in DB: ${existingSector.sector_key}`);
+      return {
+        examples: existingSector.image_examples || [],
+        prohibitedTerms: existingSector.prohibited_terms || [],
+        fallbackQuery: existingSector.fallback_query || "professional business modern",
+        toneDescription: existingSector.tone_description
+      };
+    }
+  } catch (dbError) {
+    console.error("Database error when searching sector:", dbError);
+  }
+
+  // 3. Generate with AI and save to database
+  console.log(`Sector "${sector}" not found. Generating with AI...`);
+  const newContext = await generateSectorContextWithAI(sector, lovableApiKey);
+  
+  // Save to database for future use
+  const sectorKey = sectorLower.replace(/\s+/g, '_').substring(0, 50);
+  try {
+    const { error: insertError } = await supabaseClient
+      .from('sector_contexts')
+      .insert({
+        sector_key: sectorKey,
+        sector_keywords: [sectorLower, ...newContext.keywords],
+        image_examples: newContext.examples,
+        prohibited_terms: newContext.prohibitedTerms,
+        fallback_query: newContext.fallbackQuery,
+        tone_description: newContext.toneDescription
+      });
+
+    if (insertError) {
+      console.error("Error saving sector context to DB:", insertError);
+    } else {
+      console.log(`Sector "${sectorKey}" saved to database for future use`);
+    }
+  } catch (saveError) {
+    console.error("Error saving sector to database:", saveError);
+  }
+
+  return {
+    examples: newContext.examples,
+    prohibitedTerms: newContext.prohibitedTerms,
+    fallbackQuery: newContext.fallbackQuery,
+    toneDescription: newContext.toneDescription
+  };
 }
 
 // Build geographic context - PREVENTS null from appearing
@@ -449,6 +619,8 @@ serve(async (req) => {
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
@@ -456,6 +628,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Create Supabase client for dynamic sector lookup
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
     const { company, topic: providedTopic, month, year, usedImageUrls = [], autoGenerateTopic = true }: RequestBody = await req.json();
 
@@ -473,7 +648,10 @@ serve(async (req) => {
     const dateContextCa = `${monthNameCa} ${year}`;
     
     const { geoContext, locationInfo } = buildGeoContext(company);
-    const sectorCategory = detectSectorCategory(company.sector);
+
+    // Get or create sector context (dynamic!)
+    const sectorContext = await getOrCreateSectorContext(company.sector, supabase, LOVABLE_API_KEY);
+    console.log("Sector context obtained:", sectorContext.fallbackQuery);
 
     // Generate or use provided topic
     let topic = providedTopic;
@@ -481,12 +659,16 @@ serve(async (req) => {
     if (!topic || autoGenerateTopic) {
       console.log("Generating topic with AI for sector:", company.sector);
       
+      const toneHint = sectorContext.toneDescription 
+        ? `\nTONO RECOMENDADO: ${sectorContext.toneDescription}` 
+        : "";
+      
       const topicPrompt = `Eres un experto en marketing de contenidos para el sector "${company.sector || "servicios profesionales"}".
 
 EMPRESA: ${company.name}
 SECTOR: ${company.sector || "Servicios profesionales"}
 ÁMBITO: ${company.geographic_scope === "national" ? "Nacional (España)" : company.location || "General"}
-MES: ${monthNameEs} ${year}
+MES: ${monthNameEs} ${year}${toneHint}
 
 Genera UN tema de blog que:
 1. Sea MUY relevante para el sector ${company.sector || "profesional"}
@@ -534,12 +716,17 @@ Responde SOLO con el tema (máx 80 caracteres), sin explicaciones ni comillas.`;
     }
 
     // Build dynamic system prompt based on sector
+    const toneInstruction = sectorContext.toneDescription 
+      ? `\nTONO ESPECÍFICO DEL SECTOR: ${sectorContext.toneDescription}` 
+      : "";
+    
     const systemPrompt = `Eres un redactor experto en marketing de contenidos y SEO especializado en el sector ${company.sector || "servicios profesionales"}.
 
 SOBRE LA EMPRESA:
 - Nombre: ${company.name}
 - Sector: ${company.sector || "Servicios profesionales"}
 - Ámbito geográfico: ${company.geographic_scope === "national" ? "Nacional (toda España)" : company.location || "General"}
+${toneInstruction}
 
 TU MISIÓN:
 Generar un artículo de blog de ~2000 palabras optimizado para SEO, relevante para el sector ${company.sector || "profesional"} y atractivo para su audiencia objetivo.
@@ -753,8 +940,6 @@ RESPONDE EN JSON:
     
     if (!skipImage && UNSPLASH_ACCESS_KEY) {
       console.log("Generating image for sector:", company.sector);
-      
-      const sectorContext = getSectorImageContext(company.sector);
       
       // Generate image query using AI
       const imageQueryPrompt = `Genera un query de búsqueda para Unsplash basado en este artículo.

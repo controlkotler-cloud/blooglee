@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,15 +11,17 @@ interface RequestBody {
   usedImageUrls?: string[];
   articleTitle?: string;
   articleContent?: string;
-  companySector?: string; // NEW: sector for better image matching
+  companySector?: string;
 }
 
-// Sector-specific image contexts for better matching
-const SECTOR_IMAGE_CONTEXTS: Record<string, {
+interface SectorContext {
   examples: string[];
   prohibitedTerms: string[];
   fallbackQuery: string;
-}> = {
+}
+
+// Sector-specific image contexts (hardcoded base sectors)
+const SECTOR_IMAGE_CONTEXTS: Record<string, SectorContext> = {
   belleza: {
     examples: [
       "hair salon modern interior styling chair woman",
@@ -119,7 +122,8 @@ function detectSectorCategory(sector: string | null | undefined): string {
   if (!sector) return "default";
   const s = sector.toLowerCase();
   
-  if (s.includes("peluqu") || s.includes("cabello") || s.includes("estétic") || s.includes("estetica") || s.includes("hair") || s.includes("salon de belleza") || s.includes("salón de belleza") || s.includes("beauty")) {
+  // Belleza first to avoid "salud" matching
+  if (s.includes("peluqu") || s.includes("cabello") || s.includes("estétic") || s.includes("estetica") || s.includes("hair") || s.includes("salon de belleza") || s.includes("salón de belleza") || s.includes("beauty") || s.includes("manicur") || s.includes("maquillaje")) {
     return "belleza";
   }
   if (s.includes("restaur") || s.includes("hotel") || s.includes("hostel") || s.includes("bar ") || s.includes("cafeter") || s.includes("gastronom")) {
@@ -150,10 +154,172 @@ function detectSectorCategory(sector: string | null | undefined): string {
   return "default";
 }
 
-// Get sector context
-function getSectorContext(sector: string | null | undefined) {
-  const category = detectSectorCategory(sector);
-  return { category, context: SECTOR_IMAGE_CONTEXTS[category] || SECTOR_IMAGE_CONTEXTS.default };
+// Get or create sector context from database
+async function getOrCreateSectorContext(
+  sector: string | null | undefined,
+  supabaseClient: any,
+  lovableApiKey: string
+): Promise<SectorContext> {
+  if (!sector) {
+    return SECTOR_IMAGE_CONTEXTS.default;
+  }
+
+  // 1. Check hardcoded sectors first
+  const detectedCategory = detectSectorCategory(sector);
+  if (detectedCategory !== "default" && SECTOR_IMAGE_CONTEXTS[detectedCategory]) {
+    console.log(`Using hardcoded sector context: ${detectedCategory}`);
+    return SECTOR_IMAGE_CONTEXTS[detectedCategory];
+  }
+
+  // 2. Search in database for existing dynamic sector
+  const sectorLower = sector.toLowerCase();
+  console.log(`Searching database for sector: "${sectorLower}"`);
+  
+  try {
+    const { data: existingSector, error } = await supabaseClient
+      .from('sector_contexts')
+      .select('*')
+      .or(`sector_key.eq.${sectorLower.replace(/\s+/g, '_')},sector_keywords.cs.{"${sectorLower}"}`)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error querying sector_contexts:", error);
+    }
+
+    if (existingSector) {
+      console.log(`Found existing dynamic sector in DB: ${existingSector.sector_key}`);
+      return {
+        examples: existingSector.image_examples || [],
+        prohibitedTerms: existingSector.prohibited_terms || [],
+        fallbackQuery: existingSector.fallback_query || "professional business modern"
+      };
+    }
+  } catch (dbError) {
+    console.error("Database error when searching sector:", dbError);
+  }
+
+  // 3. Generate with AI and save to database
+  console.log(`Sector "${sector}" not found. Generating with AI...`);
+  const newContext = await generateSectorContextWithAI(sector, lovableApiKey);
+  
+  // Save to database for future use
+  const sectorKey = sectorLower.replace(/\s+/g, '_').substring(0, 50);
+  try {
+    const { error: insertError } = await supabaseClient
+      .from('sector_contexts')
+      .insert({
+        sector_key: sectorKey,
+        sector_keywords: [sectorLower, ...newContext.keywords],
+        image_examples: newContext.examples,
+        prohibited_terms: newContext.prohibitedTerms,
+        fallback_query: newContext.fallbackQuery,
+        tone_description: newContext.toneDescription
+      });
+
+    if (insertError) {
+      console.error("Error saving sector context to DB:", insertError);
+    } else {
+      console.log(`Sector "${sectorKey}" saved to database for future use`);
+    }
+  } catch (saveError) {
+    console.error("Error saving sector to database:", saveError);
+  }
+
+  return {
+    examples: newContext.examples,
+    prohibitedTerms: newContext.prohibitedTerms,
+    fallbackQuery: newContext.fallbackQuery
+  };
+}
+
+// Generate sector context with AI
+async function generateSectorContextWithAI(sector: string, lovableApiKey: string): Promise<{
+  keywords: string[];
+  examples: string[];
+  prohibitedTerms: string[];
+  fallbackQuery: string;
+  toneDescription: string;
+}> {
+  console.log(`Generating sector context with AI for: "${sector}"`);
+  
+  const prompt = `Eres un experto en marketing y fotografía profesional. 
+  
+Para el sector empresarial "${sector}", genera un contexto de imágenes profesionales.
+
+Responde SOLO con un JSON válido (sin markdown, sin backticks) con esta estructura:
+{
+  "keywords": ["palabra1", "palabra2", "palabra3"],
+  "examples": [
+    "query unsplash 1 en inglés 4-6 palabras",
+    "query unsplash 2 en inglés 4-6 palabras",
+    "query unsplash 3 en inglés 4-6 palabras",
+    "query unsplash 4 en inglés 4-6 palabras",
+    "query unsplash 5 en inglés 4-6 palabras"
+  ],
+  "prohibitedTerms": ["término1 en inglés", "término2 en inglés"],
+  "fallbackQuery": "query genérico profesional en inglés 4-5 palabras",
+  "toneDescription": "Descripción breve del tono para este sector"
+}
+
+REGLAS:
+- keywords: 3-5 palabras clave en ESPAÑOL para detectar este sector
+- examples: queries de búsqueda para Unsplash en INGLÉS, profesionales y positivos
+- prohibitedTerms: cosas que NO queremos en las imágenes (en inglés)
+- fallbackQuery: un query genérico pero seguro para el sector (en inglés)`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${lovableApiKey}`
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+        max_tokens: 800
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI response not ok: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const content = result.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error("No content in AI response");
+    }
+    
+    // Clean and parse JSON
+    const cleanContent = content
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/i, '');
+    const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+    
+    if (!jsonMatch) {
+      throw new Error("No JSON found in AI response");
+    }
+    
+    const parsed = JSON.parse(jsonMatch[0]);
+    console.log(`AI generated sector context for "${sector}":`, parsed);
+    return parsed;
+  } catch (error) {
+    console.error(`Error generating sector context with AI for "${sector}":`, error);
+    return {
+      keywords: [sector.toLowerCase()],
+      examples: [
+        "professional team collaboration office",
+        "business success growth abstract",
+        "modern workspace minimal clean"
+      ],
+      prohibitedTerms: [],
+      fallbackQuery: "professional business modern office",
+      toneDescription: "Profesional e informativo"
+    };
+  }
 }
 
 // Fallback images - PROFESSIONAL/BUSINESS ORIENTED (no specific sector)
@@ -175,26 +341,31 @@ serve(async (req) => {
     
     const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
     if (!UNSPLASH_ACCESS_KEY) {
       throw new Error("UNSPLASH_ACCESS_KEY is not configured");
     }
+
+    // Create Supabase client for dynamic sector lookup
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
     console.log("=== REGENERATE IMAGE ===");
     console.log("Article title:", articleTitle || "No title provided");
     console.log("Company sector:", companySector || "No sector provided");
     console.log("Excluding URLs:", usedImageUrls.length, "images");
 
-    // Get sector-specific context
-    const { category: sectorCategory, context: sectorContext } = getSectorContext(companySector);
-    console.log("Detected sector category:", sectorCategory);
+    // Get sector-specific context (dynamic!)
+    const sectorContext = await getOrCreateSectorContext(companySector, supabase, LOVABLE_API_KEY || "");
+    console.log("Sector context obtained:", sectorContext.fallbackQuery);
 
     // Default to sector fallback query
     let searchQuery = sectorContext.fallbackQuery;
 
     // If we have title/content AND API key, use AI to generate contextual query
     if (LOVABLE_API_KEY && (articleTitle || articleContent)) {
-      console.log("Generating image search query with AI for sector:", sectorCategory);
+      console.log("Generating image search query with AI for sector:", companySector);
       
       const cleanTextContent = articleContent
         ?.replace(/<[^>]*>/g, ' ')
@@ -208,18 +379,17 @@ serve(async (req) => {
       const imageQueryPrompt = `Genera UN query de búsqueda para Unsplash para encontrar una imagen relevante.
 
 SECTOR DE LA EMPRESA: ${companySector || "General"}
-CATEGORÍA DETECTADA: ${sectorCategory}
 TÍTULO DEL ARTÍCULO: ${articleTitle || "Sin título"}
 EXTRACTO DEL CONTENIDO: ${cleanTextContent || "Sin contenido"}
 
 REGLAS ESTRICTAS:
 1. Máximo 4-5 palabras en INGLÉS (Unsplash funciona mejor en inglés)
-2. El query DEBE ser 100% relevante para el sector "${sectorCategory}"
+2. El query DEBE ser 100% relevante para el sector "${companySector}"
 3. PROHIBIDO TOTALMENTE estas palabras: pharmacy, pharmacist, medicine, pills, drugs, doctor, hospital, medical, ${prohibitedList}
 4. PROHIBIDO incluir nombres de marcas comerciales
 5. Busca escenas PROFESIONALES del sector, no productos genéricos
 
-EJEMPLOS BUENOS PARA SECTOR "${sectorCategory}":
+EJEMPLOS BUENOS PARA ESTE SECTOR:
 ${sectorContext.examples.map(e => `- "${e}"`).join("\n")}
 
 RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin puntuación final.`;

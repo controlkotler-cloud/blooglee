@@ -216,6 +216,42 @@ export type Database = {
         }
         Relationships: []
       }
+      sector_contexts: {
+        Row: {
+          created_at: string
+          fallback_query: string
+          id: string
+          image_examples: string[]
+          prohibited_terms: string[]
+          sector_key: string
+          sector_keywords: string[]
+          tone_description: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fallback_query: string
+          id?: string
+          image_examples?: string[]
+          prohibited_terms?: string[]
+          sector_key: string
+          sector_keywords?: string[]
+          tone_description?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fallback_query?: string
+          id?: string
+          image_examples?: string[]
+          prohibited_terms?: string[]
+          sector_key?: string
+          sector_keywords?: string[]
+          tone_description?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       wordpress_sites: {
         Row: {
           created_at: string
