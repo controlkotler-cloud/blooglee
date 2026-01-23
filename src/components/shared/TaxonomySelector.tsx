@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Tag, FolderOpen } from "lucide-react";
@@ -25,43 +25,53 @@ export function TaxonomySelector({
 }: TaxonomySelectorProps) {
   const { data: taxonomies, isLoading: isLoadingTaxonomies } = useTaxonomies(wordpressSiteId);
   const { data: defaults, isLoading: isLoadingDefaults } = useDefaultTaxonomies(wordpressSiteId);
-  const initializedForSiteRef = useRef<string | null>(null);
+  const initializedRef = useRef(false);
+  const lastSiteIdRef = useRef<string | undefined>(undefined);
+
+  // Stable callback refs to avoid triggering effects
+  const onCategoriesChangeRef = useRef(onCategoriesChange);
+  const onTagsChangeRef = useRef(onTagsChange);
+  
+  useEffect(() => {
+    onCategoriesChangeRef.current = onCategoriesChange;
+    onTagsChangeRef.current = onTagsChange;
+  });
 
   // Reset initialization when site changes
   useEffect(() => {
-    if (wordpressSiteId !== initializedForSiteRef.current) {
-      initializedForSiteRef.current = null;
+    if (wordpressSiteId !== lastSiteIdRef.current) {
+      lastSiteIdRef.current = wordpressSiteId;
+      initializedRef.current = false;
     }
   }, [wordpressSiteId]);
 
-  // Initialize with defaults on first load - using ref to prevent loops
+  // Initialize with defaults on first load
   useEffect(() => {
-    if (
-      defaults &&
-      taxonomies &&
-      wordpressSiteId &&
-      initializedForSiteRef.current !== wordpressSiteId
-    ) {
-      const defaultCategoryIds = defaults
-        .filter((d) => d.taxonomy?.taxonomy_type === "category")
-        .map((d) => d.taxonomy?.wp_id)
-        .filter((id): id is number => id !== undefined);
-      
-      const defaultTagIds = defaults
-        .filter((d) => d.taxonomy?.taxonomy_type === "tag")
-        .map((d) => d.taxonomy?.wp_id)
-        .filter((id): id is number => id !== undefined);
-
-      initializedForSiteRef.current = wordpressSiteId;
-      
-      if (defaultCategoryIds.length > 0) {
-        onCategoriesChange(defaultCategoryIds);
-      }
-      if (defaultTagIds.length > 0) {
-        onTagsChange(defaultTagIds);
-      }
+    // Skip if already initialized, no data, or no site
+    if (initializedRef.current || !defaults || !taxonomies || !wordpressSiteId) {
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // Mark as initialized immediately to prevent re-runs
+    initializedRef.current = true;
+
+    const defaultCategoryIds = defaults
+      .filter((d) => d.taxonomy?.taxonomy_type === "category")
+      .map((d) => d.taxonomy?.wp_id)
+      .filter((id): id is number => id !== undefined);
+    
+    const defaultTagIds = defaults
+      .filter((d) => d.taxonomy?.taxonomy_type === "tag")
+      .map((d) => d.taxonomy?.wp_id)
+      .filter((id): id is number => id !== undefined);
+
+    // Use refs to call the callbacks to avoid dependency issues
+    if (defaultCategoryIds.length > 0) {
+      onCategoriesChangeRef.current(defaultCategoryIds);
+    }
+    if (defaultTagIds.length > 0) {
+      onTagsChangeRef.current(defaultTagIds);
+    }
   }, [defaults, taxonomies, wordpressSiteId]);
 
   const toggleCategory = (wpId: number) => {
