@@ -172,12 +172,11 @@ export function useRegenerateImageEmpresa() {
     mutationFn: async (params: RegenerateImageParams) => {
       const { data, error } = await supabase.functions.invoke("regenerate-image", {
         body: {
-          pexels_query: params.pexelsQuery,
-          company_sector: params.companySector,
-          month: params.month,
-          year: params.year,
-          article_title: params.articleTitle,
-          article_content: params.articleContent,
+          pexelsQuery: params.pexelsQuery,
+          companySector: params.companySector,
+          articleTitle: params.articleTitle,
+          articleContent: params.articleContent,
+          usedImageUrls: [], // Can be populated if needed
         },
       });
 
