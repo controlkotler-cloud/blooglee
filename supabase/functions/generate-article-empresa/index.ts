@@ -525,25 +525,23 @@ FORMATO DE RESPUESTA (JSON):
       throw new Error("No Spanish content generated");
     }
 
-    // Parse JSON from response - sanitize control characters first
+    // Parse JSON from response
     let spanishArticle;
     try {
-      // Remove control characters that break JSON parsing
-      const sanitizedContent = spanishContent
-        .replace(/[\x00-\x1F\x7F]/g, (char: string) => {
-          // Keep newlines and tabs as escaped versions
-          if (char === '\n') return '\\n';
-          if (char === '\r') return '\\r';
-          if (char === '\t') return '\\t';
-          return ''; // Remove other control chars
-        });
+      // First, strip markdown code fences if present
+      let cleanContent = spanishContent
+        .replace(/^```(?:json)?\s*/i, '')  // Remove opening ```json
+        .replace(/\s*```\s*$/i, '');        // Remove closing ```
       
-      const jsonMatch = sanitizedContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        spanishArticle = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found in response");
+      // Extract JSON object
+      const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error("No JSON found in content:", cleanContent.substring(0, 300));
+        throw new Error("No JSON object found in response");
       }
+      
+      // Parse the extracted JSON
+      spanishArticle = JSON.parse(jsonMatch[0]);
     } catch (e) {
       console.error("Error parsing Spanish JSON:", e);
       console.error("Raw content preview:", spanishContent.substring(0, 500));
@@ -618,16 +616,12 @@ RESPONDE EN JSON:
           let catalanContent = catalanData.choices?.[0]?.message?.content;
           
           if (catalanContent) {
-            // Sanitize control characters
-            const sanitizedCatalan = catalanContent
-              .replace(/[\x00-\x1F\x7F]/g, (char: string) => {
-                if (char === '\n') return '\\n';
-                if (char === '\r') return '\\r';
-                if (char === '\t') return '\\t';
-                return '';
-              });
+            // Strip markdown code fences if present
+            let cleanCatalan = catalanContent
+              .replace(/^```(?:json)?\s*/i, '')
+              .replace(/\s*```\s*$/i, '');
             
-            const jsonMatch = sanitizedCatalan.match(/\{[\s\S]*\}/);
+            const jsonMatch = cleanCatalan.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               catalanArticle = JSON.parse(jsonMatch[0]);
               
