@@ -13,11 +13,12 @@ interface TopicData {
 
 interface PharmacyData {
   name: string;
-  location: string;
+  location?: string | null;
   sector?: string;
   languages: string[];
   blog_url?: string;
   instagram_url?: string;
+  geographic_scope?: string; // local, regional, national
 }
 
 interface RequestBody {
@@ -27,6 +28,7 @@ interface RequestBody {
   year: number;
   usedImageUrls?: string[];
   autoGenerateTopic?: boolean;
+  skipImage?: boolean; // New: skip image generation
 }
 
 // Fallback queries for when AI query generation fails
@@ -40,12 +42,12 @@ const FALLBACK_QUERIES = [
 
 // Fallback images when Unsplash search fails - INGREDIENTS/TEXTURES ONLY, NO BRANDED PACKAGING
 const FALLBACK_IMAGES = [
-  { url: "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=1200", photographer: "Chelsea shapouri", photographer_url: "https://unsplash.com/@theamomento" }, // Essential oils close-up
-  { url: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200", photographer: "Anna Pelzer", photographer_url: "https://unsplash.com/@annapelzer" }, // Fresh vegetables colorful
-  { url: "https://images.unsplash.com/photo-1519824145371-296894a0daa9?w=1200", photographer: "Conscious Design", photographer_url: "https://unsplash.com/@conscious_design" }, // Spa stones bamboo
-  { url: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200", photographer: "Ale Sat", photographer_url: "https://unsplash.com/@alexsat" }, // Spa candles towels
-  { url: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=1200", photographer: "Daiga Ellaby", photographer_url: "https://unsplash.com/@daiga_ellaby" }, // Lavender natural
-  { url: "https://images.unsplash.com/photo-1556760544-74068565f05c?w=1200", photographer: "Amplitude Magazin", photographer_url: "https://unsplash.com/@amplitudemagazin" }, // Cream texture macro
+  { url: "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=1200", photographer: "Chelsea shapouri", photographer_url: "https://unsplash.com/@theamomento" },
+  { url: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=1200", photographer: "Anna Pelzer", photographer_url: "https://unsplash.com/@annapelzer" },
+  { url: "https://images.unsplash.com/photo-1519824145371-296894a0daa9?w=1200", photographer: "Conscious Design", photographer_url: "https://unsplash.com/@conscious_design" },
+  { url: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200", photographer: "Ale Sat", photographer_url: "https://unsplash.com/@alexsat" },
+  { url: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=1200", photographer: "Daiga Ellaby", photographer_url: "https://unsplash.com/@daiga_ellaby" },
+  { url: "https://images.unsplash.com/photo-1556760544-74068565f05c?w=1200", photographer: "Amplitude Magazin", photographer_url: "https://unsplash.com/@amplitudemagazin" },
 ];
 
 serve(async (req) => {
@@ -54,7 +56,7 @@ serve(async (req) => {
   }
 
   try {
-    const { pharmacy, topic: providedTopic, month, year, usedImageUrls = [], autoGenerateTopic }: RequestBody = await req.json();
+    const { pharmacy, topic: providedTopic, month, year, usedImageUrls = [], autoGenerateTopic, skipImage }: RequestBody = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
@@ -62,11 +64,11 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
-    if (!UNSPLASH_ACCESS_KEY) {
+    if (!UNSPLASH_ACCESS_KEY && !skipImage) {
       throw new Error("UNSPLASH_ACCESS_KEY is not configured");
     }
 
-    // Obtener fecha real para el prompt
+    // Get date context
     const monthNames = [
       "enero", "febrero", "marzo", "abril", "mayo", "junio",
       "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
@@ -83,6 +85,45 @@ serve(async (req) => {
     console.log("Used image URLs count:", usedImageUrls.length);
     console.log("Auto generate topic:", autoGenerateTopic);
     console.log("Provided topic:", providedTopic?.tema);
+    console.log("Skip image:", skipImage);
+    console.log("Geographic scope:", pharmacy.geographic_scope);
+
+    // ========== BUILD GEOGRAPHIC CONTEXT ==========
+    const geographicScope = pharmacy.geographic_scope || "local";
+    let geoContext = "";
+    let geoContextCatalan = "";
+    
+    switch (geographicScope) {
+      case "local":
+        geoContext = `
+- Menciona la población ${pharmacy.location} 1-2 veces de forma natural en el contenido
+- Incluye referencias locales y SEO local
+- Adapta el contenido a la zona geográfica específica de ${pharmacy.location}`;
+        geoContextCatalan = `
+- Menciona la població ${pharmacy.location} 1-2 vegades de forma natural en el contingut
+- Inclou referències locals i SEO local`;
+        break;
+      case "regional":
+        geoContext = `
+- Menciona la región ${pharmacy.location} (ej: Cataluña, Andalucía) 1-2 veces de forma natural
+- NO menciones ciudades específicas
+- Enfócate en características regionales y tendencias de la zona`;
+        geoContextCatalan = `
+- Menciona la regió ${pharmacy.location} 1-2 vegades de forma natural
+- NO mencions ciutats específiques
+- Centra't en característiques regionals`;
+        break;
+      case "national":
+        geoContext = `
+- NO menciones ninguna ubicación geográfica específica
+- El contenido debe ser aplicable a toda España
+- Usa referencias genéricas como "en nuestro país" o "en España" si es necesario`;
+        geoContextCatalan = `
+- NO mencions cap ubicació geogràfica específica
+- El contingut ha de ser aplicable a tot Espanya
+- Utilitza referències genèriques si cal`;
+        break;
+    }
 
     // ========== AUTO-GENERATE TOPIC IF NEEDED ==========
     let topic = providedTopic;
@@ -91,18 +132,22 @@ serve(async (req) => {
     if (!topic || autoGenerateTopic) {
       console.log("Generating AI topic for:", pharmacy.name, "sector:", pharmacy.sector);
       
+      const locationContext = geographicScope === "national" 
+        ? "España (ámbito nacional)" 
+        : `${pharmacy.location} (ámbito ${geographicScope})`;
+      
       const topicPrompt = `Eres un experto en SEO y marketing de contenidos para el sector ${pharmacy.sector || "servicios profesionales"}.
 Genera UN SOLO tema para un artículo de blog optimizado para SEO.
 
 Empresa: ${pharmacy.name}
 Sector: ${pharmacy.sector || "servicios profesionales"}
-Localidad: ${pharmacy.location}
+Ámbito: ${locationContext}
 Mes: ${monthName} ${currentYear}
 
 El tema debe:
 - Ser MUY relevante para el sector de la empresa
 - Tener en cuenta la época del año (${monthName}) y tendencias actuales de ${currentYear}
-- Ser atractivo para SEO local en ${pharmacy.location}
+${geographicScope !== "national" ? `- Ser atractivo para SEO ${geographicScope === "local" ? "local" : "regional"} en ${pharmacy.location}` : "- Ser atractivo para SEO nacional en España"}
 - Máximo 60 caracteres
 - NO incluir el nombre de la empresa en el tema
 - Ser específico y útil para los clientes potenciales
@@ -145,7 +190,6 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
         };
       } catch (topicError) {
         console.error(`Failed to generate AI topic:`, topicError);
-        // Fallback to a generic topic based on sector
         generatedTopicTema = `Novedades en ${pharmacy.sector || "servicios profesionales"} para ${monthName}`;
         console.log(`Using fallback topic: ${generatedTopicTema}`);
         
@@ -168,16 +212,19 @@ REGLAS IMPORTANTES:
 - Slug URL amigable sin tildes ni caracteres especiales
 - Estructura: introducción + 4-5 secciones H2 + conclusión con CTA
 - Menciona la farmacia 1-2 veces en el CONTENIDO (nunca en el título)
-- Menciona la población 1-2 veces en el contenido cuando sea natural
+${geoContext}
 - Tono profesional pero cercano
 - El contenido debe estar en formato HTML con tags <h2>, <p>, <ul>, <li>
-- IMPORTANTE: Personaliza el contenido según la ubicación geográfica de la farmacia. Incluye referencias locales, clima de la zona, y particularidades regionales.
 - VARIEDAD: Aunque el tema sea similar, cada artículo debe tener un enfoque único basado en la farmacia y su ubicación.
 
 RESPONDE SIEMPRE EN JSON VÁLIDO.`;
 
+    const locationInfo = geographicScope === "national" 
+      ? "ÁMBITO: Nacional (toda España)" 
+      : `POBLACIÓN/REGIÓN: ${pharmacy.location}`;
+
     const spanishUserPrompt = `FARMACIA: ${pharmacy.name}
-POBLACIÓN: ${pharmacy.location}
+${locationInfo}
 FECHA DEL ARTÍCULO: ${dateContext} (usa esta fecha para cualquier referencia temporal)
 
 TEMA DEL ARTÍCULO: ${topic.tema}
@@ -185,7 +232,7 @@ Keywords SEO: ${topic.keywords.join(", ")}
 
 INSTRUCCIONES ESPECIALES:
 - El artículo debe ser para ${dateContext}, asegúrate de que todas las referencias temporales sean correctas.
-- Personaliza el contenido para ${pharmacy.location}: menciona características locales, clima de la zona, costumbres regionales si aplica.
+${geoContext}
 
 REGLAS CRÍTICAS PARA EL TÍTULO:
 - MÁXIMO 60 caracteres
@@ -262,10 +309,10 @@ Genera el artículo completo EN ESPAÑOL. RESPONDE SOLO CON JSON VÁLIDO en este
       throw new Error("Failed to parse Spanish AI response as JSON");
     }
 
-    // Guardar contenido español SIN enlaces SEO para usar en el prompt catalán
+    // Save Spanish content WITHOUT SEO links for Catalan prompt
     const spanishContentWithoutSeoLinks = spanishArticle?.content || '';
 
-    // ========== AÑADIR ENLACES SEO AL CONTENIDO ESPAÑOL ==========
+    // ========== ADD SEO LINKS TO SPANISH CONTENT ==========
     if (spanishArticle?.content) {
       const seoLinks: string[] = [];
       
@@ -286,7 +333,7 @@ Genera el artículo completo EN ESPAÑOL. RESPONDE SOLO CON JSON VÁLIDO en este
 
     console.log("Spanish article parsed successfully. Title:", spanishArticle.title?.substring(0, 50));
 
-    // ========== PASO 2: Generar versión en catalán (si es necesario) ==========
+    // ========== PASO 2: Generate Catalan version (if needed) ==========
     let catalanArticle = null;
     
     if (includesCatalan) {
@@ -341,13 +388,13 @@ Meta descripció: ${spanishArticle.meta_description}
 Contingut: ${spanishContentWithoutSeoLinks}
 
 FARMÀCIA: ${pharmacy.name}
-POBLACIÓ: ${pharmacy.location}
+${geographicScope === "national" ? "ÀMBIT: Nacional (tota Espanya)" : `POBLACIÓ/REGIÓ: ${pharmacy.location}`}
 DATA: ${dateContext}
 
 IMPORTANT: 
 - Redacta com un parlant nadiu de català, NO tradueixis literalment.
 - Adapta expressions, vocabulari i sintaxi al català natural.
-- Mantén les mencions a la farmàcia i la població EN EL CONTINGUT (1-2 vegades).
+${geoContextCatalan}
 - El TÍTOL ha de ser curt (màx 60 caràcters) i SENSE nom de farmàcia ni població.
 - VERIFICA que el TÍTOL NO contingui cap paraula castellana (vence, consigue, combate, protege, etc.).
 - Assegura't que totes les paraules estiguin correctament escrites en català.
@@ -390,7 +437,7 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
               catalanArticle = JSON.parse(jsonMatch[0]);
               console.log("Catalan article parsed successfully. Title:", catalanArticle.title?.substring(0, 50));
               
-              // Validar que el título no contenga palabras españolas comunes
+              // Validate title doesn't contain Spanish words
               if (catalanArticle?.title) {
                 const spanishWordsInTitle = ["vence", "consigue", "alcanza", "combate", "protege", "mejora", "cuida tu", "descubre", "aprende"];
                 const titleLower = catalanArticle.title.toLowerCase();
@@ -398,7 +445,6 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
                 
                 if (hasSpanishWord) {
                   console.warn("Catalan title contains Spanish words, applying fix...");
-                  // Corrección automática de palabras españolas comunes en el título
                   let fixedTitle = catalanArticle.title
                     .replace(/\bVence\b/gi, "Venç")
                     .replace(/\bvence\b/gi, "venç")
@@ -420,7 +466,7 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
                 }
               }
               
-              // Añadir enlaces SEO al contenido catalán
+              // Add SEO links to Catalan content
               if (catalanArticle?.content) {
                 const seoLinksCa: string[] = [];
                 
@@ -443,7 +489,6 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
             }
           } catch (parseError) {
             console.error("JSON parse error (Catalan):", parseError, "Content preview:", catalanContent?.substring(0, 200));
-            // Continue without Catalan if parsing fails
           }
         } else {
           console.error("Catalan content is empty or undefined");
@@ -451,20 +496,23 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
       } else {
         const errorText = await catalanResponse.text();
         console.error("Catalan generation failed. Status:", catalanResponse.status, "Error:", errorText);
-        // Continue without Catalan if generation fails
       }
     }
 
-    // ========== PASO 2.5: Generar query de imagen con IA ==========
-    console.log("Generating image search query with AI...");
-    
-    // Extraer texto limpio del contenido HTML para el análisis
-    const cleanTextContent = spanishArticle.content
-      ?.replace(/<[^>]*>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .substring(0, 800) || '';
+    // ========== PASO 3: Generate image (if not skipped) ==========
+    let imageData: { url: string; photographer: string; photographer_url: string } | null = null;
+    let aiGeneratedQuery = "";
 
-    const imageQueryPrompt = `Analiza el siguiente artículo y genera UN ÚNICO query de búsqueda para encontrar una imagen de stock relevante en Unsplash.
+    if (!skipImage) {
+      console.log("Generating image search query with AI...");
+      
+      // Extract clean text from HTML content for analysis
+      const cleanTextContent = spanishArticle.content
+        ?.replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .substring(0, 800) || '';
+
+      const imageQueryPrompt = `Analiza el siguiente artículo y genera UN ÚNICO query de búsqueda para encontrar una imagen de stock relevante en Unsplash.
 
 TÍTULO DEL ARTÍCULO: ${spanishArticle.title}
 TEMA PRINCIPAL: ${topic.tema}
@@ -495,134 +543,134 @@ EJEMPLOS DE MALOS QUERIES (NUNCA USES ESTOS):
 
 RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin puntuación final.`;
 
-    let aiGeneratedQuery = FALLBACK_QUERIES[Math.floor(Math.random() * FALLBACK_QUERIES.length)];
+      aiGeneratedQuery = FALLBACK_QUERIES[Math.floor(Math.random() * FALLBACK_QUERIES.length)];
 
-    try {
-      const imageQueryResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "user", content: imageQueryPrompt },
-          ],
-          max_tokens: 50,
-        }),
-      });
+      try {
+        const imageQueryResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "user", content: imageQueryPrompt },
+            ],
+            max_tokens: 50,
+          }),
+        });
 
-      if (imageQueryResponse.ok) {
-        const queryData = await imageQueryResponse.json();
-        const rawQuery = queryData.choices?.[0]?.message?.content?.trim();
-        
-        if (rawQuery && rawQuery.length > 5 && rawQuery.length < 100) {
-          // Limpiar cualquier término prohibido que se haya colado (doble seguridad)
-          const cleanedQuery = rawQuery
-            .toLowerCase()
-            .replace(/pharmacy|pharmacist|pharmacies|medicine|medicines|pills?|drugs?|doctor|doctors?|hospital|medical|medications?|capsules?|prescriptions?|bottles?|pharmaceutical|clinic|nurse|patient|healthcare|treatment/gi, "")
-            .replace(/\s+/g, " ")
-            .trim();
+        if (imageQueryResponse.ok) {
+          const queryData = await imageQueryResponse.json();
+          const rawQuery = queryData.choices?.[0]?.message?.content?.trim();
           
-          if (cleanedQuery.length > 5) {
-            aiGeneratedQuery = cleanedQuery;
-            console.log("AI generated image query:", aiGeneratedQuery);
+          if (rawQuery && rawQuery.length > 5 && rawQuery.length < 100) {
+            // Clean any prohibited terms (double safety)
+            const cleanedQuery = rawQuery
+              .toLowerCase()
+              .replace(/pharmacy|pharmacist|pharmacies|medicine|medicines|pills?|drugs?|doctor|doctors?|hospital|medical|medications?|capsules?|prescriptions?|bottles?|pharmaceutical|clinic|nurse|patient|healthcare|treatment/gi, "")
+              .replace(/\s+/g, " ")
+              .trim();
+            
+            if (cleanedQuery.length > 5) {
+              aiGeneratedQuery = cleanedQuery;
+              console.log("AI generated image query:", aiGeneratedQuery);
+            } else {
+              console.warn("AI query was cleaned to empty, using fallback");
+            }
           } else {
-            console.warn("AI query was cleaned to empty, using fallback");
+            console.warn("AI query response invalid, using fallback. Raw:", rawQuery);
           }
         } else {
-          console.warn("AI query response invalid, using fallback. Raw:", rawQuery);
+          console.warn("Failed to generate AI image query, status:", imageQueryResponse.status);
         }
-      } else {
-        console.warn("Failed to generate AI image query, status:", imageQueryResponse.status);
+      } catch (queryError) {
+        console.error("Error generating AI image query:", queryError);
       }
-    } catch (queryError) {
-      console.error("Error generating AI image query:", queryError);
-    }
 
-    // ========== PASO 3: Buscar imagen en Unsplash con query generado por IA ==========
-    console.log("Searching Unsplash with AI-generated query:", aiGeneratedQuery);
-    console.log("Excluding URLs:", usedImageUrls.length, "images");
-    
-    // Seleccionar imagen fallback aleatoria (no yoga)
-    const randomFallbackImage = FALLBACK_IMAGES[Math.floor(Math.random() * FALLBACK_IMAGES.length)];
-    let imageData = { ...randomFallbackImage };
-
-    try {
-      const unsplashResponse = await fetch(
-        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(aiGeneratedQuery)}&per_page=30&orientation=landscape`,
-        { 
-          headers: { 
-            Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` 
-          } 
-        }
-      );
-
-      console.log("Unsplash response status:", unsplashResponse.status);
+      // Search Unsplash
+      console.log("Searching Unsplash with AI-generated query:", aiGeneratedQuery);
+      console.log("Excluding URLs:", usedImageUrls.length, "images");
       
-      if (unsplashResponse.ok) {
-        const unsplashData = await unsplashResponse.json();
-        console.log("Unsplash results count:", unsplashData.results?.length || 0);
+      const randomFallbackImage = FALLBACK_IMAGES[Math.floor(Math.random() * FALLBACK_IMAGES.length)];
+      imageData = { ...randomFallbackImage };
+
+      try {
+        const unsplashResponse = await fetch(
+          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(aiGeneratedQuery)}&per_page=30&orientation=landscape`,
+          { 
+            headers: { 
+              Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` 
+            } 
+          }
+        );
+
+        console.log("Unsplash response status:", unsplashResponse.status);
         
-        if (unsplashData.results && unsplashData.results.length > 0) {
-          // Filtrar imágenes ya usadas
-          const availablePhotos = unsplashData.results.filter(
-            (photo: { urls: { regular: string } }) => !usedImageUrls.includes(photo.urls.regular)
-          );
+        if (unsplashResponse.ok) {
+          const unsplashData = await unsplashResponse.json();
+          console.log("Unsplash results count:", unsplashData.results?.length || 0);
           
-          console.log("Available photos after filtering:", availablePhotos.length, "out of", unsplashData.results.length);
-          
-          if (availablePhotos.length > 0) {
-            const randomIndex = Math.floor(Math.random() * Math.min(10, availablePhotos.length));
-            const selectedPhoto = availablePhotos[randomIndex];
-            
-            imageData = {
-              url: selectedPhoto.urls.regular,
-              photographer: selectedPhoto.user.name,
-              photographer_url: selectedPhoto.user.links.html,
-            };
-            console.log("Selected Unsplash image from photographer:", selectedPhoto.user.name);
-          } else {
-            console.log("No available photos with AI query, trying fallback...");
-            // Fallback con query genérico de bienestar
-            const fallbackQuery = "natural wellness beauty botanical healthy";
-            const fallbackResponse = await fetch(
-              `https://api.unsplash.com/search/photos?query=${encodeURIComponent(fallbackQuery)}&per_page=20&orientation=landscape`,
-              { 
-                headers: { 
-                  Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` 
-                } 
-              }
+          if (unsplashData.results && unsplashData.results.length > 0) {
+            const availablePhotos = unsplashData.results.filter(
+              (photo: { urls: { regular: string } }) => !usedImageUrls.includes(photo.urls.regular)
             );
             
-            if (fallbackResponse.ok) {
-              const fallbackData = await fallbackResponse.json();
-              const fallbackPhotos = fallbackData.results?.filter(
-                (p: { urls: { regular: string } }) => !usedImageUrls.includes(p.urls.regular)
-              ) || [];
+            console.log("Available photos after filtering:", availablePhotos.length, "out of", unsplashData.results.length);
+            
+            if (availablePhotos.length > 0) {
+              const randomIndex = Math.floor(Math.random() * Math.min(10, availablePhotos.length));
+              const selectedPhoto = availablePhotos[randomIndex];
               
-              if (fallbackPhotos.length > 0) {
-                const randomFallback = fallbackPhotos[Math.floor(Math.random() * Math.min(10, fallbackPhotos.length))];
-                imageData = {
-                  url: randomFallback.urls.regular,
-                  photographer: randomFallback.user.name,
-                  photographer_url: randomFallback.user.links.html,
-                };
-                console.log("Selected fallback Unsplash image from:", randomFallback.user.name);
+              imageData = {
+                url: selectedPhoto.urls.regular,
+                photographer: selectedPhoto.user.name,
+                photographer_url: selectedPhoto.user.links.html,
+              };
+              console.log("Selected Unsplash image from photographer:", selectedPhoto.user.name);
+            } else {
+              console.log("No available photos with AI query, trying fallback...");
+              const fallbackQuery = "natural wellness beauty botanical healthy";
+              const fallbackResponse = await fetch(
+                `https://api.unsplash.com/search/photos?query=${encodeURIComponent(fallbackQuery)}&per_page=20&orientation=landscape`,
+                { 
+                  headers: { 
+                    Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` 
+                  } 
+                }
+              );
+              
+              if (fallbackResponse.ok) {
+                const fallbackData = await fallbackResponse.json();
+                const fallbackPhotos = fallbackData.results?.filter(
+                  (p: { urls: { regular: string } }) => !usedImageUrls.includes(p.urls.regular)
+                ) || [];
+                
+                if (fallbackPhotos.length > 0) {
+                  const randomFallback = fallbackPhotos[Math.floor(Math.random() * Math.min(10, fallbackPhotos.length))];
+                  imageData = {
+                    url: randomFallback.urls.regular,
+                    photographer: randomFallback.user.name,
+                    photographer_url: randomFallback.user.links.html,
+                  };
+                  console.log("Selected fallback Unsplash image from:", randomFallback.user.name);
+                }
               }
             }
           }
+        } else {
+          const errorText = await unsplashResponse.text();
+          console.error("Unsplash API error:", unsplashResponse.status, errorText);
         }
-      } else {
-        const errorText = await unsplashResponse.text();
-        console.error("Unsplash API error:", unsplashResponse.status, errorText);
+      } catch (unsplashError) {
+        console.error("Unsplash error (using fallback):", unsplashError);
       }
-    } catch (unsplashError) {
-      console.error("Unsplash error (using fallback):", unsplashError);
-    }
 
-    console.log("Article generated successfully with image:", imageData.url.substring(0, 50));
+      console.log("Article generated successfully with image:", imageData?.url?.substring(0, 50));
+    } else {
+      console.log("Skipping image generation as requested");
+    }
 
     return new Response(
       JSON.stringify({
@@ -631,8 +679,8 @@ RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin punt
           catalan: catalanArticle,
         },
         image: imageData,
-        pexels_query: aiGeneratedQuery, // Ahora contiene el query generado por IA
-        topic: topic?.tema, // Include the topic (original or AI-generated)
+        pexels_query: aiGeneratedQuery || null,
+        topic: topic?.tema,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

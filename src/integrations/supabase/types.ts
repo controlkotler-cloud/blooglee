@@ -71,6 +71,7 @@ export type Database = {
         Row: {
           content_catalan: Json | null
           content_spanish: Json | null
+          day_of_month: number | null
           empresa_id: string
           generated_at: string
           id: string
@@ -80,11 +81,13 @@ export type Database = {
           month: number
           pexels_query: string | null
           topic: string
+          week_of_month: number | null
           year: number
         }
         Insert: {
           content_catalan?: Json | null
           content_spanish?: Json | null
+          day_of_month?: number | null
           empresa_id: string
           generated_at?: string
           id?: string
@@ -94,11 +97,13 @@ export type Database = {
           month: number
           pexels_query?: string | null
           topic: string
+          week_of_month?: number | null
           year: number
         }
         Update: {
           content_catalan?: Json | null
           content_spanish?: Json | null
+          day_of_month?: number | null
           empresa_id?: string
           generated_at?: string
           id?: string
@@ -108,6 +113,7 @@ export type Database = {
           month?: number
           pexels_query?: string | null
           topic?: string
+          week_of_month?: number | null
           year?: number
         }
         Relationships: [
@@ -126,11 +132,14 @@ export type Database = {
           blog_url: string | null
           created_at: string
           custom_topic: string | null
+          geographic_scope: string
           id: string
+          include_featured_image: boolean
           instagram_url: string | null
           languages: string[]
-          location: string
+          location: string | null
           name: string
+          publish_frequency: string
           sector: string | null
           updated_at: string
         }
@@ -139,11 +148,14 @@ export type Database = {
           blog_url?: string | null
           created_at?: string
           custom_topic?: string | null
+          geographic_scope?: string
           id?: string
+          include_featured_image?: boolean
           instagram_url?: string | null
           languages?: string[]
-          location: string
+          location?: string | null
           name: string
+          publish_frequency?: string
           sector?: string | null
           updated_at?: string
         }
@@ -152,11 +164,14 @@ export type Database = {
           blog_url?: string | null
           created_at?: string
           custom_topic?: string | null
+          geographic_scope?: string
           id?: string
+          include_featured_image?: boolean
           instagram_url?: string | null
           languages?: string[]
-          location?: string
+          location?: string | null
           name?: string
+          publish_frequency?: string
           sector?: string | null
           updated_at?: string
         }
