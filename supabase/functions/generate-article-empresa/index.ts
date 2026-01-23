@@ -826,20 +826,30 @@ FORMATO DE RESPUESTA (JSON):
     // Parse JSON from response
     let spanishArticle;
     try {
-      // First, strip markdown code fences if present
+      // Robust markdown fence removal (handles newlines, spaces, anywhere in content)
       let cleanContent = spanishContent
-        .replace(/^```(?:json)?\s*/i, '')  // Remove opening ```json
-        .replace(/\s*```\s*$/i, '');        // Remove closing ```
+        .replace(/```json\s*/gi, '')  // Remove ```json anywhere
+        .replace(/```\s*/g, '')       // Remove remaining ``` anywhere
+        .trim();
       
-      // Extract JSON object
-      const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        console.error("No JSON found in content:", cleanContent.substring(0, 300));
+      // Extract JSON object - find the first { and last }
+      const firstBrace = cleanContent.indexOf('{');
+      const lastBrace = cleanContent.lastIndexOf('}');
+      
+      if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+        console.error("No JSON braces found in content:", cleanContent.substring(0, 300));
         throw new Error("No JSON object found in response");
       }
       
-      // Parse the extracted JSON
-      spanishArticle = JSON.parse(jsonMatch[0]);
+      const jsonString = cleanContent.substring(firstBrace, lastBrace + 1);
+      
+      // Sanitize control characters that break JSON parsing
+      const sanitizedJson = jsonString.replace(/[\x00-\x1F\x7F]/g, (char: string) => {
+        if (char === '\n' || char === '\r' || char === '\t') return char;
+        return '';
+      });
+      
+      spanishArticle = JSON.parse(sanitizedJson);
     } catch (e) {
       console.error("Error parsing Spanish JSON:", e);
       console.error("Raw content preview:", spanishContent.substring(0, 500));
