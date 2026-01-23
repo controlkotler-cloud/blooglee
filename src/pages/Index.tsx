@@ -204,6 +204,8 @@ export default function Index() {
         companyLanguages: company.languages,
         companyBlogUrl: company.blog_url || undefined,
         companyInstagramUrl: company.instagram_url || undefined,
+        companyGeographicScope: company.geographic_scope || "local",
+        companyIncludeFeaturedImage: company.include_featured_image !== false,
         topic: company.custom_topic || undefined, // If null/undefined, AI will generate
         month: selectedMonth,
         year: selectedYear,
@@ -477,10 +479,18 @@ export default function Index() {
           if (!previewCompanyArticle?.article) return;
           setRegeneratingImageId(previewCompanyArticle.article.id);
           try {
-            const pexelsQuery = previewCompanyArticle.article.pexels_query || "business professional wellness";
+            const pexelsQuery = previewCompanyArticle.article.pexels_query || "business professional";
             const articleTitle = previewCompanyArticle.article.content_spanish?.title || previewCompanyArticle.article.topic;
             const articleContent = previewCompanyArticle.article.content_spanish?.content || "";
-            await regenerateImageEmpresa.mutateAsync({ articleId: previewCompanyArticle.article.id, pexelsQuery, month: selectedMonth, year: selectedYear, articleTitle, articleContent });
+            await regenerateImageEmpresa.mutateAsync({ 
+              articleId: previewCompanyArticle.article.id, 
+              pexelsQuery, 
+              companySector: previewCompanyArticle.company.sector,
+              month: selectedMonth, 
+              year: selectedYear, 
+              articleTitle, 
+              articleContent 
+            });
           } finally {
             setRegeneratingImageId(null);
           }

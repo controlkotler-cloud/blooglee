@@ -17,6 +17,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Globe,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -85,6 +86,12 @@ export function CompanyArticlePreview({
     URL.revokeObjectURL(url);
   };
 
+  const openOriginalImage = () => {
+    if (article.image_url) {
+      window.open(article.image_url, "_blank");
+    }
+  };
+
   return (
     <>
       <Dialog open={!!article} onOpenChange={(o) => !o && onClose()}>
@@ -117,44 +124,80 @@ export function CompanyArticlePreview({
               <strong>Meta descripción:</strong> {content.meta_description}
             </div>
 
-            {/* Image */}
+            {/* Image with download and regenerate options */}
             {article.image_url && (
-              <div className="relative">
+              <div className="relative group">
                 <img
                   src={article.image_url}
                   alt={content.title}
-                  className="w-full max-h-80 object-cover rounded-lg"
+                  className="w-full max-h-80 object-cover rounded-lg cursor-pointer transition-opacity group-hover:opacity-90"
+                  onClick={openOriginalImage}
                 />
+                
+                {/* Overlay with actions on hover */}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={openOriginalImage}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Ver original
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={onRegenerateImage}
+                    disabled={isRegeneratingImage}
+                  >
+                    {isRegeneratingImage ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <ImageIcon className="h-4 w-4 mr-1" />
+                    )}
+                    Nueva imagen
+                  </Button>
+                </div>
+
+                {/* Photographer credit */}
                 {article.image_photographer && (
-                  <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                  <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                     Foto:{" "}
                     {article.image_photographer_url ? (
                       <a
                         href={article.image_photographer_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="underline"
+                        className="underline hover:text-primary-foreground"
                       >
                         {article.image_photographer}
                       </a>
                     ) : (
                       article.image_photographer
-                    )}
+                    )}{" "}
+                    / Unsplash
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* No image state with regenerate option */}
+            {!article.image_url && (
+              <div className="border border-dashed border-muted-foreground/30 rounded-lg p-8 text-center">
+                <ImageIcon className="h-12 w-12 mx-auto mb-2 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground mb-3">Sin imagen destacada</p>
                 <Button
                   size="sm"
-                  variant="secondary"
-                  className="absolute top-2 right-2"
+                  variant="outline"
                   onClick={onRegenerateImage}
                   disabled={isRegeneratingImage}
                 >
                   {isRegeneratingImage ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
                   ) : (
-                    <ImageIcon className="h-4 w-4" />
+                    <ImageIcon className="h-4 w-4 mr-1" />
                   )}
-                  <span className="ml-1">Nueva imagen</span>
+                  Generar imagen
                 </Button>
               </div>
             )}
