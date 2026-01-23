@@ -108,6 +108,74 @@ const SECTOR_IMAGE_CONTEXTS: Record<string, {
     prohibitedTerms: ["exam stress", "punishment", "detention"],
     fallbackQuery: "education learning professional modern"
   },
+  belleza: {
+    examples: [
+      "hair salon modern interior styling chair woman",
+      "hairdresser styling woman long hair professional",
+      "beauty salon haircut woman mirror reflection",
+      "hair coloring highlights professional salon woman",
+      "woman hairstyle beautiful natural light portrait",
+      "makeup artist applying cosmetics professional"
+    ],
+    prohibitedTerms: ["barber", "barbershop", "beard", "men haircut", "shaving", "razor", "male grooming"],
+    fallbackQuery: "hair salon woman styling professional beauty"
+  },
+  hosteleria: {
+    examples: [
+      "restaurant interior modern elegant dining tables",
+      "chef cooking kitchen professional gourmet",
+      "hotel lobby luxury modern reception elegant",
+      "cafe terrace outdoor cozy ambiance coffee",
+      "gourmet food plating professional presentation",
+      "waiter serving customers restaurant professional"
+    ],
+    prohibitedTerms: ["fast food", "dirty kitchen", "drunk", "messy", "garbage"],
+    fallbackQuery: "restaurant elegant dining professional interior"
+  },
+  retail: {
+    examples: [
+      "modern retail store interior design shelves",
+      "shopping experience customer service professional",
+      "boutique fashion store elegant display window",
+      "customer shopping happy store modern bags",
+      "shop owner small business professional friendly"
+    ],
+    prohibitedTerms: ["empty store", "closing sale", "cheap", "discount", "clearance"],
+    fallbackQuery: "retail store modern shopping experience"
+  },
+  inmobiliaria: {
+    examples: [
+      "modern house interior living room bright",
+      "real estate agent showing property clients",
+      "luxury apartment interior design contemporary",
+      "beautiful home exterior garden architecture",
+      "keys handover new home happy couple"
+    ],
+    prohibitedTerms: ["foreclosure", "abandoned", "ruined", "demolished"],
+    fallbackQuery: "modern home interior real estate property"
+  },
+  automocion: {
+    examples: [
+      "car dealership showroom modern vehicles",
+      "mechanic workshop professional automotive repair",
+      "new car interior dashboard modern technology",
+      "automotive service center professional clean",
+      "car keys handover customer satisfaction"
+    ],
+    prohibitedTerms: ["accident", "crash", "wrecked", "junkyard", "broken"],
+    fallbackQuery: "car dealership showroom professional automotive"
+  },
+  construccion: {
+    examples: [
+      "construction site workers safety helmets professional",
+      "architect blueprints planning modern office",
+      "building construction progress crane modern",
+      "renovation home improvement professional workers",
+      "construction team collaboration project site"
+    ],
+    prohibitedTerms: ["accident", "collapse", "danger", "unsafe", "abandoned"],
+    fallbackQuery: "construction professional workers building modern"
+  },
   default: {
     examples: [
       "professional team collaboration office",
@@ -164,24 +232,55 @@ function detectSectorCategory(sector: string | null | undefined): string {
   if (!sector) return "default";
   const s = sector.toLowerCase();
   
+  // Belleza / Peluquería - MUST BE FIRST to avoid matching "salud"
+  if (s.includes("peluqu") || s.includes("cabello") || s.includes("estétic") || s.includes("estetica") || s.includes("hair") || s.includes("salon de belleza") || s.includes("salón de belleza") || s.includes("manicur") || s.includes("pedicur") || s.includes("maquillaje") || s.includes("beauty")) {
+    return "belleza";
+  }
+  // Hostelería
+  if (s.includes("restaur") || s.includes("hotel") || s.includes("hostel") || s.includes("bar ") || s.includes("cafeter") || s.includes("gastronom") || s.includes("cocina") || s.includes("catering")) {
+    return "hosteleria";
+  }
+  // Retail / Comercio
+  if (s.includes("tienda") || s.includes("retail") || s.includes("comercio") || s.includes("boutique") || s.includes("shop") || s.includes("venta al por menor") || s.includes("moda")) {
+    return "retail";
+  }
+  // Inmobiliaria
+  if (s.includes("inmobil") || s.includes("real estate") || s.includes("propiedad") || s.includes("vivienda") || s.includes("alquiler") || s.includes("hipoteca")) {
+    return "inmobiliaria";
+  }
+  // Automoción
+  if (s.includes("automóvil") || s.includes("automocion") || s.includes("coche") || s.includes("vehículo") || s.includes("taller mecánico") || s.includes("concesionario") || s.includes("automotive")) {
+    return "automocion";
+  }
+  // Construcción
+  if (s.includes("construc") || s.includes("arquitect") || s.includes("reforma") || s.includes("obra") || s.includes("edificación") || s.includes("albañil")) {
+    return "construccion";
+  }
+  // Marketing
   if (s.includes("marketing") || s.includes("seo") || s.includes("digital") || s.includes("publicidad") || s.includes("comunicación") || s.includes("redes sociales")) {
     return "marketing";
   }
+  // Tecnología
   if (s.includes("tecnolog") || s.includes("software") || s.includes("informát") || s.includes("desarrollo") || s.includes("programación") || s.includes("it") || s.includes("saas")) {
     return "tecnologia";
   }
-  if (s.includes("salud") || s.includes("médic") || s.includes("clínic") || s.includes("wellness") || s.includes("bienestar") || s.includes("terapia")) {
+  // Salud (after belleza to avoid false positives)
+  if (s.includes("salud") || s.includes("médic") || s.includes("clínic") || s.includes("wellness") || s.includes("bienestar") || s.includes("terapia") || s.includes("fisio")) {
     return "salud";
   }
+  // Legal
   if (s.includes("legal") || s.includes("abogad") || s.includes("jurídic") || s.includes("notaría") || s.includes("asesoría legal")) {
     return "legal";
   }
+  // Finanzas
   if (s.includes("finanz") || s.includes("banco") || s.includes("inversión") || s.includes("contab") || s.includes("fiscal") || s.includes("seguros")) {
     return "finanzas";
   }
+  // Industria
   if (s.includes("industria") || s.includes("manufactura") || s.includes("fábrica") || s.includes("producción") || s.includes("logística")) {
     return "industria";
   }
+  // Educación
   if (s.includes("educa") || s.includes("formación") || s.includes("academia") || s.includes("enseñanza") || s.includes("universidad") || s.includes("colegio")) {
     return "educacion";
   }
