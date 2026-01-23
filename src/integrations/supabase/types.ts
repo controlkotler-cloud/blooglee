@@ -67,6 +67,101 @@ export type Database = {
           },
         ]
       }
+      articulos_empresas: {
+        Row: {
+          content_catalan: Json | null
+          content_spanish: Json | null
+          empresa_id: string
+          generated_at: string
+          id: string
+          image_photographer: string | null
+          image_photographer_url: string | null
+          image_url: string | null
+          month: number
+          pexels_query: string | null
+          topic: string
+          year: number
+        }
+        Insert: {
+          content_catalan?: Json | null
+          content_spanish?: Json | null
+          empresa_id: string
+          generated_at?: string
+          id?: string
+          image_photographer?: string | null
+          image_photographer_url?: string | null
+          image_url?: string | null
+          month: number
+          pexels_query?: string | null
+          topic: string
+          year: number
+        }
+        Update: {
+          content_catalan?: Json | null
+          content_spanish?: Json | null
+          empresa_id?: string
+          generated_at?: string
+          id?: string
+          image_photographer?: string | null
+          image_photographer_url?: string | null
+          image_url?: string | null
+          month?: number
+          pexels_query?: string | null
+          topic?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "articulos_empresas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      empresas: {
+        Row: {
+          auto_generate: boolean
+          blog_url: string | null
+          created_at: string
+          custom_topic: string
+          id: string
+          instagram_url: string | null
+          languages: string[]
+          location: string
+          name: string
+          sector: string | null
+          updated_at: string
+        }
+        Insert: {
+          auto_generate?: boolean
+          blog_url?: string | null
+          created_at?: string
+          custom_topic: string
+          id?: string
+          instagram_url?: string | null
+          languages?: string[]
+          location: string
+          name: string
+          sector?: string | null
+          updated_at?: string
+        }
+        Update: {
+          auto_generate?: boolean
+          blog_url?: string | null
+          created_at?: string
+          custom_topic?: string
+          id?: string
+          instagram_url?: string | null
+          languages?: string[]
+          location?: string
+          name?: string
+          sector?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       farmacias: {
         Row: {
           auto_generate: boolean
@@ -109,6 +204,7 @@ export type Database = {
       wordpress_sites: {
         Row: {
           created_at: string
+          empresa_id: string | null
           farmacia_id: string
           id: string
           site_url: string
@@ -118,6 +214,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          empresa_id?: string | null
           farmacia_id: string
           id?: string
           site_url: string
@@ -127,6 +224,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          empresa_id?: string | null
           farmacia_id?: string
           id?: string
           site_url?: string
@@ -135,6 +233,13 @@ export type Database = {
           wp_username?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "wordpress_sites_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wordpress_sites_farmacia_id_fkey"
             columns: ["farmacia_id"]

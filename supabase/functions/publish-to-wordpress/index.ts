@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 interface PublishRequest {
-  farmacia_id: string;
+  farmacia_id?: string;
+  empresa_id?: string;
   title: string;
   content: string;
   slug: string;
@@ -26,17 +27,20 @@ serve(async (req) => {
   }
 
   try {
-    const { farmacia_id, title, content, slug, status, date, image_url, image_alt, meta_description, lang } = await req.json() as PublishRequest;
+    const { farmacia_id, empresa_id, title, content, slug, status, date, image_url, image_alt, meta_description, lang } = await req.json() as PublishRequest;
 
-    console.log(`[publish-to-wordpress] Starting publication for farmacia: ${farmacia_id}`);
+    const entityId = farmacia_id || empresa_id;
+    const entityType = farmacia_id ? 'farmacia' : 'empresa';
+    
+    console.log(`[publish-to-wordpress] Starting publication for ${entityType}: ${entityId}`);
     console.log(`[publish-to-wordpress] Title: ${title}`);
     console.log(`[publish-to-wordpress] Status: ${status}, Date: ${date || 'now'}`);
 
     // Validate required fields
-    if (!farmacia_id || !title || !content || !slug || !status) {
+    if ((!farmacia_id && !empresa_id) || !title || !content || !slug || !status) {
       console.error('[publish-to-wordpress] Missing required fields');
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: farmacia_id, title, content, slug, status' }),
+        JSON.stringify({ error: 'Missing required fields: farmacia_id or empresa_id, title, content, slug, status' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -46,13 +50,29 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get WordPress credentials from database
+    // Get WordPress credentials from database - check both farmacia_id and empresa_id
     console.log('[publish-to-wordpress] Fetching WordPress credentials...');
-    const { data: wpSite, error: wpError } = await supabase
-      .from('wordpress_sites')
-      .select('*')
-      .eq('farmacia_id', farmacia_id)
-      .maybeSingle();
+    
+    let wpSite = null;
+    let wpError = null;
+    
+    if (farmacia_id) {
+      const result = await supabase
+        .from('wordpress_sites')
+        .select('*')
+        .eq('farmacia_id', farmacia_id)
+        .maybeSingle();
+      wpSite = result.data;
+      wpError = result.error;
+    } else if (empresa_id) {
+      const result = await supabase
+        .from('wordpress_sites')
+        .select('*')
+        .eq('empresa_id', empresa_id)
+        .maybeSingle();
+      wpSite = result.data;
+      wpError = result.error;
+    }
 
     if (wpError) {
       console.error('[publish-to-wordpress] Database error:', wpError);
@@ -63,9 +83,9 @@ serve(async (req) => {
     }
 
     if (!wpSite) {
-      console.error('[publish-to-wordpress] No WordPress site configured for this farmacia');
+      console.error(`[publish-to-wordpress] No WordPress site configured for this ${entityType}`);
       return new Response(
-        JSON.stringify({ error: 'No WordPress site configured for this farmacia' }),
+        JSON.stringify({ error: `No WordPress site configured for this ${entityType}` }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
