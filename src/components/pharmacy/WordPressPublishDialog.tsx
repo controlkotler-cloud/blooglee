@@ -122,7 +122,7 @@ export function WordPressPublishDialog({
 
   if (!hasWordPress) {
     return (
-      <Dialog open={open} onOpenChange={handleClose}>
+      <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>WordPress no configurado</DialogTitle>
@@ -142,7 +142,7 @@ export function WordPressPublishDialog({
   const hasResults = publishResults && (publishResults.spanish?.success || publishResults.catalan?.success);
   if (hasResults) {
     return (
-      <Dialog open={open} onOpenChange={handleClose}>
+      <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -203,7 +203,7 @@ export function WordPressPublishDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
