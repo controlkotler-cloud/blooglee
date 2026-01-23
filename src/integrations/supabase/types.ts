@@ -252,6 +252,42 @@ export type Database = {
         }
         Relationships: []
       }
+      wordpress_site_default_taxonomies: {
+        Row: {
+          created_at: string
+          id: string
+          taxonomy_id: string
+          wordpress_site_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          taxonomy_id: string
+          wordpress_site_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          taxonomy_id?: string
+          wordpress_site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wordpress_site_default_taxonomies_taxonomy_id_fkey"
+            columns: ["taxonomy_id"]
+            isOneToOne: false
+            referencedRelation: "wordpress_taxonomies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wordpress_site_default_taxonomies_wordpress_site_id_fkey"
+            columns: ["wordpress_site_id"]
+            isOneToOne: false
+            referencedRelation: "wordpress_sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wordpress_sites: {
         Row: {
           created_at: string
@@ -296,6 +332,44 @@ export type Database = {
             columns: ["farmacia_id"]
             isOneToOne: true
             referencedRelation: "farmacias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wordpress_taxonomies: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          slug: string | null
+          taxonomy_type: string
+          wordpress_site_id: string
+          wp_id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          slug?: string | null
+          taxonomy_type: string
+          wordpress_site_id: string
+          wp_id: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string | null
+          taxonomy_type?: string
+          wordpress_site_id?: string
+          wp_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wordpress_taxonomies_wordpress_site_id_fkey"
+            columns: ["wordpress_site_id"]
+            isOneToOne: false
+            referencedRelation: "wordpress_sites"
             referencedColumns: ["id"]
           },
         ]

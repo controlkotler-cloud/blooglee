@@ -25,6 +25,7 @@ import {
   useUpsertWordPressSiteForEmpresa,
   useDeleteWordPressSiteForEmpresa,
 } from "@/hooks/useWordPressSitesEmpresas";
+import { TaxonomyManager } from "@/components/shared/TaxonomyManager";
 import { Loader2, Eye, EyeOff, Trash2, Cog, Link, Building2, MapPin, Globe, Calendar, Image } from "lucide-react";
 
 interface CompanyFormProps {
@@ -475,6 +476,11 @@ export function CompanyForm({
                       </Button>
                     </div>
                   </div>
+
+                  {/* Taxonomy Manager */}
+                  {wpSite && (
+                    <TaxonomyManager wordpressSiteId={wpSite.id} />
+                  )}
                 </>
               )}
             </div>

@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.publish-to-wordpress]
 verify_jwt = false
+
+[functions.sync-wordpress-taxonomies]
+verify_jwt = false
