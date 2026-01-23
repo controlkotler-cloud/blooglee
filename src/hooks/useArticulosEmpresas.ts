@@ -28,10 +28,11 @@ interface GenerateArticleParams {
   empresaId: string;
   companyName: string;
   companyLocation: string;
+  companySector?: string | null;
   companyLanguages: string[];
   companyBlogUrl?: string;
   companyInstagramUrl?: string;
-  topic: string;
+  topic?: string | null;
   month: number;
   year: number;
   usedImageUrls?: string[];
@@ -83,34 +84,44 @@ export function useGenerateArticleEmpresa() {
 
   return useMutation({
     mutationFn: async (params: GenerateArticleParams) => {
+      // If no topic provided, the edge function will generate one using AI
+      const topicData = params.topic 
+        ? {
+            tema: params.topic,
+            keywords: [],
+            pexels_query: params.companySector ? `${params.companySector} professional business` : "business professional wellness",
+          }
+        : null;
+
       const { data, error } = await supabase.functions.invoke("generate-article", {
         body: {
           pharmacy: {
             name: params.companyName,
             location: params.companyLocation,
+            sector: params.companySector,
             languages: params.companyLanguages,
             blog_url: params.companyBlogUrl,
             instagram_url: params.companyInstagramUrl,
           },
-          topic: {
-            tema: params.topic,
-            keywords: [],
-            pexels_query: "business professional wellness",
-          },
+          topic: topicData,
           month: params.month,
           year: params.year,
           usedImageUrls: params.usedImageUrls || [],
+          autoGenerateTopic: !params.topic, // Flag to tell edge function to generate topic
         },
       });
 
       if (error) throw error;
+
+      // Use the topic from the response (which may be AI-generated)
+      const finalTopic = data.topic || params.topic || "Artículo generado automáticamente";
 
       // Save to database
       const articleData = {
         empresa_id: params.empresaId,
         month: params.month,
         year: params.year,
-        topic: params.topic,
+        topic: finalTopic,
         pexels_query: data.pexels_query || null,
         content_spanish: data.content?.spanish || null,
         content_catalan: data.content?.catalan || null,

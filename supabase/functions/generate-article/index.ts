@@ -14,6 +14,7 @@ interface TopicData {
 interface PharmacyData {
   name: string;
   location: string;
+  sector?: string;
   languages: string[];
   blog_url?: string;
   instagram_url?: string;
@@ -21,10 +22,11 @@ interface PharmacyData {
 
 interface RequestBody {
   pharmacy: PharmacyData;
-  topic: TopicData;
+  topic: TopicData | null;
   month: number;
   year: number;
   usedImageUrls?: string[];
+  autoGenerateTopic?: boolean;
 }
 
 // Fallback queries for when AI query generation fails
@@ -52,7 +54,7 @@ serve(async (req) => {
   }
 
   try {
-    const { pharmacy, topic, month, year, usedImageUrls = [] }: RequestBody = await req.json();
+    const { pharmacy, topic: providedTopic, month, year, usedImageUrls = [], autoGenerateTopic }: RequestBody = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
@@ -79,6 +81,81 @@ serve(async (req) => {
     console.log("Includes Catalan:", includesCatalan);
     console.log("Date context:", dateContext);
     console.log("Used image URLs count:", usedImageUrls.length);
+    console.log("Auto generate topic:", autoGenerateTopic);
+    console.log("Provided topic:", providedTopic?.tema);
+
+    // ========== AUTO-GENERATE TOPIC IF NEEDED ==========
+    let topic = providedTopic;
+    let generatedTopicTema: string | null = null;
+
+    if (!topic || autoGenerateTopic) {
+      console.log("Generating AI topic for:", pharmacy.name, "sector:", pharmacy.sector);
+      
+      const topicPrompt = `Eres un experto en SEO y marketing de contenidos para el sector ${pharmacy.sector || "servicios profesionales"}.
+Genera UN SOLO tema para un artículo de blog optimizado para SEO.
+
+Empresa: ${pharmacy.name}
+Sector: ${pharmacy.sector || "servicios profesionales"}
+Localidad: ${pharmacy.location}
+Mes: ${monthName} ${currentYear}
+
+El tema debe:
+- Ser MUY relevante para el sector de la empresa
+- Tener en cuenta la época del año (${monthName}) y tendencias actuales de ${currentYear}
+- Ser atractivo para SEO local en ${pharmacy.location}
+- Máximo 60 caracteres
+- NO incluir el nombre de la empresa en el tema
+- Ser específico y útil para los clientes potenciales
+
+Responde SOLO con el tema, sin explicaciones ni comillas.`;
+
+      try {
+        const topicResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [{ role: "user", content: topicPrompt }],
+            max_tokens: 100,
+          }),
+        });
+
+        if (!topicResponse.ok) {
+          const errorText = await topicResponse.text();
+          console.error(`AI topic generation failed: ${errorText}`);
+          throw new Error("AI topic generation failed");
+        }
+
+        const topicData = await topicResponse.json();
+        generatedTopicTema = topicData.choices?.[0]?.message?.content?.trim() || null;
+        
+        if (!generatedTopicTema) {
+          throw new Error("Empty topic from AI");
+        }
+        
+        console.log(`✓ AI generated topic: ${generatedTopicTema}`);
+        
+        topic = {
+          tema: generatedTopicTema,
+          keywords: [],
+          pexels_query: pharmacy.sector ? `${pharmacy.sector} professional business` : "business professional wellness"
+        };
+      } catch (topicError) {
+        console.error(`Failed to generate AI topic:`, topicError);
+        // Fallback to a generic topic based on sector
+        generatedTopicTema = `Novedades en ${pharmacy.sector || "servicios profesionales"} para ${monthName}`;
+        console.log(`Using fallback topic: ${generatedTopicTema}`);
+        
+        topic = {
+          tema: generatedTopicTema,
+          keywords: [],
+          pexels_query: pharmacy.sector ? `${pharmacy.sector} professional business` : "business professional wellness"
+        };
+      }
+    }
 
     // ========== PASO 1: Generar artículo en español ==========
     const spanishSystemPrompt = `Eres un redactor experto en contenido farmacéutico y SEO. Generas artículos de blog profesionales para farmacias.
@@ -555,6 +632,7 @@ RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin punt
         },
         image: imageData,
         pexels_query: aiGeneratedQuery, // Ahora contiene el query generado por IA
+        topic: topic?.tema, // Include the topic (original or AI-generated)
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
