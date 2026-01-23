@@ -18,6 +18,8 @@ interface PublishRequest {
   image_alt?: string;
   meta_description?: string; // For Yoast SEO
   lang?: 'es' | 'ca'; // For Polylang integration
+  category_ids?: number[]; // WordPress category IDs
+  tag_ids?: number[]; // WordPress tag IDs
 }
 
 serve(async (req) => {
@@ -27,7 +29,7 @@ serve(async (req) => {
   }
 
   try {
-    const { farmacia_id, empresa_id, title, content, slug, status, date, image_url, image_alt, meta_description, lang } = await req.json() as PublishRequest;
+    const { farmacia_id, empresa_id, title, content, slug, status, date, image_url, image_alt, meta_description, lang, category_ids, tag_ids } = await req.json() as PublishRequest;
 
     const entityId = farmacia_id || empresa_id;
     const entityType = farmacia_id ? 'farmacia' : 'empresa';
@@ -35,6 +37,7 @@ serve(async (req) => {
     console.log(`[publish-to-wordpress] Starting publication for ${entityType}: ${entityId}`);
     console.log(`[publish-to-wordpress] Title: ${title}`);
     console.log(`[publish-to-wordpress] Status: ${status}, Date: ${date || 'now'}`);
+    console.log(`[publish-to-wordpress] Categories: ${category_ids?.join(',') || 'none'}, Tags: ${tag_ids?.join(',') || 'none'}`);
 
     // Validate required fields
     if ((!farmacia_id && !empresa_id) || !title || !content || !slug || !status) {
@@ -155,6 +158,9 @@ serve(async (req) => {
       meta: {
         _yoast_wpseo_metadesc: meta_description || '',
       },
+      // Categories and tags (arrays of WordPress IDs)
+      categories: category_ids && category_ids.length > 0 ? category_ids : [],
+      tags: tag_ids && tag_ids.length > 0 ? tag_ids : [],
     };
 
     if (date) {

@@ -13,6 +13,8 @@ export interface PublishToWordPressEmpresaInput {
   image_alt?: string;
   meta_description?: string;
   lang?: "es" | "ca";
+  category_ids?: number[];
+  tag_ids?: number[];
 }
 
 export interface PublishResult {
@@ -39,6 +41,8 @@ export function usePublishToWordPressEmpresa() {
           image_alt: input.image_alt,
           meta_description: input.meta_description,
           lang: input.lang,
+          category_ids: input.category_ids,
+          tag_ids: input.tag_ids,
         },
       });
 

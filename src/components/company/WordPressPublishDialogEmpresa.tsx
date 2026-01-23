@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/popover";
 import { ArticuloEmpresa, ArticleContent } from "@/hooks/useArticulosEmpresas";
 import { usePublishToWordPressEmpresa, PublishResult } from "@/hooks/usePublishToWordPressEmpresa";
+import { useWordPressSiteByEmpresa } from "@/hooks/useWordPressSitesEmpresas";
+import { TaxonomySelector } from "@/components/shared/TaxonomySelector";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarIcon, Loader2, ExternalLink, AlertCircle } from "lucide-react";
@@ -54,8 +56,11 @@ export function WordPressPublishDialogEmpresa({
   const [publishResults, setPublishResults] = useState<MultiPublishResult | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishingLanguage, setPublishingLanguage] = useState<Language | null>(null);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
   const publishMutation = usePublishToWordPressEmpresa();
+  const { data: wpSite } = useWordPressSiteByEmpresa(empresaId);
 
   const getContent = (lang: Language): ArticleContent | null => {
     return lang === "catalan" ? article.content_catalan : article.content_spanish;
@@ -90,6 +95,8 @@ export function WordPressPublishDialogEmpresa({
           image_alt: content.title,
           meta_description: content.meta_description,
           lang: lang === "catalan" ? "ca" : "es",
+          category_ids: selectedCategoryIds,
+          tag_ids: selectedTagIds,
         });
 
         results[lang] = result;
@@ -111,6 +118,8 @@ export function WordPressPublishDialogEmpresa({
     setStatus("publish");
     setSelectedLanguages(["spanish"]);
     setScheduleDate(undefined);
+    setSelectedCategoryIds([]);
+    setSelectedTagIds([]);
     onClose();
   };
 
@@ -304,6 +313,20 @@ export function WordPressPublishDialogEmpresa({
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+          )}
+
+          {/* Taxonomy Selector */}
+          {wpSite && (
+            <div className="space-y-2 border-t pt-4">
+              <Label>Categorías y Tags (opcional)</Label>
+              <TaxonomySelector
+                wordpressSiteId={wpSite.id}
+                selectedCategoryIds={selectedCategoryIds}
+                selectedTagIds={selectedTagIds}
+                onCategoriesChange={setSelectedCategoryIds}
+                onTagsChange={setSelectedTagIds}
+              />
             </div>
           )}
         </div>

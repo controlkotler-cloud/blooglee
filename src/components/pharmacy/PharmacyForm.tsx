@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Globe, Eye, EyeOff, Trash2, Link2, Instagram, Cog } from "lucide-react";
 import type { Farmacia } from "@/hooks/useFarmacias";
 import { useWordPressSite, useUpsertWordPressSite, useDeleteWordPressSite } from "@/hooks/useWordPressSites";
+import { TaxonomyManager } from "@/components/shared/TaxonomyManager";
 
 interface PharmacyFormProps {
   open: boolean;
@@ -300,6 +301,11 @@ export function PharmacyForm({ open, onClose, onSubmit, initialData, isLoading }
                     Genera una contraseña de aplicación en WordPress: Usuarios → Perfil → Contraseñas de aplicación
                   </p>
                 </div>
+
+                {/* Taxonomy Manager */}
+                {wpSite && (
+                  <TaxonomyManager wordpressSiteId={wpSite.id} />
+                )}
               </div>
             </>
           )}
