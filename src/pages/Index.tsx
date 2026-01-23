@@ -21,6 +21,7 @@ import { ImportExport } from "@/components/pharmacy/ImportExport";
 import { CompanyCard } from "@/components/company/CompanyCard";
 import { CompanyForm } from "@/components/company/CompanyForm";
 import { CompanyArticlePreview } from "@/components/company/CompanyArticlePreview";
+import { CompanyImportExport } from "@/components/company/CompanyImportExport";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -252,6 +253,21 @@ export default function Index() {
     }
   };
 
+  const handleImportEmpresas = async (newEmpresas: {
+    name: string;
+    location: string;
+    sector?: string | null;
+    languages: string[];
+    blog_url?: string | null;
+    instagram_url?: string | null;
+    auto_generate?: boolean;
+    custom_topic?: string | null;
+  }[]) => {
+    for (const empresa of newEmpresas) {
+      await createEmpresa.mutateAsync(empresa);
+    }
+  };
+
   const pendingCount = farmacias.filter(p => p.auto_generate && !getArticleForPharmacy(p.id)).length;
   const pendingEmpresasCount = empresas.filter(e => e.auto_generate && !getArticleForCompany(e.id)).length;
   const isLoading = loadingFarmacias || loadingArticulos || loadingEmpresas || loadingArticulosEmpresas;
@@ -392,8 +408,9 @@ export default function Index() {
             </TabsContent>
 
             <TabsContent value="config">
-              <div className="max-w-md">
+              <div className="grid gap-6 md:grid-cols-2 max-w-2xl">
                 <ImportExport farmacias={farmacias} articulos={articulos} selectedMonth={selectedMonth} selectedYear={selectedYear} onImportFarmacias={handleImportFarmacias} />
+                <CompanyImportExport empresas={empresas} articulos={articulosEmpresas} selectedMonth={selectedMonth} selectedYear={selectedYear} onImportEmpresas={handleImportEmpresas} />
               </div>
             </TabsContent>
           </Tabs>
