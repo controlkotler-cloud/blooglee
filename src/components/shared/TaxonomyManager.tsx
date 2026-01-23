@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, Tag, FolderOpen } from "lucide-react";
 import {
   useTaxonomies,
@@ -26,10 +24,11 @@ export function TaxonomyManager({ wordpressSiteId, onSave }: TaxonomyManagerProp
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
-  // Initialize selections from defaults
+  // Inicializar SOLO una vez cuando llegan los defaults
   useEffect(() => {
-    if (defaults) {
+    if (defaults && !initialized) {
       const categoryIds = defaults
         .filter((d) => d.taxonomy?.taxonomy_type === "category")
         .map((d) => d.taxonomy_id);
@@ -38,9 +37,9 @@ export function TaxonomyManager({ wordpressSiteId, onSave }: TaxonomyManagerProp
         .map((d) => d.taxonomy_id);
       setSelectedCategoryIds(categoryIds);
       setSelectedTagIds(tagIds);
-      setHasChanges(false);
+      setInitialized(true);
     }
-  }, [defaults]);
+  }, [defaults, initialized]);
 
   const handleSync = () => {
     if (wordpressSiteId) {
@@ -72,9 +71,7 @@ export function TaxonomyManager({ wordpressSiteId, onSave }: TaxonomyManagerProp
     onSave?.();
   };
 
-  if (!wordpressSiteId) {
-    return null;
-  }
+  if (!wordpressSiteId) return null;
 
   const isLoading = isLoadingTaxonomies || isLoadingDefaults;
   const hasTaxonomies =
@@ -109,74 +106,57 @@ export function TaxonomyManager({ wordpressSiteId, onSave }: TaxonomyManagerProp
         </div>
       ) : !hasTaxonomies ? (
         <p className="text-xs text-muted-foreground bg-muted p-3 rounded">
-          No hay categorías ni tags sincronizados. Pulsa "Sincronizar" para importar desde WordPress.
+          No hay categorías ni tags sincronizados. Pulsa "Sincronizar" para importar.
         </p>
       ) : (
         <div className="space-y-4">
-          {/* Categories */}
+          {/* Categorías - checkboxes nativos */}
           {(taxonomies?.categories?.length || 0) > 0 && (
             <div className="space-y-2">
               <Label className="flex items-center gap-1 text-xs text-muted-foreground">
                 <FolderOpen className="h-3 w-3" />
                 Categorías por defecto
               </Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {taxonomies?.categories.map((cat: WordPressTaxonomy) => (
-                  <div
-                    key={cat.id}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded border cursor-pointer transition-colors ${
-                      selectedCategoryIds.includes(cat.id)
-                        ? "bg-primary/10 border-primary"
-                        : "bg-muted/50 border-transparent hover:border-muted-foreground/30"
-                    }`}
-                    onClick={() => toggleCategory(cat.id)}
-                  >
-                    <Checkbox
+                  <label key={cat.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
                       checked={selectedCategoryIds.includes(cat.id)}
-                      onCheckedChange={() => toggleCategory(cat.id)}
-                      className="h-3.5 w-3.5"
+                      onChange={() => toggleCategory(cat.id)}
+                      className="h-4 w-4 rounded border-input"
                     />
-                    <span className="text-sm">{cat.name}</span>
-                    <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                      ID: {cat.wp_id}
-                    </Badge>
-                  </div>
+                    {cat.name}
+                  </label>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Tags */}
+          {/* Tags - checkboxes nativos */}
           {(taxonomies?.tags?.length || 0) > 0 && (
             <div className="space-y-2">
               <Label className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Tag className="h-3 w-3" />
                 Tags por defecto
               </Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {taxonomies?.tags.map((tag: WordPressTaxonomy) => (
-                  <div
-                    key={tag.id}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded border cursor-pointer transition-colors ${
-                      selectedTagIds.includes(tag.id)
-                        ? "bg-primary/10 border-primary"
-                        : "bg-muted/50 border-transparent hover:border-muted-foreground/30"
-                    }`}
-                    onClick={() => toggleTag(tag.id)}
-                  >
-                    <Checkbox
+                  <label key={tag.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
                       checked={selectedTagIds.includes(tag.id)}
-                      onCheckedChange={() => toggleTag(tag.id)}
-                      className="h-3.5 w-3.5"
+                      onChange={() => toggleTag(tag.id)}
+                      className="h-4 w-4 rounded border-input"
                     />
-                    <span className="text-sm">{tag.name}</span>
-                  </div>
+                    {tag.name}
+                  </label>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Save button */}
+          {/* Botón guardar */}
           {hasChanges && (
             <Button
               type="button"
@@ -185,9 +165,7 @@ export function TaxonomyManager({ wordpressSiteId, onSave }: TaxonomyManagerProp
               disabled={setDefaultsMutation.isPending}
               className="w-full"
             >
-              {setDefaultsMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : null}
+              {setDefaultsMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
               Guardar taxonomías por defecto
             </Button>
           )}
