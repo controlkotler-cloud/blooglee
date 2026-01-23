@@ -220,7 +220,7 @@ export type Database = {
         Row: {
           created_at: string
           empresa_id: string | null
-          farmacia_id: string
+          farmacia_id: string | null
           id: string
           site_url: string
           updated_at: string
@@ -230,7 +230,7 @@ export type Database = {
         Insert: {
           created_at?: string
           empresa_id?: string | null
-          farmacia_id: string
+          farmacia_id?: string | null
           id?: string
           site_url: string
           updated_at?: string
@@ -240,7 +240,7 @@ export type Database = {
         Update: {
           created_at?: string
           empresa_id?: string | null
-          farmacia_id?: string
+          farmacia_id?: string | null
           id?: string
           site_url?: string
           updated_at?: string
