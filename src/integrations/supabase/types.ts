@@ -69,8 +69,10 @@ export type Database = {
       }
       farmacias: {
         Row: {
+          auto_generate: boolean
           blog_url: string | null
           created_at: string
+          custom_topic: string | null
           id: string
           instagram_url: string | null
           languages: string[]
@@ -79,8 +81,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_generate?: boolean
           blog_url?: string | null
           created_at?: string
+          custom_topic?: string | null
           id?: string
           instagram_url?: string | null
           languages?: string[]
@@ -89,8 +93,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_generate?: boolean
           blog_url?: string | null
           created_at?: string
+          custom_topic?: string | null
           id?: string
           instagram_url?: string | null
           languages?: string[]

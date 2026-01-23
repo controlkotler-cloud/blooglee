@@ -9,6 +9,8 @@ export interface Farmacia {
   languages: string[];
   blog_url: string | null;
   instagram_url: string | null;
+  auto_generate: boolean;
+  custom_topic: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,7 +34,7 @@ export function useCreateFarmacia() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (farmacia: { name: string; location: string; languages: string[]; blog_url?: string | null; instagram_url?: string | null }) => {
+    mutationFn: async (farmacia: { name: string; location: string; languages: string[]; blog_url?: string | null; instagram_url?: string | null; auto_generate?: boolean; custom_topic?: string | null }) => {
       const { data, error } = await supabase
         .from("farmacias")
         .insert({
@@ -41,6 +43,8 @@ export function useCreateFarmacia() {
           languages: farmacia.languages,
           blog_url: farmacia.blog_url || null,
           instagram_url: farmacia.instagram_url || null,
+          auto_generate: farmacia.auto_generate ?? true,
+          custom_topic: farmacia.custom_topic || null,
         })
         .select()
         .single();
@@ -71,6 +75,8 @@ export function useUpdateFarmacia() {
           languages: farmacia.languages,
           blog_url: farmacia.blog_url,
           instagram_url: farmacia.instagram_url,
+          auto_generate: farmacia.auto_generate,
+          custom_topic: farmacia.custom_topic,
         })
         .eq("id", farmacia.id)
         .select()
