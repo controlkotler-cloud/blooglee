@@ -114,15 +114,19 @@ const SECTOR_IMAGE_CONTEXTS: Record<string, SectorContext> = {
   },
   belleza: {
     examples: [
-      "hair salon modern interior styling chair woman",
-      "hairdresser styling woman long hair professional",
-      "beauty salon haircut woman mirror reflection",
-      "hair coloring highlights professional salon woman",
-      "woman hairstyle beautiful natural light portrait",
-      "makeup artist applying cosmetics professional"
+      "beautiful hairstyle woman portrait natural light",
+      "elegant haircut woman closeup professional photo",
+      "hair color highlights blonde brunette natural",
+      "modern hairstyle waves curls woman portrait",
+      "sleek straight hair woman fashion photography",
+      "hair texture closeup shiny healthy natural"
     ],
-    prohibitedTerms: ["barber", "barbershop", "beard", "men haircut", "shaving", "razor", "male grooming"],
-    fallbackQuery: "hair salon woman styling professional beauty"
+    prohibitedTerms: [
+      "barber", "barbershop", "beard", "men haircut", "shaving", "razor", "male grooming",
+      "hairdresser", "stylist working", "salon interior", "cutting hair", "scissors cutting",
+      "hair salon chair", "mirror reflection salon", "cape apron", "hair dryer", "curling iron"
+    ],
+    fallbackQuery: "beautiful hairstyle woman portrait elegant"
   },
   hosteleria: {
     examples: [
