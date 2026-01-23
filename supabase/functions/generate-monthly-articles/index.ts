@@ -129,7 +129,8 @@ interface WordPressPublishResult {
 }
 
 interface GenerationResult {
-  farmaciaName: string;
+  entityName: string;
+  entityType: 'farmacia' | 'empresa';
   success: boolean;
   error?: string;
   wpSpanish?: WordPressPublishResult;
@@ -393,7 +394,8 @@ const handler = async (req: Request): Promise<Response> => {
         }
         
         results.push({
-          farmaciaName: farmacia.name,
+          entityName: farmacia.name,
+          entityType: 'farmacia',
           success: true,
           wpSpanish,
           wpCatalan,
@@ -402,7 +404,8 @@ const handler = async (req: Request): Promise<Response> => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`✗ Error generating article for ${farmacia.name}:`, error);
         results.push({
-          farmaciaName: farmacia.name,
+          entityName: farmacia.name,
+          entityType: 'farmacia',
           success: false,
           error: errorMessage,
         });
@@ -415,12 +418,225 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // ========== PROCESS EMPRESAS ==========
+    console.log("=== Processing EMPRESAS ===");
+    
+    // Get all empresas with auto_generate = true
+    const { data: empresas, error: empresasError } = await supabase
+      .from("empresas")
+      .select("*")
+      .eq("auto_generate", true)
+      .order("created_at", { ascending: true });
+
+    if (empresasError) {
+      console.error(`Error fetching empresas: ${empresasError.message}`);
+    } else {
+      console.log(`Found ${empresas?.length || 0} empresas with auto_generate`);
+
+      // Get existing empresa articles for this month
+      const { data: existingEmpresaArticles } = await supabase
+        .from("articulos_empresas")
+        .select("empresa_id")
+        .eq("month", currentMonth)
+        .eq("year", currentYear);
+
+      const existingEmpresaIds = new Set(existingEmpresaArticles?.map(a => a.empresa_id) || []);
+      const empresasToProcess = empresas?.filter(e => !existingEmpresaIds.has(e.id)) || [];
+
+      console.log(`${existingEmpresaIds.size} empresa articles already exist, ${empresasToProcess.length} to generate`);
+
+      for (let i = 0; i < empresasToProcess.length; i++) {
+        const empresa = empresasToProcess[i];
+        
+        // Empresas always use their custom_topic
+        const topic = {
+          tema: empresa.custom_topic,
+          keywords: [],
+          pexels_query: "business professional wellness"
+        };
+        
+        console.log(`[${i + 1}/${empresasToProcess.length}] Generating article for empresa ${empresa.name} - Topic: ${topic.tema}`);
+
+        try {
+          const response = await fetch(generateArticleUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              pharmacy: {
+                id: empresa.id,
+                name: empresa.name,
+                location: empresa.location,
+                languages: empresa.languages,
+                blog_url: empresa.blog_url || undefined,
+                instagram_url: empresa.instagram_url || undefined,
+              },
+              topic: topic,
+              month: currentMonth,
+              year: currentYear,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+          }
+
+          const generatedData = await response.json();
+          console.log(`✓ Generated article content for empresa ${empresa.name}`);
+          
+          // Save to articulos_empresas table
+          const { error: insertError } = await supabase
+            .from("articulos_empresas")
+            .insert({
+              empresa_id: empresa.id,
+              month: currentMonth,
+              year: currentYear,
+              topic: topic.tema,
+              content_spanish: generatedData.content?.spanish || null,
+              content_catalan: generatedData.content?.catalan || null,
+              image_url: generatedData.image?.url || null,
+              image_photographer: generatedData.image?.photographer || null,
+              image_photographer_url: generatedData.image?.photographer_url || null,
+              pexels_query: generatedData.pexels_query || topic.pexels_query,
+            });
+
+          if (insertError) {
+            throw new Error(`Error saving article: ${insertError.message}`);
+          }
+
+          console.log(`✓ Saved empresa article for ${empresa.name}: ${topic.tema}`);
+          
+          // WordPress auto-publish for empresas
+          let wpSpanish: WordPressPublishResult | undefined;
+          let wpCatalan: WordPressPublishResult | undefined;
+          
+          const { data: wpSite } = await supabase
+            .from("wordpress_sites")
+            .select("*")
+            .eq("empresa_id", empresa.id)
+            .maybeSingle();
+
+          if (wpSite) {
+            console.log(`WordPress configured for empresa ${empresa.name}, publishing...`);
+            const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress`;
+            
+            // Publish Spanish version
+            if (generatedData.content?.spanish) {
+              try {
+                console.log(`Publishing Spanish version for empresa ${empresa.name}...`);
+                const spanishPublishResponse = await fetch(publishUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${supabaseServiceKey}`,
+                  },
+                  body: JSON.stringify({
+                    empresa_id: empresa.id,
+                    title: generatedData.content.spanish.title,
+                    content: generatedData.content.spanish.content,
+                    slug: generatedData.content.spanish.slug,
+                    status: "publish",
+                    image_url: generatedData.image?.url,
+                    image_alt: generatedData.content.spanish.title,
+                    meta_description: generatedData.content.spanish.meta_description,
+                    lang: "es",
+                  }),
+                });
+                
+                const spanishResult = await spanishPublishResponse.json();
+                if (spanishResult.success) {
+                  wpSpanish = { success: true, postUrl: spanishResult.post_url };
+                  console.log(`✓ Published Spanish to WordPress: ${spanishResult.post_url}`);
+                } else {
+                  wpSpanish = { success: false, error: spanishResult.error || "Unknown error" };
+                  console.error(`✗ Failed to publish Spanish:`, spanishResult.error);
+                }
+              } catch (wpError) {
+                const wpErrorMsg = wpError instanceof Error ? wpError.message : String(wpError);
+                wpSpanish = { success: false, error: wpErrorMsg };
+                console.error(`✗ Error publishing Spanish to WordPress:`, wpError);
+              }
+            }
+            
+            // Publish Catalan version
+            if (generatedData.content?.catalan) {
+              try {
+                console.log(`Publishing Catalan version for empresa ${empresa.name}...`);
+                const catalanPublishResponse = await fetch(publishUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${supabaseServiceKey}`,
+                  },
+                  body: JSON.stringify({
+                    empresa_id: empresa.id,
+                    title: generatedData.content.catalan.title,
+                    content: generatedData.content.catalan.content,
+                    slug: `${generatedData.content.catalan.slug}-ca`,
+                    status: "publish",
+                    image_url: generatedData.image?.url,
+                    image_alt: generatedData.content.catalan.title,
+                    meta_description: generatedData.content.catalan.meta_description,
+                    lang: "ca",
+                  }),
+                });
+                
+                const catalanResult = await catalanPublishResponse.json();
+                if (catalanResult.success) {
+                  wpCatalan = { success: true, postUrl: catalanResult.post_url };
+                  console.log(`✓ Published Catalan to WordPress: ${catalanResult.post_url}`);
+                } else {
+                  wpCatalan = { success: false, error: catalanResult.error || "Unknown error" };
+                  console.error(`✗ Failed to publish Catalan:`, catalanResult.error);
+                }
+              } catch (wpError) {
+                const wpErrorMsg = wpError instanceof Error ? wpError.message : String(wpError);
+                wpCatalan = { success: false, error: wpErrorMsg };
+                console.error(`✗ Error publishing Catalan to WordPress:`, wpError);
+              }
+            }
+          } else {
+            console.log(`No WordPress configured for empresa ${empresa.name}, skipping auto-publish`);
+          }
+          
+          results.push({
+            entityName: empresa.name,
+            entityType: 'empresa',
+            success: true,
+            wpSpanish,
+            wpCatalan,
+          });
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`✗ Error generating article for empresa ${empresa.name}:`, error);
+          results.push({
+            entityName: empresa.name,
+            entityType: 'empresa',
+            success: false,
+            error: errorMessage,
+          });
+        }
+
+        // Delay between requests
+        if (i < empresasToProcess.length - 1) {
+          console.log("Waiting 3 seconds before next generation...");
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+      }
+    }
+
     // Calculate summary
     const successCount = results.filter(r => r.success).length;
     const errorCount = results.filter(r => !r.success).length;
+    const farmaciaResults = results.filter(r => r.entityType === 'farmacia');
+    const empresaResults = results.filter(r => r.entityType === 'empresa');
+    
     const errorDetails = results
       .filter(r => !r.success)
-      .map(r => `<li><strong>${r.farmaciaName}:</strong> ${r.error}</li>`)
+      .map(r => `<li><strong>${r.entityName} (${r.entityType}):</strong> ${r.error}</li>`)
       .join("");
 
     // WordPress publish summary
@@ -435,7 +651,7 @@ const handler = async (req: Request): Promise<Response> => {
       const caLink = r.wpCatalan?.success && r.wpCatalan.postUrl 
         ? `<a href="${r.wpCatalan.postUrl}" style="color: #4F46E5;">CA ✓</a>` 
         : (r.wpCatalan ? `<span style="color: #DC2626;">CA ✗</span>` : '');
-      return `<li><strong>${r.farmaciaName}:</strong> ${[esLink, caLink].filter(Boolean).join(' | ')}</li>`;
+      return `<li><strong>${r.entityName} (${r.entityType}):</strong> ${[esLink, caLink].filter(Boolean).join(' | ')}</li>`;
     }).join("");
 
     console.log(`Generation complete: ${successCount} success, ${errorCount} errors`);
@@ -453,8 +669,9 @@ const handler = async (req: Request): Promise<Response> => {
         
         <h2>Resumen de generación</h2>
         <ul>
-          <li><strong>Farmacias procesadas:</strong> ${farmaciasToProcess.length}</li>
-          <li><strong>Artículos generados correctamente:</strong> ${successCount}</li>
+          <li><strong>Farmacias procesadas:</strong> ${farmaciaResults.length} (${farmaciaResults.filter(r => r.success).length} correctos)</li>
+          <li><strong>Empresas procesadas:</strong> ${empresaResults.length} (${empresaResults.filter(r => r.success).length} correctos)</li>
+          <li><strong>Total artículos generados:</strong> ${successCount}</li>
           <li><strong>Errores:</strong> ${errorCount}</li>
         </ul>
         
@@ -464,7 +681,7 @@ const handler = async (req: Request): Promise<Response> => {
           <li><strong>Posts en Español publicados:</strong> ${wpSpanishSuccess}</li>
           <li><strong>Posts en Catalán publicados:</strong> ${wpCatalanSuccess}</li>
         </ul>
-        <h3>Detalle por farmacia</h3>
+        <h3>Detalle por entidad</h3>
         <ul>${wpPublishDetails}</ul>
         ` : ""}
         
