@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Play, Eye, Edit3, Trash2, Check, Globe, RefreshCw } from "lucide-react";
+import { Loader2, Play, Eye, Edit3, Trash2, Check, Globe, RefreshCw, Hand } from "lucide-react";
 import type { Farmacia } from "@/hooks/useFarmacias";
 import type { Articulo } from "@/hooks/useArticulos";
 import type { SeasonalTopic } from "@/lib/seasonalTopics";
@@ -33,6 +33,7 @@ export function PharmacyCard({
 }: PharmacyCardProps) {
   const hasArticle = !!article;
   const hasCatalan = pharmacy.languages?.includes("catalan");
+  const isManual = !pharmacy.auto_generate;
 
   return (
     <Card className={`transition-all ${hasArticle ? "border-green-500/50 bg-green-50/50 dark:bg-green-950/20" : ""}`}>
@@ -41,6 +42,12 @@ export function PharmacyCard({
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">{pharmacy.location}</p>
           <div className="flex items-center gap-1 flex-shrink-0">
+            {isManual && (
+              <Badge variant="outline" className="text-xs bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950 dark:border-orange-800 dark:text-orange-300">
+                <Hand className="w-3 h-3 mr-1" />
+                Manual
+              </Badge>
+            )}
             {hasCatalan && (
               <Badge variant="outline" className="text-xs">
                 <Globe className="w-3 h-3 mr-1" />
@@ -60,9 +67,14 @@ export function PharmacyCard({
 
         {/* Tema + estado de generación */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <Badge variant="secondary" className="text-xs">
-            {topic.tema}
-          </Badge>
+          <div className="flex flex-col gap-1">
+            <Badge variant="secondary" className="text-xs w-fit">
+              {isManual && pharmacy.custom_topic ? pharmacy.custom_topic : topic.tema}
+            </Badge>
+            {isManual && pharmacy.custom_topic && (
+              <span className="text-xs text-muted-foreground">(personalizado)</span>
+            )}
+          </div>
           {hasArticle && (
             <Badge variant="default" className="bg-green-600">
               <Check className="w-3 h-3 mr-1" />

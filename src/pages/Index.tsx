@@ -65,13 +65,13 @@ export default function Index() {
     return articulos.find((a) => a.farmacia_id === pharmacyId) || null;
   };
 
-  const handleCreateFarmacia = (data: { name: string; location: string; languages: string[]; blog_url?: string; instagram_url?: string }) => {
+  const handleCreateFarmacia = (data: { name: string; location: string; languages: string[]; blog_url?: string; instagram_url?: string; auto_generate?: boolean; custom_topic?: string | null }) => {
     createFarmacia.mutate(data, {
       onSuccess: () => setShowAddForm(false),
     });
   };
 
-  const handleUpdateFarmacia = (data: { name: string; location: string; languages: string[]; blog_url?: string; instagram_url?: string }) => {
+  const handleUpdateFarmacia = (data: { name: string; location: string; languages: string[]; blog_url?: string; instagram_url?: string; auto_generate?: boolean; custom_topic?: string | null }) => {
     if (!editingPharmacy) return;
     updateFarmacia.mutate({ id: editingPharmacy.id, ...data }, {
       onSuccess: () => setEditingPharmacy(null),
@@ -89,7 +89,10 @@ export default function Index() {
    * Genera un artículo con reintentos automáticos
    */
   const handleGenerateArticle = async (pharmacy: Farmacia, index: number, usedImageUrls?: string[]) => {
-    const topic = getAssignedTopic(index, selectedMonth, pharmacy.id);
+    // If pharmacy has custom topic, create a custom SeasonalTopic object
+    const topic = pharmacy.custom_topic && !pharmacy.auto_generate
+      ? { tema: pharmacy.custom_topic, keywords: [], pexels_query: "pharmacy health wellness" }
+      : getAssignedTopic(index, selectedMonth, pharmacy.id);
     setGeneratingId(pharmacy.id);
     setCurrentRetry(0);
 
@@ -135,7 +138,8 @@ export default function Index() {
   };
 
   const handleGenerateAll = async () => {
-    const pending = farmacias.filter((p) => !getArticleForPharmacy(p.id));
+    // Only generate for auto_generate = true pharmacies without articles
+    const pending = farmacias.filter((p) => p.auto_generate && !getArticleForPharmacy(p.id));
 
     if (pending.length === 0) {
       toast.info("Todos los artículos ya están generados");
@@ -234,7 +238,8 @@ export default function Index() {
     }
   };
 
-  const pendingCount = farmacias.length - articulos.length;
+  // Count pending only for auto_generate pharmacies
+  const pendingCount = farmacias.filter(p => p.auto_generate && !getArticleForPharmacy(p.id)).length;
   const isLoading = loadingFarmacias || loadingArticulos;
 
   return (

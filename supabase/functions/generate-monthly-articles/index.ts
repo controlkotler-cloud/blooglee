@@ -163,10 +163,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Processing articles for ${MONTH_NAMES[currentMonth - 1]} ${currentYear}`);
 
-    // Get all farmacias
+    // Get all farmacias with auto_generate = true
     const { data: farmacias, error: farmaciasError } = await supabase
       .from("farmacias")
       .select("*")
+      .eq("auto_generate", true)
       .order("created_at", { ascending: true });
 
     if (farmaciasError) {

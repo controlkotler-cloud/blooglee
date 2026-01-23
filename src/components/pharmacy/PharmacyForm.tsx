@@ -5,14 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Globe, Eye, EyeOff, Trash2, Link2, Instagram } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Globe, Eye, EyeOff, Trash2, Link2, Instagram, Cog } from "lucide-react";
 import type { Farmacia } from "@/hooks/useFarmacias";
 import { useWordPressSite, useUpsertWordPressSite, useDeleteWordPressSite } from "@/hooks/useWordPressSites";
 
 interface PharmacyFormProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; location: string; languages: string[]; blog_url?: string; instagram_url?: string }) => void;
+  onSubmit: (data: { name: string; location: string; languages: string[]; blog_url?: string; instagram_url?: string; auto_generate?: boolean; custom_topic?: string | null }) => void;
   initialData?: Farmacia | null;
   isLoading?: boolean;
 }
@@ -25,6 +26,10 @@ export function PharmacyForm({ open, onClose, onSubmit, initialData, isLoading }
   // SEO fields
   const [blogUrl, setBlogUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
+  
+  // Auto-generation fields
+  const [autoGenerate, setAutoGenerate] = useState(true);
+  const [customTopic, setCustomTopic] = useState("");
   
   // WordPress fields
   const [wpSiteUrl, setWpSiteUrl] = useState("");
@@ -44,12 +49,16 @@ export function PharmacyForm({ open, onClose, onSubmit, initialData, isLoading }
       setIncludesCatalan(initialData.languages?.includes("catalan") || false);
       setBlogUrl(initialData.blog_url || "");
       setInstagramUrl(initialData.instagram_url || "");
+      setAutoGenerate(initialData.auto_generate ?? true);
+      setCustomTopic(initialData.custom_topic || "");
     } else {
       setName("");
       setLocation("");
       setIncludesCatalan(false);
       setBlogUrl("");
       setInstagramUrl("");
+      setAutoGenerate(true);
+      setCustomTopic("");
     }
   }, [initialData, open]);
 
@@ -78,6 +87,8 @@ export function PharmacyForm({ open, onClose, onSubmit, initialData, isLoading }
       languages,
       blog_url: blogUrl || undefined,
       instagram_url: instagramUrl || undefined,
+      auto_generate: autoGenerate,
+      custom_topic: autoGenerate ? null : (customTopic || null),
     });
     
     // If editing and has WordPress config, save it
@@ -143,6 +154,42 @@ export function PharmacyForm({ open, onClose, onSubmit, initialData, isLoading }
             <Label htmlFor="catalan" className="cursor-pointer">
               Generar también en catalán
             </Label>
+          </div>
+
+          {/* Article Generation Section */}
+          <Separator className="my-4" />
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Cog className="w-4 h-4" />
+              <Label className="font-medium">Generación de artículos</Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="auto-generate"
+                checked={autoGenerate}
+                onCheckedChange={(checked) => setAutoGenerate(checked === true)}
+              />
+              <Label htmlFor="auto-generate" className="cursor-pointer">
+                Generación automática mensual
+              </Label>
+            </div>
+            
+            {!autoGenerate && (
+              <div className="space-y-2 pl-6 border-l-2 border-muted">
+                <Label htmlFor="custom-topic">Tema personalizado</Label>
+                <Textarea
+                  id="custom-topic"
+                  value={customTopic}
+                  onChange={(e) => setCustomTopic(e.target.value)}
+                  placeholder="Ej: Tratamientos para el acné en adultos"
+                  className="min-h-[60px]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Este tema se usará cuando generes manualmente el artículo.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* SEO Links Section */}
