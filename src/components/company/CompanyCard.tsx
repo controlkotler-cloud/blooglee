@@ -12,6 +12,11 @@ import {
   Loader2,
   Hand,
   Building2,
+  MapPin,
+  Globe,
+  Calendar,
+  Image,
+  ImageOff,
 } from "lucide-react";
 
 interface CompanyCardProps {
@@ -25,6 +30,19 @@ interface CompanyCardProps {
   onEdit: () => void;
   onDelete: () => void;
 }
+
+const frequencyLabels: Record<string, string> = {
+  monthly: "Mensual",
+  biweekly: "Quincenal",
+  weekly: "Semanal",
+  daily: "Diario",
+};
+
+const scopeLabels: Record<string, string> = {
+  local: "Local",
+  regional: "Regional",
+  national: "Nacional",
+};
 
 export function CompanyCard({
   company,
@@ -40,13 +58,37 @@ export function CompanyCard({
   const hasArticle = !!article;
   const hasCatalan = company.languages.includes("catalan");
   const isManual = !company.auto_generate;
+  const hasImage = company.include_featured_image ?? true;
+  const frequency = company.publish_frequency || "monthly";
+  const scope = company.geographic_scope || "local";
+
+  const getScopeIcon = () => {
+    switch (scope) {
+      case "national":
+        return <Globe className="h-3 w-3" />;
+      case "regional":
+        return <MapPin className="h-3 w-3" />;
+      default:
+        return <MapPin className="h-3 w-3" />;
+    }
+  };
+
+  const getLocationDisplay = () => {
+    if (scope === "national") {
+      return "España";
+    }
+    return company.location || "";
+  };
 
   return (
     <Card className={hasArticle ? "border-green-500/50 bg-green-50/30" : ""}>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-            <span>{company.location}</span>
+            <span className="flex items-center gap-1">
+              {getScopeIcon()}
+              {getLocationDisplay()}
+            </span>
             {company.sector && (
               <>
                 <span>·</span>
@@ -57,28 +99,48 @@ export function CompanyCard({
               </>
             )}
           </div>
-          <div className="flex gap-1 flex-wrap justify-end">
-            {isManual ? (
-              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                <Hand className="h-3 w-3 mr-1" />
-                Manual
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                <Sparkles className="h-3 w-3 mr-1" />
-                Auto
-              </Badge>
-            )}
-            <Badge variant="outline">ES</Badge>
-            {hasCatalan && <Badge variant="outline">CA</Badge>}
-            {hasWordPress && (
-              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                WP
-              </Badge>
-            )}
-          </div>
         </div>
         <h3 className="font-semibold text-lg leading-tight break-words">{company.name}</h3>
+        
+        {/* Badges row */}
+        <div className="flex gap-1 flex-wrap pt-1">
+          {isManual ? (
+            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+              <Hand className="h-3 w-3 mr-1" />
+              Manual
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+              <Sparkles className="h-3 w-3 mr-1" />
+              Auto
+            </Badge>
+          )}
+          
+          <Badge variant="outline" className="text-xs">
+            <Calendar className="h-3 w-3 mr-1" />
+            {frequencyLabels[frequency]}
+          </Badge>
+          
+          <Badge variant="outline" className="text-xs">
+            {scopeLabels[scope]}
+          </Badge>
+          
+          <Badge variant="outline" className="text-xs">ES</Badge>
+          {hasCatalan && <Badge variant="outline" className="text-xs">CA</Badge>}
+          
+          {!hasImage && (
+            <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 text-xs">
+              <ImageOff className="h-3 w-3 mr-1" />
+              Sin img
+            </Badge>
+          )}
+          
+          {hasWordPress && (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+              WP
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Topic display - only show if it's manual and has a custom topic */}

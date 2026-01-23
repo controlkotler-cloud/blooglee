@@ -183,7 +183,7 @@ export default function Index() {
     createEmpresa.mutate(data, { onSuccess: () => setShowAddCompanyForm(false) });
   };
 
-  const handleUpdateEmpresa = (data: { name: string; location: string; sector?: string | null; languages: string[]; blog_url?: string; instagram_url?: string; auto_generate?: boolean; custom_topic?: string | null }) => {
+  const handleUpdateEmpresa = (data: { name: string; location?: string | null; sector?: string | null; languages: string[]; blog_url?: string; instagram_url?: string; auto_generate?: boolean; custom_topic?: string | null; include_featured_image?: boolean; publish_frequency?: string; geographic_scope?: string }) => {
     if (!editingCompany) return;
     updateEmpresa.mutate({ id: editingCompany.id, ...data }, { onSuccess: () => setEditingCompany(null) });
   };

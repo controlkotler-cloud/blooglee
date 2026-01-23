@@ -5,13 +5,16 @@ import { toast } from "sonner";
 export interface Empresa {
   id: string;
   name: string;
-  location: string;
+  location: string | null;
   sector: string | null;
   languages: string[];
   blog_url: string | null;
   instagram_url: string | null;
   auto_generate: boolean;
   custom_topic: string | null;
+  include_featured_image: boolean;
+  publish_frequency: string;
+  geographic_scope: string;
   created_at: string;
   updated_at: string;
 }
@@ -37,25 +40,31 @@ export function useCreateEmpresa() {
   return useMutation({
     mutationFn: async (empresa: {
       name: string;
-      location: string;
+      location?: string | null;
       sector?: string | null;
       languages: string[];
       blog_url?: string | null;
       instagram_url?: string | null;
       auto_generate?: boolean;
       custom_topic?: string | null;
+      include_featured_image?: boolean;
+      publish_frequency?: string;
+      geographic_scope?: string;
     }) => {
       const { data, error } = await supabase
         .from("empresas")
         .insert({
           name: empresa.name,
-          location: empresa.location,
+          location: empresa.location || null,
           sector: empresa.sector || null,
           languages: empresa.languages,
           blog_url: empresa.blog_url || null,
           instagram_url: empresa.instagram_url || null,
           auto_generate: empresa.auto_generate ?? true,
           custom_topic: empresa.custom_topic,
+          include_featured_image: empresa.include_featured_image ?? true,
+          publish_frequency: empresa.publish_frequency || 'monthly',
+          geographic_scope: empresa.geographic_scope || 'local',
         })
         .select()
         .single();
@@ -89,6 +98,9 @@ export function useUpdateEmpresa() {
           instagram_url: empresa.instagram_url,
           auto_generate: empresa.auto_generate,
           custom_topic: empresa.custom_topic,
+          include_featured_image: empresa.include_featured_image,
+          publish_frequency: empresa.publish_frequency,
+          geographic_scope: empresa.geographic_scope,
         })
         .eq("id", empresa.id)
         .select()

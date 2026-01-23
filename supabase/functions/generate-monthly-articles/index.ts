@@ -535,13 +535,16 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
                 id: empresa.id,
                 name: empresa.name,
                 location: empresa.location,
+                sector: empresa.sector,
                 languages: empresa.languages,
                 blog_url: empresa.blog_url || undefined,
                 instagram_url: empresa.instagram_url || undefined,
+                geographic_scope: empresa.geographic_scope || "local",
               },
               topic: topic,
               month: currentMonth,
               year: currentYear,
+              skipImage: empresa.include_featured_image === false,
             }),
           });
 
