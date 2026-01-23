@@ -50,6 +50,40 @@ const FALLBACK_IMAGES = [
   { url: "https://images.unsplash.com/photo-1556760544-74068565f05c?w=1200", photographer: "Amplitude Magazin", photographer_url: "https://unsplash.com/@amplitudemagazin" },
 ];
 
+// Helper function to make AI requests with retry logic for rate limits
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      
+      if (response.status === 429) {
+        const waitTime = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+        console.log(`Rate limit hit, waiting ${waitTime}ms before retry ${attempt + 1}/${maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+      
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`Fetch attempt ${attempt + 1} failed:`, lastError.message);
+      
+      if (attempt < maxRetries - 1) {
+        const waitTime = Math.pow(2, attempt + 1) * 1000;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+  
+  throw lastError || new Error("All retry attempts failed");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -155,7 +189,7 @@ ${geographicScope !== "national" ? `- Ser atractivo para SEO ${geographicScope =
 Responde SOLO con el tema, sin explicaciones ni comillas.`;
 
       try {
-        const topicResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const topicResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${LOVABLE_API_KEY}`,
@@ -251,8 +285,8 @@ Genera el artículo completo EN ESPAÑOL. RESPONDE SOLO CON JSON VÁLIDO en este
 
     console.log("Generating Spanish article for:", pharmacy.name, "Topic:", topic.tema, "Date:", dateContext);
 
-    // Generate Spanish article
-    const spanishResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Generate Spanish article with retry logic
+    const spanishResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -269,12 +303,6 @@ Genera el artículo completo EN ESPAÑOL. RESPONDE SOLO CON JSON VÁLIDO en este
     });
 
     if (!spanishResponse.ok) {
-      if (spanishResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
       if (spanishResponse.status === 402) {
         return new Response(JSON.stringify({ error: "Payment required. Please add credits to your workspace." }), {
           status: 402,
@@ -407,7 +435,7 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
   "content": "<h2>Primera secció</h2><p>Contingut en català natural...</p>"
 }`;
 
-      const catalanResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const catalanResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -546,7 +574,7 @@ RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin punt
       aiGeneratedQuery = FALLBACK_QUERIES[Math.floor(Math.random() * FALLBACK_QUERIES.length)];
 
       try {
-        const imageQueryResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const imageQueryResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
