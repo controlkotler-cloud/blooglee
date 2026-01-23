@@ -454,6 +454,12 @@ FORMATO DEL CONTENIDO:
 - SLUG: URL amigable en minúsculas con guiones.
 - CONTENIDO: ~2000 palabras con H2 y párrafos. NO uses H1 dentro del contenido.
 
+REGLAS DE ORTOGRAFÍA Y FORMATO OBLIGATORIAS:
+- MAYÚSCULAS EN TÍTULOS: Usa las reglas del español, NO el estilo inglés (Title Case). Solo mayúscula inicial en títulos y subtítulos, excepto nombres propios.
+  - CORRECTO: "Cómo mejorar tu estrategia de marketing digital"
+  - INCORRECTO: "Cómo Mejorar Tu Estrategia De Marketing Digital"
+- LISTAS HTML: Si introduces una enumeración con dos puntos (:), formatea TODOS los elementos como lista HTML (<ul><li>...</li></ul>) para mantener consistencia visual. Nunca mezcles párrafos sueltos con listas.
+
 TONO:
 - Profesional pero accesible
 - Adaptado al sector ${company.sector || "profesional"}
@@ -477,6 +483,8 @@ IMPORTANTE:
 - El título NO debe incluir el nombre de la empresa ni la ubicación
 - El contenido debe ser específico del sector, no genérico
 - Aporta valor real al lector con información útil y práctica
+- Aplica las reglas de ortografía española: solo mayúscula inicial en títulos/subtítulos (no en cada palabra)
+- Si enumeras puntos tras dos puntos (:), usa SIEMPRE formato lista HTML (<ul><li>)
 ${company.geographic_scope === "national" ? "- NUNCA menciones ubicaciones específicas ni uses la palabra 'null'" : ""}
 
 FORMATO DE RESPUESTA (JSON):
