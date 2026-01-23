@@ -27,11 +27,13 @@ export interface ArticuloEmpresa {
 interface GenerateArticleParams {
   empresaId: string;
   companyName: string;
-  companyLocation: string;
+  companyLocation?: string | null;
   companySector?: string | null;
   companyLanguages: string[];
   companyBlogUrl?: string;
   companyInstagramUrl?: string;
+  companyGeographicScope?: string;
+  companyIncludeFeaturedImage?: boolean;
   topic?: string | null;
   month: number;
   year: number;
@@ -41,6 +43,7 @@ interface GenerateArticleParams {
 interface RegenerateImageParams {
   articleId: string;
   pexelsQuery: string;
+  companySector?: string | null;
   month: number;
   year: number;
   articleTitle?: string;
@@ -84,30 +87,24 @@ export function useGenerateArticleEmpresa() {
 
   return useMutation({
     mutationFn: async (params: GenerateArticleParams) => {
-      // If no topic provided, the edge function will generate one using AI
-      const topicData = params.topic 
-        ? {
-            tema: params.topic,
-            keywords: [],
-            pexels_query: params.companySector ? `${params.companySector} professional business` : "business professional wellness",
-          }
-        : null;
-
-      const { data, error } = await supabase.functions.invoke("generate-article", {
+      // Call the new dedicated edge function for companies
+      const { data, error } = await supabase.functions.invoke("generate-article-empresa", {
         body: {
-          pharmacy: {
+          company: {
             name: params.companyName,
             location: params.companyLocation,
             sector: params.companySector,
             languages: params.companyLanguages,
             blog_url: params.companyBlogUrl,
             instagram_url: params.companyInstagramUrl,
+            geographic_scope: params.companyGeographicScope || "local",
+            include_featured_image: params.companyIncludeFeaturedImage !== false,
           },
-          topic: topicData,
+          topic: params.topic || null,
           month: params.month,
           year: params.year,
           usedImageUrls: params.usedImageUrls || [],
-          autoGenerateTopic: !params.topic, // Flag to tell edge function to generate topic
+          autoGenerateTopic: !params.topic,
         },
       });
 
@@ -176,6 +173,7 @@ export function useRegenerateImageEmpresa() {
       const { data, error } = await supabase.functions.invoke("regenerate-image", {
         body: {
           pexels_query: params.pexelsQuery,
+          company_sector: params.companySector,
           month: params.month,
           year: params.year,
           article_title: params.articleTitle,
