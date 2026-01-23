@@ -525,10 +525,20 @@ FORMATO DE RESPUESTA (JSON):
       throw new Error("No Spanish content generated");
     }
 
-    // Parse JSON from response
+    // Parse JSON from response - sanitize control characters first
     let spanishArticle;
     try {
-      const jsonMatch = spanishContent.match(/\{[\s\S]*\}/);
+      // Remove control characters that break JSON parsing
+      const sanitizedContent = spanishContent
+        .replace(/[\x00-\x1F\x7F]/g, (char: string) => {
+          // Keep newlines and tabs as escaped versions
+          if (char === '\n') return '\\n';
+          if (char === '\r') return '\\r';
+          if (char === '\t') return '\\t';
+          return ''; // Remove other control chars
+        });
+      
+      const jsonMatch = sanitizedContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         spanishArticle = JSON.parse(jsonMatch[0]);
       } else {
@@ -536,6 +546,7 @@ FORMATO DE RESPUESTA (JSON):
       }
     } catch (e) {
       console.error("Error parsing Spanish JSON:", e);
+      console.error("Raw content preview:", spanishContent.substring(0, 500));
       throw new Error("Failed to parse Spanish article JSON");
     }
 
@@ -604,10 +615,19 @@ RESPONDE EN JSON:
 
         if (catalanResponse.ok) {
           const catalanData = await catalanResponse.json();
-          const catalanContent = catalanData.choices?.[0]?.message?.content;
+          let catalanContent = catalanData.choices?.[0]?.message?.content;
           
           if (catalanContent) {
-            const jsonMatch = catalanContent.match(/\{[\s\S]*\}/);
+            // Sanitize control characters
+            const sanitizedCatalan = catalanContent
+              .replace(/[\x00-\x1F\x7F]/g, (char: string) => {
+                if (char === '\n') return '\\n';
+                if (char === '\r') return '\\r';
+                if (char === '\t') return '\\t';
+                return '';
+              });
+            
+            const jsonMatch = sanitizedCatalan.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               catalanArticle = JSON.parse(jsonMatch[0]);
               
