@@ -491,6 +491,82 @@
   }
 }
 
+/* LIQUID BLOB ANIMATIONS */
+@keyframes blob-morph-1 {
+  0%, 100% {
+    d: path("M650,350 C750,280 850,320 900,400 C950,480 920,560 850,600 C780,640 700,620 620,580 C540,540 480,480 500,400 C520,320 550,420 650,350Z");
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(2deg) scale(1.02);
+  }
+  50% {
+    d: path("M680,330 C780,260 870,300 920,380 C970,460 940,540 870,590 C800,640 720,630 640,590 C560,550 500,490 530,410 C560,330 580,400 680,330Z");
+    transform: rotate(-1deg) scale(0.98);
+  }
+  75% {
+    transform: rotate(1deg) scale(1.01);
+  }
+}
+
+@keyframes blob-morph-2 {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  33% {
+    transform: translate(15px, -10px) rotate(5deg) scale(1.05);
+  }
+  66% {
+    transform: translate(-10px, 15px) rotate(-3deg) scale(0.95);
+  }
+}
+
+@keyframes blob-morph-3 {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translate(-20px, 10px) rotate(-4deg) scale(1.03);
+  }
+  50% {
+    transform: translate(10px, -15px) rotate(2deg) scale(0.97);
+  }
+  75% {
+    transform: translate(15px, 20px) rotate(-2deg) scale(1.02);
+  }
+}
+
+@keyframes float-blob {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-20px) scale(1.1);
+    opacity: 0.7;
+  }
+}
+
+@keyframes float-geo {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-15px) rotate(10deg);
+  }
+}
+
+@keyframes reflection-shift {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(10px, -5px) scale(0.9);
+    opacity: 0.3;
+  }
+}
+
 @keyframes shadow-pulse {
   0%, 100% {
     opacity: 0.6;

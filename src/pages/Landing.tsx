@@ -11,46 +11,49 @@ import {
   CheckCircle2,
   Star,
   Play,
-  ChevronRight
+  Wand2,
+  BarChart3,
+  Palette
 } from 'lucide-react';
 import { ProductMockup } from '@/components/saas/ProductMockup';
+import { LiquidBlobs } from '@/components/saas/LiquidBlobs';
 
 const features = [
   {
     icon: Sparkles,
     title: "Generación con IA",
     description: "Artículos de 2000+ palabras optimizados para SEO, generados en segundos con inteligencia artificial avanzada.",
-    gradient: "from-primary to-secondary",
+    color: "from-violet-500 to-fuchsia-500",
   },
   {
     icon: Globe,
     title: "Publicación automática",
     description: "Conecta tu WordPress y publica directamente. Sin copiar y pegar, sin esfuerzo manual.",
-    gradient: "from-secondary to-tertiary",
+    color: "from-fuchsia-500 to-pink-500",
   },
   {
     icon: Languages,
     title: "Multi-idioma",
     description: "Genera contenido en español, catalán, inglés y más. Expande tu audiencia sin límites.",
-    gradient: "from-tertiary to-primary",
+    color: "from-pink-500 to-orange-400",
   },
   {
     icon: TrendingUp,
     title: "SEO optimizado",
     description: "Meta descripciones, títulos H1/H2, y slugs optimizados automáticamente para posicionar.",
-    gradient: "from-primary via-secondary to-tertiary",
+    color: "from-orange-400 to-amber-400",
   },
   {
     icon: Clock,
     title: "Programación automática",
     description: "Configura y olvídate. Blooglee genera y publica contenido nuevo cada semana.",
-    gradient: "from-secondary to-primary",
+    color: "from-amber-400 to-yellow-400",
   },
   {
-    icon: FileText,
+    icon: Palette,
     title: "Adaptado a tu sector",
     description: "IA entrenada para tu industria: belleza, salud, fitness, gastronomía y más.",
-    gradient: "from-tertiary via-primary to-secondary",
+    color: "from-cyan-400 to-violet-500",
   },
 ];
 
@@ -90,26 +93,36 @@ const stats = [
 
 const Landing = () => {
   return (
-    <div className="min-h-screen aurora-bg aurora-bg-intense">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-fuchsia-50/50 to-orange-50/30 overflow-hidden">
+      {/* LIQUID BLOBS BACKGROUND */}
+      <LiquidBlobs variant="hero" />
+
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
         <div className="container-custom">
-          <div className="glass-card rounded-2xl px-6 py-3 flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-glow">
-                <Sparkles className="w-5 h-5 text-white" />
+          <div className="glass-card-strong rounded-full px-6 py-3 flex items-center justify-between shadow-xl">
+            <Link to="/" className="flex items-center gap-3 group">
+              {/* Logo Blooglee con estilo líquido */}
+              <div className="relative">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-orange-400 flex items-center justify-center shadow-lg shadow-violet-500/30 group-hover:shadow-violet-500/50 transition-shadow duration-300">
+                  <Wand2 className="w-6 h-6 text-white" />
+                </div>
+                {/* Glow effect */}
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-orange-400 blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
               </div>
-              <span className="font-display font-bold text-xl">Blooglee</span>
+              <span className="font-display font-bold text-2xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-orange-500 bg-clip-text text-transparent">
+                Blooglee
+              </span>
             </Link>
             
             <div className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors link-underline">
+              <a href="#features" className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors">
                 Características
               </a>
-              <a href="#testimonials" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors link-underline">
+              <a href="#testimonials" className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors">
                 Testimonios
               </a>
-              <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors link-underline">
+              <a href="#pricing" className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors">
                 Precios
               </a>
             </div>
@@ -117,14 +130,20 @@ const Landing = () => {
             <div className="flex items-center gap-3">
               <Link 
                 to="/auth" 
-                className="hidden sm:block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="hidden sm:block text-sm font-medium text-foreground/70 hover:text-foreground transition-colors px-4 py-2"
               >
                 Iniciar sesión
               </Link>
-              <Link to="/auth" className="btn-aurora py-2.5 px-5 text-sm">
-                <span className="flex items-center gap-2">
+              <Link 
+                to="/auth" 
+                className="relative group px-6 py-2.5 rounded-full font-semibold text-white text-sm overflow-hidden"
+              >
+                {/* Button gradient background */}
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400 transition-all duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-r from-orange-400 via-fuchsia-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <span className="relative flex items-center gap-2">
                   Empezar gratis
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </span>
               </Link>
             </div>
@@ -133,40 +152,64 @@ const Landing = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 lg:pt-40 lg:pb-32 px-6">
-        <div className="container-custom">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+      <section className="relative pt-36 pb-24 lg:pt-44 lg:pb-36 px-6">
+        <div className="container-custom relative z-10">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left - Content */}
             <div className="text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 badge-aurora badge-aurora-glow mb-6 animate-fade-in-up">
-                <Zap className="w-4 h-4" />
-                <span>Potenciado por IA avanzada</span>
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-violet-200/50 shadow-lg shadow-violet-500/10 mb-8 animate-fade-in-up">
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 animate-pulse" />
+                <span className="text-sm font-medium bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+                  Potenciado por IA avanzada
+                </span>
               </div>
               
-              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight mb-6 animate-fade-in-up delay-100">
+              {/* Main heading with liquid gradient text */}
+              <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold leading-[1.1] mb-8 animate-fade-in-up delay-100">
                 Tu blog en{' '}
-                <span className="text-aurora">piloto automático</span>
+                <span className="relative inline-block">
+                  <span className="bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-[gradient-shift_4s_ease_infinite]">
+                    piloto
+                  </span>
+                </span>
+                <br />
+                <span className="relative inline-block">
+                  <span className="bg-gradient-to-r from-fuchsia-500 via-orange-400 to-violet-600 bg-clip-text text-transparent bg-[length:200%_auto] animate-[gradient-shift_4s_ease_infinite_0.5s]">
+                    automático
+                  </span>
+                </span>
               </h1>
               
-              <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0 animate-fade-in-up delay-200">
+              <p className="text-lg sm:text-xl text-foreground/70 mb-10 max-w-lg mx-auto lg:mx-0 animate-fade-in-up delay-200">
                 Genera artículos profesionales con IA, optimizados para SEO, y publícalos automáticamente en tu WordPress. 
-                <span className="font-medium text-foreground"> Sin escribir una sola palabra.</span>
+                <span className="font-semibold text-foreground"> Sin escribir una sola palabra.</span>
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-10 animate-fade-in-up delay-300">
-                <Link to="/auth" className="btn-aurora py-4 px-8 text-base">
-                  <span className="flex items-center justify-center gap-2">
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12 animate-fade-in-up delay-300">
+                <Link 
+                  to="/auth" 
+                  className="group relative px-8 py-4 rounded-full font-semibold text-white text-lg overflow-hidden shadow-2xl shadow-violet-500/30 hover:shadow-violet-500/50 transition-shadow"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-orange-400 via-fuchsia-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  {/* Shine effect */}
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                  </div>
+                  <span className="relative flex items-center justify-center gap-2">
                     Empezar gratis
-                    <ArrowRight className="w-5 h-5" />
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </span>
                 </Link>
-                <button className="btn-glass py-4 px-8 text-base flex items-center justify-center gap-2 group">
-                  <Play className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                <button className="group px-8 py-4 rounded-full font-semibold text-foreground bg-white/80 backdrop-blur-sm border border-violet-200/50 hover:bg-white hover:border-violet-300 transition-all shadow-lg flex items-center justify-center gap-2">
+                  <Play className="w-5 h-5 text-violet-500 group-hover:scale-110 transition-transform" />
                   Ver demo
                 </button>
               </div>
 
-              {/* Social proof mini */}
+              {/* Social proof */}
               <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start animate-fade-in-up delay-400">
                 <div className="flex -space-x-3">
                   {[
@@ -179,39 +222,51 @@ const Landing = () => {
                       key={i}
                       src={src}
                       alt=""
-                      className="w-10 h-10 rounded-full border-2 border-background object-cover"
+                      className="w-10 h-10 rounded-full border-3 border-white object-cover shadow-md"
                     />
                   ))}
                 </div>
                 <div className="text-sm">
-                  <div className="flex items-center gap-1 text-warning">
+                  <div className="flex items-center gap-1 text-amber-500">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} className="w-4 h-4 fill-current" />
                     ))}
                   </div>
-                  <span className="text-muted-foreground">+500 empresas confían en nosotros</span>
+                  <span className="text-foreground/60">+500 empresas confían en nosotros</span>
                 </div>
               </div>
             </div>
 
             {/* Right - Product Mockup */}
             <div className="relative animate-slide-in-right delay-200">
+              {/* Glow behind mockup */}
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-500/20 via-fuchsia-500/20 to-orange-400/20 blur-3xl rounded-full scale-110" />
               <ProductMockup />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-12 px-6 border-y border-border/30">
+      {/* Stats Section - Floating cards */}
+      <section className="relative py-16 px-6 z-10">
         <div className="container-custom">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {stats.map((stat, i) => (
-              <div key={i} className="text-center animate-fade-in-up" style={{ animationDelay: `${i * 100}ms` }}>
-                <div className="font-display text-3xl sm:text-4xl font-bold text-aurora mb-1">
-                  {stat.value}
+              <div 
+                key={i} 
+                className="group relative p-6 rounded-3xl bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 animate-fade-in-up"
+                style={{ animationDelay: `${i * 100}ms` }}
+              >
+                {/* Gradient border on hover */}
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400 opacity-0 group-hover:opacity-100 transition-opacity p-[1px]">
+                  <div className="w-full h-full rounded-3xl bg-white" />
                 </div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
+                <div className="relative text-center">
+                  <div className="font-display text-3xl sm:text-4xl font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-500 bg-clip-text text-transparent mb-1">
+                    {stat.value}
+                  </div>
+                  <div className="text-sm text-foreground/60 font-medium">{stat.label}</div>
+                </div>
               </div>
             ))}
           </div>
@@ -219,38 +274,43 @@ const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 lg:py-32 px-6">
+      <section id="features" className="relative py-24 lg:py-32 px-6 z-10">
         <div className="container-custom">
           {/* Section header */}
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <div className="badge-aurora inline-flex mb-4">
-              <Sparkles className="w-4 h-4" />
-              <span>Características</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-violet-200/50 shadow-lg mb-6">
+              <BarChart3 className="w-4 h-4 text-violet-500" />
+              <span className="text-sm font-medium text-violet-600">Características</span>
             </div>
-            <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
+            <h2 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
               Todo lo que necesitas para{' '}
-              <span className="text-aurora">dominar el SEO</span>
+              <span className="bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
+                dominar el SEO
+              </span>
             </h2>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-lg text-foreground/60">
               Automatiza tu estrategia de contenido con herramientas potentes y fáciles de usar.
             </p>
           </div>
 
-          {/* Features grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Features grid - Bento style */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {features.map((feature, i) => (
               <div 
                 key={i}
-                className="group glass-card rounded-2xl p-6 hover-lift animate-fade-in-up"
+                className="group relative p-8 rounded-3xl bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 animate-fade-in-up overflow-hidden"
                 style={{ animationDelay: `${i * 100}ms` }}
               >
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <feature.icon className="w-7 h-7 text-white" />
+                {/* Gradient blob on hover */}
+                <div className={`absolute -right-20 -top-20 w-40 h-40 rounded-full bg-gradient-to-br ${feature.color} opacity-0 group-hover:opacity-20 transition-opacity duration-500 blur-2xl`} />
+                
+                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
+                  <feature.icon className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="font-display text-xl font-semibold mb-3">
+                <h3 className="font-display text-xl font-bold mb-3 text-foreground">
                   {feature.title}
                 </h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <p className="text-foreground/60 leading-relaxed">
                   {feature.description}
                 </p>
               </div>
@@ -260,22 +320,24 @@ const Landing = () => {
       </section>
 
       {/* How it works Section */}
-      <section className="py-20 lg:py-32 px-6 bg-gradient-to-b from-transparent via-muted/30 to-transparent">
+      <section className="relative py-24 lg:py-32 px-6 z-10">
         <div className="container-custom">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <div className="badge-aurora inline-flex mb-4">
-              <Zap className="w-4 h-4" />
-              <span>Cómo funciona</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-fuchsia-200/50 shadow-lg mb-6">
+              <Zap className="w-4 h-4 text-fuchsia-500" />
+              <span className="text-sm font-medium text-fuchsia-600">Cómo funciona</span>
             </div>
-            <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
+            <h2 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
               De cero a contenido en{' '}
-              <span className="text-aurora">3 simples pasos</span>
+              <span className="bg-gradient-to-r from-fuchsia-500 via-orange-400 to-amber-400 bg-clip-text text-transparent">
+                3 simples pasos
+              </span>
             </h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 relative">
             {/* Connection line */}
-            <div className="hidden md:block absolute top-16 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-primary via-secondary to-tertiary opacity-30" />
+            <div className="hidden md:block absolute top-24 left-[20%] right-[20%] h-1 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-orange-400 rounded-full opacity-30" />
             
             {[
               {
@@ -283,31 +345,38 @@ const Landing = () => {
                 title: "Conecta tu sitio",
                 description: "Añade las credenciales de tu WordPress y elige tu sector. Solo toma 2 minutos.",
                 icon: Globe,
+                color: "from-violet-500 to-fuchsia-500",
               },
               {
                 step: "02",
                 title: "La IA trabaja",
                 description: "Blooglee genera artículos únicos, con imágenes y SEO optimizado automáticamente.",
                 icon: Sparkles,
+                color: "from-fuchsia-500 to-orange-400",
               },
               {
                 step: "03",
                 title: "Publica y crece",
                 description: "Revisa, edita si quieres, y publica. Tu blog crece en piloto automático.",
                 icon: TrendingUp,
+                color: "from-orange-400 to-amber-400",
               },
             ].map((item, i) => (
               <div key={i} className="relative text-center animate-fade-in-up" style={{ animationDelay: `${i * 150}ms` }}>
-                <div className="relative inline-flex mb-6">
-                  <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
-                    <item.icon className="w-12 h-12 text-primary" />
+                <div className="relative inline-flex mb-8">
+                  {/* Main icon container */}
+                  <div className={`w-36 h-36 rounded-[2.5rem] bg-gradient-to-br ${item.color} flex items-center justify-center shadow-2xl shadow-violet-500/20`}>
+                    <item.icon className="w-16 h-16 text-white" />
                   </div>
-                  <div className="absolute -top-2 -right-2 w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-display font-bold text-sm shadow-glow">
+                  {/* Step number badge */}
+                  <div className="absolute -top-3 -right-3 w-12 h-12 rounded-2xl bg-white shadow-xl flex items-center justify-center font-display font-bold text-lg bg-gradient-to-br from-foreground to-foreground/80 text-transparent bg-clip-text border border-gray-100">
                     {item.step}
                   </div>
+                  {/* Glow */}
+                  <div className={`absolute inset-0 rounded-[2.5rem] bg-gradient-to-br ${item.color} blur-2xl opacity-30`} />
                 </div>
-                <h3 className="font-display text-xl font-semibold mb-3">{item.title}</h3>
-                <p className="text-muted-foreground max-w-xs mx-auto">{item.description}</p>
+                <h3 className="font-display text-2xl font-bold mb-3">{item.title}</h3>
+                <p className="text-foreground/60 max-w-xs mx-auto">{item.description}</p>
               </div>
             ))}
           </div>
@@ -315,16 +384,18 @@ const Landing = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 lg:py-32 px-6">
+      <section id="testimonials" className="relative py-24 lg:py-32 px-6 z-10">
         <div className="container-custom">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <div className="badge-aurora inline-flex mb-4">
-              <Star className="w-4 h-4" />
-              <span>Testimonios</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-orange-200/50 shadow-lg mb-6">
+              <Star className="w-4 h-4 text-orange-500 fill-orange-500" />
+              <span className="text-sm font-medium text-orange-600">Testimonios</span>
             </div>
-            <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
+            <h2 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
               Lo que dicen nuestros{' '}
-              <span className="text-aurora">clientes felices</span>
+              <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 bg-clip-text text-transparent">
+                clientes felices
+              </span>
             </h2>
           </div>
 
@@ -332,31 +403,31 @@ const Landing = () => {
             {testimonials.map((testimonial, i) => (
               <div 
                 key={i}
-                className="glass-card-strong rounded-2xl p-6 animate-fade-in-up hover-lift"
+                className="group relative p-8 rounded-3xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 animate-fade-in-up"
                 style={{ animationDelay: `${i * 100}ms` }}
               >
                 {/* Rating */}
-                <div className="flex gap-1 mb-4">
+                <div className="flex gap-1 mb-5">
                   {[...Array(testimonial.rating)].map((_, j) => (
-                    <Star key={j} className="w-5 h-5 text-warning fill-current" />
+                    <Star key={j} className="w-5 h-5 text-amber-400 fill-amber-400" />
                   ))}
                 </div>
                 
                 {/* Quote */}
-                <p className="text-foreground/90 mb-6 leading-relaxed">
+                <p className="text-foreground/80 mb-8 leading-relaxed text-lg">
                   "{testimonial.quote}"
                 </p>
                 
                 {/* Author */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <img 
                     src={testimonial.image} 
                     alt={testimonial.name}
-                    className="w-12 h-12 rounded-full object-cover"
+                    className="w-14 h-14 rounded-2xl object-cover shadow-lg"
                   />
                   <div>
-                    <div className="font-semibold">{testimonial.name}</div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="font-display font-bold text-foreground">{testimonial.name}</div>
+                    <div className="text-sm text-foreground/60">
                       {testimonial.role}, {testimonial.company}
                     </div>
                   </div>
@@ -367,51 +438,56 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 lg:py-32 px-6">
+      {/* CTA Section - Liquid style */}
+      <section className="relative py-24 lg:py-32 px-6 z-10">
         <div className="container-custom">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-secondary to-tertiary p-1">
-            <div className="glass-card-strong rounded-[1.35rem] p-8 sm:p-12 lg:p-16 text-center">
-              {/* Decorative elements */}
-              <div className="absolute top-0 left-1/4 w-64 h-64 bg-primary/20 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-secondary/20 rounded-full blur-3xl" />
+          <div className="relative overflow-hidden rounded-[3rem] p-12 sm:p-16 lg:p-24">
+            {/* Background with liquid gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-500 via-fuchsia-500 to-orange-400" />
+            
+            {/* Decorative blobs */}
+            <div className="absolute top-0 left-0 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-orange-300/20 rounded-full blur-3xl" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-fuchsia-400/20 rounded-full blur-3xl" />
+            
+            <div className="relative z-10 text-center">
+              {/* Floating logo */}
+              <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-white/20 backdrop-blur-sm mb-10 shadow-2xl animate-float">
+                <Wand2 className="w-12 h-12 text-white" />
+              </div>
               
-              <div className="relative z-10">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-secondary mb-8 shadow-glow animate-float">
-                  <Sparkles className="w-10 h-10 text-white" />
-                </div>
-                
-                <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
-                  ¿Listo para automatizar{' '}
-                  <span className="text-aurora">tu contenido?</span>
-                </h2>
-                
-                <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-                  Únete a más de 500 empresas que ya generan contenido profesional con Blooglee. 
-                  Empieza gratis, sin tarjeta de crédito.
-                </p>
+              <h2 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+                ¿Listo para automatizar
+                <br />
+                <span className="text-white/90">tu contenido?</span>
+              </h2>
+              
+              <p className="text-xl text-white/80 max-w-2xl mx-auto mb-10">
+                Únete a más de 500 empresas que ya generan contenido profesional con Blooglee. 
+                Empieza gratis, sin tarjeta de crédito.
+              </p>
 
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link to="/auth" className="btn-aurora py-4 px-10 text-lg">
-                    <span className="flex items-center justify-center gap-2">
-                      Empezar gratis ahora
-                      <ArrowRight className="w-5 h-5" />
-                    </span>
-                  </Link>
-                </div>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link 
+                  to="/auth" 
+                  className="group px-10 py-5 rounded-full font-bold text-violet-600 text-lg bg-white hover:bg-white/90 transition-all shadow-2xl flex items-center justify-center gap-2"
+                >
+                  Empezar gratis ahora
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
 
-                <div className="flex flex-wrap items-center justify-center gap-6 mt-8 text-sm text-muted-foreground">
-                  {[
-                    "Sin tarjeta de crédito",
-                    "Plan gratis disponible",
-                    "Cancela cuando quieras",
-                  ].map((text, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-success" />
-                      <span>{text}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="flex flex-wrap items-center justify-center gap-8 mt-10 text-white/80">
+                {[
+                  "Sin tarjeta de crédito",
+                  "Plan gratis disponible",
+                  "Cancela cuando quieras",
+                ].map((text, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span>{text}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -419,23 +495,25 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-6 border-t border-border/30">
+      <footer className="relative py-16 px-6 z-10">
         <div className="container-custom">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-orange-400 flex items-center justify-center shadow-lg">
+                <Wand2 className="w-5 h-5 text-white" />
               </div>
-              <span className="font-display font-bold text-lg">Blooglee</span>
+              <span className="font-display font-bold text-xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-orange-500 bg-clip-text text-transparent">
+                Blooglee
+              </span>
             </div>
             
-            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-foreground/60">
               <Link to="/terms" className="hover:text-foreground transition-colors">Términos</Link>
               <Link to="/privacy" className="hover:text-foreground transition-colors">Privacidad</Link>
               <a href="mailto:hola@blooglee.com" className="hover:text-foreground transition-colors">Contacto</a>
             </div>
             
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-foreground/50">
               © 2024 Blooglee. Todos los derechos reservados.
             </p>
           </div>
