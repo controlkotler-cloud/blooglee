@@ -1,0 +1,340 @@
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Loader2, Save, Trash2 } from 'lucide-react';
+import { useUpdateSite, useDeleteSite, type Site } from '@/hooks/useSites';
+
+const formSchema = z.object({
+  name: z.string().min(1, 'El nombre es obligatorio').max(100),
+  sector: z.string().optional(),
+  location: z.string().optional(),
+  geographic_scope: z.enum(['local', 'regional', 'national', 'international']),
+  languages: z.array(z.string()).min(1, 'Selecciona al menos un idioma'),
+  publish_frequency: z.string(),
+  custom_topic: z.string().optional(),
+  auto_generate: z.boolean(),
+  include_featured_image: z.boolean(),
+  blog_url: z.string().url().optional().or(z.literal('')),
+  instagram_url: z.string().url().optional().or(z.literal('')),
+});
+
+type FormData = z.infer<typeof formSchema>;
+
+interface SiteSettingsProps {
+  site: Site;
+}
+
+export function SiteSettings({ site }: SiteSettingsProps) {
+  const navigate = useNavigate();
+  const updateMutation = useUpdateSite();
+  const deleteMutation = useDeleteSite();
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isDirty },
+  } = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: site.name,
+      sector: site.sector || '',
+      location: site.location || '',
+      geographic_scope: site.geographic_scope,
+      languages: site.languages,
+      publish_frequency: site.publish_frequency,
+      custom_topic: site.custom_topic || '',
+      auto_generate: site.auto_generate,
+      include_featured_image: site.include_featured_image,
+      blog_url: site.blog_url || '',
+      instagram_url: site.instagram_url || '',
+    },
+  });
+
+  const watchedLanguages = watch('languages');
+  const watchedAutoGenerate = watch('auto_generate');
+  const watchedIncludeImage = watch('include_featured_image');
+
+  const onSubmit = (data: FormData) => {
+    updateMutation.mutate({
+      id: site.id,
+      ...data,
+      sector: data.sector || null,
+      location: data.location || null,
+      custom_topic: data.custom_topic || null,
+      blog_url: data.blog_url || null,
+      instagram_url: data.instagram_url || null,
+    });
+  };
+
+  const handleDelete = () => {
+    deleteMutation.mutate(site.id, {
+      onSuccess: () => navigate('/dashboard'),
+    });
+  };
+
+  const toggleLanguage = (lang: string) => {
+    const current = watchedLanguages || [];
+    if (current.includes(lang)) {
+      if (current.length > 1) {
+        setValue('languages', current.filter((l) => l !== lang), { shouldDirty: true });
+      }
+    } else {
+      setValue('languages', [...current, lang], { shouldDirty: true });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Basic info */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Información básica</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nombre del sitio *</Label>
+              <Input id="name" {...register('name')} />
+              {errors.name && (
+                <p className="text-sm text-destructive">{errors.name.message}</p>
+              )}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="sector">Sector</Label>
+                <Input
+                  id="sector"
+                  placeholder="Ej: Tecnología, Salud, Moda..."
+                  {...register('sector')}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="location">Ubicación</Label>
+                <Input
+                  id="location"
+                  placeholder="Ej: Barcelona, España"
+                  {...register('location')}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Alcance geográfico</Label>
+              <Select
+                value={watch('geographic_scope')}
+                onValueChange={(v) => setValue('geographic_scope', v as any, { shouldDirty: true })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="local">Local</SelectItem>
+                  <SelectItem value="regional">Regional</SelectItem>
+                  <SelectItem value="national">Nacional</SelectItem>
+                  <SelectItem value="international">Internacional</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Content settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Configuración de contenido</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Idiomas de contenido</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={watchedLanguages?.includes('spanish') ?? true}
+                    onChange={() => toggleLanguage('spanish')}
+                    className="rounded border-input"
+                  />
+                  <span className="text-sm">Español</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={watchedLanguages?.includes('catalan') ?? false}
+                    onChange={() => toggleLanguage('catalan')}
+                    className="rounded border-input"
+                  />
+                  <span className="text-sm">Català</span>
+                </label>
+              </div>
+              {errors.languages && (
+                <p className="text-sm text-destructive">{errors.languages.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Frecuencia de publicación</Label>
+              <Select
+                value={watch('publish_frequency')}
+                onValueChange={(v) => setValue('publish_frequency', v, { shouldDirty: true })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Semanal</SelectItem>
+                  <SelectItem value="biweekly">Quincenal</SelectItem>
+                  <SelectItem value="monthly">Mensual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="custom_topic">Tema personalizado (opcional)</Label>
+              <Textarea
+                id="custom_topic"
+                placeholder="Describe el enfoque temático que quieres para tu contenido..."
+                {...register('custom_topic')}
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">
+                Si lo dejas vacío, generaremos temas automáticamente según tu sector
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <Label>Generación automática</Label>
+                <p className="text-sm text-muted-foreground">
+                  Generar artículos automáticamente según la frecuencia
+                </p>
+              </div>
+              <Switch
+                checked={watchedAutoGenerate}
+                onCheckedChange={(checked) => setValue('auto_generate', checked, { shouldDirty: true })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <Label>Imagen destacada</Label>
+                <p className="text-sm text-muted-foreground">
+                  Incluir imagen de Pexels en los artículos
+                </p>
+              </div>
+              <Switch
+                checked={watchedIncludeImage}
+                onCheckedChange={(checked) => setValue('include_featured_image', checked, { shouldDirty: true })}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* URLs */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Enlaces</CardTitle>
+            <CardDescription>
+              URLs para incluir en el contenido generado
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="blog_url">URL del blog</Label>
+              <Input
+                id="blog_url"
+                type="url"
+                placeholder="https://..."
+                {...register('blog_url')}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="instagram_url">URL de Instagram</Label>
+              <Input
+                id="instagram_url"
+                type="url"
+                placeholder="https://instagram.com/..."
+                {...register('instagram_url')}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Save button */}
+        <Button type="submit" disabled={!isDirty || updateMutation.isPending}>
+          {updateMutation.isPending ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4 mr-2" />
+          )}
+          Guardar cambios
+        </Button>
+      </form>
+
+      {/* Danger zone */}
+      <Card className="border-destructive/50">
+        <CardHeader>
+          <CardTitle className="text-lg text-destructive">Zona de peligro</CardTitle>
+          <CardDescription>
+            Acciones irreversibles
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Eliminar sitio
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar "{site.name}"?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. Se eliminarán todos los artículos y configuración asociados.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Eliminar definitivamente
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -2,14 +2,21 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, LogOut, Crown, Globe } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useIsMKProAdmin } from '@/hooks/useProfile';
 import { useSites } from '@/hooks/useSites';
 import { useAllArticlesSaas } from '@/hooks/useArticlesSaas';
 import { SiteCard } from '@/components/saas/SiteCard';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
+import { PlanBadge, type PlanType } from '@/components/saas/PlanBadge';
 import { toast } from 'sonner';
 
 export default function SaasDashboard() {
@@ -31,7 +38,7 @@ export default function SaasDashboard() {
 
   const sitesLimit = profile?.sites_limit ?? 1;
   const canAddSite = sites.length < sitesLimit;
-  const planLabel = profile?.plan === 'agency' ? 'Agency' : profile?.plan === 'pro' ? 'Pro' : 'Free';
+  const plan = (profile?.plan || 'free') as PlanType;
 
   const getArticleCountForSite = (siteId: string) => {
     return articles.filter(a => a.site_id === siteId).length;
@@ -61,21 +68,46 @@ export default function SaasDashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <BloogleeLogo size="lg" />
             <div className="flex items-center gap-3">
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Crown className="w-3.5 h-3.5" />
-                {planLabel}
-              </Badge>
-              <Badge variant="secondary">
+              <PlanBadge plan={plan} />
+              <span className="text-sm text-muted-foreground">
                 {sites.length}/{sitesLimit} sitios
-              </Badge>
-              {isMKProAdmin && (
-                <Button variant="outline" size="sm" onClick={() => navigate('/mkpro')}>
-                  MKPro Admin
-                </Button>
-              )}
-              <Button variant="ghost" size="icon" onClick={handleSignOut} title="Cerrar sesión">
-                <LogOut className="w-4 h-4" />
-              </Button>
+              </span>
+
+              {/* User menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Settings className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => navigate('/account')}>
+                    <User className="w-4 h-4 mr-2" />
+                    Mi cuenta
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/billing')}>
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Facturación
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/help')}>
+                    <HelpCircle className="w-4 h-4 mr-2" />
+                    Ayuda
+                  </DropdownMenuItem>
+                  {isMKProAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => navigate('/mkpro')}>
+                        MKPro Admin
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Cerrar sesión
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
@@ -115,12 +147,12 @@ export default function SaasDashboard() {
                 key={site.id}
                 site={site}
                 articleCount={getArticleCountForSite(site.id)}
-                hasWordPress={false} // TODO: Check wordpress_configs
+                hasWordPress={false}
                 onGenerateArticle={() => handleGenerateArticle(site.id)}
-                onViewArticles={() => toast.info('Vista de artículos próximamente')}
-                onConfigureWordPress={() => toast.info('Configuración WP próximamente')}
-                onEdit={() => toast.info('Edición de sitio próximamente')}
-                onDelete={() => toast.info('Eliminación de sitio próximamente')}
+                onViewArticles={() => navigate(`/site/${site.id}`)}
+                onConfigureWordPress={() => navigate(`/site/${site.id}?tab=wordpress`)}
+                onEdit={() => navigate(`/site/${site.id}?tab=settings`)}
+                onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
                 isGenerating={generatingId === site.id}
               />
             ))}
@@ -133,11 +165,10 @@ export default function SaasDashboard() {
               <div>
                 <p className="font-medium">Has alcanzado el límite de sitios</p>
                 <p className="text-sm text-muted-foreground">
-                  Actualiza a Pro para gestionar hasta 5 sitios
+                  Actualiza tu plan para gestionar más sitios
                 </p>
               </div>
-              <Button variant="default">
-                <Crown className="w-4 h-4 mr-2" />
+              <Button variant="default" onClick={() => navigate('/billing')}>
                 Actualizar plan
               </Button>
             </CardContent>
