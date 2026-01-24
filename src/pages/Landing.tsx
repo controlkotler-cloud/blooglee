@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   Star,
   Play,
-  Wand2,
   BarChart3,
   Palette,
   Menu,
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import { ProductMockup } from '@/components/saas/ProductMockup';
 import { LiquidBlobs } from '@/components/saas/LiquidBlobs';
+import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { useState } from 'react';
 
 const features = [
@@ -107,15 +107,7 @@ const Landing = () => {
         <div className="container-custom">
           <div className="glass-card-strong rounded-2xl sm:rounded-full px-4 sm:px-6 py-3 flex items-center justify-between shadow-xl">
             <Link to="/" className="flex items-center gap-2 sm:gap-3 group">
-              {/* Logo Blooglee */}
-              <div className="relative">
-                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-orange-400 flex items-center justify-center shadow-lg shadow-violet-500/30">
-                  <Wand2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                </div>
-              </div>
-              <span className="font-display font-bold text-xl sm:text-2xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-orange-500 bg-clip-text text-transparent">
-                Blooglee
-              </span>
+              <BloogleeLogo size="md" />
             </Link>
             
             {/* Desktop nav */}
@@ -491,8 +483,8 @@ const Landing = () => {
             
             <div className="relative z-10 text-center">
               {/* Floating logo - Smaller on mobile */}
-              <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-2xl sm:rounded-3xl bg-white/20 backdrop-blur-sm mb-6 sm:mb-8 lg:mb-10 shadow-2xl animate-float">
-                <Wand2 className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-white" />
+              <div className="inline-flex items-center justify-center mb-6 sm:mb-8 lg:mb-10 animate-float">
+                <BloogleeLogo size="xl" showText={false} className="drop-shadow-2xl" />
               </div>
               
               <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-4 sm:mb-6">
@@ -538,14 +530,7 @@ const Landing = () => {
       <footer className="relative py-8 sm:py-12 lg:py-16 px-4 sm:px-6 z-10">
         <div className="container-custom">
           <div className="flex flex-col items-center gap-6 sm:gap-8 md:flex-row md:justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-orange-400 flex items-center justify-center shadow-lg">
-                <Wand2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
-              <span className="font-display font-bold text-lg sm:text-xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-orange-500 bg-clip-text text-transparent">
-                Blooglee
-              </span>
-            </div>
+            <BloogleeLogo size="sm" />
             
             <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 lg:gap-8 text-xs sm:text-sm text-foreground/60">
               <Link to="/terms" className="hover:text-foreground transition-colors">Términos</Link>

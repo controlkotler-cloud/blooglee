@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Sparkles, LogOut, Crown, Globe } from 'lucide-react';
+import { Loader2, Plus, LogOut, Crown, Globe } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useIsMKProAdmin } from '@/hooks/useProfile';
 import { useSites } from '@/hooks/useSites';
 import { useAllArticlesSaas } from '@/hooks/useArticlesSaas';
 import { SiteCard } from '@/components/saas/SiteCard';
+import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { toast } from 'sonner';
 
 export default function SaasDashboard() {
@@ -58,15 +59,7 @@ export default function SaasDashboard() {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Sparkles className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-primary">Blooglee</h1>
-                <p className="text-sm text-muted-foreground">Tu generador de contenido</p>
-              </div>
-            </div>
+            <BloogleeLogo size="lg" />
             <div className="flex items-center gap-3">
               <Badge variant="outline" className="flex items-center gap-1">
                 <Crown className="w-3.5 h-3.5" />
