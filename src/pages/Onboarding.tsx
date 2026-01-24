@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { useCreateSite } from '@/hooks/useSites';
 import { useUpsertWordPressConfig } from '@/hooks/useWordPressConfigSaas';
 import { Sparkles, ArrowRight, ArrowLeft, Globe, Languages, Link2 } from 'lucide-react';
+import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 
 const SECTORS = [
   { value: 'farmacia', label: 'Farmacia' },
@@ -122,9 +123,7 @@ export default function Onboarding() {
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <Sparkles className="h-8 w-8 text-primary" />
-            </div>
+            <BloogleeLogo size="lg" showText={false} />
           </div>
           <CardTitle className="text-2xl">Configura tu primer sitio</CardTitle>
           <CardDescription>Paso {step} de {totalSteps}</CardDescription>

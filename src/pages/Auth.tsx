@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, ArrowLeft, Loader2, Check, Zap, Globe, FileText } from 'lucide-react';
 import { ProductMockup } from '@/components/saas/ProductMockup';
+import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 
 const benefits = [
   { icon: Sparkles, text: "Genera artículos con IA en segundos" },
@@ -92,9 +93,7 @@ const Auth = () => {
     return (
       <div className="min-h-screen flex items-center justify-center aurora-bg aurora-bg-intense">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center animate-pulse">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
+          <BloogleeLogo size="lg" showText={false} className="animate-pulse" />
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" />
             <span className="text-sm">Cargando...</span>
@@ -118,10 +117,7 @@ const Auth = () => {
           </Link>
           
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-glow">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-display font-bold text-xl">Blooglee</span>
+            <BloogleeLogo size="md" />
           </Link>
           
           <div className="w-20" /> {/* Spacer for centering */}

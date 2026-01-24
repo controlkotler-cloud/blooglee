@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Sparkles, Building2, Users, Rocket, ArrowRight, Menu, X } from "lucide-react";
 import { LiquidBlobs } from "@/components/saas/LiquidBlobs";
+import { BloogleeLogo } from "@/components/saas/BloogleeLogo";
 
 const Pricing = () => {
   const [isAnnual, setIsAnnual] = useState(true);
@@ -99,10 +100,7 @@ const Pricing = () => {
         <div className="max-w-7xl mx-auto">
           <div className="glass-card-strong rounded-2xl px-4 sm:px-6 py-3 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2 sm:gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
-              <span className="text-lg sm:text-xl font-display font-bold text-aurora">Blooglee</span>
+              <BloogleeLogo size="sm" />
             </Link>
 
             {/* Desktop Navigation */}
@@ -353,12 +351,7 @@ const Pricing = () => {
       {/* Footer */}
       <footer className="border-t border-border/50 py-8 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-display font-semibold">Blooglee</span>
-          </div>
+          <BloogleeLogo size="xs" />
           <div className="flex items-center gap-6 text-sm text-foreground/60">
             <Link to="/terms" className="hover:text-foreground transition-colors">Términos</Link>
             <Link to="/privacy" className="hover:text-foreground transition-colors">Privacidad</Link>
