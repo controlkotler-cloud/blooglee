@@ -34,7 +34,7 @@ export function BloogleeLogo({
       <img 
         src={bloogleeLogo} 
         alt="Blooglee" 
-        className={`${sizeClasses[size]} object-contain mix-blend-multiply`}
+        className={`${sizeClasses[size]} object-contain`}
       />
       {showText && (
         <span className={`font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-600 to-orange-500 bg-clip-text text-transparent ${textSizeClasses[size]}`}>
