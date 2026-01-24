@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Landing from "./pages/Landing";
+import Pricing from "./pages/Pricing";
 import SaasDashboard from "./pages/SaasDashboard";
 import MKPro from "./pages/MKPro";
 import Onboarding from "./pages/Onboarding";
@@ -22,6 +23,7 @@ const App = () => (
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Landing />} />
+          <Route path="/pricing" element={<Pricing />} />
           <Route path="/auth" element={<Auth />} />
           
           {/* Protected routes */}
