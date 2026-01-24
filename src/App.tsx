@@ -7,6 +7,10 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
 import SaasDashboard from "./pages/SaasDashboard";
+import SiteDetail from "./pages/SiteDetail";
+import AccountSettings from "./pages/AccountSettings";
+import BillingPage from "./pages/BillingPage";
+import HelpPage from "./pages/HelpPage";
 import MKPro from "./pages/MKPro";
 import Onboarding from "./pages/Onboarding";
 import Auth from "./pages/Auth";
@@ -32,6 +36,38 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <SaasDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/site/:id"
+            element={
+              <ProtectedRoute>
+                <SiteDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/account"
+            element={
+              <ProtectedRoute>
+                <AccountSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/billing"
+            element={
+              <ProtectedRoute>
+                <BillingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/help"
+            element={
+              <ProtectedRoute>
+                <HelpPage />
               </ProtectedRoute>
             }
           />
