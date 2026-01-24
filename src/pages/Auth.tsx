@@ -26,7 +26,7 @@ const Auth = () => {
 
   useEffect(() => {
     if (!loading && session) {
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
   }, [session, loading, navigate]);
 
