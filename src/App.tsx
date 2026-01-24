@@ -4,7 +4,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import Index from "./pages/Index";
+import SaasDashboard from "./pages/SaasDashboard";
+import MKPro from "./pages/MKPro";
+import Onboarding from "./pages/Onboarding";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -22,7 +24,23 @@ const App = () => (
             path="/"
             element={
               <ProtectedRoute>
-                <Index />
+                <SaasDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <Onboarding />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mkpro"
+            element={
+              <ProtectedRoute>
+                <MKPro />
               </ProtectedRoute>
             }
           />
