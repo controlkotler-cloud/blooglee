@@ -2,6 +2,7 @@ import { ReactNode, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useSites } from '@/hooks/useSites';
+import { useIsMKProAdmin } from '@/hooks/useProfile';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -10,6 +11,7 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { session, loading } = useAuth();
   const { data: sites, isLoading: loadingSites } = useSites();
+  const { isMKProAdmin, isLoading: loadingRoles } = useIsMKProAdmin();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -19,13 +21,24 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       return;
     }
 
-    // Redirect new users without sites to onboarding (except if already there)
-    if (!loading && !loadingSites && session && sites?.length === 0 && location.pathname !== '/onboarding') {
+    // Wait for all data to load
+    if (loading || loadingSites || loadingRoles) return;
+
+    // MKPro admins should go to /mkpro, not onboarding
+    if (isMKProAdmin) {
+      if (location.pathname !== '/mkpro') {
+        navigate('/mkpro', { replace: true });
+      }
+      return;
+    }
+
+    // Regular users without sites go to onboarding
+    if (sites?.length === 0 && location.pathname !== '/onboarding') {
       navigate('/onboarding', { replace: true });
     }
-  }, [session, loading, loadingSites, sites, navigate, location.pathname]);
+  }, [session, loading, loadingSites, loadingRoles, sites, isMKProAdmin, navigate, location.pathname]);
 
-  if (loading || loadingSites) {
+  if (loading || loadingSites || loadingRoles) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
