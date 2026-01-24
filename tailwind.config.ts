@@ -14,7 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['Space Grotesk', 'sans-serif'],
+        display: ['Sora', 'sans-serif'],
         body: ['Inter', 'sans-serif'],
       },
       colors: {
@@ -30,6 +30,10 @@ export default {
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
+        },
+        tertiary: {
+          DEFAULT: "hsl(var(--tertiary))",
+          foreground: "hsl(var(--tertiary-foreground))",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
@@ -69,17 +73,30 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        aurora: {
+          violet: "hsl(var(--aurora-violet))",
+          pink: "hsl(var(--aurora-pink))",
+          cyan: "hsl(var(--aurora-cyan))",
+          orange: "hsl(var(--aurora-orange))",
+          green: "hsl(var(--aurora-green))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "1.25rem",
+        "2xl": "1.5rem",
+        "3xl": "2rem",
       },
       boxShadow: {
         'sm': 'var(--shadow-sm)',
         'md': 'var(--shadow-md)',
         'lg': 'var(--shadow-lg)',
-        'glow': 'var(--shadow-glow)',
+        'xl': 'var(--shadow-xl)',
+        'glow': 'var(--shadow-glow-violet)',
+        'glow-pink': 'var(--shadow-glow-pink)',
+        'glow-cyan': 'var(--shadow-glow-cyan)',
         'card': 'var(--shadow-card)',
       },
       keyframes: {
@@ -96,28 +113,42 @@ export default {
           to: { opacity: "1" },
         },
         "fade-in-up": {
-          from: { opacity: "0", transform: "translateY(20px)" },
+          from: { opacity: "0", transform: "translateY(30px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
         "scale-in": {
-          from: { opacity: "0", transform: "scale(0.95)" },
+          from: { opacity: "0", transform: "scale(0.9)" },
           to: { opacity: "1", transform: "scale(1)" },
         },
         "slide-in-left": {
-          from: { opacity: "0", transform: "translateX(-20px)" },
+          from: { opacity: "0", transform: "translateX(-40px)" },
           to: { opacity: "1", transform: "translateX(0)" },
         },
         "slide-in-right": {
-          from: { opacity: "0", transform: "translateX(20px)" },
+          from: { opacity: "0", transform: "translateX(40px)" },
           to: { opacity: "1", transform: "translateX(0)" },
         },
         "float": {
           "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-10px)" },
+          "50%": { transform: "translateY(-15px)" },
+        },
+        "mockup-float": {
+          "0%, 100%": { transform: "translateY(0) rotateX(2deg) rotateY(-2deg)" },
+          "50%": { transform: "translateY(-15px) rotateX(-2deg) rotateY(2deg)" },
         },
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 20px hsl(262, 83%, 58%, 0.3)" },
-          "50%": { boxShadow: "0 0 40px hsl(262, 83%, 58%, 0.5)" },
+          "0%, 100%": { opacity: "0.6" },
+          "50%": { opacity: "1" },
+        },
+        "aurora-shift": {
+          "0%, 100%": { transform: "translate(0, 0) rotate(0deg)" },
+          "25%": { transform: "translate(5%, 3%) rotate(2deg)" },
+          "50%": { transform: "translate(-3%, 5%) rotate(-1deg)" },
+          "75%": { transform: "translate(-5%, -3%) rotate(1deg)" },
+        },
+        "gradient-shift": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
         },
       },
       animation: {
@@ -127,9 +158,12 @@ export default {
         "fade-in-up": "fade-in-up 0.6s ease-out forwards",
         "scale-in": "scale-in 0.4s ease-out forwards",
         "slide-in-left": "slide-in-left 0.5s ease-out forwards",
-        "slide-in-right": "slide-in-right 0.5s ease-out forwards",
-        "float": "float 3s ease-in-out infinite",
-        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "slide-in-right": "slide-in-right 0.6s ease-out forwards",
+        "float": "float 4s ease-in-out infinite",
+        "mockup-float": "mockup-float 6s ease-in-out infinite",
+        "pulse-glow": "pulse-glow 4s ease-in-out infinite",
+        "aurora-shift": "aurora-shift 15s ease-in-out infinite",
+        "gradient-shift": "gradient-shift 8s ease infinite",
       },
     },
   },
