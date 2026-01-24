@@ -14,6 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      articles: {
+        Row: {
+          content_catalan: Json | null
+          content_spanish: Json | null
+          day_of_month: number | null
+          generated_at: string
+          id: string
+          image_photographer: string | null
+          image_photographer_url: string | null
+          image_url: string | null
+          month: number
+          pexels_query: string | null
+          site_id: string
+          topic: string
+          user_id: string
+          week_of_month: number | null
+          year: number
+        }
+        Insert: {
+          content_catalan?: Json | null
+          content_spanish?: Json | null
+          day_of_month?: number | null
+          generated_at?: string
+          id?: string
+          image_photographer?: string | null
+          image_photographer_url?: string | null
+          image_url?: string | null
+          month: number
+          pexels_query?: string | null
+          site_id: string
+          topic: string
+          user_id: string
+          week_of_month?: number | null
+          year: number
+        }
+        Update: {
+          content_catalan?: Json | null
+          content_spanish?: Json | null
+          day_of_month?: number | null
+          generated_at?: string
+          id?: string
+          image_photographer?: string | null
+          image_photographer_url?: string | null
+          image_url?: string | null
+          month?: number
+          pexels_query?: string | null
+          site_id?: string
+          topic?: string
+          user_id?: string
+          week_of_month?: number | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "articles_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       articulos: {
         Row: {
           content_catalan: Json | null
@@ -216,6 +278,36 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          plan: string
+          sites_limit: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          plan?: string
+          sites_limit?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          plan?: string
+          sites_limit?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sector_contexts: {
         Row: {
           created_at: string
@@ -251,6 +343,122 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      sites: {
+        Row: {
+          auto_generate: boolean
+          blog_url: string | null
+          created_at: string
+          custom_topic: string | null
+          geographic_scope: string
+          id: string
+          include_featured_image: boolean
+          instagram_url: string | null
+          languages: string[]
+          location: string | null
+          name: string
+          publish_frequency: string
+          sector: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_generate?: boolean
+          blog_url?: string | null
+          created_at?: string
+          custom_topic?: string | null
+          geographic_scope?: string
+          id?: string
+          include_featured_image?: boolean
+          instagram_url?: string | null
+          languages?: string[]
+          location?: string | null
+          name: string
+          publish_frequency?: string
+          sector?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_generate?: boolean
+          blog_url?: string | null
+          created_at?: string
+          custom_topic?: string | null
+          geographic_scope?: string
+          id?: string
+          include_featured_image?: boolean
+          instagram_url?: string | null
+          languages?: string[]
+          location?: string | null
+          name?: string
+          publish_frequency?: string
+          sector?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wordpress_configs: {
+        Row: {
+          created_at: string
+          id: string
+          site_id: string
+          site_url: string
+          updated_at: string
+          user_id: string
+          wp_app_password: string
+          wp_username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          site_id: string
+          site_url: string
+          updated_at?: string
+          user_id: string
+          wp_app_password: string
+          wp_username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          site_id?: string
+          site_url?: string
+          updated_at?: string
+          user_id?: string
+          wp_app_password?: string
+          wp_username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wordpress_configs_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: true
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wordpress_site_default_taxonomies: {
         Row: {
@@ -379,10 +587,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "mkpro_admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -509,6 +723,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "mkpro_admin", "user"],
+    },
   },
 } as const
