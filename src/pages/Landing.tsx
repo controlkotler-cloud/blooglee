@@ -24,14 +24,14 @@ import { useState } from 'react';
 const features = [
   {
     icon: Sparkles,
-    title: "Generación con IA",
-    description: "Artículos de 2000+ palabras optimizados para SEO, generados en segundos.",
+    title: "Contenido profesional con IA",
+    description: "Artículos de calidad optimizados para SEO con imagen destacada y meta tags incluidos.",
     color: "from-violet-500 to-fuchsia-500",
   },
   {
     icon: Globe,
-    title: "Publicación automática",
-    description: "Conecta tu WordPress y publica directamente sin esfuerzo manual.",
+    title: "Publicación en WordPress",
+    description: "Conecta tu WordPress una vez y publica artículos en piloto automático.",
     color: "from-fuchsia-500 to-pink-500",
   },
   {
@@ -42,20 +42,20 @@ const features = [
   },
   {
     icon: TrendingUp,
-    title: "SEO optimizado",
-    description: "Meta descripciones, títulos y slugs optimizados automáticamente.",
+    title: "SEO completo incluido",
+    description: "Títulos, meta descripciones y slugs optimizados automáticamente.",
     color: "from-orange-400 to-amber-400",
   },
   {
     icon: Clock,
-    title: "Programación automática",
-    description: "Configura y olvídate. Blooglee publica contenido cada semana.",
+    title: "Solo configuras una vez",
+    description: "Onboarding sencillo. Configura tu sitio y Blooglee hace el resto.",
     color: "from-amber-400 to-yellow-400",
   },
   {
     icon: Palette,
     title: "Adaptado a tu sector",
-    description: "IA entrenada para belleza, salud, fitness, gastronomía y más.",
+    description: "Contenido profesional para cualquier industria: salud, retail, servicios, tech y más.",
     color: "from-cyan-400 to-violet-500",
   },
 ];
@@ -230,8 +230,8 @@ const Landing = () => {
               </h1>
               
               <p className="text-base sm:text-lg md:text-xl text-foreground/70 mb-6 sm:mb-10 max-w-lg mx-auto lg:mx-0">
-                Genera artículos profesionales con IA, optimizados para SEO, y publícalos automáticamente. 
-                <span className="font-semibold text-foreground"> Sin escribir una palabra.</span>
+                Configura tu web una vez y genera artículos profesionales con IA para WordPress. 
+                <span className="font-semibold text-foreground"> Ideal para empresas y agencias.</span>
               </p>
 
               {/* CTA Buttons - Stacked on mobile */}
@@ -243,7 +243,7 @@ const Landing = () => {
                   <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400" />
                   <div className="absolute inset-0 bg-gradient-to-r from-orange-400 via-fuchsia-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <span className="relative flex items-center justify-center gap-2">
-                    Empezar gratis
+                    Prueba gratis · 1 sitio + 1 post
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </span>
                 </Link>
