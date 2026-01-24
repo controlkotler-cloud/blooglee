@@ -1,185 +1,171 @@
 
 
-## Plan: Implementar SaaS Multi-tenant (Respetando MKPro)
+## Plan: Implementar Logo Blooglee en Toda la Aplicacion
 
-### Resumen
-Añadir capacidades SaaS multi-tenant al proyecto **sin tocar** los componentes, hooks ni tablas existentes de MKPro (farmacias/empresas). Todo el código nuevo irá en rutas y archivos separados.
+### Paso 1: Copiar el Logo a las Ubicaciones Correctas
+
+| Origen | Destino | Proposito |
+|--------|---------|-----------|
+| `user-uploads://IMG_4616.png` | `public/favicon.png` | Favicon del navegador |
+| `user-uploads://IMG_4616.png` | `src/assets/blooglee-logo.png` | Uso en componentes React |
 
 ---
 
-### Fase 1: Migración de Base de Datos
+### Paso 2: Crear Componente BloogleeLogo.tsx
 
-**Nuevas tablas a crear:**
+**Nuevo archivo:** `src/components/saas/BloogleeLogo.tsx`
 
-1. **profiles** - Perfiles de usuario con plan de suscripción
-   - `id` (UUID, referencia a auth.users)
-   - `email` (TEXT)
-   - `plan` (TEXT: 'free', 'pro', 'agency')
-   - `sites_limit` (INTEGER, default 1)
-   - `is_mkpro_admin` (BOOLEAN, default false)
-   - Trigger automático para crear perfil en cada registro
+```tsx
+import bloogleeLogo from '@/assets/blooglee-logo.png';
 
-2. **sites** - Sitios genéricos multi-tenant
-   - `id`, `user_id`, `name`, `sector`, `location`
-   - `geographic_scope`, `languages`, `blog_url`, `instagram_url`
-   - `auto_generate`, `custom_topic`
+type LogoSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
-3. **articles** - Artículos SaaS con aislamiento por usuario
-   - `id`, `site_id`, `user_id`, `month`, `year`, `topic`
-   - `content_spanish`, `content_catalan`, `image_url`, etc.
+interface BloogleeLogoProps {
+  size?: LogoSize;
+  showText?: boolean;
+  className?: string;
+}
 
-4. **wordpress_configs** - Configuración WP multi-tenant
-   - `id`, `site_id`, `user_id`, `site_url`, `wp_username`, `wp_app_password`
+const sizeClasses: Record<LogoSize, string> = {
+  xs: 'w-6 h-6',
+  sm: 'w-8 h-8',
+  md: 'w-10 h-10',
+  lg: 'w-12 h-12',
+  xl: 'w-16 h-16'
+};
 
-**RLS para todas las tablas nuevas:**
-```sql
-CREATE POLICY "Users CRUD own data" ON [tabla]
-  FOR ALL USING (auth.uid() = user_id);
+const textSizeClasses: Record<LogoSize, string> = {
+  xs: 'text-sm',
+  sm: 'text-lg',
+  md: 'text-xl',
+  lg: 'text-2xl',
+  xl: 'text-3xl'
+};
+
+export function BloogleeLogo({ 
+  size = 'md', 
+  showText = true, 
+  className = '' 
+}: BloogleeLogoProps) {
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      <img 
+        src={bloogleeLogo} 
+        alt="Blooglee" 
+        className={`${sizeClasses[size]} object-contain`}
+      />
+      {showText && (
+        <span className={`font-display font-bold bg-gradient-to-r 
+          from-violet-600 via-fuchsia-600 to-orange-500 
+          bg-clip-text text-transparent ${textSizeClasses[size]}`}>
+          Blooglee
+        </span>
+      )}
+    </div>
+  );
+}
 ```
 
----
-
-### Fase 2: Autenticación y Registro
-
-**Actualizar Auth.tsx:**
-- Añadir toggle entre Login y Registro (actualmente solo login)
-- Mantener el diseño actual pero con opción de crear cuenta
-- Configurar auto-confirm de emails en Supabase
-
-**Lógica de redirección post-login:**
-- Si `profile.is_mkpro_admin = true` → `/mkpro`
-- Si usuario nuevo sin sites → `/onboarding`
-- Si usuario normal con sites → `/`
+**Caracteristicas del componente:**
+- 5 tamanos predefinidos: xs, sm, md, lg, xl
+- Prop `showText` para mostrar/ocultar el nombre
+- Texto con gradiente de marca (violet-fuchsia-orange)
+- Prop `className` para personalizacion adicional
 
 ---
 
-### Fase 3: Nueva Página /onboarding
+### Paso 3: Actualizar index.html
 
-**Wizard de 4 pasos para nuevos usuarios:**
-
-1. **Paso 1:** Nombre del sitio + Sector (select con opciones + "Otro")
-2. **Paso 2:** Ubicación + Ámbito geográfico (local/regional/nacional)
-3. **Paso 3:** Idiomas (español obligatorio, catalán opcional)
-4. **Paso 4:** WordPress (opcional - URL, usuario, app password)
-
-**Al finalizar:** Crear site en BD y redirigir a Dashboard
+**Cambios:**
+- Titulo: `"Blooglee - Blog en piloto automatico con IA"`
+- Description: `"Genera y publica articulos para tu blog WordPress automaticamente"`
+- Author: `"Blooglee"`
+- Agregar: `<link rel="icon" href="/favicon.png" type="image/png">`
+- Actualizar todos los og: y twitter: meta tags
 
 ---
 
-### Fase 4: Dashboard SaaS (ruta `/`)
+### Paso 4: Actualizar Landing.tsx
 
-**Nuevo componente:** `src/components/saas/SaasDashboard.tsx`
-
-**Contenido:**
-- Header con nombre del usuario y plan actual
-- Lista de sites del usuario (cards)
-- Indicador de límite: "1/1 sitios" (según plan)
-- Botón "+ Añadir sitio" (deshabilitado si alcanzó límite)
-- Por cada site: nombre, sector, último artículo, acciones
-
-**Acciones por site:**
-- Generar artículo
-- Ver artículos
-- Configurar WordPress
-- Editar configuración
+**Lineas 109-118 (navbar logo):**
+- Importar `BloogleeLogo` desde `@/components/saas/BloogleeLogo`
+- Reemplazar el div con `Wand2` por: `<BloogleeLogo size="md" />`
+- Eliminar `Wand2` de las importaciones de lucide-react
+- Eliminar el span con el texto "Blooglee" (ya incluido en el componente)
 
 ---
 
-### Fase 5: Dashboard MKPro (ruta `/mkpro`)
+### Paso 5: Actualizar Pricing.tsx
 
-**Mover el Index.tsx actual a:** `src/pages/MKPro.tsx`
-
-- Accesible solo si `profile.is_mkpro_admin = true`
-- Mantiene exactamente la funcionalidad actual (Farmacias + Empresas)
-- Los hooks existentes (`useFarmacias`, `useEmpresas`) NO se modifican
-- Las Edge Functions existentes NO se modifican
-
----
-
-### Fase 6: Nuevos Hooks SaaS
-
-**Crear en rutas separadas:**
-
-- `src/hooks/useSites.ts` - CRUD de sites con `user_id = auth.uid()`
-- `src/hooks/useArticlesSaas.ts` - Artículos por site_id
-- `src/hooks/useProfile.ts` - Obtener/actualizar perfil y plan
-- `src/hooks/useWordPressConfigSaas.ts` - Config WP por site
+**Navbar (lineas ~101-105):**
+- Importar `BloogleeLogo`
+- Reemplazar el div con `Sparkles` por: `<BloogleeLogo size="sm" />`
+- Eliminar el span con texto "Blooglee"
+- Eliminar `Sparkles` de importaciones si ya no se usa
 
 ---
 
-### Fase 7: Edge Functions SaaS (Futuro)
+### Paso 6: Actualizar Auth.tsx
 
-**Crear con sufijo `-saas`:**
-- `generate-article-saas` - Usa tabla `sites` y `articles`
-- `publish-to-wordpress-saas` - Usa `wordpress_configs`
-
-**Las Edge Functions actuales NO se tocan.**
-
----
-
-### Fase 8: Actualizar Rutas en App.tsx
-
-```
-/auth          → Auth (login + registro)
-/onboarding    → Onboarding wizard (nuevos usuarios)
-/              → SaasDashboard (usuarios normales)
-/mkpro         → MKPro Dashboard (solo admins)
-/site/:id      → Detalle de un site (futuro)
+**Loading state (lineas 94-97):**
+```tsx
+<BloogleeLogo size="lg" showText={false} className="animate-pulse" />
 ```
 
----
+**Navbar (lineas 120-124):**
+```tsx
+<BloogleeLogo size="md" />
+```
 
-### Orden de Implementación
-
-| Paso | Descripción | Riesgo |
-|------|-------------|--------|
-| 1 | Migración SQL (profiles, sites, articles, wordpress_configs) | Bajo |
-| 2 | Actualizar Auth.tsx con registro | Bajo |
-| 3 | Crear useProfile hook | Bajo |
-| 4 | Actualizar ProtectedRoute con lógica de redirección | Medio |
-| 5 | Crear página Onboarding | Bajo |
-| 6 | Crear hooks SaaS (useSites, useArticlesSaas) | Bajo |
-| 7 | Crear SaasDashboard | Bajo |
-| 8 | Mover Index actual a /mkpro | Medio |
-| 9 | Edge Functions -saas | Bajo |
+- Importar `BloogleeLogo`
+- Eliminar `Sparkles` de importaciones
 
 ---
 
-### Archivos que se CREARÁN (nuevos)
+### Paso 7: Actualizar SaasDashboard.tsx
 
+**Header (lineas 62-68):**
+- Reemplazar el div con `Sparkles` y el texto por:
+```tsx
+<BloogleeLogo size="lg" />
 ```
-src/pages/Onboarding.tsx
-src/pages/SaasDashboard.tsx
-src/pages/MKPro.tsx (copia de Index.tsx actual)
-src/hooks/useProfile.ts
-src/hooks/useSites.ts
-src/hooks/useArticlesSaas.ts
-src/hooks/useWordPressConfigSaas.ts
-src/components/saas/SiteCard.tsx
-src/components/saas/OnboardingWizard.tsx
-supabase/functions/generate-article-saas/
-supabase/functions/publish-to-wordpress-saas/
-```
+- Eliminar el `<p>` con "Tu generador de contenido"
+- Eliminar `Sparkles` de importaciones
 
-### Archivos que se MODIFICARÁN (mínimo)
+---
 
-```
-src/App.tsx (añadir rutas)
-src/pages/Auth.tsx (añadir registro)
-src/components/ProtectedRoute.tsx (lógica de redirección)
+### Paso 8: Actualizar Onboarding.tsx
+
+**Header (lineas 124-128):**
+```tsx
+<BloogleeLogo size="lg" showText={false} />
 ```
 
-### Archivos PROTEGIDOS (NO tocar)
+**Boton final (linea 328):**
+- Mantener `Sparkles` aqui ya que es un icono de accion, no el logo
 
-```
-src/components/pharmacy/* (todos)
-src/components/company/* (todos)
-src/hooks/useFarmacias.ts
-src/hooks/useArticulos.ts
-src/hooks/useEmpresas.ts
-src/hooks/useWordPressSites.ts
-supabase/functions/generate-article/
-supabase/functions/publish-to-wordpress/
-(y demás Edge Functions existentes)
-```
+---
+
+### Resumen de Archivos
+
+| Archivo | Accion |
+|---------|--------|
+| `public/favicon.png` | Crear - Copiar logo |
+| `src/assets/blooglee-logo.png` | Crear - Copiar logo |
+| `src/components/saas/BloogleeLogo.tsx` | Crear componente |
+| `index.html` | Modificar meta tags y favicon |
+| `src/pages/Landing.tsx` | Usar BloogleeLogo, eliminar Wand2 |
+| `src/pages/Pricing.tsx` | Usar BloogleeLogo, eliminar Sparkles |
+| `src/pages/Auth.tsx` | Usar BloogleeLogo en 2 lugares |
+| `src/pages/SaasDashboard.tsx` | Usar BloogleeLogo |
+| `src/pages/Onboarding.tsx` | Usar BloogleeLogo en header |
+
+---
+
+### Resultado Final
+
+- Favicon mostrara la pluma Blooglee en la pestana del navegador
+- Branding consistente en todas las paginas publicas y privadas
+- Un solo componente controla todo el logo para facilitar mantenimiento
+- Meta tags optimizados para SEO y redes sociales
 
