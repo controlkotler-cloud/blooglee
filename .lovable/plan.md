@@ -1,136 +1,183 @@
 
-## Plan: Crear Todas las Paginas y Componentes SaaS
+
+## Plan: Crear Páginas Públicas de Marketing y Legal
 
 ### Resumen
 
-Creare 6 paginas nuevas y 5 componentes nuevos para completar la experiencia SaaS.
+Creare 7 paginas publicas nuevas para completar el sitio web de Blooglee, incluyendo blog, contacto, SEO y textos legales.
 
 ---
 
-## PAGINAS (src/pages/)
+## PAGINAS PUBLICAS (src/pages/)
 
-### 1. SiteDetail.tsx - Pagina principal del sitio (/site/:id)
+### 1. ContactPage.tsx - Pagina de contacto (/contact)
 
-- Layout con header mostrando nombre del sitio y badges
-- Tabs: "Articulos" | "Configuracion" | "WordPress"
-- Estadisticas rapidas: articulos generados, ultimo articulo, estado WP
-- Boton principal "Generar articulo"
-- Breadcrumb: Dashboard > [Nombre sitio]
-- Usa: useSites, useArticlesSaas, useWordPressConfig
-
-### 2. SiteArticles.tsx - Lista de articulos de un sitio
-
-- Componente embebido en SiteDetail (tab Articulos)
-- Grid de ArticleCard con todos los articulos del sitio
-- Filtros por mes/anio
-- Selector de idioma para previsualizar (espanol/catalan)
-- Acciones: ver, copiar, eliminar, publicar en WP
-- Estado vacio con CTA para generar primer articulo
-
-### 3. SiteSettings.tsx - Configuracion del sitio
-
-- Componente embebido en SiteDetail (tab Configuracion)
-- Formulario editable con campos del sitio:
-  - Nombre, Sector, Ubicacion
-  - Alcance geografico (local/regional/nacional/internacional)
-  - Idiomas (checkbox espanol/catalan)
-  - Frecuencia de publicacion
-  - Tema personalizado
-  - Auto-generar activado/desactivado
-- Boton eliminar sitio con confirmacion
-- Usa: useUpdateSite, useDeleteSite
-
-### 4. AccountSettings.tsx - Configuracion de cuenta (/account)
-
-- Informacion del perfil (email, plan actual)
-- Estadisticas de uso: sitios usados/limite
-- Seccion de seguridad (cambiar contrasena - link a Supabase)
-- Zona de peligro: eliminar cuenta (placeholder)
-- Usa: useProfile, useAuth
-
-### 5. BillingPage.tsx - Facturacion (/billing)
-
-- Plan actual con badge visual
-- Comparativa de planes (Free, Starter, Pro, Agency)
-- Limite de sitios actual vs usado
-- Botones "Actualizar plan" (placeholder para Stripe)
-- Historial de facturacion (placeholder)
-- Usa: useProfile
-
-### 6. HelpPage.tsx - Ayuda (/help)
-
-- FAQ acordeon con preguntas frecuentes
-- Como generar articulos
-- Como conectar WordPress
-- Como funciona la facturacion
-- Enlace de contacto/soporte
-- Componente estatico
-
----
-
-## COMPONENTES (src/components/saas/)
-
-### 1. ArticleCard.tsx
-
-- Tarjeta compacta de articulo
-- Muestra: titulo, fecha, imagen thumbnail
-- Badges: idioma disponible, estado (borrador/publicado)
-- Menu de acciones: ver, copiar, publicar, eliminar
-- Props: article, onView, onCopy, onPublish, onDelete
-
-### 2. ArticlePreviewDialog.tsx
-
-- Dialog modal para previsualizar articulo completo
-- Tabs: Espanol | Catalan
-- Muestra: titulo, meta description, contenido HTML
-- Imagen destacada con creditos
-- Botones: Copiar, Publicar en WP, Cerrar
-- Usa el patron de cierre (o) => !o && onClose()
-
-### 3. WordPressConfigForm.tsx
-
-- Formulario para configurar WordPress
-- Campos: URL del sitio, Usuario WP, App Password
+- Header con titulo "Contacto" y subtitulo
+- Formulario de contacto con campos:
+  - Nombre (requerido)
+  - Email (requerido, validado)
+  - Asunto (select: Informacion general, Soporte tecnico, Facturacion, Otro)
+  - Mensaje (textarea, requerido)
+- Informacion de contacto lateral:
+  - Email: info@blooglee.com
+  - Placeholder para direccion (a completar despues)
 - Validacion con zod
-- Boton probar conexion (placeholder)
-- Boton guardar/actualizar
-- Usa: useUpsertWordPressConfig
+- Toast de confirmacion (sin backend real por ahora)
+- Redes sociales (placeholders)
 
-### 4. PlanBadge.tsx
+### 2. BlogIndex.tsx - Listado del blog (/blog)
 
-- Badge visual del plan del usuario
-- Colores por plan: Free (gris), Starter (azul), Pro (violeta), Agency (dorado)
-- Icono Crown para planes de pago
-- Props: plan, size (sm/md/lg)
+- Header con titulo "Blog" y descripcion SEO
+- Grid de articulos de ejemplo (contenido estatico inicial)
+- Cada tarjeta muestra: imagen, titulo, extracto, fecha, categoria
+- Filtros por categoria (placeholder)
+- Paginacion (placeholder)
+- Sidebar con categorias populares y newsletter signup
+- CTA al final para probar Blooglee
 
-### 5. UsageStats.tsx
+### 3. BlogPost.tsx - Articulo individual (/blog/:slug)
 
-- Componente de estadisticas de uso
-- Barra de progreso: sitios usados/limite
-- Articulos generados este mes
-- Proxima generacion automatica
-- Props: profile, sites, articles
+- Layout de articulo con imagen destacada
+- Titulo, fecha, autor, tiempo de lectura
+- Contenido del articulo (markdown renderizado)
+- Tabla de contenidos lateral (sticky)
+- Articulos relacionados al final
+- CTA para probar Blooglee
+- Compartir en redes sociales
+- Datos estaticos de ejemplo inicialmente
+
+### 4. FeaturesPage.tsx - Pagina de caracteristicas (/features)
+
+- Header hero con propuesta de valor
+- Seccion detallada de cada caracteristica:
+  - Generacion automatica con IA
+  - Publicacion directa en WordPress
+  - SEO optimizado automaticamente
+  - Multiples idiomas (Espanol/Catalan)
+  - Imagenes con creditos incluidos
+  - Programacion de contenido
+- Cada seccion con icono, titulo, descripcion e imagen/ilustracion
+- CTA al final
+- Comparativa con hacerlo manualmente
+
+### 5. TermsPage.tsx - Terminos y condiciones (/terms)
+
+- Header legal
+- Contenido estatico con secciones:
+  - Definiciones
+  - Uso del servicio
+  - Registro y cuenta
+  - Planes y facturacion
+  - Propiedad intelectual
+  - Limitacion de responsabilidad
+  - Modificaciones
+  - Ley aplicable
+- Ultima actualizacion
+- Link a privacidad
+- Email de contacto: info@blooglee.com
+
+### 6. PrivacyPage.tsx - Politica de privacidad (/privacy)
+
+- Header legal
+- Contenido estatico con secciones:
+  - Datos que recopilamos
+  - Como usamos los datos
+  - Cookies
+  - Terceros (WordPress, servicios de IA)
+  - Derechos del usuario
+  - Seguridad
+  - Retencion de datos
+  - Cambios en la politica
+- Ultima actualizacion
+- Contacto: info@blooglee.com
+
+### 7. CookiesPage.tsx - Politica de cookies (/cookies)
+
+- Header legal
+- Que son las cookies
+- Tipos de cookies que usamos:
+  - Esenciales (sesion, autenticacion)
+  - Analiticas (placeholder)
+  - Funcionales
+- Como gestionar cookies
+- Tabla de cookies
+- Link a privacidad
+
+---
+
+## COMPONENTES REUTILIZABLES (src/components/marketing/)
+
+### 1. PublicLayout.tsx
+
+- Wrapper para paginas publicas
+- Incluye navbar y footer consistentes
+- Props: children, showCTA (boolean)
+
+### 2. PublicNavbar.tsx
+
+- Navbar para paginas publicas (diferente al dashboard)
+- Logo Blooglee
+- Links: Caracteristicas, Precios, Blog, Contacto
+- Botones: Iniciar sesion, Empezar gratis
+- Menu hamburguesa en movil
+
+### 3. PublicFooter.tsx
+
+- Footer reutilizable
+- Logo
+- Links organizados: Producto, Recursos, Legal, Contacto
+- Newsletter signup (placeholder)
+- Redes sociales (placeholder)
+- Copyright
+
+### 4. BlogCard.tsx
+
+- Tarjeta de articulo de blog
+- Imagen, titulo, extracto, fecha, categoria
+- Hover effects
+- Link al articulo
+
+### 5. LegalLayout.tsx
+
+- Layout especifico para paginas legales
+- Sidebar con navegacion entre secciones
+- Tabla de contenidos sticky
+- Ultima actualizacion
+
+---
+
+## DATOS ESTATICOS INICIALES
+
+### Articulos de blog de ejemplo (src/data/blogPosts.ts)
+
+3-5 articulos estaticos sobre:
+- "Como mejorar el SEO de tu blog con contenido automatizado"
+- "5 beneficios de automatizar la creacion de contenido"
+- "Guia: Conectar WordPress con Blooglee"
+- "Por que el contenido regular mejora tu posicionamiento"
 
 ---
 
 ## ACTUALIZACION DE RUTAS (App.tsx)
 
-Agregar nuevas rutas protegidas:
-
 ```tsx
-<Route path="/site/:id" element={<ProtectedRoute><SiteDetail /></ProtectedRoute>} />
-<Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
-<Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
-<Route path="/help" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
+// Rutas publicas nuevas
+<Route path="/contact" element={<ContactPage />} />
+<Route path="/features" element={<FeaturesPage />} />
+<Route path="/blog" element={<BlogIndex />} />
+<Route path="/blog/:slug" element={<BlogPost />} />
+<Route path="/terms" element={<TermsPage />} />
+<Route path="/privacy" element={<PrivacyPage />} />
+<Route path="/cookies" element={<CookiesPage />} />
 ```
 
 ---
 
-## ACTUALIZACION SaasDashboard.tsx
+## ACTUALIZACION Landing.tsx
 
-- Agregar navegacion en header a /account, /billing, /help
-- Hacer que SiteCard navegue a /site/:id al hacer click
-- Conectar hasWordPress con useWordPressConfig real
+- Cambiar enlace de contacto de mailto a /contact
+- Actualizar footer con nuevos links
+- Anadir link a /features en la navegacion
 
 ---
 
@@ -139,41 +186,42 @@ Agregar nuevas rutas protegidas:
 ```
 src/
 ├── pages/
-│   ├── SiteDetail.tsx       (NUEVO)
-│   ├── AccountSettings.tsx  (NUEVO)
-│   ├── BillingPage.tsx      (NUEVO)
-│   └── HelpPage.tsx         (NUEVO)
-├── components/saas/
-│   ├── ArticleCard.tsx           (NUEVO)
-│   ├── ArticlePreviewDialog.tsx  (NUEVO)
-│   ├── WordPressConfigForm.tsx   (NUEVO)
-│   ├── PlanBadge.tsx             (NUEVO)
-│   ├── UsageStats.tsx            (NUEVO)
-│   ├── SiteArticles.tsx          (NUEVO)
-│   ├── SiteSettings.tsx          (NUEVO)
-│   ├── BloogleeLogo.tsx          (existente)
-│   ├── SiteCard.tsx              (existente)
-│   ├── LiquidBlobs.tsx           (existente)
-│   └── ProductMockup.tsx         (existente)
+│   ├── ContactPage.tsx      (NUEVO)
+│   ├── FeaturesPage.tsx     (NUEVO)
+│   ├── BlogIndex.tsx        (NUEVO)
+│   ├── BlogPost.tsx         (NUEVO)
+│   ├── TermsPage.tsx        (NUEVO)
+│   ├── PrivacyPage.tsx      (NUEVO)
+│   └── CookiesPage.tsx      (NUEVO)
+├── components/marketing/
+│   ├── PublicLayout.tsx     (NUEVO)
+│   ├── PublicNavbar.tsx     (NUEVO)
+│   ├── PublicFooter.tsx     (NUEVO)
+│   ├── BlogCard.tsx         (NUEVO)
+│   └── LegalLayout.tsx      (NUEVO)
+├── data/
+│   └── blogPosts.ts         (NUEVO)
 ```
 
 ---
 
 ## ORDEN DE IMPLEMENTACION
 
-1. Componentes base: PlanBadge, UsageStats, ArticleCard
-2. Formularios: WordPressConfigForm
-3. Dialogs: ArticlePreviewDialog
-4. Componentes de sitio: SiteArticles, SiteSettings
-5. Paginas principales: SiteDetail, AccountSettings, BillingPage, HelpPage
+1. Componentes base: PublicLayout, PublicNavbar, PublicFooter
+2. Paginas legales: TermsPage, PrivacyPage, CookiesPage
+3. Pagina de contacto: ContactPage
+4. Pagina de caracteristicas: FeaturesPage
+5. Blog: BlogCard, blogPosts.ts, BlogIndex, BlogPost
 6. Actualizar App.tsx con rutas
-7. Actualizar SaasDashboard.tsx con navegacion
+7. Actualizar Landing.tsx con nuevos enlaces
 
 ---
 
 ## NOTAS
 
-- Todos los componentes usan los hooks existentes (useSites, useArticlesSaas, useWordPressConfig, useProfile)
-- No se crean nuevas tablas ni edge functions (eso requiere aprobacion)
-- Los botones de Stripe seran placeholders hasta que se active la integracion
-- Se mantiene el patron de cierre de dialogs existente
+- Todo el contenido legal es placeholder profesional (el usuario debera revisarlo con un abogado)
+- El blog es estatico inicialmente, sin CMS
+- El formulario de contacto muestra toast pero no envia emails (requiere backend adicional)
+- Se mantiene la estetica "liquid blobs" y Aurora gradient en las paginas publicas
+- Email de contacto: info@blooglee.com
+
