@@ -533,13 +533,15 @@ const Landing = () => {
             <BloogleeLogo size="sm" />
             
             <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 lg:gap-8 text-xs sm:text-sm text-foreground/60">
+              <Link to="/features" className="hover:text-foreground transition-colors">Características</Link>
+              <Link to="/blog" className="hover:text-foreground transition-colors">Blog</Link>
               <Link to="/terms" className="hover:text-foreground transition-colors">Términos</Link>
               <Link to="/privacy" className="hover:text-foreground transition-colors">Privacidad</Link>
-              <a href="mailto:hola@blooglee.com" className="hover:text-foreground transition-colors">Contacto</a>
+              <Link to="/contact" className="hover:text-foreground transition-colors">Contacto</Link>
             </div>
             
             <p className="text-xs sm:text-sm text-foreground/50 text-center">
-              © 2024 Blooglee. Todos los derechos reservados.
+              © {new Date().getFullYear()} Blooglee. Todos los derechos reservados.
             </p>
           </div>
         </div>
