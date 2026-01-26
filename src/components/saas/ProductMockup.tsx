@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Sparkles, FileText, Globe, Zap, Check } from 'lucide-react';
+import bloogleeLogo from '@/assets/blooglee-logo.png';
 
 const mockArticles = [
   { title: "10 tendencias de belleza para 2024", status: "published", lang: "ES" },
@@ -68,9 +69,11 @@ export function ProductMockup() {
             {/* Mini header */}
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-white" />
-                </div>
+                <img 
+                  src={bloogleeLogo} 
+                  alt="Blooglee" 
+                  className="w-8 h-8 object-contain"
+                />
                 <span className="font-display font-semibold text-sm">Blooglee</span>
               </div>
               <div className="badge-aurora text-xs py-1 px-2.5">
