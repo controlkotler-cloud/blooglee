@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings } from 'lucide-react';
+import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, ArrowLeftRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useIsMKProAdmin } from '@/hooks/useProfile';
 import { useSites } from '@/hooks/useSites';
@@ -68,8 +68,19 @@ export default function SaasDashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <BloogleeLogo size="lg" />
             <div className="flex items-center gap-3">
+              {canAccessMKPro && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate('/mkpro')}
+                  className="gap-2"
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  <span className="hidden sm:inline">MKPro</span>
+                </Button>
+              )}
               <PlanBadge plan={plan} />
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-muted-foreground hidden sm:inline">
                 {sites.length}/{sitesLimit} sitios
               </span>
 

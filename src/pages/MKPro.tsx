@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Plus, Play, LayoutDashboard, Building2, Briefcase, Settings, LogOut, ArrowLeft } from "lucide-react";
+import { Loader2, Plus, Play, LayoutDashboard, Building2, Briefcase, Settings, LogOut, ArrowLeftRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useFarmacias, useCreateFarmacia, useUpdateFarmacia, useDeleteFarmacia, type Farmacia } from "@/hooks/useFarmacias";
@@ -282,8 +282,14 @@ export default function MKPro() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/')} title="Volver al dashboard">
-                <ArrowLeft className="w-4 h-4" />
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => navigate('/dashboard')}
+                className="gap-2"
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+                <span className="hidden sm:inline">Dashboard</span>
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-primary">MKPro Manager</h1>
