@@ -284,6 +284,7 @@ export type Database = {
           email: string
           id: string
           plan: string
+          posts_limit: number
           sites_limit: number
           updated_at: string
           user_id: string
@@ -293,6 +294,7 @@ export type Database = {
           email: string
           id?: string
           plan?: string
+          posts_limit?: number
           sites_limit?: number
           updated_at?: string
           user_id: string
@@ -302,6 +304,7 @@ export type Database = {
           email?: string
           id?: string
           plan?: string
+          posts_limit?: number
           sites_limit?: number
           updated_at?: string
           user_id?: string
