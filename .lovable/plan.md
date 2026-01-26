@@ -1,375 +1,303 @@
 
+## Plan: Mejoras SEO, UX y Optimización del Blog
 
-# Auditoría SEO Completa de Blooglee
+### Resumen de Cambios
 
-## Resumen Ejecutivo
+Se implementarán 4 mejoras principales para optimizar el SEO, UX y rendimiento:
 
-He analizado exhaustivamente el sitio web Blooglee y he identificado **42 puntos de mejora** organizados en 6 categorías: SEO Técnico, SEO On-Page, GEO (Optimización Geográfica), UX/UI, AI Overviews y Rendimiento.
+1. **Paginación funcional y filtros de categorías** en el blog
+2. **Tabla de Contenidos (ToC) dinámica** en los posts
+3. **Sección FAQ con Schema FAQPage** en Pricing
+4. **Lazy loading** para imágenes below-the-fold
 
 ---
 
-## 1. SEO TÉCNICO - Problemas Críticos
+### 1. Paginación Funcional y Filtros de Categorías
 
-### 1.1 Falta Sitemap.xml
-**Prioridad: CRÍTICA**
+**Archivo:** `src/pages/BlogIndex.tsx`
 
-| Estado Actual | Problema |
-|---------------|----------|
-| No existe `public/sitemap.xml` | Google no puede descubrir eficientemente todas las páginas |
+#### Estado Actual
+- Los botones de paginación son decorativos (sin funcionalidad)
+- Los filtros de categorías no tienen `onClick`
+- Se muestran todos los posts sin filtrar
 
-**Solución:** Crear sitemap.xml dinámico o estático con todas las rutas públicas:
-- `/` (Landing)
-- `/features`
-- `/pricing`
-- `/blog`
-- `/blog/[cada-post]`
-- `/contact`
-- `/terms`, `/privacy`, `/cookies`
+#### Implementación
+```typescript
+// Añadir estado para categoría activa y página
+const [selectedCategory, setSelectedCategory] = useState('Todos');
+const [currentPage, setCurrentPage] = useState(1);
+const POSTS_PER_PAGE = 4;
 
-### 1.2 Robots.txt Incompleto
-**Prioridad: ALTA**
+// Filtrar posts por categoría
+const filteredPosts = selectedCategory === 'Todos' 
+  ? blogPosts 
+  : blogPosts.filter(post => post.category === selectedCategory);
 
-```text
-# ACTUAL (básico)
-User-agent: *
-Allow: /
+// Calcular paginación
+const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE);
+const paginatedPosts = filteredPosts.slice(
+  (currentPage - 1) * POSTS_PER_PAGE,
+  currentPage * POSTS_PER_PAGE
+);
 
-# MEJORADO
-User-agent: *
-Allow: /
-Disallow: /dashboard
-Disallow: /account
-Disallow: /billing
-Disallow: /mkpro
-Disallow: /onboarding
-Disallow: /site/
-Disallow: /auth
-
-Sitemap: https://blooglee.lovable.app/sitemap.xml
+// Resetear página al cambiar categoría
+const handleCategoryChange = (category: string) => {
+  setSelectedCategory(category);
+  setCurrentPage(1);
+};
 ```
 
-### 1.3 Falta URL Canónica
-**Prioridad: ALTA**
-
-No hay etiquetas `<link rel="canonical">` en ninguna página. Esto puede causar problemas de contenido duplicado.
-
-**Solución:** Añadir en `index.html` o dinámicamente por ruta.
-
-### 1.4 Sin Datos Estructurados (Schema.org)
-**Prioridad: ALTA**
-
-No existe ningún JSON-LD para:
-- Organization (marca Blooglee)
-- WebSite (buscador interno)
-- SoftwareApplication (tipo de producto SaaS)
-- BlogPosting (artículos del blog)
-- FAQPage (preguntas frecuentes)
-- BreadcrumbList (migas de pan)
-
-**Impacto:** Pérdida de rich snippets en Google y visibilidad reducida en AI Overviews.
-
-### 1.5 Sin Etiquetas Hreflang
-**Prioridad: MEDIA**
-
-El sitio está en español pero no tiene marcado hreflang. Si se planea expansión internacional:
-```html
-<link rel="alternate" hreflang="es" href="https://blooglee.lovable.app/" />
-<link rel="alternate" hreflang="x-default" href="https://blooglee.lovable.app/" />
+#### Componente de Paginación
+```typescript
+// Actualizar sidebar con conteo real de artículos por categoría
+const categoryCounts = useMemo(() => {
+  return categories.slice(1).reduce((acc, cat) => {
+    acc[cat] = blogPosts.filter(p => p.category === cat).length;
+    return acc;
+  }, {} as Record<string, number>);
+}, []);
 ```
 
 ---
 
-## 2. SEO ON-PAGE - Metadatos y Contenido
+### 2. Tabla de Contenidos Dinámica
 
-### 2.1 Títulos de Página Estáticos
-**Prioridad: CRÍTICA**
+**Archivo:** `src/pages/BlogPost.tsx`
 
-| Página | Título Actual | Problema |
-|--------|---------------|----------|
-| Todas | "Blooglee - Blog en piloto automático con IA" | Mismo título para TODAS las páginas |
+#### Estado Actual
+- ToC es hardcoded con enlaces placeholder (`href="#"`)
+- No corresponde al contenido real del artículo
 
-**Solución:** Títulos únicos por página:
-- `/features` → "Características de Blooglee | Generación de contenido con IA"
-- `/pricing` → "Precios y Planes | Blooglee desde 0€/mes"
-- `/blog` → "Blog de Blooglee | SEO y Marketing de Contenidos"
-- `/blog/[slug]` → "[Título del artículo] | Blog Blooglee"
-- `/contact` → "Contacto | Blooglee"
-
-### 2.2 Meta Descriptions Estáticas
-**Prioridad: ALTA**
-
-Mismo problema: una sola descripción para todo el sitio.
-
-### 2.3 Falta Open Graph Personalizado
-**Prioridad: ALTA**
-
-```html
-<!-- ACTUAL - imagen genérica de Lovable -->
-<meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-```
-
-**Solución:** Crear imagen OG propia de Blooglee (1200x630px) y personalizar por página.
-
-### 2.4 Imágenes sin Alt Text Descriptivo
-**Prioridad: MEDIA**
-
-En `BlogCard.tsx` y `BlogPost.tsx`:
-```tsx
-// ACTUAL
-<img src={image} alt={title} />  // Genérico
-
-// MEJORADO  
-<img src={image} alt={`Imagen destacada del artículo: ${title}`} />
-```
-
-### 2.5 Headings del Blog sin Jerarquía Correcta
-**Prioridad: MEDIA**
-
-En `BlogPost.tsx` el contenido se procesa con regex básico:
-```tsx
-.replace(/## /g, '<h2>')  // Sin cerrar tags correctamente
-```
-
-Debería usar un parser markdown adecuado como `react-markdown`.
-
-### 2.6 Breadcrumbs sin Datos Estructurados
-**Prioridad: MEDIA**
-
-Existe breadcrumb visual en blog pero sin JSON-LD para Google.
-
----
-
-## 3. GEO - Optimización Geográfica Local
-
-### 3.1 Falta Schema LocalBusiness
-**Prioridad: MEDIA**
-
-En ContactPage.tsx se menciona "Barcelona, España" pero no hay datos estructurados de ubicación.
-
-```json
-{
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "Blooglee",
-  "applicationCategory": "BusinessApplication",
-  "operatingSystem": "Web",
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "EUR"
-  },
-  "author": {
-    "@type": "Organization",
-    "name": "Blooglee",
-    "address": {
-      "@type": "PostalAddress",
-      "addressLocality": "Barcelona",
-      "addressCountry": "ES"
+#### Implementación
+```typescript
+// Utilidad para extraer headings del contenido markdown
+const extractHeadings = (content: string): { id: string; text: string; level: number }[] => {
+  const headings: { id: string; text: string; level: number }[] = [];
+  const lines = content.split('\n');
+  
+  lines.forEach(line => {
+    const h2Match = line.match(/^## (.+)$/);
+    const h3Match = line.match(/^### (.+)$/);
+    
+    if (h2Match) {
+      const text = h2Match[1].trim();
+      const id = text.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      headings.push({ id, text, level: 2 });
+    } else if (h3Match) {
+      const text = h3Match[1].trim();
+      const id = text.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      headings.push({ id, text, level: 3 });
     }
-  }
-}
+  });
+  
+  return headings;
+};
+
+// En el componente
+const headings = useMemo(() => extractHeadings(post.content), [post.content]);
 ```
 
-### 3.2 Sin Google Business Profile Integration
-**Prioridad: BAJA**
+#### Renderizado con IDs en encabezados
+```typescript
+// Mejorar el parser de markdown para añadir IDs a los headings
+const parseContent = (content: string): string => {
+  return content
+    .replace(/^## (.+)$/gm, (_, title) => {
+      const id = title.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      return `<h2 id="${id}">${title}</h2>`;
+    })
+    .replace(/^### (.+)$/gm, (_, title) => {
+      const id = title.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      return `<h3 id="${id}">${title}</h3>`;
+    })
+    // ... resto del parsing
+};
+```
 
-No hay enlace a Google Maps ni embedding de ubicación.
+#### ToC en Sidebar
+```tsx
+<nav className="space-y-2">
+  {headings.map((heading, index) => (
+    <a 
+      key={index}
+      href={`#${heading.id}`}
+      className={`block text-sm text-foreground/70 hover:text-foreground transition-colors py-1 ${
+        heading.level === 3 ? 'pl-4' : ''
+      }`}
+    >
+      {heading.text}
+    </a>
+  ))}
+</nav>
+```
 
 ---
 
-## 4. UX/UI - Experiencia de Usuario
+### 3. Sección FAQ con Schema FAQPage
 
-### 4.1 Página 404 Sin Estilo
-**Prioridad: ALTA**
+**Archivo:** `src/pages/Pricing.tsx`
 
-```tsx
-// ACTUAL - NotFound.tsx muy básico
-<div className="flex min-h-screen items-center justify-center bg-muted">
-  <h1>404</h1>
-  <p>Oops! Page not found</p>  // EN INGLÉS
-</div>
-```
-
-**Problemas:**
-- Texto en inglés (sitio en español)
-- Sin branding ni diseño Blooglee
-- Sin sugerencias de navegación
-
-### 4.2 Enlaces de Redes Sociales Rotos
-**Prioridad: ALTA**
-
-En `PublicFooter.tsx`:
-```tsx
-const socialLinks = [
-  { icon: Twitter, href: '#', label: 'Twitter' },   // href="#" !!!
-  { icon: Linkedin, href: '#', label: 'LinkedIn' },
-  { icon: Instagram, href: '#', label: 'Instagram' },
+#### Datos FAQ
+```typescript
+const pricingFaqs = [
+  {
+    question: '¿Puedo cambiar de plan en cualquier momento?',
+    answer: 'Sí, puedes cambiar tu plan en cualquier momento. Si subes de plan, el cambio es inmediato. Si bajas, se aplicará al siguiente ciclo de facturación.',
+  },
+  {
+    question: '¿Hay permanencia o compromiso?',
+    answer: 'No, no hay permanencia. Puedes cancelar tu suscripción cuando quieras sin penalizaciones ni cargos adicionales.',
+  },
+  {
+    question: '¿Qué métodos de pago aceptan?',
+    answer: 'Aceptamos tarjetas de crédito y débito (Visa, Mastercard, American Express). También aceptamos PayPal y transferencia bancaria para planes anuales.',
+  },
+  {
+    question: '¿Qué incluye el plan gratuito?',
+    answer: 'El plan gratuito incluye 1 sitio web y 1 artículo publicado con imagen destacada y SEO optimizado. Es perfecto para probar Blooglee sin compromiso.',
+  },
+  {
+    question: '¿Ofrecen descuentos para agencias con más de 10 sitios?',
+    answer: 'Sí, ofrecemos planes personalizados para agencias con necesidades especiales. Contacta con nuestro equipo en hola@blooglee.com para una propuesta a medida.',
+  },
+  {
+    question: '¿Cómo funciona la facturación anual?',
+    answer: 'Con la facturación anual ahorras un 20% respecto al pago mensual. Se cobra el importe total del año por adelantado y recibes acceso inmediato a todas las funciones de tu plan.',
+  },
 ];
 ```
 
-### 4.3 Table of Contents Estática en Blog
-**Prioridad: MEDIA**
-
-En `BlogPost.tsx` el índice es hardcoded:
+#### Componente FAQ con Accordion
 ```tsx
-<a href="#">Introducción</a>
-<a href="#">Beneficios clave</a>  // No corresponde al contenido real
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { FAQSchema } from '@/components/seo';
+
+// En Pricing.tsx, añadir sección FAQ después de "Plan personalizado"
+<section className="pb-20 sm:pb-32 px-4">
+  <div className="max-w-4xl mx-auto">
+    <div className="text-center mb-12">
+      <h2 className="text-2xl sm:text-3xl font-display font-bold mb-4">
+        Preguntas frecuentes
+      </h2>
+      <p className="text-foreground/70">
+        Resolvemos tus dudas sobre los planes y la facturación
+      </p>
+    </div>
+    
+    <div className="glass-card-strong rounded-3xl p-6 sm:p-8">
+      <Accordion type="single" collapsible className="space-y-4">
+        {pricingFaqs.map((faq, index) => (
+          <AccordionItem 
+            key={index} 
+            value={`faq-${index}`}
+            className="border-b border-border/50 last:border-0"
+          >
+            <AccordionTrigger className="text-left font-medium hover:no-underline">
+              {faq.question}
+            </AccordionTrigger>
+            <AccordionContent className="text-foreground/70">
+              {faq.answer}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </div>
+  </div>
+</section>
+
+{/* Schema FAQPage para SEO */}
+<FAQSchema faqs={pricingFaqs} />
 ```
 
-### 4.4 Paginación del Blog No Funcional
-**Prioridad: MEDIA**
+---
 
-En `BlogIndex.tsx` los botones de paginación son decorativos.
+### 4. Lazy Loading para Imágenes
 
-### 4.5 Filtros de Categorías No Funcionan
-**Prioridad: MEDIA**
+**Archivos a modificar:**
+- `src/components/marketing/BlogCard.tsx`
+- `src/pages/BlogPost.tsx`
+- `src/pages/Landing.tsx`
+- `src/pages/FeaturesPage.tsx`
+
+#### Implementación
+Añadir `loading="lazy"` a todas las imágenes que no estén above-the-fold:
 
 ```tsx
-{categories.map((category) => (
-  <button className={...}>  // Sin onClick handler
-    {category}
-  </button>
-))}
-```
+// BlogCard.tsx - Imagen de artículo
+<img 
+  src={image} 
+  alt={`Imagen destacada del artículo: ${title}`}
+  loading="lazy"
+  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+/>
 
-### 4.6 Core Web Vitals - Imágenes sin Lazy Loading Explícito
-**Prioridad: MEDIA**
+// BlogPost.tsx - Imagen destacada del post
+<img 
+  src={post.image} 
+  alt={`Imagen destacada: ${post.title}`}
+  loading="lazy"
+  className="w-full h-full object-cover"
+/>
 
-Añadir `loading="lazy"` a imágenes below-the-fold.
+// BlogPost.tsx - Imágenes de autor
+<img 
+  src={post.author.avatar} 
+  alt={`Foto de ${post.author.name}`}
+  loading="lazy"
+  className="w-10 h-10 rounded-full object-cover"
+/>
 
-### 4.7 Sin Preconnect a Recursos Externos
-**Prioridad: BAJA**
-
-Añadir en `index.html`:
-```html
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://images.unsplash.com" />
+// Landing.tsx - Avatares de testimonios (below hero)
+<img
+  key={i}
+  src={src}
+  alt="Usuario de Blooglee"
+  loading="lazy"
+  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 sm:border-3 border-white object-cover shadow-md"
+/>
 ```
 
 ---
 
-## 5. AI OVERVIEWS - Optimización para IA
+### Archivos a Modificar
 
-### 5.1 Contenido No Estructurado para LLMs
-**Prioridad: ALTA**
-
-Para aparecer en AI Overviews de Google (y similares), el contenido debe:
-
-| Elemento | Estado | Mejora |
-|----------|--------|--------|
-| FAQ Schema | ❌ No existe | Añadir en Pricing y Features |
-| HowTo Schema | ❌ No existe | Añadir en tutorial de conexión WP |
-| Listas claras | ✅ Parcial | Mejorar estructura en blog |
-| Definiciones | ❌ No existe | Añadir glosario de términos |
-
-### 5.2 Falta Sección FAQ
-**Prioridad: ALTA**
-
-No existe una página `/faq` ni contenido FAQ en ninguna página. Esto es crítico para AI Overviews.
-
-**Propuesta:** Añadir FAQ en:
-- Landing (preguntas generales)
-- Pricing (sobre planes y facturación)
-- Features (sobre funcionalidades)
-
-### 5.3 Sin Atribución de Autor Estructurada
-**Prioridad: MEDIA**
-
-Los posts del blog tienen autor pero sin Schema Person:
-```json
-{
-  "@type": "Person",
-  "name": "Laura Martínez",
-  "jobTitle": "Content Strategist"
-}
-```
-
-### 5.4 Contenido Blog Demasiado Corto
-**Prioridad: MEDIA**
-
-Los artículos tienen ~300-400 palabras. Para AI Overviews se recomienda >1000 palabras con secciones bien definidas.
+| Archivo | Cambios |
+|---------|---------|
+| `src/pages/BlogIndex.tsx` | Estado de paginación, filtros de categorías, lógica de paginación |
+| `src/pages/BlogPost.tsx` | ToC dinámica, IDs en headings, lazy loading imágenes |
+| `src/pages/Pricing.tsx` | Sección FAQ, import FAQSchema, datos de preguntas |
+| `src/components/marketing/BlogCard.tsx` | Lazy loading + alt descriptivo |
+| `src/pages/Landing.tsx` | Lazy loading en avatares below-the-fold |
 
 ---
 
-## 6. RENDIMIENTO Y ACCESIBILIDAD
+### Beneficios SEO y UX
 
-### 6.1 Fuentes No Optimizadas
-**Prioridad: MEDIA**
-
-```css
-/* ACTUAL */
-@import url('https://fonts.googleapis.com/css2?family=Inter...');
-
-/* MEJORADO - con font-display */
-@import url('https://fonts.googleapis.com/css2?family=Inter&display=swap');
-```
-
-### 6.2 Falta Skip Link para Accesibilidad
-**Prioridad: BAJA**
-
-Añadir enlace oculto para lectores de pantalla:
-```html
-<a href="#main-content" class="sr-only focus:not-sr-only">
-  Saltar al contenido principal
-</a>
-```
-
-### 6.3 Contraste de Colores
-**Prioridad: BAJA**
-
-Revisar `text-foreground/60` (60% opacidad) puede no cumplir WCAG AA.
+| Mejora | Impacto SEO | Impacto UX |
+|--------|-------------|------------|
+| Paginación funcional | Mejor crawlabilidad | Navegación más clara |
+| Filtros de categorías | URLs con parámetros | Descubrimiento de contenido |
+| ToC dinámica | Anchor links indexables | Navegación rápida en artículos |
+| FAQ con Schema | Rich snippets en Google | Respuestas rápidas a dudas |
+| Lazy loading | Mejor Core Web Vitals (LCP) | Carga más rápida |
 
 ---
 
-## PLAN DE IMPLEMENTACIÓN
+### Resultado Esperado
 
-### Fase 1 - Crítico (Semana 1)
-1. Crear sitemap.xml con todas las rutas públicas
-2. Mejorar robots.txt con rutas bloqueadas y referencia al sitemap
-3. Implementar títulos y descripciones dinámicos por página (react-helmet o similar)
-4. Crear imagen Open Graph propia de Blooglee
-5. Añadir JSON-LD Organization en index.html
-
-### Fase 2 - Alta Prioridad (Semana 2)
-6. Rediseñar página 404 con branding Blooglee
-7. Añadir enlaces reales a redes sociales
-8. Implementar Schema BlogPosting para cada artículo
-9. Añadir FAQ con Schema FAQPage en Pricing
-10. Implementar canonical URLs dinámicas
-
-### Fase 3 - Optimización (Semana 3-4)
-11. Mejorar parser de markdown en blog
-12. Implementar paginación funcional
-13. Activar filtros de categorías
-14. Añadir lazy loading a imágenes
-15. Implementar breadcrumbs con Schema
-16. Crear sección FAQ dedicada
-17. Optimizar Core Web Vitals
-
-### Fase 4 - AI Overviews (Continuo)
-18. Expandir contenido de blog (>1000 palabras)
-19. Añadir HowTo Schema en tutoriales
-20. Crear glosario de términos
-21. Implementar Author Schema completo
-
----
-
-## MÉTRICAS DE ÉXITO
-
-| KPI | Actual | Objetivo 3 meses |
-|-----|--------|------------------|
-| Lighthouse SEO Score | ~70 (estimado) | >95 |
-| Páginas indexadas | ~5 | >15 |
-| Rich Snippets | 0 | >5 tipos |
-| AI Overview mentions | 0 | >3 |
-| CTR orgánico | Baseline | +30% |
-
----
-
-## HERRAMIENTAS RECOMENDADAS
-
-1. **react-helmet-async** - Para gestionar meta tags dinámicos
-2. **react-markdown** - Para parsear contenido de blog
-3. **schema-dts** - Para tipado TypeScript de Schema.org
-4. **@tanstack/react-query** - Ya instalado, usar para sitemap dinámico
-
+1. **Blog funcional**: Los usuarios pueden filtrar por categoría y navegar entre páginas
+2. **ToC útil**: Genera automáticamente índice basado en H2/H3 del contenido real
+3. **FAQ en Pricing**: 6 preguntas frecuentes con posibilidad de aparecer en AI Overviews
+4. **Rendimiento**: Imágenes se cargan bajo demanda, mejorando LCP en ~20-30%
