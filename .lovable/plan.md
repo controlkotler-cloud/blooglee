@@ -1,175 +1,242 @@
 
+## Plan: Añadir Regenerar Imagen + Import/Export para SaaS
 
-## Plan: Sincronizar Categorías/Tags + SEO Footer para SaaS
+### Resumen de Funcionalidades
 
-### Resumen de Funcionalidades a Implementar
-
-| Funcionalidad | Estado en MKPro | Estado en SaaS |
-|---------------|-----------------|----------------|
-| Sincronizar categorías/tags de WP | ✅ Funciona | ❌ No existe |
-| Enviar `category_ids` y `tag_ids` al publicar | ✅ Funciona | ❌ No existe |
-| Parámetro `lang` para Polylang | ✅ Funciona | ⚠️ Se envía pero sin efecto |
-| Frase SEO con enlaces a blog/redes | ✅ Funciona | ❌ No existe |
+| Funcionalidad | Estado Actual | Implementación |
+|---------------|---------------|----------------|
+| Botón "Cambiar imagen" en preview | ❌ No existe | Reutilizar `regenerate-image` existente |
+| Import/Export sitios y artículos | ❌ No existe | Nuevo componente `SiteImportExport.tsx` |
 
 ---
 
-## PARTE 1: Sincronización de Categorías y Tags
+## PARTE 1: Regenerar Imagen en ArticlePreviewDialog
 
-### 1.1 Nueva Tabla en Base de Datos
+### Análisis del MKPro (ArticlePreview.tsx)
 
-Crear tabla `wordpress_taxonomies_saas` para SaaS (separada de la de MKPro):
+En MKPro, el botón "Cambiar" aparece debajo de la imagen (líneas 150-166):
+- Props: `onRegenerateImage` y `isRegeneratingImage`
+- Botón pequeño con icono `ImagePlus`
+- Invoca el edge function `regenerate-image` existente
 
-```sql
-CREATE TABLE wordpress_taxonomies_saas (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  wordpress_config_id UUID NOT NULL REFERENCES wordpress_configs(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL,
-  taxonomy_type TEXT NOT NULL CHECK (taxonomy_type IN ('category', 'tag')),
-  wp_id INTEGER NOT NULL,
-  name TEXT NOT NULL,
-  slug TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  UNIQUE (wordpress_config_id, taxonomy_type, wp_id)
-);
+### Cambios Necesarios
 
--- RLS para aislamiento multi-tenant
-ALTER TABLE wordpress_taxonomies_saas ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can manage own taxonomies" ON wordpress_taxonomies_saas
-  FOR ALL USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-```
-
-### 1.2 Nueva Edge Function: `sync-wordpress-taxonomies-saas`
-
-Similar a `sync-wordpress-taxonomies` pero con validación de usuario:
-
-- Recibe `wordpress_config_id` 
-- Valida que el config pertenezca al usuario autenticado
-- Obtiene categorías de `/wp-json/wp/v2/categories?per_page=100`
-- Obtiene tags de `/wp-json/wp/v2/tags?per_page=100`
-- Guarda en `wordpress_taxonomies_saas` con `user_id`
-- Limpia taxonomías obsoletas
-
-### 1.3 Nuevo Hook: `useWordPressTaxonomiesSaas`
-
-En `src/hooks/useWordPressTaxonomiesSaas.ts`:
+#### 1.1 Añadir hook `useRegenerateImageSaas` en `src/hooks/useArticlesSaas.ts`
 
 ```typescript
-export function useTaxonomiesSaas(wordpressConfigId: string | undefined) {
-  // Obtener categorías y tags del config
+interface RegenerateImageParams {
+  articleId: string;
+  pexelsQuery: string;
+  articleTitle?: string;
+  articleContent?: string;
+  companySector?: string;
+  usedImageUrls?: string[];
 }
 
-export function useSyncTaxonomiesSaas() {
-  // Invocar edge function sync-wordpress-taxonomies-saas
+export function useRegenerateImageSaas() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: RegenerateImageParams) => {
+      const { data, error } = await supabase.functions.invoke('regenerate-image', {
+        body: {
+          pexelsQuery: params.pexelsQuery,
+          articleTitle: params.articleTitle,
+          articleContent: params.articleContent,
+          companySector: params.companySector,
+          usedImageUrls: params.usedImageUrls || []
+        }
+      });
+      
+      if (error) throw error;
+      if (!data?.url) throw new Error('No se obtuvo imagen');
+      
+      // Actualizar el artículo con la nueva imagen
+      const { error: updateError } = await supabase
+        .from('articles')
+        .update({
+          image_url: data.url,
+          image_photographer: data.photographer,
+          image_photographer_url: data.photographer_url
+        })
+        .eq('id', params.articleId);
+        
+      if (updateError) throw updateError;
+      
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['articles'] });
+      toast.success('Imagen actualizada');
+    },
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
+    }
+  });
 }
 ```
 
-### 1.4 Componente: Selector de Taxonomías en Diálogo de Publicación
+#### 1.2 Modificar `ArticlePreviewDialog.tsx`
 
-Modificar `WordPressPublishDialogSaas.tsx` para incluir:
-- Checkboxes para seleccionar categorías
-- Checkboxes para seleccionar tags
-- Botón "Sincronizar" para actualizar lista desde WordPress
+Añadir props y botón "Cambiar imagen":
+
+```typescript
+interface ArticlePreviewDialogProps {
+  article: Article | null;
+  open: boolean;
+  onClose: () => void;
+  onPublish: () => void;
+  siteSector?: string;  // NUEVO: para contexto de imagen
+}
+```
+
+En la sección de imagen (línea 93-124), añadir botón:
+
+```typescript
+{article.image_url && (
+  <div className="space-y-2">
+    {/* ... imagen existente ... */}
+    <div className="flex items-center justify-between">
+      <p className="text-xs text-muted-foreground">
+        Foto por{' '}
+        <a href={article.image_photographer_url || '#'} ...>
+          {article.image_photographer}
+        </a>
+      </p>
+      {/* NUEVO: Botón cambiar imagen */}
+      <Button 
+        onClick={handleRegenerateImage} 
+        disabled={isRegeneratingImage}
+        variant="ghost"
+        size="sm"
+        className="text-xs"
+      >
+        {isRegeneratingImage ? (
+          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+        ) : (
+          <ImagePlus className="w-3 h-3 mr-1" />
+        )}
+        Cambiar
+      </Button>
+    </div>
+  </div>
+)}
+```
+
+#### 1.3 Modificar `SiteArticles.tsx`
+
+Pasar el sector del sitio al diálogo de preview para contexto de regeneración de imagen.
 
 ---
 
-## PARTE 2: Enviar Taxonomías al Publicar
+## PARTE 2: Import/Export para SaaS
 
-### 2.1 Modificar `publish-to-wordpress-saas`
+### Análisis del MKPro
 
-Añadir soporte para `category_ids` y `tag_ids` en la request:
+`CompanyImportExport.tsx` incluye:
+- **Exportar sitios a CSV**: nombre, localidad, sector, catalán, auto_generate, tema, urls
+- **Importar sitios desde CSV**: con auto-detección de catalán por ubicación
+- **Exportar artículos a JSON**: filtrado por mes/año
 
-```typescript
-interface PublishRequest {
-  site_id: string;
-  title: string;
-  content: string;
-  slug: string;
-  status: 'publish' | 'draft' | 'future';
-  date?: string;
-  image_url?: string;
-  image_alt?: string;
-  meta_description?: string;
-  lang?: 'es' | 'ca';
-  category_ids?: number[];  // NUEVO
-  tag_ids?: number[];       // NUEVO
-}
+### Nuevo Componente: `src/components/saas/SiteImportExport.tsx`
+
+Basado en `CompanyImportExport.tsx` pero adaptado para:
+- Usar `Site` en lugar de `Empresa`
+- Usar `Article` en lugar de `ArticuloEmpresa`
+- Incluir `description` como campo opcional
+- Validar contra límite de sitios del plan
+
+#### Estructura del CSV de Sitios SaaS
+
+```csv
+nombre,localidad,sector,descripcion,catalan,generacion_automatica,tema_personalizado,url_blog,url_instagram
+"Mi Negocio","Barcelona","Hostelería","Restaurante de comida italiana","sí","sí","","https://blog.com","https://instagram.com/negocio"
 ```
 
-Y en el `postData` enviado a WordPress:
+#### Funciones Principales
 
 ```typescript
-const postData = {
-  title: body.title,
-  content: body.content,
-  slug: slug,
-  status: body.status,
-  lang: body.lang || 'es',
-  categories: body.category_ids || [],  // NUEVO
-  tags: body.tag_ids || [],              // NUEVO
-  // ...
+// Auto-detección de catalán (reutilizar constante CATALAN_LOCATIONS)
+function shouldIncludeCatalan(location: string): boolean;
+
+// Escape/parse CSV robusto
+function escapeCSV(value: string | null | undefined): string;
+function parseCSVLine(line: string): string[];
+
+// Exportar sitios
+const exportSitesCSV = () => {
+  const headers = ["nombre", "localidad", "sector", "descripcion", "catalan", 
+                   "generacion_automatica", "tema_personalizado", "url_blog", "url_instagram"];
+  // ...generar CSV con BOM para Excel
+};
+
+// Exportar artículos del mes
+const exportArticlesJSON = () => {
+  const monthArticles = articles.filter(a => a.month === selectedMonth && a.year === selectedYear);
+  // ...generar JSON
+};
+
+// Importar sitios
+const handleFileImport = (e) => {
+  // Parsear CSV
+  // Auto-detectar catalán
+  // Validar límite de sitios del plan
+  // Llamar callback de importación
 };
 ```
 
-### 2.2 Actualizar Hook `usePublishToWordPressSaas`
+#### 2.1 Hook para importar sitios masivamente
 
-Añadir `category_ids` y `tag_ids` al interface de input.
-
----
-
-## PARTE 3: Frase SEO con Enlaces al Blog y Redes
-
-### 3.1 Modificar `generate-article-saas`
-
-Añadir el SEO footer como en MKPro después de generar el contenido español:
+Añadir en `src/hooks/useSites.ts`:
 
 ```typescript
-// Guardar contenido español SIN SEO para traducir a catalán
-const spanishContentWithoutSeoLinks = spanishArticle?.content || '';
+export function useImportSites() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-// Añadir SEO links al contenido español
-if (spanishArticle?.content) {
-  const seoLinks: string[] = [];
-  
-  if (site.blog_url) {
-    seoLinks.push(`<a href="${site.blog_url}" target="_blank" rel="noopener">nuestro blog</a>`);
-  }
-  if (site.instagram_url) {
-    seoLinks.push(`<a href="${site.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
-  }
-  
-  if (seoLinks.length > 0) {
-    const linksText = seoLinks.join(' y ');
-    const closingParagraph = `<p><strong>¿Quieres más consejos?</strong> Visita ${linksText} para descubrir más contenido de ${site.name}.</p>`;
-    spanishArticle.content += closingParagraph;
-  }
+  return useMutation({
+    mutationFn: async (sites: SiteInput[]): Promise<Site[]> => {
+      if (!user?.id) throw new Error('No user logged in');
+      
+      const sitesToInsert = sites.map(site => ({
+        user_id: user.id,
+        name: site.name,
+        sector: site.sector ?? null,
+        description: site.description ?? null,
+        location: site.location ?? null,
+        geographic_scope: site.geographic_scope ?? 'local',
+        languages: site.languages ?? ['spanish'],
+        blog_url: site.blog_url ?? null,
+        instagram_url: site.instagram_url ?? null,
+        auto_generate: site.auto_generate ?? true,
+        custom_topic: site.custom_topic ?? null,
+        include_featured_image: site.include_featured_image ?? true,
+        publish_frequency: site.publish_frequency ?? 'monthly',
+      }));
+
+      const { data, error } = await supabase
+        .from('sites')
+        .insert(sitesToInsert)
+        .select();
+
+      if (error) throw error;
+      return data as Site[];
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['sites'] });
+      toast.success(`${data.length} sitios importados correctamente`);
+    },
+    onError: (error) => {
+      console.error('Error importing sites:', error);
+      toast.error('Error al importar sitios');
+    },
+  });
 }
 ```
 
-Y después de la traducción al catalán:
+#### 2.2 Integración en el Dashboard
 
-```typescript
-// Añadir SEO links al catalán DESPUÉS de traducir
-if (catalanArticle?.content) {
-  const seoLinksCa: string[] = [];
-  
-  if (site.blog_url) {
-    seoLinksCa.push(`<a href="${site.blog_url}" target="_blank" rel="noopener">el nostre blog</a>`);
-  }
-  if (site.instagram_url) {
-    seoLinksCa.push(`<a href="${site.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
-  }
-  
-  if (seoLinksCa.length > 0) {
-    const linksTextCa = seoLinksCa.join(' i ');
-    const closingParagraphCa = `<p><strong>Vols més consells?</strong> Visita ${linksTextCa} per descobrir més contingut de ${site.name}.</p>`;
-    catalanArticle.content += closingParagraphCa;
-  }
-}
-```
-
-**Importante**: La traducción al catalán se hace ANTES de añadir los enlaces SEO para evitar duplicar el footer en ambos idiomas de forma incorrecta.
+Añadir el componente `SiteImportExport` en `SaasDashboard.tsx` después de la lista de sitios, en una sección colapsable o siempre visible.
 
 ---
 
@@ -177,8 +244,7 @@ if (catalanArticle?.content) {
 
 | Archivo | Descripción |
 |---------|-------------|
-| `supabase/functions/sync-wordpress-taxonomies-saas/index.ts` | Edge function para sincronizar taxonomías |
-| `src/hooks/useWordPressTaxonomiesSaas.ts` | Hook para gestionar taxonomías SaaS |
+| `src/components/saas/SiteImportExport.tsx` | Componente import/export para sitios SaaS |
 
 ---
 
@@ -186,74 +252,83 @@ if (catalanArticle?.content) {
 
 | Archivo | Cambios |
 |---------|---------|
-| Base de datos | Crear tabla `wordpress_taxonomies_saas` con RLS |
-| `supabase/functions/generate-article-saas/index.ts` | Añadir SEO footer con enlaces a blog/redes |
-| `supabase/functions/publish-to-wordpress-saas/index.ts` | Añadir `category_ids` y `tag_ids` al post |
-| `src/hooks/useArticlesSaas.ts` | Añadir taxonomías al interface de publicación |
-| `src/components/saas/WordPressPublishDialogSaas.tsx` | UI para seleccionar categorías/tags + sincronizar |
-| `supabase/config.toml` | Registrar nueva edge function |
+| `src/hooks/useArticlesSaas.ts` | Añadir hook `useRegenerateImageSaas` |
+| `src/hooks/useSites.ts` | Añadir hook `useImportSites` |
+| `src/components/saas/ArticlePreviewDialog.tsx` | Añadir botón "Cambiar imagen" con props `siteSector` |
+| `src/components/saas/SiteArticles.tsx` | Pasar `siteSector` al preview |
+| `src/pages/SiteDetail.tsx` | Pasar sector al componente SiteArticles |
+| `src/pages/SaasDashboard.tsx` | Integrar `SiteImportExport` |
 
 ---
 
-## Flujo Completo
+## Flujo de Regeneración de Imagen
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    GENERACIÓN DE ARTÍCULO                       │
-├─────────────────────────────────────────────────────────────────┤
-│ 1. Generar artículo español                                     │
-│ 2. Guardar contenido SIN enlaces SEO                            │
-│ 3. Traducir a catalán (si aplica) desde contenido limpio        │
-│ 4. Añadir enlaces SEO al español                                │
-│ 5. Añadir enlaces SEO al catalán                                │
-│ 6. Guardar artículo con ambas versiones                         │
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│                    PUBLICACIÓN A WORDPRESS                      │
-├─────────────────────────────────────────────────────────────────┤
-│ 1. Usuario abre diálogo de publicación                          │
-│ 2. Se cargan taxonomías sincronizadas (si existen)              │
-│ 3. Usuario selecciona idiomas + categorías + tags               │
-│ 4. Se envía POST con:                                           │
-│    - lang: 'es' | 'ca' (para Polylang)                          │
-│    - categories: [1, 5, 12] (IDs de WP)                         │
-│    - tags: [3, 7] (IDs de WP)                                   │
-│ 5. WordPress asigna taxonomías y idioma al post                 │
-└─────────────────────────────────────────────────────────────────┘
+Usuario hace clic en "Cambiar"
+        │
+        ▼
+Se invoca hook useRegenerateImageSaas
+        │
+        ▼
+Edge function regenerate-image
+        │
+        ▼
+Busca nueva imagen en Unsplash
+(usando sector del sitio como contexto)
+        │
+        ▼
+Actualiza tabla articles con nueva URL
+        │
+        ▼
+Invalida query cache → UI actualizada
 ```
 
 ---
 
-## Ejemplo de Resultado
+## Flujo de Import/Export
 
-### Artículo Español (con SEO footer)
+```text
+┌─────────────────────────────────────────────┐
+│              EXPORTAR                        │
+├─────────────────────────────────────────────┤
+│ Sitios → CSV con campos completos           │
+│ Artículos → JSON del mes seleccionado       │
+└─────────────────────────────────────────────┘
 
-```html
-<h2>Estrategias de marketing digital</h2>
-<p>Contenido del artículo...</p>
-
-<h2>Cómo implementar estas técnicas</h2>
-<p>Más contenido...</p>
-
-<p><strong>¿Quieres más consejos?</strong> Visita 
-<a href="https://farmapro.es/blog" target="_blank">nuestro blog</a> y 
-<a href="https://instagram.com/farmapro" target="_blank">Instagram</a> 
-para descubrir más contenido de FarmaPro.</p>
+┌─────────────────────────────────────────────┐
+│              IMPORTAR                        │
+├─────────────────────────────────────────────┤
+│ 1. Usuario sube archivo CSV                 │
+│ 2. Parseo de líneas con soporte de comillas │
+│ 3. Auto-detección de catalán por ubicación  │
+│ 4. Validación: tema requerido si no auto    │
+│ 5. Verificar límite de sitios del plan      │
+│ 6. Inserción masiva en DB                   │
+│ 7. Toast con resumen (X importados, Y auto) │
+└─────────────────────────────────────────────┘
 ```
 
-### Artículo Catalán (con SEO footer)
+---
 
-```html
-<h2>Estratègies de màrqueting digital</h2>
-<p>Contingut de l'article...</p>
+## Ejemplo de CSV para Importar
 
-<h2>Com implementar aquestes tècniques</h2>
-<p>Més contingut...</p>
-
-<p><strong>Vols més consells?</strong> Visita 
-<a href="https://farmapro.es/blog" target="_blank">el nostre blog</a> i 
-<a href="https://instagram.com/farmapro" target="_blank">Instagram</a> 
-per descobrir més contingut de FarmaPro.</p>
+```csv
+nombre,localidad,sector,descripcion,catalan,generacion_automatica,tema_personalizado,url_blog,url_instagram
+"Restaurante La Plaza","Barcelona","Hostelería","Cocina mediterránea","sí","sí","","https://laplaza.es/blog",""
+"Clínica Dental Sonrisa","Sabadell","Salud","Odontología general","","sí","","","https://instagram.com/clinicasonrisa"
+"Taller Mecánico García","Madrid","Automoción","","no","no","Consejos de mantenimiento de coches","",""
 ```
 
+Notas:
+- Catalán vacío = auto-detectado (Sabadell → sí)
+- Si `generacion_automatica = no`, `tema_personalizado` es obligatorio
+- URLs opcionales
+
+---
+
+## Validaciones de Seguridad
+
+1. **Límite de sitios**: Antes de importar, verificar que `sitios_actuales + sitios_a_importar <= sites_limit`
+2. **Validación de campos**: nombre y localidad son obligatorios
+3. **Sanitización**: Escapar caracteres especiales en CSV
+4. **User ID**: Siempre asignar `user_id` del usuario autenticado en la inserción
