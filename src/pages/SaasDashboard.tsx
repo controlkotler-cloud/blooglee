@@ -23,7 +23,7 @@ export default function SaasDashboard() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { data: profile, isLoading: loadingProfile } = useProfile();
-  const { isMKProAdmin } = useIsMKProAdmin();
+  const { canAccessMKPro } = useIsMKProAdmin();
   const { data: sites = [], isLoading: loadingSites } = useSites();
   
   const currentMonth = new Date().getMonth() + 1;
@@ -93,7 +93,7 @@ export default function SaasDashboard() {
                     <HelpCircle className="w-4 h-4 mr-2" />
                     Ayuda
                   </DropdownMenuItem>
-                  {isMKProAdmin && (
+                  {canAccessMKPro && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => navigate('/mkpro')}>

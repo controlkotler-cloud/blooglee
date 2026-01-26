@@ -2,7 +2,7 @@ import { ReactNode, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useSites } from '@/hooks/useSites';
-import { useIsMKProAdmin } from '@/hooks/useProfile';
+import { useIsMKProAdmin, useIsAdmin } from '@/hooks/useProfile';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { session, loading } = useAuth();
   const { data: sites, isLoading: loadingSites } = useSites();
-  const { isMKProAdmin, isLoading: loadingRoles } = useIsMKProAdmin();
+  const { isMKProAdmin, isAdmin, isLoading: loadingRoles } = useIsMKProAdmin();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -24,7 +24,13 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     // Wait for all data to load
     if (loading || loadingSites || loadingRoles) return;
 
-    // MKPro admins should go to /mkpro, not onboarding
+    // Admins have free access to all protected routes
+    if (isAdmin) {
+      // No forced redirects - admins can go anywhere
+      return;
+    }
+
+    // MKPro-only admins (not full admins) go to /mkpro
     if (isMKProAdmin) {
       if (location.pathname !== '/mkpro') {
         navigate('/mkpro', { replace: true });
@@ -36,7 +42,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     if (sites?.length === 0 && location.pathname !== '/onboarding') {
       navigate('/onboarding', { replace: true });
     }
-  }, [session, loading, loadingSites, loadingRoles, sites, isMKProAdmin, navigate, location.pathname]);
+  }, [session, loading, loadingSites, loadingRoles, sites, isMKProAdmin, isAdmin, navigate, location.pathname]);
 
   if (loading || loadingSites || loadingRoles) {
     return (

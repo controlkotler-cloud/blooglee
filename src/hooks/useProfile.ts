@@ -68,10 +68,24 @@ export function useUserRoles() {
   });
 }
 
+export function useIsAdmin() {
+  const { data: roles = [], isLoading } = useUserRoles();
+  
+  const isAdmin = roles.some(r => r.role === 'admin');
+  
+  return { isAdmin, isLoading };
+}
+
 export function useIsMKProAdmin() {
   const { data: roles = [], isLoading } = useUserRoles();
   
-  const isMKProAdmin = roles.some(r => r.role === 'mkpro_admin' || r.role === 'admin');
+  const isMKProAdmin = roles.some(r => r.role === 'mkpro_admin');
+  const isAdmin = roles.some(r => r.role === 'admin');
   
-  return { isMKProAdmin, isLoading };
+  return { 
+    isMKProAdmin, 
+    isAdmin,
+    canAccessMKPro: isMKProAdmin || isAdmin,
+    isLoading 
+  };
 }
