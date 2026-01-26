@@ -353,6 +353,7 @@ export type Database = {
           blog_url: string | null
           created_at: string
           custom_topic: string | null
+          description: string | null
           geographic_scope: string
           id: string
           include_featured_image: boolean
@@ -370,6 +371,7 @@ export type Database = {
           blog_url?: string | null
           created_at?: string
           custom_topic?: string | null
+          description?: string | null
           geographic_scope?: string
           id?: string
           include_featured_image?: boolean
@@ -387,6 +389,7 @@ export type Database = {
           blog_url?: string | null
           created_at?: string
           custom_topic?: string | null
+          description?: string | null
           geographic_scope?: string
           id?: string
           include_featured_image?: boolean

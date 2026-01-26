@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -49,6 +50,7 @@ export default function Onboarding() {
   const [name, setName] = useState('');
   const [sector, setSector] = useState('');
   const [customSector, setCustomSector] = useState('');
+  const [description, setDescription] = useState('');
   
   // Step 2: Location
   const [location, setLocation] = useState('');
@@ -96,6 +98,7 @@ export default function Onboarding() {
       const site = await createSite.mutateAsync({
         name: name.trim(),
         sector: finalSector,
+        description: description.trim() || null,
         location: location.trim(),
         geographic_scope: geographicScope as 'local' | 'regional' | 'national' | 'international',
         languages,
@@ -167,6 +170,19 @@ export default function Onboarding() {
                   />
                 </div>
               )}
+              <div className="space-y-2">
+                <Label htmlFor="description">Breve descripción de tu negocio (opcional)</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Ej: Plataforma digital de referencia para farmacias en España..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="min-h-[80px]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Una descripción ayuda a generar artículos más relevantes para tu negocio específico.
+                </p>
+              </div>
             </div>
           )}
 

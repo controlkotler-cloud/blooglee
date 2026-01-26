@@ -11,6 +11,7 @@ interface SiteData {
   name: string;
   location?: string | null;
   sector?: string | null;
+  description?: string | null;
   languages?: string[];
   blog_url?: string | null;
   instagram_url?: string | null;
@@ -365,11 +366,12 @@ serve(async (req) => {
 
 EMPRESA: ${site.name}
 SECTOR: ${site.sector || "Servicios profesionales"}
+${site.description ? `DESCRIPCIÓN: ${site.description}` : ''}
 ÁMBITO: ${site.geographic_scope === "national" ? "Nacional (España)" : site.location || "General"}
 MES: ${monthNameEs} ${year}${usedTopicsSection}
 
 Genera UN tema de blog que:
-1. Sea relevante para el sector ${site.sector || "profesional"}
+1. Sea relevante para el sector ${site.sector || "profesional"}${site.description ? ` y especialmente para una empresa que es: ${site.description}` : ''}
 2. Tenga potencial SEO
 3. Considere tendencias de ${monthNameEs} ${year}
 4. NO mencione el nombre de la empresa
@@ -406,14 +408,15 @@ Responde SOLO con el tema (máx 80 caracteres), sin explicaciones.`;
       }
     }
 
-    // Build system prompt
+    // Build system prompt with description
     const systemPrompt = `Eres un redactor experto en marketing de contenidos y SEO para el sector ${site.sector || "servicios profesionales"}.
 
 EMPRESA: ${site.name}
 SECTOR: ${site.sector || "Servicios profesionales"}
+${site.description ? `DESCRIPCIÓN: ${site.description}` : ''}
 ÁMBITO: ${site.geographic_scope === "national" ? "Nacional" : site.location || "General"}
 
-TU MISIÓN: Generar un artículo de ~2000 palabras optimizado para SEO.
+TU MISIÓN: Generar un artículo de ~2000 palabras optimizado para SEO${site.description ? `, teniendo en cuenta que la empresa es: ${site.description}` : ''}.
 
 REGLAS:
 ${geoContext}
@@ -573,86 +576,146 @@ RESPONDE EN JSON:
       }
     }
 
-    // Generate image
+    // Generate image with AI
     let imageResult = null;
     let pexelsQuery = null;
     
     const skipImage = site.include_featured_image === false;
     
-    if (!skipImage && UNSPLASH_ACCESS_KEY) {
-      console.log("Generating image...");
+    if (!skipImage) {
+      console.log("Generating image with AI...");
       
-      const imageQueryPrompt = `Genera un query de búsqueda para Unsplash.
+      // Create Supabase admin client for storage operations
+      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+      
+      const imagePrompt = `Generate a professional blog header image for an article about: "${topic}"
 
-SECTOR: ${site.sector || "Servicios profesionales"}
-TÍTULO: ${spanishArticle.title}
+STYLE:
+- Minimalist, clean, modern aesthetic
+- Soft neutral colors: beige, cream, light brown, white, light gray
+- Natural lighting, bright and airy interior setting
+- NO text, NO logos, NO faces, NO hands
+- NO medical items (pills, bottles, syringes), NO pharmacy elements
+- NO branded products or packaging
 
-REGLAS:
-- Query en INGLÉS, máximo 5 palabras
-- Profesional y positivo
-- Evita: ${sectorContext.prohibitedTerms.join(", ")}
+COMPOSITION:
+- Professional office/workspace or lifestyle setting
+- Subtle objects that evoke the theme abstractly (books, glasses, laptop, coffee cup, plants, documents, notebooks)
+- Elegant and sophisticated, editorial quality
+- Clean desk or table arrangement
+- Soft shadows, depth of field blur in background
 
-Responde SOLO con el query.`;
+SECTOR CONTEXT: ${site.sector || "professional services"}
+${site.description ? `BUSINESS: ${site.description}` : ''}
+
+MOOD: Professional, trustworthy, calm, modern, aspirational
+
+OUTPUT: A single high-quality photograph, 16:9 aspect ratio, suitable for blog header.`;
 
       try {
-        const queryResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const imageResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [{ role: "user", content: imageQueryPrompt }],
-            temperature: 0.5,
-            max_tokens: 50,
+            model: "google/gemini-2.5-flash-image",
+            messages: [{ role: "user", content: imagePrompt }],
+            modalities: ["image", "text"]
           }),
         });
 
-        if (queryResponse.ok) {
-          const queryData = await queryResponse.json();
-          pexelsQuery = queryData.choices?.[0]?.message?.content?.trim().toLowerCase().replace(/['"]/g, "");
-          console.log("AI generated image query:", pexelsQuery);
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          
+          if (base64Image) {
+            console.log("AI image generated successfully");
+            
+            // Convert base64 to buffer and upload to storage
+            const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+            const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+            
+            // Generate unique filename
+            const timestamp = Date.now();
+            const fileName = `${siteId}/${timestamp}-${topic.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.png`;
+            
+            const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+              .from('article-images')
+              .upload(fileName, imageBuffer, { 
+                contentType: 'image/png',
+                upsert: true 
+              });
+            
+            if (uploadError) {
+              console.error("Storage upload error:", uploadError);
+            } else {
+              // Get public URL
+              const { data: urlData } = supabaseAdmin.storage
+                .from('article-images')
+                .getPublicUrl(fileName);
+              
+              imageResult = {
+                url: urlData.publicUrl,
+                photographer: "AI Generated",
+                photographer_url: null,
+              };
+              pexelsQuery = "AI Generated";
+              console.log("Image uploaded to storage:", urlData.publicUrl);
+            }
+          }
+        } else {
+          const errorText = await imageResponse.text();
+          console.error("AI image generation failed:", imageResponse.status, errorText);
         }
       } catch (error) {
-        console.error("Error generating image query:", error);
-      }
-      
-      if (!pexelsQuery) {
-        pexelsQuery = sectorContext.fallbackQuery;
+        console.error("Error generating AI image:", error);
       }
 
-      // Search Unsplash
-      try {
-        const searchUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(pexelsQuery)}&per_page=20&orientation=landscape`;
-        const unsplashResponse = await fetch(searchUrl, {
-          headers: { "Authorization": `Client-ID ${UNSPLASH_ACCESS_KEY}` },
-        });
-
-        if (unsplashResponse.ok) {
-          const unsplashData = await unsplashResponse.json();
-          const photos = unsplashData.results || [];
+      // Fallback to Unsplash if AI generation failed
+      if (!imageResult) {
+        console.log("Falling back to Unsplash...");
+        const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
+        
+        if (UNSPLASH_ACCESS_KEY) {
+          const fallbackQuery = sectorContext.fallbackQuery;
+          pexelsQuery = fallbackQuery;
           
-          if (photos.length > 0) {
-            const randomIndex = Math.floor(Math.random() * Math.min(photos.length, 10));
-            const photo = photos[randomIndex];
-            imageResult = {
-              url: photo.urls.regular,
-              photographer: photo.user.name,
-              photographer_url: photo.user.links.html,
-            };
-            console.log("Image selected from Unsplash");
+          try {
+            const searchUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(fallbackQuery)}&per_page=20&orientation=landscape`;
+            const unsplashResponse = await fetch(searchUrl, {
+              headers: { "Authorization": `Client-ID ${UNSPLASH_ACCESS_KEY}` },
+            });
+
+            if (unsplashResponse.ok) {
+              const unsplashData = await unsplashResponse.json();
+              const photos = unsplashData.results || [];
+              
+              if (photos.length > 0) {
+                const randomIndex = Math.floor(Math.random() * Math.min(photos.length, 10));
+                const photo = photos[randomIndex];
+                imageResult = {
+                  url: photo.urls.regular,
+                  photographer: photo.user.name,
+                  photographer_url: photo.user.links.html,
+                };
+                console.log("Image selected from Unsplash fallback");
+              }
+            }
+          } catch (error) {
+            console.error("Unsplash fallback error:", error);
           }
         }
-      } catch (error) {
-        console.error("Unsplash search error:", error);
-      }
 
-      // Fallback image
-      if (!imageResult) {
-        const randomIndex = Math.floor(Math.random() * FALLBACK_IMAGES.length);
-        imageResult = FALLBACK_IMAGES[randomIndex];
-        console.log("Using fallback image");
+        // Final fallback to static images
+        if (!imageResult) {
+          const randomIndex = Math.floor(Math.random() * FALLBACK_IMAGES.length);
+          imageResult = FALLBACK_IMAGES[randomIndex];
+          pexelsQuery = "fallback";
+          console.log("Using static fallback image");
+        }
       }
     }
 
