@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,7 +12,7 @@ import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, A
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useIsMKProAdmin } from '@/hooks/useProfile';
 import { useSites } from '@/hooks/useSites';
-import { useAllArticlesSaas } from '@/hooks/useArticlesSaas';
+import { useAllArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 import { SiteCard } from '@/components/saas/SiteCard';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { PlanBadge, type PlanType } from '@/components/saas/PlanBadge';
@@ -30,7 +29,7 @@ export default function SaasDashboard() {
   const currentYear = new Date().getFullYear();
   const { data: articles = [] } = useAllArticlesSaas(currentMonth, currentYear);
 
-  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const generateMutation = useGenerateArticleSaas();
 
   const handleSignOut = async () => {
     await signOut();
@@ -44,11 +43,8 @@ export default function SaasDashboard() {
     return articles.filter(a => a.site_id === siteId).length;
   };
 
-  const handleGenerateArticle = async (siteId: string) => {
-    setGeneratingId(siteId);
-    // TODO: Implement generate-article-saas edge function
-    toast.info('Generación de artículos SaaS próximamente');
-    setTimeout(() => setGeneratingId(null), 1000);
+  const handleGenerateArticle = (siteId: string) => {
+    generateMutation.mutate({ siteId });
   };
 
   const isLoading = loadingProfile || loadingSites;
@@ -164,7 +160,7 @@ export default function SaasDashboard() {
                 onConfigureWordPress={() => navigate(`/site/${site.id}?tab=wordpress`)}
                 onEdit={() => navigate(`/site/${site.id}?tab=settings`)}
                 onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
-                isGenerating={generatingId === site.id}
+                isGenerating={generateMutation.isPending && generateMutation.variables?.siteId === site.id}
               />
             ))}
           </div>

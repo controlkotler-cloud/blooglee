@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.generate-article-empresa]
 verify_jwt = false
 
+[functions.generate-article-saas]
+verify_jwt = false
+
 [functions.regenerate-image]
 verify_jwt = false
 

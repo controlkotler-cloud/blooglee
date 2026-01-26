@@ -13,19 +13,17 @@ import {
 } from '@/components/ui/breadcrumb';
 import { ArrowLeft, Globe, MapPin, Loader2, Sparkles, Link2 } from 'lucide-react';
 import { useSites } from '@/hooks/useSites';
-import { useArticlesSaas } from '@/hooks/useArticlesSaas';
+import { useArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 import { useWordPressConfig } from '@/hooks/useWordPressConfigSaas';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { SiteArticles } from '@/components/saas/SiteArticles';
 import { SiteSettings } from '@/components/saas/SiteSettings';
 import { WordPressConfigForm } from '@/components/saas/WordPressConfigForm';
-import { toast } from 'sonner';
 
 export default function SiteDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('articles');
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const { data: sites = [], isLoading: loadingSites } = useSites();
   const site = sites.find((s) => s.id === id);
@@ -34,13 +32,15 @@ export default function SiteDetail() {
   const currentYear = new Date().getFullYear();
   const { data: articles = [] } = useArticlesSaas(id, currentMonth, currentYear);
   const { data: wpConfig } = useWordPressConfig(id);
+  
+  const generateMutation = useGenerateArticleSaas();
 
-  const handleGenerateArticle = async () => {
-    setIsGenerating(true);
-    // TODO: Implement generate-article-saas edge function
-    toast.info('Generación de artículos SaaS próximamente');
-    setTimeout(() => setIsGenerating(false), 1000);
+  const handleGenerateArticle = () => {
+    if (!site) return;
+    generateMutation.mutate({ siteId: site.id });
   };
+
+  const isGenerating = generateMutation.isPending;
 
   if (loadingSites) {
     return (
