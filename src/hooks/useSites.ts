@@ -8,6 +8,7 @@ export interface Site {
   user_id: string;
   name: string;
   sector: string | null;
+  description: string | null;
   location: string | null;
   geographic_scope: 'local' | 'regional' | 'national' | 'international';
   languages: string[];
@@ -24,6 +25,7 @@ export interface Site {
 export interface SiteInput {
   name: string;
   sector?: string | null;
+  description?: string | null;
   location?: string | null;
   geographic_scope?: 'local' | 'regional' | 'national' | 'international';
   languages?: string[];
@@ -74,6 +76,7 @@ export function useCreateSite() {
           user_id: user.id,
           name: site.name,
           sector: site.sector ?? null,
+          description: site.description ?? null,
           location: site.location ?? null,
           geographic_scope: site.geographic_scope ?? 'local',
           languages: site.languages ?? ['spanish'],

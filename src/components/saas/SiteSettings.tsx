@@ -33,6 +33,7 @@ import { useUpdateSite, useDeleteSite, type Site } from '@/hooks/useSites';
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio').max(100),
   sector: z.string().optional(),
+  description: z.string().optional(),
   location: z.string().optional(),
   geographic_scope: z.enum(['local', 'regional', 'national', 'international']),
   languages: z.array(z.string()).min(1, 'Selecciona al menos un idioma'),
@@ -66,6 +67,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
     defaultValues: {
       name: site.name,
       sector: site.sector || '',
+      description: site.description || '',
       location: site.location || '',
       geographic_scope: site.geographic_scope,
       languages: site.languages,
@@ -87,6 +89,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       id: site.id,
       ...data,
       sector: data.sector || null,
+      description: data.description || null,
       location: data.location || null,
       custom_topic: data.custom_topic || null,
       blog_url: data.blog_url || null,
@@ -145,6 +148,19 @@ export function SiteSettings({ site }: SiteSettingsProps) {
                   {...register('location')}
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Descripción del negocio</Label>
+              <Textarea
+                id="description"
+                placeholder="Ej: Ecosistema digital de referencia para farmacias en España..."
+                {...register('description')}
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">
+                Una descripción ayuda a generar artículos más relevantes y enfocados.
+              </p>
             </div>
 
             <div className="space-y-2">
