@@ -368,14 +368,16 @@ EMPRESA: ${site.name}
 SECTOR: ${site.sector || "Servicios profesionales"}
 ${site.description ? `DESCRIPCIÓN: ${site.description}` : ''}
 ÁMBITO: ${site.geographic_scope === "national" ? "Nacional (España)" : site.location || "General"}
-MES: ${monthNameEs} ${year}${usedTopicsSection}
+CONTEXTO TEMPORAL: Estamos en ${monthNameEs} ${year}, considera estacionalidad si aplica.${usedTopicsSection}
 
 Genera UN tema de blog que:
 1. Sea relevante para el sector ${site.sector || "profesional"}${site.description ? ` y especialmente para una empresa que es: ${site.description}` : ''}
 2. Tenga potencial SEO
-3. Considere tendencias de ${monthNameEs} ${year}
+3. Considere tendencias estacionales si aplica
 4. NO mencione el nombre de la empresa
 5. Sea DIFERENTE a los temas ya usados
+6. NO incluyas el año en el tema (ej: "2026", "este año")
+7. Usa capitalización española (solo inicial mayúscula, no Title Case)
 
 Responde SOLO con el tema (máx 80 caracteres), sin explicaciones.`;
 
@@ -404,7 +406,7 @@ Responde SOLO con el tema (máx 80 caracteres), sin explicaciones.`;
       }
       
       if (!topic) {
-        topic = `Novedades del sector ${site.sector || "profesional"} para ${monthNameEs} ${year}`;
+        topic = `Novedades y tendencias en ${site.sector || "el sector"}`;
       }
     }
 
@@ -422,16 +424,22 @@ REGLAS:
 ${geoContext}
 
 FORMATO:
-- TÍTULO H1: Máximo 60 caracteres. SIN nombre de empresa.
+- TÍTULO H1: Máximo 60 caracteres. SIN nombre de empresa. SIN año (ej: "2026").
 - META DESCRIPTION: 150-160 caracteres con CTA.
 - SLUG: URL amigable en minúsculas con guiones.
 - CONTENIDO: ~2000 palabras con H2 y párrafos.
 
-ORTOGRAFÍA:
-- Usa mayúscula solo inicial en títulos (español, no Title Case inglés)
+⚠️ CAPITALIZACIÓN ESPAÑOLA OBLIGATORIA:
+- SOLO la primera letra del título/subtítulo en mayúscula (+ nombres propios)
+- INCORRECTO: "Claves Del Éxito Digital Para Farmacias"
+- CORRECTO: "Claves del éxito digital para farmacias"
+- Los subtítulos H2 siguen la misma regla
+- NO uses Title Case inglés bajo ninguna circunstancia
+
+LISTAS:
 - Si enumeras con dos puntos (:), usa lista HTML (<ul><li>)
 
-FECHA: ${dateContext}
+CONTEXTO TEMPORAL: Hoy es ${dateContext}. Usa esta información para estacionalidad, pero NO incluyas el año en el título ni subtítulos.
 
 RESPONDE EN JSON VÁLIDO.`;
 
@@ -589,29 +597,20 @@ RESPONDE EN JSON:
       const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
       const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
       
-      const imagePrompt = `Generate a professional blog header image for an article about: "${topic}"
+      const imagePrompt = `Generate a professional blog header image.
 
-STYLE:
-- Minimalist, clean, modern aesthetic
-- Soft neutral colors: beige, cream, light brown, white, light gray
-- Natural lighting, bright and airy interior setting
-- NO text, NO logos, NO faces, NO hands
-- NO medical items (pills, bottles, syringes), NO pharmacy elements
-- NO branded products or packaging
+TOPIC: "${topic}"
+SECTOR: ${site.sector || "professional services"}
+${site.description ? `CONTEXT: ${site.description}` : ''}
 
-COMPOSITION:
-- Professional office/workspace or lifestyle setting
-- Subtle objects that evoke the theme abstractly (books, glasses, laptop, coffee cup, plants, documents, notebooks)
-- Elegant and sophisticated, editorial quality
-- Clean desk or table arrangement
-- Soft shadows, depth of field blur in background
+REQUIREMENTS:
+- Clean, professional photograph
+- Visually related to the topic and sector
+- NO text, NO logos, NO faces
+- Suitable for blog header, 16:9 ratio
+- High quality, editorial style
 
-SECTOR CONTEXT: ${site.sector || "professional services"}
-${site.description ? `BUSINESS: ${site.description}` : ''}
-
-MOOD: Professional, trustworthy, calm, modern, aspirational
-
-OUTPUT: A single high-quality photograph, 16:9 aspect ratio, suitable for blog header.`;
+Generate an image that a ${site.sector || "professional"} business would use for their blog.`;
 
       try {
         const imageResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
