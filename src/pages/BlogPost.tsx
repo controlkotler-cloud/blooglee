@@ -1,4 +1,5 @@
 import { useParams, Link, Navigate } from 'react-router-dom';
+import { useMemo } from 'react';
 import { PublicLayout } from '@/components/marketing/PublicLayout';
 import { getBlogPost, getRelatedPosts } from '@/data/blogPosts';
 import { BlogCard } from '@/components/marketing/BlogCard';
@@ -7,10 +8,70 @@ import { Calendar, Clock, ArrowLeft, ArrowRight, Share2, Twitter, Linkedin, Face
 import { toast } from 'sonner';
 import { SEOHead, BlogPostingSchema, BreadcrumbSchema } from '@/components/seo';
 
+// Utility to generate slug from heading text
+const slugify = (text: string): string => {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+};
+
+// Extract headings from markdown content
+const extractHeadings = (content: string): { id: string; text: string; level: number }[] => {
+  const headings: { id: string; text: string; level: number }[] = [];
+  const lines = content.split('\n');
+
+  lines.forEach((line) => {
+    const h2Match = line.match(/^## (.+)$/);
+    const h3Match = line.match(/^### (.+)$/);
+
+    if (h2Match) {
+      const text = h2Match[1].trim();
+      headings.push({ id: slugify(text), text, level: 2 });
+    } else if (h3Match) {
+      const text = h3Match[1].trim();
+      headings.push({ id: slugify(text), text, level: 3 });
+    }
+  });
+
+  return headings;
+};
+
+// Parse markdown content with IDs on headings
+const parseContent = (content: string): string => {
+  return content
+    .replace(/^## (.+)$/gm, (_, title) => {
+      const id = slugify(title);
+      return `<h2 id="${id}" class="scroll-mt-24">${title}</h2>`;
+    })
+    .replace(/^### (.+)$/gm, (_, title) => {
+      const id = slugify(title);
+      return `<h3 id="${id}" class="scroll-mt-24">${title}</h3>`;
+    })
+    .replace(/\n/g, '<br/>')
+    .replace(/<h2/g, '</p><h2')
+    .replace(/<h3/g, '</p><h3')
+    .replace(/- \*\*/g, '<li><strong>')
+    .replace(/\*\*:/g, '</strong>:')
+    .replace(/\*\*/g, '</strong>');
+};
+
 const BlogPost = () => {
   const { slug } = useParams<{ slug: string }>();
   const post = slug ? getBlogPost(slug) : undefined;
   const relatedPosts = slug ? getRelatedPosts(slug, 2) : [];
+
+  // Extract headings for ToC
+  const headings = useMemo(() => {
+    return post ? extractHeadings(post.content) : [];
+  }, [post]);
+
+  // Parse content with IDs
+  const parsedContent = useMemo(() => {
+    return post ? parseContent(post.content) : '';
+  }, [post]);
 
   if (!post) {
     return <Navigate to="/blog" replace />;
@@ -83,7 +144,8 @@ const BlogPost = () => {
                 <div className="flex items-center gap-3">
                   <img 
                     src={post.author.avatar} 
-                    alt={post.author.name}
+                    alt={`Foto de ${post.author.name}`}
+                    loading="lazy"
                     className="w-10 h-10 rounded-full object-cover"
                   />
                   <div>
@@ -108,7 +170,8 @@ const BlogPost = () => {
             <div className="relative aspect-video rounded-2xl overflow-hidden mb-8">
               <img 
                 src={post.image} 
-                alt={post.title}
+                alt={`Imagen destacada: ${post.title}`}
+                loading="lazy"
                 className="w-full h-full object-cover"
               />
             </div>
@@ -117,7 +180,7 @@ const BlogPost = () => {
             <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6 sm:p-8 lg:p-10 mb-8">
               <div 
                 className="prose prose-violet max-w-none prose-headings:font-display prose-headings:font-bold prose-p:text-foreground/70 prose-li:text-foreground/70 prose-a:text-violet-600"
-                dangerouslySetInnerHTML={{ __html: post.content.replace(/\n/g, '<br/>').replace(/## /g, '<h2>').replace(/### /g, '<h3>').replace(/<h2>/g, '</p><h2>').replace(/<h3>/g, '</p><h3>').replace(/- \*\*/g, '<li><strong>').replace(/\*\*:/g, '</strong>:').replace(/\*\*/g, '</strong>') }}
+                dangerouslySetInnerHTML={{ __html: parsedContent }}
               />
             </div>
 
@@ -207,28 +270,30 @@ const BlogPost = () => {
             )}
           </div>
 
-          {/* Sidebar - Table of Contents */}
+          {/* Sidebar - Dynamic Table of Contents */}
           <aside className="hidden lg:block lg:col-span-1">
             <div className="sticky top-28 space-y-6">
-              <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6">
-                <h3 className="font-display text-sm font-bold mb-4 text-foreground/60 uppercase tracking-wider">
-                  En este artículo
-                </h3>
-                <nav className="space-y-2">
-                  <a href="#" className="block text-sm text-foreground/70 hover:text-foreground transition-colors py-1">
-                    Introducción
-                  </a>
-                  <a href="#" className="block text-sm text-foreground/70 hover:text-foreground transition-colors py-1">
-                    Beneficios clave
-                  </a>
-                  <a href="#" className="block text-sm text-foreground/70 hover:text-foreground transition-colors py-1">
-                    Mejores prácticas
-                  </a>
-                  <a href="#" className="block text-sm text-foreground/70 hover:text-foreground transition-colors py-1">
-                    Conclusión
-                  </a>
-                </nav>
-              </div>
+              {/* Table of Contents - Dynamic */}
+              {headings.length > 0 && (
+                <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6">
+                  <h3 className="font-display text-sm font-bold mb-4 text-foreground/60 uppercase tracking-wider">
+                    En este artículo
+                  </h3>
+                  <nav className="space-y-2">
+                    {headings.map((heading, index) => (
+                      <a
+                        key={index}
+                        href={`#${heading.id}`}
+                        className={`block text-sm text-foreground/70 hover:text-foreground transition-colors py-1 ${
+                          heading.level === 3 ? 'pl-4' : ''
+                        }`}
+                      >
+                        {heading.text}
+                      </a>
+                    ))}
+                  </nav>
+                </div>
+              )}
 
               {/* Author Card */}
               <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6">
@@ -238,7 +303,8 @@ const BlogPost = () => {
                 <div className="flex items-center gap-3 mb-3">
                   <img 
                     src={post.author.avatar} 
-                    alt={post.author.name}
+                    alt={`Foto de ${post.author.name}`}
+                    loading="lazy"
                     className="w-12 h-12 rounded-full object-cover"
                   />
                   <div>
