@@ -8,11 +8,6 @@ const mockArticles = [
   { title: "Els millors tractaments facials", status: "draft", lang: "CA" },
 ];
 
-const features = [
-  { icon: Sparkles, text: "IA que escribe por ti", color: "text-aurora-violet" },
-  { icon: Globe, text: "Publica en WordPress", color: "text-aurora-pink" },
-  { icon: Zap, text: "SEO optimizado", color: "text-aurora-cyan" },
-];
 
 export function ProductMockup() {
   const [activeArticle, setActiveArticle] = useState(0);
@@ -156,20 +151,6 @@ export function ProductMockup() {
 
       {/* Shadow below */}
       <div className="mockup-shadow" />
-
-      {/* Feature pills floating */}
-      <div className="absolute -left-4 top-1/4 hidden lg:block">
-        {features.map((feature, i) => (
-          <div 
-            key={i}
-            className="glass-card px-4 py-2.5 rounded-full flex items-center gap-2 mb-3 animate-slide-in-left"
-            style={{ animationDelay: `${i * 150}ms` }}
-          >
-            <feature.icon className={`w-4 h-4 ${feature.color}`} />
-            <span className="text-sm font-medium">{feature.text}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

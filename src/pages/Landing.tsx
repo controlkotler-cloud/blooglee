@@ -482,11 +482,6 @@ const Landing = () => {
             <div className="absolute bottom-0 right-0 w-48 sm:w-72 lg:w-96 h-48 sm:h-72 lg:h-96 bg-orange-300/20 rounded-full blur-2xl sm:blur-3xl" />
             
             <div className="relative z-10 text-center">
-              {/* Floating logo - Smaller on mobile */}
-              <div className="inline-flex items-center justify-center mb-6 sm:mb-8 lg:mb-10 animate-float">
-                <BloogleeLogo size="xl" showText={false} className="drop-shadow-2xl" />
-              </div>
-              
               <h2 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-4 sm:mb-6">
                 ¿Listo para automatizar
                 <br className="hidden sm:block" />
