@@ -35,6 +35,14 @@ export const PublicNavbar = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Desktop/Tablet - Login link */}
+            <Link 
+              to="/auth" 
+              className="hidden md:block text-sm font-medium text-foreground/70 hover:text-foreground transition-colors"
+            >
+              Iniciar sesión
+            </Link>
+            
             {/* Desktop/Tablet CTA - hidden on mobile */}
             <Link 
               to="/auth" 
@@ -74,8 +82,16 @@ export const PublicNavbar = () => {
               ))}
               {/* Separator */}
               <div className="border-t border-border/50 my-1" />
-              {/* CTA button in mobile menu */}
+              {/* Login link in mobile menu */}
               <Link 
+                to="/auth"
+                className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors py-2 px-3 rounded-xl hover:bg-muted/50 text-center"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Iniciar sesión
+              </Link>
+              {/* CTA button in mobile menu */}
+              <Link
                 to="/auth" 
                 className="relative group mt-1 py-3 rounded-xl font-semibold text-white text-sm text-center overflow-hidden"
                 onClick={() => setMobileMenuOpen(false)}
