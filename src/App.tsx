@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AuthProvider } from "@/contexts/AuthContext";
 import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
 import SaasDashboard from "./pages/SaasDashboard";
@@ -27,9 +28,10 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
       <BrowserRouter>
         <Routes>
           {/* Public routes */}
@@ -105,7 +107,8 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
-    </TooltipProvider>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
