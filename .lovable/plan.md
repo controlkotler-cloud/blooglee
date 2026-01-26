@@ -1,158 +1,188 @@
 
 
-## Plan: Corregir Prompt de Imágenes, Mayúsculas y Año en Títulos
+## Plan: Implementar Publicación a WordPress para Sitios SaaS
 
-### Resumen de Problemas Identificados
+### Problema Identificado
 
-| Problema | Causa | Líneas |
-|----------|-------|--------|
-| Imágenes idénticas | Prompt muy específico (beige, cream, workspace) | 592-614 |
-| Title Case inglés | Instrucción débil que la IA ignora | 431-432 |
-| Año 2026 en títulos | Fecha en prompt interpretada como parte del título | 371, 407, 434 |
+El botón "Publicar" en los artículos de SaaS muestra "Publicación en WordPress próximamente" (línea 68-71 de `SiteArticles.tsx`) porque:
 
----
-
-### Solución 1: Prompt de Imagen Dinámico por Sector
-
-**Problema actual:**
-```typescript
-const imagePrompt = `Generate a professional blog header image...
-STYLE:
-- Soft neutral colors: beige, cream, light brown, white...
-- Professional office/workspace or lifestyle setting...`;
-```
-
-**Solución - Prompt simple y adaptativo:**
-```typescript
-const imagePrompt = `Generate a professional blog header image.
-
-TOPIC: "${topic}"
-SECTOR: ${site.sector || "professional services"}
-${site.description ? `CONTEXT: ${site.description}` : ''}
-
-REQUIREMENTS:
-- Clean, professional photograph
-- Visually related to the topic and sector
-- NO text, NO logos, NO faces
-- Suitable for blog header, 16:9 ratio
-- High quality, editorial style
-
-Generate an image that a ${site.sector || "professional"} business would use for their blog.`;
-```
-
-**Beneficio:** La IA decidirá colores, composición y estilo según el sector automáticamente.
+1. **El edge function `publish-to-wordpress`** solo busca credenciales en `wordpress_sites` (MKPro) con `farmacia_id` o `empresa_id`
+2. **Los sitios SaaS** usan la tabla `wordpress_configs` con `site_id`
+3. **No existe** diálogo de publicación ni hook para invocar la función
 
 ---
 
-### Solución 2: Forzar Capitalización Española
+### Solución
 
-**Problema actual (líneas 431-432):**
-```typescript
-ORTOGRAFÍA:
-- Usa mayúscula solo inicial en títulos (español, no Title Case inglés)
-```
-
-La instrucción es ignorada porque está entre otras reglas.
-
-**Solución - Instrucción enfática y separada:**
-```typescript
-⚠️ CAPITALIZACIÓN ESPAÑOLA OBLIGATORIA:
-- SOLO la primera letra del título en mayúscula (+ nombres propios)
-- INCORRECTO: "Claves Del Éxito Digital Para Farmacias"
-- CORRECTO: "Claves del éxito digital para farmacias"
-- Los subtítulos H2 siguen la misma regla
-- NO uses Title Case inglés bajo ninguna circunstancia
-```
-
-Además, añadir instrucción en el prompt de generación de tema:
-```typescript
-6. Usa capitalización española (solo inicial mayúscula, no Title Case)
-```
+Crear un nuevo edge function `publish-to-wordpress-saas` siguiendo las reglas de separación MKPro/SaaS y un componente de diálogo de publicación.
 
 ---
 
-### Solución 3: Eliminar Año de los Títulos
+### Archivos a Crear
 
-**Problema actual:**
-La fecha `${monthNameEs} ${year}` aparece en múltiples puntos del prompt, y la IA la interpreta como parte obligatoria del título.
+#### 1. Edge Function: `supabase/functions/publish-to-wordpress-saas/index.ts`
 
-**Cambios:**
+Funcionalidad:
+- Recibir `site_id` y validar que pertenece al usuario autenticado
+- Buscar credenciales en `wordpress_configs` (tabla SaaS)
+- Subir imagen destacada si existe
+- Publicar artículo vía WordPress REST API
+- Soportar borrador, publicación inmediata y programada
 
-1. **Prompt de generación de tema (línea 371):**
 ```typescript
-// ANTES
-MES: ${monthNameEs} ${year}
-
-// DESPUÉS
-CONTEXTO TEMPORAL: Estamos en ${monthNameEs} ${year}, considera estacionalidad si aplica.
+interface PublishRequest {
+  site_id: string;
+  title: string;
+  content: string;
+  slug: string;
+  status: 'publish' | 'draft' | 'future';
+  date?: string;
+  image_url?: string;
+  image_alt?: string;
+  meta_description?: string;
+  lang?: 'es' | 'ca';
+}
 ```
 
-2. **Reglas del tema (línea 373):**
+#### 2. Componente: `src/components/saas/WordPressPublishDialogSaas.tsx`
+
+Basado en `WordPressPublishDialog.tsx` de farmacias pero adaptado:
+- Usa `site_id` en lugar de `farmacia_id`
+- Consulta `wordpress_configs` para verificar si hay WP configurado
+- Selector de idiomas (español/catalán)
+- Opciones de publicación: ahora, borrador, programar
+- Muestra resultados con link al post publicado
+
+#### 3. Hook: Añadir a `src/hooks/useArticlesSaas.ts`
+
 ```typescript
-// AÑADIR
-6. NO incluyas el año en el título
-7. Evita referencias temporales explícitas (ej: "en 2026", "este año")
-```
-
-3. **Título del artículo (líneas 425-426):**
-```typescript
-// ANTES
-- TÍTULO H1: Máximo 60 caracteres. SIN nombre de empresa.
-
-// DESPUÉS  
-- TÍTULO H1: Máximo 60 caracteres. SIN nombre de empresa. SIN año (ej: "2026").
-```
-
-4. **Fallback de tema (línea 407):**
-```typescript
-// ANTES
-topic = `Novedades del sector ${site.sector} para ${monthNameEs} ${year}`;
-
-// DESPUÉS
-topic = `Novedades y tendencias en ${site.sector || "el sector"}`;
-```
-
-5. **Fecha contextual (línea 434):**
-```typescript
-// ANTES
-FECHA: ${dateContext}
-
-// DESPUÉS
-CONTEXTO TEMPORAL: Hoy es ${dateContext}. Usa esta información para estacionalidad, pero NO incluyas el año en el título ni subtítulos.
+export function usePublishToWordPressSaas() {
+  return useMutation({
+    mutationFn: async (input: PublishInput) => {
+      const { data, error } = await supabase.functions.invoke('publish-to-wordpress-saas', {
+        body: input
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (result) => {
+      toast.success('Artículo publicado en WordPress');
+    },
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
+    }
+  });
+}
 ```
 
 ---
 
-### Archivo a Modificar
+### Archivos a Modificar
 
-| Archivo | Cambios |
-|---------|---------|
-| `supabase/functions/generate-article-saas/index.ts` | Modificar prompts (tema, artículo, imagen) |
+#### 4. `src/components/saas/SiteArticles.tsx`
+
+Reemplazar el placeholder por el diálogo real:
+
+```typescript
+// Antes (línea 68-71)
+const handlePublish = (article: Article) => {
+  toast.info('Publicación en WordPress próximamente');
+};
+
+// Después
+const [publishArticle, setPublishArticle] = useState<Article | null>(null);
+
+const handlePublish = (article: Article) => {
+  setPublishArticle(article);
+};
+
+// En JSX, añadir el diálogo:
+<WordPressPublishDialogSaas
+  open={!!publishArticle}
+  onClose={() => setPublishArticle(null)}
+  article={publishArticle}
+  siteId={siteId}
+/>
+```
+
+#### 5. `src/components/saas/ArticlePreviewDialog.tsx`
+
+Pasar `siteId` al diálogo y conectar con el diálogo de publicación.
+
+#### 6. `supabase/config.toml`
+
+Añadir configuración del nuevo edge function.
 
 ---
 
-### Resultado Esperado
+### Flujo de Publicación
 
-#### Títulos - Antes vs Después
-
-| Antes | Después |
-|-------|---------|
-| "Claves Del Éxito Online Para Farmacias En 2026" | "Claves del éxito online para farmacias" |
-| "Estrategia Digital Para Tu Negocio En 2026" | "Estrategia digital para impulsar tu negocio" |
-
-#### Imágenes - Antes vs Después
-
-| Antes | Después |
-|-------|---------|
-| Siempre beige/crema con escritorio | Adapta colores y escenario al sector |
-| Objetos genéricos (libros, café) | Objetos relevantes al tema específico |
-| Estilo "alquiler" clonado | Estilo propio según contexto |
+```text
+Usuario hace clic en "Publicar"
+        │
+        ▼
+Abre WordPressPublishDialogSaas
+        │
+        ▼
+Verifica si hay WordPress configurado
+        │
+   ┌────┴────┐
+   │         │
+  NO        SÍ
+   │         │
+   ▼         ▼
+Mensaje:   Mostrar opciones:
+"Configura  - Idiomas (ES/CA)
+WordPress   - Publicar/Borrador/Programar
+primero"    - Fecha si programar
+   │         │
+   │         ▼
+   │    Edge Function invocado
+   │         │
+   │         ▼
+   │    Busca credenciales en wordpress_configs
+   │         │
+   │         ▼
+   │    Sube imagen si existe
+   │         │
+   │         ▼
+   │    Publica vía REST API
+   │         │
+   │         ▼
+   └─────────┴──> Muestra resultado con link
+```
 
 ---
 
-### Consideraciones
+### Comparación de Tablas
 
-- **El año sigue disponible** para la IA como contexto temporal (estacionalidad), pero con instrucciones explícitas de NO incluirlo en títulos
-- **Las imágenes variarán** según sector: farmacia = tonos limpios/médicos, marketing = vibrantes, hostelería = cálidos, etc.
-- **La capitalización** ahora tiene ejemplos concretos de correcto/incorrecto que la IA puede seguir
+| Aspecto | MKPro (Farmacias/Empresas) | SaaS |
+|---------|---------------------------|------|
+| Tabla credenciales | `wordpress_sites` | `wordpress_configs` |
+| Campo entidad | `farmacia_id` / `empresa_id` | `site_id` |
+| RLS | Sin user_id | Con user_id |
+| Edge function | `publish-to-wordpress` | `publish-to-wordpress-saas` (nuevo) |
+
+---
+
+### Archivos a Crear/Modificar
+
+| Archivo | Acción |
+|---------|--------|
+| `supabase/functions/publish-to-wordpress-saas/index.ts` | **CREAR** |
+| `src/components/saas/WordPressPublishDialogSaas.tsx` | **CREAR** |
+| `src/hooks/useArticlesSaas.ts` | Añadir hook `usePublishToWordPressSaas` |
+| `src/components/saas/SiteArticles.tsx` | Integrar diálogo de publicación |
+| `src/components/saas/ArticlePreviewDialog.tsx` | Conectar botón "Publicar" |
+| `supabase/config.toml` | Añadir función |
+
+---
+
+### Beneficios
+
+- Los usuarios de SaaS podrán publicar artículos directamente a su WordPress
+- Mantiene la separación con el módulo MKPro (tablas y funciones separadas)
+- Soporta múltiples idiomas y programación de posts
+- Verifica que WordPress esté configurado antes de mostrar opciones
 
