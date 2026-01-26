@@ -1,238 +1,201 @@
 
 
-## Plan: Crear Edge Function de Generación de Artículos SaaS con Bypass para Administradores
+## Plan: Mejorar Generación de Artículos con Descripción de Empresa e Imágenes con IA
 
-### Diagnóstico del Problema
-
-El botón "Generar artículo" en los sitios SaaS solo muestra un toast "Generación de artículos SaaS próximamente" porque:
-
-1. **No existe el edge function `generate-article-saas`** - solo hay un placeholder en `SiteDetail.tsx` (líneas 38-43)
-2. **No hay hook para invocar la generación** - falta `useGenerateArticleSaas`
-3. **No hay verificación de límites de plan** 
-4. **Los administradores no tienen bypass de límites**
+### Dos Mejoras a Implementar
 
 ---
 
-### Solución Propuesta
+## MEJORA 1: Añadir Campo "Descripción de Empresa"
 
-Crear un nuevo edge function `generate-article-saas` basado en `generate-article-empresa` pero adaptado para el modelo multi-tenant SaaS.
+### Problema Identificado
+Los artículos pueden ser genéricos cuando el sector es estándar. Ejemplo: "Marketing" → artículos demasiado amplios.
 
----
+Con una descripción como "ecosistema digital de referencia para farmacias en España", la IA genera contenido mucho más enfocado.
 
-### Archivos a Crear
+### Solución
 
-#### 1. Edge Function: `supabase/functions/generate-article-saas/index.ts`
+#### 1.1 Añadir columna a la tabla `sites`
 
-Funcionalidad principal:
-- Recibir `siteId` y validar que pertenece al usuario autenticado
-- **Verificar rol de admin** usando `user_roles` table → si es admin, bypass de límites
-- Verificar límites de plan del usuario (posts_limit en profiles)
-- Contar artículos generados este mes
-- Si no es admin y excede límite → error 403
-- Generar tema único consultando temas usados en tabla `articles`
-- Generar artículo usando Lovable AI (Google Gemini)
-- Buscar imagen en Unsplash
-- Guardar en tabla `articles` con `user_id` y `site_id`
+```sql
+ALTER TABLE sites ADD COLUMN description TEXT;
+```
+
+#### 1.2 Modificar Onboarding (Step 1)
+
+Añadir un campo de texto después del sector:
 
 ```typescript
-// Estructura clave de verificación de admin
-async function isUserAdmin(supabase, userId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', userId);
-  
-  return data?.some(r => r.role === 'admin') || false;
-}
-
-// En el handler principal:
-const isAdmin = await isUserAdmin(supabase, user.id);
-
-if (!isAdmin) {
-  // Verificar límites de plan
-  const articlesThisMonth = await countArticlesThisMonth(supabase, userId, month, year);
-  const { posts_limit } = profile;
-  
-  if (articlesThisMonth >= posts_limit) {
-    return new Response(JSON.stringify({ 
-      error: "Has alcanzado tu límite mensual de artículos",
-      limit: posts_limit,
-      current: articlesThisMonth
-    }), { status: 403 });
-  }
-}
-// Admins continúan sin restricciones
+<div className="space-y-2">
+  <Label htmlFor="description">Breve descripción de tu negocio (opcional)</Label>
+  <Textarea
+    id="description"
+    placeholder="Ej: Plataforma digital para verificar contratos de alquiler..."
+    value={description}
+    onChange={(e) => setDescription(e.target.value)}
+    className="min-h-[80px]"
+  />
+  <p className="text-xs text-muted-foreground">
+    Una descripción ayuda a generar artículos más relevantes para tu negocio específico.
+  </p>
+</div>
 ```
 
----
+#### 1.3 Modificar Edge Function
 
-#### 2. Hook: Actualizar `src/hooks/useArticlesSaas.ts`
-
-Añadir mutation para generar artículos:
+Incluir la descripción en el prompt de generación:
 
 ```typescript
-interface GenerateArticleParams {
-  siteId: string;
-  topic?: string | null;
-}
-
-export function useGenerateArticleSaas() {
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-
-  return useMutation({
-    mutationFn: async (params: GenerateArticleParams) => {
-      if (!user?.id) throw new Error('No user logged in');
-      
-      const { data, error } = await supabase.functions.invoke('generate-article-saas', {
-        body: {
-          siteId: params.siteId,
-          topic: params.topic || null,
-          month: new Date().getMonth() + 1,
-          year: new Date().getFullYear(),
-        }
-      });
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['articles'] });
-      toast.success('Artículo generado correctamente');
-    },
-    onError: (error: any) => {
-      if (error?.message?.includes('límite')) {
-        toast.error('Has alcanzado tu límite mensual de artículos');
-      } else {
-        toast.error('Error al generar el artículo');
-      }
-    }
-  });
-}
+const systemPrompt = `...
+EMPRESA: ${site.name}
+SECTOR: ${site.sector}
+${site.description ? `DESCRIPCIÓN: ${site.description}` : ''}
+...`;
 ```
 
 ---
 
-#### 3. Actualizar `src/pages/SiteDetail.tsx`
+## MEJORA 2: Generar Imágenes con IA (en lugar de Unsplash)
 
-Reemplazar el placeholder por la llamada real:
+### Problema Identificado
+Unsplash devuelve imágenes irrelevantes:
+- Botes de medicamentos para artículos de estrategia
+- Fachadas con texto en chino
+- Brazos de robot sin contexto
+
+### Referencia Visual (tu otro proyecto)
+Las imágenes del proyecto de alquileres tienen:
+- Estilo minimalista y profesional
+- Tonos neutros: beige, crema, marrón suave
+- Objetos de oficina/profesionales: libros, gafas, portátil, mazo
+- Interior luminoso con luz natural
+- Relación sutil con el tema (no literal)
+
+### Solución: Usar Lovable AI para Generación
+
+#### 2.1 Prompt de Generación de Imagen
 
 ```typescript
-import { useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
+const imagePrompt = `Generate a professional blog header image.
 
-// En el componente:
-const generateMutation = useGenerateArticleSaas();
+STYLE:
+- Minimalist, clean, modern
+- Soft neutral colors: beige, cream, light brown, white
+- Natural lighting, bright and airy interior
+- NO text, NO logos, NO faces
 
-const handleGenerateArticle = async () => {
-  if (!site) return;
-  generateMutation.mutate({ siteId: site.id });
-};
+COMPOSITION:
+- Professional office/workspace setting
+- Subtle objects related to the topic: ${topic}
+- Books, glasses, laptop, documents, coffee cup
+- Elegant and sophisticated
 
-// En el JSX:
-<Button 
-  onClick={handleGenerateArticle} 
-  disabled={generateMutation.isPending}
->
-  {generateMutation.isPending ? (
-    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-  ) : (
-    <Sparkles className="w-4 h-4 mr-2" />
-  )}
-  Generar artículo
-</Button>
+MOOD: Professional, trustworthy, calm, modern`;
 ```
 
----
+#### 2.2 Llamada a la API de Generación
 
-#### 4. Actualizar `src/pages/SaasDashboard.tsx`
-
-Misma lógica para el botón de generación en las tarjetas del dashboard.
-
----
-
-### Flujo de Verificación de Límites
-
-```text
-Usuario hace clic en "Generar artículo"
-        │
-        ▼
-Edge Function recibe request con JWT
-        │
-        ▼
-Extrae user_id del token
-        │
-        ▼
-┌───────────────────────────────┐
-│ ¿Usuario tiene rol 'admin'?  │
-└───────────────────────────────┘
-        │
-   ┌────┴────┐
-   │         │
-  SÍ        NO
-   │         │
-   │         ▼
-   │   Obtener profile.posts_limit
-   │         │
-   │         ▼
-   │   Contar artículos del mes
-   │         │
-   │         ▼
-   │   ┌─────────────────────────┐
-   │   │ artículos >= límite?    │
-   │   └─────────────────────────┘
-   │         │
-   │    ┌────┴────┐
-   │   SÍ        NO
-   │    │         │
-   │    ▼         │
-   │  Error 403   │
-   │  "Límite     │
-   │  alcanzado"  │
-   │              │
-   └──────────────┴──────────────┐
-                                 │
-                                 ▼
-                         Generar artículo
-                                 │
-                                 ▼
-                         Guardar en 'articles'
-                                 │
-                                 ▼
-                         Respuesta exitosa
+```typescript
+const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${LOVABLE_API_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    model: "google/gemini-2.5-flash-image", // Nano banana
+    messages: [{ role: "user", content: imagePrompt }],
+    modalities: ["image", "text"]
+  })
+});
 ```
 
+#### 2.3 Procesar la Respuesta
+
+```typescript
+const imageData = await imageResponse.json();
+const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+// base64Image = "data:image/png;base64,iVBORw0KGgo..."
+```
+
+#### 2.4 Subir a Supabase Storage
+
+```typescript
+// Crear bucket 'article-images' si no existe
+const fileName = `${siteId}/${articleId}.png`;
+const imageBuffer = base64ToBuffer(base64Image);
+
+const { data, error } = await supabase.storage
+  .from('article-images')
+  .upload(fileName, imageBuffer, { contentType: 'image/png' });
+
+// Obtener URL pública
+const publicUrl = supabase.storage.from('article-images').getPublicUrl(fileName).data.publicUrl;
+```
+
+#### 2.5 Fallback a Unsplash
+
+Si la generación de IA falla (timeout, error), usar Unsplash como fallback.
+
 ---
 
-### Estructura del Edge Function
+## Archivos a Modificar
 
-El edge function seguirá la misma estructura que `generate-article-empresa` pero adaptado:
-
-| Aspecto | generate-article-empresa | generate-article-saas |
-|---------|-------------------------|----------------------|
-| Tabla destino | `articulos_empresas` | `articles` |
-| ID entidad | `empresa_id` | `site_id` |
-| Tabla config | `empresas` | `sites` |
-| Autenticación | No validada | JWT requerido + RLS |
-| Límites | No implementados | Verificación de `profiles.posts_limit` |
-| Bypass admin | No aplica | Verificación de `user_roles.role = 'admin'` |
-
----
-
-### Archivos a Crear/Modificar
-
-| Archivo | Acción |
+| Archivo | Cambio |
 |---------|--------|
-| `supabase/functions/generate-article-saas/index.ts` | **CREAR** - Edge function completa |
-| `src/hooks/useArticlesSaas.ts` | Añadir `useGenerateArticleSaas` mutation |
-| `src/pages/SiteDetail.tsx` | Reemplazar placeholder por mutation real |
-| `src/pages/SaasDashboard.tsx` | Actualizar `handleGenerateArticle` |
-| `supabase/config.toml` | Añadir configuración del nuevo function |
+| Base de datos | Añadir columna `description` a `sites` |
+| `src/pages/Onboarding.tsx` | Añadir campo de descripción |
+| `src/components/saas/SiteSettings.tsx` | Añadir campo de descripción |
+| `src/hooks/useSites.ts` | Incluir `description` en mutations |
+| `supabase/functions/generate-article-saas/index.ts` | Usar descripción en prompt + generar imagen con IA |
+| Supabase Storage | Crear bucket `article-images` con política pública |
 
 ---
 
-### Beneficios para Administradores
+## Resultado Esperado
 
-- Los usuarios con rol `admin` en `user_roles` podrán generar artículos **sin límite**
-- Ideal para testing y demostración del producto
-- Los usuarios normales respetarán los límites de su plan (`free`=1, `starter`=4, `pro`=30, `agency`=100)
+### Antes (Unsplash)
+Imágenes con:
+- Botes de medicamentos
+- Texto en otros idiomas
+- Robots sin contexto
+
+### Después (IA Generativa)
+Imágenes con:
+- Estilo consistente minimalista
+- Tonos neutros profesionales
+- Objetos sutiles relacionados con el tema
+- Sin texto ni logos
+- Aspecto editorial de alta calidad
+
+---
+
+## Consideraciones Técnicas
+
+### Ventajas de Generación con IA
+- Imágenes 100% relevantes al contenido
+- Estilo visual consistente en todos los artículos
+- Sin problemas de derechos de autor
+- Sin texto en idiomas incorrectos
+
+### Posibles Desventajas
+- Más tiempo de generación (5-15 segundos adicionales)
+- Costo de API (pero ya está incluido en Lovable AI)
+- Tamaño de las imágenes base64 (se mitiga subiendo a storage)
+
+### Configuración de Storage (necesaria)
+
+```sql
+-- Crear bucket
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('article-images', 'article-images', true);
+
+-- Política de lectura pública
+CREATE POLICY "Public access" ON storage.objects 
+FOR SELECT USING (bucket_id = 'article-images');
+
+-- Política de escritura para usuarios autenticados
+CREATE POLICY "Users can upload" ON storage.objects 
+FOR INSERT WITH CHECK (bucket_id = 'article-images');
+```
 
