@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.sync-wordpress-taxonomies]
 verify_jwt = false
+
+[functions.sync-wordpress-taxonomies-saas]
+verify_jwt = false

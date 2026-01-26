@@ -527,7 +527,8 @@ FORMATO JSON:
 
     console.log("Spanish article generated successfully");
 
-    // Generate Catalan version if needed
+    // Store Spanish content WITHOUT SEO footer for translation
+    const spanishContentWithoutSeo = spanishArticle.content;
     let catalanArticle = null;
     if (site.languages?.includes("catalan")) {
       console.log("Generating Catalan version...");
@@ -538,7 +539,7 @@ ARTÍCULO:
 Título: ${spanishArticle.title}
 Meta: ${spanishArticle.meta_description}
 Slug: ${spanishArticle.slug}
-Contenido: ${spanishArticle.content}
+Contenido: ${spanishContentWithoutSeo}
 
 RESPONDE EN JSON:
 {
@@ -581,6 +582,41 @@ RESPONDE EN JSON:
         }
       } catch (error) {
         console.error("Error generating Catalan:", error);
+      }
+    }
+
+    // Add SEO footer with blog/social links to Spanish content
+    console.log("Adding SEO footer links...");
+    const seoLinksEs: string[] = [];
+    if (site.blog_url) {
+      seoLinksEs.push(`<a href="${site.blog_url}" target="_blank" rel="noopener">nuestro blog</a>`);
+    }
+    if (site.instagram_url) {
+      seoLinksEs.push(`<a href="${site.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
+    }
+    
+    if (seoLinksEs.length > 0) {
+      const linksTextEs = seoLinksEs.join(' y ');
+      const closingParagraphEs = `<p><strong>¿Quieres más consejos?</strong> Visita ${linksTextEs} para descubrir más contenido de ${site.name}.</p>`;
+      spanishArticle.content = spanishContentWithoutSeo + closingParagraphEs;
+      console.log("SEO footer added to Spanish article");
+    }
+
+    // Add SEO footer to Catalan content AFTER translation
+    if (catalanArticle?.content) {
+      const seoLinksCa: string[] = [];
+      if (site.blog_url) {
+        seoLinksCa.push(`<a href="${site.blog_url}" target="_blank" rel="noopener">el nostre blog</a>`);
+      }
+      if (site.instagram_url) {
+        seoLinksCa.push(`<a href="${site.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
+      }
+      
+      if (seoLinksCa.length > 0) {
+        const linksTextCa = seoLinksCa.join(' i ');
+        const closingParagraphCa = `<p><strong>Vols més consells?</strong> Visita ${linksTextCa} per descobrir més contingut de ${site.name}.</p>`;
+        catalanArticle.content += closingParagraphCa;
+        console.log("SEO footer added to Catalan article");
       }
     }
 

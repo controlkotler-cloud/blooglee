@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -7,13 +7,14 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, CalendarIcon, Send, FileText, Clock, ExternalLink, Globe, CheckCircle2, Settings } from "lucide-react";
+import { Loader2, CalendarIcon, Send, FileText, Clock, ExternalLink, Globe, CheckCircle2, Settings, RefreshCw, Tag, FolderOpen } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { Article, ArticleContent } from "@/hooks/useArticlesSaas";
 import { usePublishToWordPressSaas, type PublishResultSaas } from "@/hooks/useArticlesSaas";
 import { useWordPressConfig } from "@/hooks/useWordPressConfigSaas";
+import { useTaxonomiesSaas, useSyncTaxonomiesSaas } from "@/hooks/useWordPressTaxonomiesSaas";
 
 interface WordPressPublishDialogSaasProps {
   open: boolean;
@@ -44,12 +45,26 @@ export function WordPressPublishDialogSaas({
   const [publishResults, setPublishResults] = useState<MultiPublishResult | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishingLanguage, setPublishingLanguage] = useState<Language | null>(null);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
   const { data: wpConfig, isLoading: isLoadingConfig } = useWordPressConfig(siteId);
+  const { data: taxonomies, isLoading: isLoadingTaxonomies } = useTaxonomiesSaas(wpConfig?.id);
+  const syncMutation = useSyncTaxonomiesSaas();
   const publishMutation = usePublishToWordPressSaas();
   
   const hasCatalan = !!article?.content_catalan;
   const hasWordPress = !!wpConfig;
+  const categories = taxonomies?.categories || [];
+  const tags = taxonomies?.tags || [];
+
+  // Reset selections when dialog opens
+  useEffect(() => {
+    if (open) {
+      setSelectedCategoryIds([]);
+      setSelectedTagIds([]);
+    }
+  }, [open]);
 
   const getContent = (lang: Language): ArticleContent | null => {
     if (!article) return null;
@@ -66,6 +81,24 @@ export function WordPressPublishDialogSaas({
       }
       return [...prev, lang];
     });
+  };
+
+  const toggleCategory = (wpId: number) => {
+    setSelectedCategoryIds(prev => 
+      prev.includes(wpId) ? prev.filter(id => id !== wpId) : [...prev, wpId]
+    );
+  };
+
+  const toggleTag = (wpId: number) => {
+    setSelectedTagIds(prev => 
+      prev.includes(wpId) ? prev.filter(id => id !== wpId) : [...prev, wpId]
+    );
+  };
+
+  const handleSync = () => {
+    if (wpConfig?.id) {
+      syncMutation.mutate(wpConfig.id);
+    }
   };
 
   const handlePublish = async () => {
@@ -97,6 +130,8 @@ export function WordPressPublishDialogSaas({
           image_alt: content.title,
           meta_description: content.meta_description,
           lang: lang === 'catalan' ? 'ca' : 'es',
+          category_ids: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
+          tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
         });
 
         results[lang] = result;
@@ -116,6 +151,8 @@ export function WordPressPublishDialogSaas({
     setStatus('publish');
     setSelectedLanguages(['spanish']);
     setScheduleDate(undefined);
+    setSelectedCategoryIds([]);
+    setSelectedTagIds([]);
     onClose();
   };
 
@@ -225,7 +262,7 @@ export function WordPressPublishDialogSaas({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Send className="w-5 h-5" />
@@ -277,6 +314,102 @@ export function WordPressPublishDialogSaas({
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Taxonomies section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Categorías y Tags</Label>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleSync}
+                disabled={syncMutation.isPending}
+                className="h-7 text-xs"
+              >
+                {syncMutation.isPending ? (
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                )}
+                Sincronizar
+              </Button>
+            </div>
+
+            {isLoadingTaxonomies ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Cargando taxonomías...
+              </div>
+            ) : categories.length === 0 && tags.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">
+                No hay categorías ni tags sincronizados. Pulsa "Sincronizar" para obtenerlos de WordPress.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {/* Categories */}
+                {categories.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                      <FolderOpen className="w-3 h-3" />
+                      Categorías
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {categories.map((cat) => (
+                        <label
+                          key={cat.id}
+                          className={cn(
+                            "flex items-center gap-1.5 text-xs cursor-pointer px-2 py-1 rounded-md border transition-colors",
+                            selectedCategoryIds.includes(cat.wp_id) 
+                              ? "bg-primary/10 border-primary text-primary" 
+                              : "bg-muted/50 border-transparent hover:bg-muted"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedCategoryIds.includes(cat.wp_id)}
+                            onChange={() => toggleCategory(cat.wp_id)}
+                            className="sr-only"
+                          />
+                          <span>{cat.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags */}
+                {tags.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Tag className="w-3 h-3" />
+                      Tags
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {tags.map((tag) => (
+                        <label
+                          key={tag.id}
+                          className={cn(
+                            "flex items-center gap-1.5 text-xs cursor-pointer px-2 py-1 rounded-md border transition-colors",
+                            selectedTagIds.includes(tag.wp_id) 
+                              ? "bg-primary/10 border-primary text-primary" 
+                              : "bg-muted/50 border-transparent hover:bg-muted"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedTagIds.includes(tag.wp_id)}
+                            onChange={() => toggleTag(tag.wp_id)}
+                            className="sr-only"
+                          />
+                          <span>{tag.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Publish options */}
