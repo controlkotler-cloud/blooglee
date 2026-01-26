@@ -90,6 +90,7 @@ export function useGenerateArticleEmpresa() {
       // Call the new dedicated edge function for companies
       const { data, error } = await supabase.functions.invoke("generate-article-empresa", {
         body: {
+          empresaId: params.empresaId,  // Permite a la función buscar historial de temas
           company: {
             name: params.companyName,
             location: params.companyLocation,

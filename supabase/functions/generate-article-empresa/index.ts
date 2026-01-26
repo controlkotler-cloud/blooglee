@@ -19,11 +19,42 @@ interface CompanyData {
 
 interface RequestBody {
   company: CompanyData;
+  empresaId?: string;        // Para buscar historial de temas usados
   topic?: string | null;
   month: number;
   year: number;
   usedImageUrls?: string[];
+  usedTopics?: string[];     // Opcional: temas ya usados desde frontend
   autoGenerateTopic?: boolean;
+}
+
+// Helper function to get used topics for a company
+async function getUsedTopicsForEmpresa(
+  supabaseClient: any,
+  empresaId: string
+): Promise<string[]> {
+  try {
+    const { data, error } = await supabaseClient
+      .from('articulos_empresas')
+      .select('topic')
+      .eq('empresa_id', empresaId)
+      .order('generated_at', { ascending: false })
+      .limit(50);  // Últimos 50 temas
+    
+    if (error) {
+      console.error("Error fetching used topics:", error);
+      return [];
+    }
+    
+    if (!data || data.length === 0) {
+      return [];
+    }
+    
+    return data.map((a: { topic: string }) => a.topic);
+  } catch (e) {
+    console.error("Exception fetching used topics:", e);
+    return [];
+  }
 }
 
 interface SectorContext {
@@ -636,7 +667,7 @@ serve(async (req) => {
     // Create Supabase client for dynamic sector lookup
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    const { company, topic: providedTopic, month, year, usedImageUrls = [], autoGenerateTopic = true }: RequestBody = await req.json();
+    const { company, empresaId, topic: providedTopic, month, year, usedImageUrls = [], usedTopics = [], autoGenerateTopic = true }: RequestBody = await req.json();
 
     console.log("=== GENERATE ARTICLE EMPRESA ===");
     console.log("Company:", company.name);
@@ -645,6 +676,7 @@ serve(async (req) => {
     console.log("Location:", company.location);
     console.log("Include featured image:", company.include_featured_image);
     console.log("Provided topic:", providedTopic);
+    console.log("Empresa ID for topic history:", empresaId || "not provided");
 
     const monthNameEs = MONTH_NAMES_ES[month - 1];
     const monthNameCa = MONTH_NAMES_CA[month - 1];
@@ -663,6 +695,18 @@ serve(async (req) => {
     if (!topic || autoGenerateTopic) {
       console.log("Generating topic with AI for sector:", company.sector);
       
+      // Fetch used topics if empresaId provided and usedTopics not already passed
+      let usedTopicsList: string[] = usedTopics;
+      if (empresaId && usedTopicsList.length === 0) {
+        usedTopicsList = await getUsedTopicsForEmpresa(supabase, empresaId);
+        console.log(`Found ${usedTopicsList.length} previously used topics for empresa ${empresaId}`);
+      }
+      
+      // Build used topics section for prompt
+      const usedTopicsSection = usedTopicsList.length > 0 
+        ? `\n\n⚠️ TEMAS YA USADOS (NO REPETIR NI HACER VARIACIONES SIMILARES):\n${usedTopicsList.slice(0, 30).map((t, i) => `${i+1}. ${t}`).join('\n')}`
+        : '';
+      
       const toneHint = sectorContext.toneDescription 
         ? `\nTONO RECOMENDADO: ${sectorContext.toneDescription}` 
         : "";
@@ -672,7 +716,7 @@ serve(async (req) => {
 EMPRESA: ${company.name}
 SECTOR: ${company.sector || "Servicios profesionales"}
 ÁMBITO: ${company.geographic_scope === "national" ? "Nacional (España)" : company.location || "General"}
-MES: ${monthNameEs} ${year}${toneHint}
+MES: ${monthNameEs} ${year}${toneHint}${usedTopicsSection}
 
 Genera UN tema de blog que:
 1. Sea MUY relevante para el sector ${company.sector || "profesional"}
@@ -681,12 +725,13 @@ Genera UN tema de blog que:
 4. NO mencione el nombre de la empresa
 5. Sea útil para los clientes potenciales de este sector
 6. NO sea genérico - debe ser específico del sector
+7. SEA COMPLETAMENTE DIFERENTE a los temas ya usados (no variaciones del mismo tema)
 
-Ejemplos por sector:
-- Marketing: "Estrategias de contenido para aumentar conversiones en 2025"
-- Tecnología: "Automatización de procesos: cómo reducir costes operativos"
-- Legal: "Cambios fiscales que afectan a autónomos este año"
-- Industrial: "Mantenimiento predictivo: la clave para evitar paradas de producción"
+Ejemplos de temas VARIADOS por sector:
+- Marketing: "Email marketing automatizado: guía práctica", "SEO local para pymes", "Análisis de competencia digital"
+- Tecnología: "Automatización de procesos operativos", "Ciberseguridad para pequeñas empresas", "Cloud computing: ventajas reales"
+- Legal: "Cambios fiscales para autónomos", "Protección de datos en 2026", "Contratos digitales: validez legal"
+- Industrial: "Mantenimiento predictivo eficiente", "Eficiencia energética industrial", "Gestión de inventarios moderna"
 
 Responde SOLO con el tema (máx 80 caracteres), sin explicaciones ni comillas.`;
 
