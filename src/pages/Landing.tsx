@@ -162,7 +162,7 @@ const Landing = () => {
 
               {/* Social proof - Simplified on mobile */}
               <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 justify-center lg:justify-start">
-                <div className="flex -space-x-2 sm:-space-x-3">
+              <div className="flex -space-x-2 sm:-space-x-3">
                   {[
                     "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=40&h=40&fit=crop&crop=face",
                     "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face",
@@ -172,7 +172,8 @@ const Landing = () => {
                     <img
                       key={i}
                       src={src}
-                      alt=""
+                      alt="Usuario de Blooglee"
+                      loading="lazy"
                       className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 sm:border-3 border-white object-cover shadow-md"
                     />
                   ))}

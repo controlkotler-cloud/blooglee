@@ -1,14 +1,52 @@
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PublicLayout } from '@/components/marketing/PublicLayout';
 import { BlogCard } from '@/components/marketing/BlogCard';
 import { blogPosts } from '@/data/blogPosts';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BookOpen, Mail } from 'lucide-react';
+import { ArrowRight, BookOpen, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { SEOHead } from '@/components/seo';
+
 const categories = ['Todos', 'SEO', 'Marketing', 'Tutoriales'];
+const POSTS_PER_PAGE = 4;
 
 const BlogIndex = () => {
+  const [selectedCategory, setSelectedCategory] = useState('Todos');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Filter posts by category
+  const filteredPosts = useMemo(() => {
+    return selectedCategory === 'Todos'
+      ? blogPosts
+      : blogPosts.filter(post => post.category === selectedCategory);
+  }, [selectedCategory]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE);
+  const paginatedPosts = useMemo(() => {
+    const start = (currentPage - 1) * POSTS_PER_PAGE;
+    return filteredPosts.slice(start, start + POSTS_PER_PAGE);
+  }, [filteredPosts, currentPage]);
+
+  // Count posts per category
+  const categoryCounts = useMemo(() => {
+    return categories.slice(1).reduce((acc, cat) => {
+      acc[cat] = blogPosts.filter(p => p.category === cat).length;
+      return acc;
+    }, {} as Record<string, number>);
+  }, []);
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <PublicLayout>
       <SEOHead 
@@ -45,8 +83,9 @@ const BlogIndex = () => {
               {categories.map((category) => (
                 <button
                   key={category}
+                  onClick={() => handleCategoryChange(category)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    category === 'Todos'
+                    category === selectedCategory
                       ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white'
                       : 'bg-white/70 text-foreground/70 hover:bg-white hover:text-foreground border border-white/50'
                   }`}
@@ -58,7 +97,7 @@ const BlogIndex = () => {
 
             {/* Blog Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {blogPosts.map((post) => (
+              {paginatedPosts.map((post) => (
                 <BlogCard
                   key={post.slug}
                   slug={post.slug}
@@ -72,22 +111,53 @@ const BlogIndex = () => {
               ))}
             </div>
 
-            {/* Pagination Placeholder */}
-            <div className="flex justify-center mt-12">
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled>
-                  Anterior
-                </Button>
-                <div className="flex items-center gap-1">
-                  <Button size="sm" className="bg-violet-500 hover:bg-violet-600">1</Button>
-                  <Button variant="ghost" size="sm">2</Button>
-                  <Button variant="ghost" size="sm">3</Button>
-                </div>
-                <Button variant="outline" size="sm">
-                  Siguiente
-                </Button>
+            {/* Empty state */}
+            {paginatedPosts.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-foreground/60">No hay artículos en esta categoría.</p>
               </div>
-            </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center mt-12">
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={currentPage === 1}
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    className="gap-1"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Anterior
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <Button
+                        key={page}
+                        size="sm"
+                        variant={page === currentPage ? 'default' : 'ghost'}
+                        className={page === currentPage ? 'bg-violet-500 hover:bg-violet-600' : ''}
+                        onClick={() => handlePageChange(page)}
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled={currentPage === totalPages}
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    className="gap-1"
+                  >
+                    Siguiente
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -110,20 +180,22 @@ const BlogIndex = () => {
               </div>
             </div>
 
-            {/* Popular Categories */}
+            {/* Popular Categories - Now with real counts */}
             <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6">
               <h3 className="font-display text-lg font-bold mb-4">Categorías populares</h3>
               <ul className="space-y-3">
-                {[
-                  { name: 'SEO', count: 12 },
-                  { name: 'Marketing', count: 8 },
-                  { name: 'Tutoriales', count: 6 },
-                  { name: 'Automatización', count: 4 },
-                ].map((cat) => (
-                  <li key={cat.name}>
-                    <button className="flex items-center justify-between w-full px-3 py-2 rounded-xl hover:bg-muted/50 transition-colors text-left">
-                      <span className="text-foreground/70">{cat.name}</span>
-                      <span className="text-sm text-foreground/40">{cat.count}</span>
+                {categories.slice(1).map((cat) => (
+                  <li key={cat}>
+                    <button 
+                      onClick={() => handleCategoryChange(cat)}
+                      className={`flex items-center justify-between w-full px-3 py-2 rounded-xl transition-colors text-left ${
+                        selectedCategory === cat 
+                          ? 'bg-violet-100 text-violet-700' 
+                          : 'hover:bg-muted/50 text-foreground/70'
+                      }`}
+                    >
+                      <span>{cat}</span>
+                      <span className="text-sm text-foreground/40">{categoryCounts[cat] || 0}</span>
                     </button>
                   </li>
                 ))}

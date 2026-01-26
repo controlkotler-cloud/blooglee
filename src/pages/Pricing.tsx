@@ -1,10 +1,40 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, Sparkles, Building2, Users, Rocket, ArrowRight, X } from "lucide-react";
+import { Check, Sparkles, Building2, Users, Rocket, ArrowRight, X, HelpCircle } from "lucide-react";
 import { LiquidBlobs } from "@/components/saas/LiquidBlobs";
 import { PublicNavbar } from "@/components/marketing/PublicNavbar";
 import { PublicFooter } from "@/components/marketing/PublicFooter";
-import { SEOHead } from '@/components/seo';
+import { SEOHead, FAQSchema } from '@/components/seo';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+
+// FAQ data for SEO and AI Overviews
+const pricingFaqs = [
+  {
+    question: '¿Puedo cambiar de plan en cualquier momento?',
+    answer: 'Sí, puedes cambiar tu plan en cualquier momento. Si subes de plan, el cambio es inmediato. Si bajas, se aplicará al siguiente ciclo de facturación.',
+  },
+  {
+    question: '¿Hay permanencia o compromiso?',
+    answer: 'No, no hay permanencia. Puedes cancelar tu suscripción cuando quieras sin penalizaciones ni cargos adicionales.',
+  },
+  {
+    question: '¿Qué métodos de pago aceptan?',
+    answer: 'Aceptamos tarjetas de crédito y débito (Visa, Mastercard, American Express). También aceptamos PayPal y transferencia bancaria para planes anuales.',
+  },
+  {
+    question: '¿Qué incluye el plan gratuito?',
+    answer: 'El plan gratuito incluye 1 sitio web y 1 artículo publicado con imagen destacada y SEO optimizado. Es perfecto para probar Blooglee sin compromiso.',
+  },
+  {
+    question: '¿Ofrecen descuentos para agencias con más de 10 sitios?',
+    answer: 'Sí, ofrecemos planes personalizados para agencias con necesidades especiales. Contacta con nuestro equipo en hola@blooglee.com para una propuesta a medida.',
+  },
+  {
+    question: '¿Cómo funciona la facturación anual?',
+    answer: 'Con la facturación anual ahorras un 20% respecto al pago mensual. Se cobra el importe total del año por adelantado y recibes acceso inmediato a todas las funciones de tu plan.',
+  },
+];
+
 const Pricing = () => {
   const [isAnnual, setIsAnnual] = useState(true);
 
@@ -99,6 +129,7 @@ const Pricing = () => {
         canonicalUrl="/pricing"
         keywords="precios Blooglee, planes blog automático, suscripción contenido IA, tarifas WordPress automático"
       />
+      <FAQSchema faqs={pricingFaqs} />
       <LiquidBlobs variant="hero" />
       {/* Unified Navigation */}
       <PublicNavbar />
@@ -255,7 +286,44 @@ const Pricing = () => {
         </div>
       </section>
 
-      {/* FAQ or Trust Section */}
+      {/* FAQ Section */}
+      <section className="pb-20 sm:pb-32 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 badge-aurora badge-aurora-glow mb-6">
+              <HelpCircle className="w-4 h-4" />
+              <span>Preguntas frecuentes</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-display font-bold mb-4">
+              Resolvemos tus dudas
+            </h2>
+            <p className="text-foreground/70">
+              Todo lo que necesitas saber sobre los planes y la facturación
+            </p>
+          </div>
+          
+          <div className="glass-card-strong rounded-3xl p-6 sm:p-8">
+            <Accordion type="single" collapsible className="space-y-2">
+              {pricingFaqs.map((faq, index) => (
+                <AccordionItem 
+                  key={index} 
+                  value={`faq-${index}`}
+                  className="border-b border-border/50 last:border-0 px-2"
+                >
+                  <AccordionTrigger className="text-left font-medium hover:no-underline py-4">
+                    {faq.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-foreground/70 pb-4">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </div>
+      </section>
+
+      {/* Custom Plan Section */}
       <section className="pb-20 sm:pb-32 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <div className="glass-card-strong rounded-3xl p-8 sm:p-12">

@@ -22,7 +22,8 @@ export const BlogCard = ({ slug, title, excerpt, image, date, readTime, category
       <div className="relative aspect-video overflow-hidden">
         <img 
           src={image} 
-          alt={title}
+          alt={`Imagen destacada del artículo: ${title}`}
+          loading="lazy"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute top-4 left-4">
