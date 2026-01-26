@@ -8,6 +8,58 @@ interface GenerateArticleParams {
   topic?: string | null;
 }
 
+// WordPress Publishing Types
+export interface PublishInputSaas {
+  site_id: string;
+  title: string;
+  content: string;
+  slug: string;
+  status: 'publish' | 'draft' | 'future';
+  date?: string;
+  image_url?: string;
+  image_alt?: string;
+  meta_description?: string;
+  lang?: 'es' | 'ca';
+}
+
+export interface PublishResultSaas {
+  success: boolean;
+  post_id?: number;
+  post_url?: string;
+  status?: string;
+  error?: string;
+}
+
+export function usePublishToWordPressSaas() {
+  return useMutation({
+    mutationFn: async (input: PublishInputSaas): Promise<PublishResultSaas> => {
+      const { data, error } = await supabase.functions.invoke('publish-to-wordpress-saas', {
+        body: input
+      });
+      
+      if (error) {
+        console.error('Publish error:', error);
+        throw new Error(error.message || 'Error al publicar');
+      }
+      
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      
+      return data as PublishResultSaas;
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        toast.success('Artículo publicado en WordPress');
+      }
+    },
+    onError: (error: Error) => {
+      console.error('Publish mutation error:', error);
+      toast.error(`Error: ${error.message}`);
+    }
+  });
+}
+
 export function useGenerateArticleSaas() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
