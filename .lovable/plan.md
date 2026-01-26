@@ -1,176 +1,220 @@
 
 
-## Plan: Crear Contexto de Autenticación Compartido para Resolver Error de Creación de Sitios
+## Plan: Crear Edge Function de Generación de Artículos SaaS con Bypass para Administradores
 
 ### Diagnóstico del Problema
 
-El error "No user logged in" ocurre porque:
+El botón "Generar artículo" en los sitios SaaS solo muestra un toast "Generación de artículos SaaS próximamente" porque:
 
-1. El hook `useAuth` crea **estado local independiente** cada vez que se usa
-2. `ProtectedRoute` tiene una instancia de `useAuth` → detecta sesión correctamente
-3. `useCreateSite` (usado en Onboarding) tiene **otra instancia** → su estado puede no estar sincronizado
-4. Cuando haces clic en "Finalizar", la instancia de `useCreateSite` puede no haber recibido aún el evento de auth
-
----
-
-### Flujo del Problema
-
-```text
-ProtectedRoute (useAuth #1)                 Onboarding (useCreateSite → useAuth #2)
-        |                                              |
-   ✓ session existe                              ? session = null (race condition)
-        |                                              |
-   renderiza children                         "No user logged in" ❌
-```
+1. **No existe el edge function `generate-article-saas`** - solo hay un placeholder en `SiteDetail.tsx` (líneas 38-43)
+2. **No hay hook para invocar la generación** - falta `useGenerateArticleSaas`
+3. **No hay verificación de límites de plan** 
+4. **Los administradores no tienen bypass de límites**
 
 ---
 
-### Solución: AuthContext Compartido
+### Solución Propuesta
 
-Crear un **React Context** que mantenga el estado de autenticación en un solo lugar, y que todos los componentes consuman ese mismo estado.
+Crear un nuevo edge function `generate-article-saas` basado en `generate-article-empresa` pero adaptado para el modelo multi-tenant SaaS.
 
 ---
 
-### Cambios a Realizar
+### Archivos a Crear
 
-#### 1. Crear AuthContext (`src/contexts/AuthContext.tsx`)
+#### 1. Edge Function: `supabase/functions/generate-article-saas/index.ts`
 
-**Nuevo archivo:**
+Funcionalidad principal:
+- Recibir `siteId` y validar que pertenece al usuario autenticado
+- **Verificar rol de admin** usando `user_roles` table → si es admin, bypass de límites
+- Verificar límites de plan del usuario (posts_limit en profiles)
+- Contar artículos generados este mes
+- Si no es admin y excede límite → error 403
+- Generar tema único consultando temas usados en tabla `articles`
+- Generar artículo usando Lovable AI (Google Gemini)
+- Buscar imagen en Unsplash
+- Guardar en tabla `articles` con `user_id` y `site_id`
 
 ```typescript
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<{ error: Error | null }>;
+// Estructura clave de verificación de admin
+async function isUserAdmin(supabase, userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId);
+  
+  return data?.some(r => r.role === 'admin') || false;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// En el handler principal:
+const isAdmin = await isUserAdmin(supabase, user.id);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
-  };
-
-  const signUp = async (email: string, password: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({
-      email, password,
-      options: { emailRedirectTo: redirectUrl },
-    });
-    return { error };
-  };
-
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+if (!isAdmin) {
+  // Verificar límites de plan
+  const articlesThisMonth = await countArticlesThisMonth(supabase, userId, month, year);
+  const { posts_limit } = profile;
+  
+  if (articlesThisMonth >= posts_limit) {
+    return new Response(JSON.stringify({ 
+      error: "Has alcanzado tu límite mensual de artículos",
+      limit: posts_limit,
+      current: articlesThisMonth
+    }), { status: 403 });
   }
-  return context;
+}
+// Admins continúan sin restricciones
+```
+
+---
+
+#### 2. Hook: Actualizar `src/hooks/useArticlesSaas.ts`
+
+Añadir mutation para generar artículos:
+
+```typescript
+interface GenerateArticleParams {
+  siteId: string;
+  topic?: string | null;
+}
+
+export function useGenerateArticleSaas() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (params: GenerateArticleParams) => {
+      if (!user?.id) throw new Error('No user logged in');
+      
+      const { data, error } = await supabase.functions.invoke('generate-article-saas', {
+        body: {
+          siteId: params.siteId,
+          topic: params.topic || null,
+          month: new Date().getMonth() + 1,
+          year: new Date().getFullYear(),
+        }
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['articles'] });
+      toast.success('Artículo generado correctamente');
+    },
+    onError: (error: any) => {
+      if (error?.message?.includes('límite')) {
+        toast.error('Has alcanzado tu límite mensual de artículos');
+      } else {
+        toast.error('Error al generar el artículo');
+      }
+    }
+  });
 }
 ```
 
 ---
 
-#### 2. Modificar `src/App.tsx`
+#### 3. Actualizar `src/pages/SiteDetail.tsx`
 
-Envolver toda la aplicación con `AuthProvider`:
+Reemplazar el placeholder por la llamada real:
 
 ```typescript
-import { AuthProvider } from '@/contexts/AuthContext';
+import { useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        {/* ... resto igual ... */}
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+// En el componente:
+const generateMutation = useGenerateArticleSaas();
+
+const handleGenerateArticle = async () => {
+  if (!site) return;
+  generateMutation.mutate({ siteId: site.id });
+};
+
+// En el JSX:
+<Button 
+  onClick={handleGenerateArticle} 
+  disabled={generateMutation.isPending}
+>
+  {generateMutation.isPending ? (
+    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+  ) : (
+    <Sparkles className="w-4 h-4 mr-2" />
+  )}
+  Generar artículo
+</Button>
 ```
 
 ---
 
-#### 3. Actualizar `src/hooks/useAuth.ts`
+#### 4. Actualizar `src/pages/SaasDashboard.tsx`
 
-Cambiar para que re-exporte desde el contexto (mantener compatibilidad):
-
-```typescript
-// Re-export from context for backward compatibility
-export { useAuth } from '@/contexts/AuthContext';
-```
+Misma lógica para el botón de generación en las tarjetas del dashboard.
 
 ---
 
-#### 4. Sin cambios adicionales necesarios
-
-Todos los archivos que actualmente usan `useAuth`:
-- `src/hooks/useSites.ts`
-- `src/components/ProtectedRoute.tsx`
-- `src/pages/Onboarding.tsx`
-- etc.
-
-Seguirán funcionando porque el import path `@/hooks/useAuth` ahora re-exporta desde el contexto.
-
----
-
-### Resultado Esperado
+### Flujo de Verificación de Límites
 
 ```text
-                    AuthProvider (estado único)
-                           |
-            ┌──────────────┴──────────────┐
-            |                              |
-     ProtectedRoute                   useCreateSite
-      (consume contexto)             (consume contexto)
-            |                              |
-       ✓ session                      ✓ session
-       ✓ user.id                      ✓ user.id
+Usuario hace clic en "Generar artículo"
+        │
+        ▼
+Edge Function recibe request con JWT
+        │
+        ▼
+Extrae user_id del token
+        │
+        ▼
+┌───────────────────────────────┐
+│ ¿Usuario tiene rol 'admin'?  │
+└───────────────────────────────┘
+        │
+   ┌────┴────┐
+   │         │
+  SÍ        NO
+   │         │
+   │         ▼
+   │   Obtener profile.posts_limit
+   │         │
+   │         ▼
+   │   Contar artículos del mes
+   │         │
+   │         ▼
+   │   ┌─────────────────────────┐
+   │   │ artículos >= límite?    │
+   │   └─────────────────────────┘
+   │         │
+   │    ┌────┴────┐
+   │   SÍ        NO
+   │    │         │
+   │    ▼         │
+   │  Error 403   │
+   │  "Límite     │
+   │  alcanzado"  │
+   │              │
+   └──────────────┴──────────────┐
+                                 │
+                                 ▼
+                         Generar artículo
+                                 │
+                                 ▼
+                         Guardar en 'articles'
+                                 │
+                                 ▼
+                         Respuesta exitosa
 ```
 
-Ahora `ProtectedRoute` y `useCreateSite` comparten el **mismo estado de autenticación**, eliminando la condición de carrera.
+---
+
+### Estructura del Edge Function
+
+El edge function seguirá la misma estructura que `generate-article-empresa` pero adaptado:
+
+| Aspecto | generate-article-empresa | generate-article-saas |
+|---------|-------------------------|----------------------|
+| Tabla destino | `articulos_empresas` | `articles` |
+| ID entidad | `empresa_id` | `site_id` |
+| Tabla config | `empresas` | `sites` |
+| Autenticación | No validada | JWT requerido + RLS |
+| Límites | No implementados | Verificación de `profiles.posts_limit` |
+| Bypass admin | No aplica | Verificación de `user_roles.role = 'admin'` |
 
 ---
 
@@ -178,7 +222,17 @@ Ahora `ProtectedRoute` y `useCreateSite` comparten el **mismo estado de autentic
 
 | Archivo | Acción |
 |---------|--------|
-| `src/contexts/AuthContext.tsx` | **CREAR** - Nuevo contexto de autenticación |
-| `src/App.tsx` | Añadir `AuthProvider` wrapper |
-| `src/hooks/useAuth.ts` | Re-exportar desde el contexto |
+| `supabase/functions/generate-article-saas/index.ts` | **CREAR** - Edge function completa |
+| `src/hooks/useArticlesSaas.ts` | Añadir `useGenerateArticleSaas` mutation |
+| `src/pages/SiteDetail.tsx` | Reemplazar placeholder por mutation real |
+| `src/pages/SaasDashboard.tsx` | Actualizar `handleGenerateArticle` |
+| `supabase/config.toml` | Añadir configuración del nuevo function |
+
+---
+
+### Beneficios para Administradores
+
+- Los usuarios con rol `admin` en `user_roles` podrán generar artículos **sin límite**
+- Ideal para testing y demostración del producto
+- Los usuarios normales respetarán los límites de su plan (`free`=1, `starter`=4, `pro`=30, `agency`=100)
 
