@@ -18,7 +18,7 @@ import { ProductMockup } from '@/components/saas/ProductMockup';
 import { LiquidBlobs } from '@/components/saas/LiquidBlobs';
 import { PublicNavbar } from '@/components/marketing/PublicNavbar';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
-
+import { SEOHead } from '@/components/seo';
 const features = [
   {
     icon: Sparkles,
@@ -95,6 +95,11 @@ const stats = [
 const Landing = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-fuchsia-50/50 to-orange-50/30 overflow-hidden">
+      <SEOHead 
+        canonicalUrl="/"
+        description="Genera y publica artículos para tu blog WordPress automáticamente con IA. Ideal para empresas y agencias de marketing. Prueba gratis."
+        keywords="blog automático, generación contenido IA, WordPress, marketing contenidos, SEO, artículos automáticos, Blooglee"
+      />
       {/* LIQUID BLOBS BACKGROUND */}
       <LiquidBlobs variant="hero" />
 

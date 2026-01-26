@@ -4,7 +4,7 @@ import { Check, Sparkles, Building2, Users, Rocket, ArrowRight, X } from "lucide
 import { LiquidBlobs } from "@/components/saas/LiquidBlobs";
 import { PublicNavbar } from "@/components/marketing/PublicNavbar";
 import { PublicFooter } from "@/components/marketing/PublicFooter";
-
+import { SEOHead } from '@/components/seo';
 const Pricing = () => {
   const [isAnnual, setIsAnnual] = useState(true);
 
@@ -93,8 +93,13 @@ const Pricing = () => {
 
   return (
     <div className="min-h-screen aurora-bg aurora-bg-intense">
+      <SEOHead 
+        title="Precios y Planes"
+        description="Planes flexibles de Blooglee desde 0€/mes. Free, Starter, Pro y Agencia. Sin permanencia, cancela cuando quieras."
+        canonicalUrl="/pricing"
+        keywords="precios Blooglee, planes blog automático, suscripción contenido IA, tarifas WordPress automático"
+      />
       <LiquidBlobs variant="hero" />
-
       {/* Unified Navigation */}
       <PublicNavbar />
 
