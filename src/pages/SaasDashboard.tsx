@@ -11,11 +11,12 @@ import {
 import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, ArrowLeftRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useIsMKProAdmin } from '@/hooks/useProfile';
-import { useSites } from '@/hooks/useSites';
+import { useSites, useImportSites } from '@/hooks/useSites';
 import { useAllArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 import { SiteCard } from '@/components/saas/SiteCard';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { PlanBadge, type PlanType } from '@/components/saas/PlanBadge';
+import { SiteImportExport } from '@/components/saas/SiteImportExport';
 import { toast } from 'sonner';
 
 export default function SaasDashboard() {
@@ -30,6 +31,7 @@ export default function SaasDashboard() {
   const { data: articles = [] } = useAllArticlesSaas(currentMonth, currentYear);
 
   const generateMutation = useGenerateArticleSaas();
+  const importSitesMutation = useImportSites();
 
   const handleSignOut = async () => {
     await signOut();
@@ -181,6 +183,16 @@ export default function SaasDashboard() {
             </CardContent>
           </Card>
         )}
+
+        {/* Import/Export section */}
+        <div className="mt-6">
+          <SiteImportExport
+            sites={sites}
+            articles={articles}
+            sitesLimit={sitesLimit}
+            onImportSites={(sitesToImport) => importSitesMutation.mutate(sitesToImport)}
+          />
+        </div>
       </main>
     </div>
   );
