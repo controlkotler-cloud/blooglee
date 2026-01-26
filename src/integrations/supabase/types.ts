@@ -588,6 +588,47 @@ export type Database = {
           },
         ]
       }
+      wordpress_taxonomies_saas: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          slug: string | null
+          taxonomy_type: string
+          user_id: string
+          wordpress_config_id: string
+          wp_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          slug?: string | null
+          taxonomy_type: string
+          user_id: string
+          wordpress_config_id: string
+          wp_id: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          slug?: string | null
+          taxonomy_type?: string
+          user_id?: string
+          wordpress_config_id?: string
+          wp_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wordpress_taxonomies_saas_wordpress_config_id_fkey"
+            columns: ["wordpress_config_id"]
+            isOneToOne: false
+            referencedRelation: "wordpress_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

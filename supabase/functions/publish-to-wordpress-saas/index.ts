@@ -16,6 +16,8 @@ interface PublishRequest {
   image_alt?: string;
   meta_description?: string;
   lang?: 'es' | 'ca';
+  category_ids?: number[];
+  tag_ids?: number[];
 }
 
 interface PublishResult {
@@ -211,6 +213,18 @@ Deno.serve(async (req) => {
     // Add language parameter for Polylang
     if (body.lang) {
       postData.lang = body.lang;
+    }
+
+    // Add categories if provided
+    if (body.category_ids && body.category_ids.length > 0) {
+      postData.categories = body.category_ids;
+      console.log('Categories:', body.category_ids);
+    }
+
+    // Add tags if provided
+    if (body.tag_ids && body.tag_ids.length > 0) {
+      postData.tags = body.tag_ids;
+      console.log('Tags:', body.tag_ids);
     }
 
     console.log('Creating post with data:', JSON.stringify(postData, null, 2));

@@ -20,6 +20,8 @@ export interface PublishInputSaas {
   image_alt?: string;
   meta_description?: string;
   lang?: 'es' | 'ca';
+  category_ids?: number[];
+  tag_ids?: number[];
 }
 
 export interface PublishResultSaas {
