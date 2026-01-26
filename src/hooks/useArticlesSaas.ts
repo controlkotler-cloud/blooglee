@@ -3,6 +3,63 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
+interface GenerateArticleParams {
+  siteId: string;
+  topic?: string | null;
+}
+
+export function useGenerateArticleSaas() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (params: GenerateArticleParams) => {
+      if (!user?.id) throw new Error('No user logged in');
+      
+      const { data, error } = await supabase.functions.invoke('generate-article-saas', {
+        body: {
+          siteId: params.siteId,
+          topic: params.topic || null,
+          month: new Date().getMonth() + 1,
+          year: new Date().getFullYear(),
+        }
+      });
+      
+      if (error) {
+        // Check if error response contains JSON with more details
+        if (typeof error === 'object' && error.message) {
+          throw new Error(error.message);
+        }
+        throw error;
+      }
+      
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['articles'] });
+      toast.success('Artículo generado correctamente');
+    },
+    onError: (error: any) => {
+      console.error('Generate article error:', error);
+      const message = error?.message || 'Error al generar el artículo';
+      
+      if (message.includes('límite')) {
+        toast.error('Has alcanzado tu límite mensual de artículos');
+      } else if (message.includes('Rate limit')) {
+        toast.error('Demasiadas solicitudes. Inténtalo de nuevo en unos segundos.');
+      } else if (message.includes('Payment required')) {
+        toast.error('Créditos agotados. Añade más créditos para continuar.');
+      } else {
+        toast.error(message);
+      }
+    }
+  });
+}
+
 export interface ArticleContent {
   title: string;
   meta_description: string;
