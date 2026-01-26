@@ -68,14 +68,14 @@ export function ProductMockup() {
           <div className="p-5 bg-gradient-to-b from-background to-muted/20">
             {/* Mini header */}
             <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
-                <img 
-                  src={bloogleeLogo} 
-                  alt="Blooglee" 
-                  className="w-8 h-8 object-contain"
-                />
-                <span className="font-display font-semibold text-sm">Blooglee</span>
-              </div>
+            <div className="flex items-center gap-3">
+              <img 
+                src={bloogleeLogo} 
+                alt="Blooglee" 
+                className="w-10 h-10 object-contain"
+              />
+              <span className="font-display font-semibold text-sm bg-gradient-to-r from-purple-600 via-fuchsia-500 to-orange-500 bg-clip-text text-transparent">Blooglee</span>
+            </div>
               <div className="badge-aurora text-xs py-1 px-2.5">
                 <Zap className="w-3 h-3" />
                 Pro
