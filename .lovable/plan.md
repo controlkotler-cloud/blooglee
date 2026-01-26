@@ -1,33 +1,84 @@
 
 
-## Plan: Implementar Publicación a WordPress para Sitios SaaS
+## Plan: Sincronizar Categorías/Tags + SEO Footer para SaaS
 
-### Problema Identificado
+### Resumen de Funcionalidades a Implementar
 
-El botón "Publicar" en los artículos de SaaS muestra "Publicación en WordPress próximamente" (línea 68-71 de `SiteArticles.tsx`) porque:
-
-1. **El edge function `publish-to-wordpress`** solo busca credenciales en `wordpress_sites` (MKPro) con `farmacia_id` o `empresa_id`
-2. **Los sitios SaaS** usan la tabla `wordpress_configs` con `site_id`
-3. **No existe** diálogo de publicación ni hook para invocar la función
-
----
-
-### Solución
-
-Crear un nuevo edge function `publish-to-wordpress-saas` siguiendo las reglas de separación MKPro/SaaS y un componente de diálogo de publicación.
+| Funcionalidad | Estado en MKPro | Estado en SaaS |
+|---------------|-----------------|----------------|
+| Sincronizar categorías/tags de WP | ✅ Funciona | ❌ No existe |
+| Enviar `category_ids` y `tag_ids` al publicar | ✅ Funciona | ❌ No existe |
+| Parámetro `lang` para Polylang | ✅ Funciona | ⚠️ Se envía pero sin efecto |
+| Frase SEO con enlaces a blog/redes | ✅ Funciona | ❌ No existe |
 
 ---
 
-### Archivos a Crear
+## PARTE 1: Sincronización de Categorías y Tags
 
-#### 1. Edge Function: `supabase/functions/publish-to-wordpress-saas/index.ts`
+### 1.1 Nueva Tabla en Base de Datos
 
-Funcionalidad:
-- Recibir `site_id` y validar que pertenece al usuario autenticado
-- Buscar credenciales en `wordpress_configs` (tabla SaaS)
-- Subir imagen destacada si existe
-- Publicar artículo vía WordPress REST API
-- Soportar borrador, publicación inmediata y programada
+Crear tabla `wordpress_taxonomies_saas` para SaaS (separada de la de MKPro):
+
+```sql
+CREATE TABLE wordpress_taxonomies_saas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  wordpress_config_id UUID NOT NULL REFERENCES wordpress_configs(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
+  taxonomy_type TEXT NOT NULL CHECK (taxonomy_type IN ('category', 'tag')),
+  wp_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  slug TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE (wordpress_config_id, taxonomy_type, wp_id)
+);
+
+-- RLS para aislamiento multi-tenant
+ALTER TABLE wordpress_taxonomies_saas ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own taxonomies" ON wordpress_taxonomies_saas
+  FOR ALL USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+```
+
+### 1.2 Nueva Edge Function: `sync-wordpress-taxonomies-saas`
+
+Similar a `sync-wordpress-taxonomies` pero con validación de usuario:
+
+- Recibe `wordpress_config_id` 
+- Valida que el config pertenezca al usuario autenticado
+- Obtiene categorías de `/wp-json/wp/v2/categories?per_page=100`
+- Obtiene tags de `/wp-json/wp/v2/tags?per_page=100`
+- Guarda en `wordpress_taxonomies_saas` con `user_id`
+- Limpia taxonomías obsoletas
+
+### 1.3 Nuevo Hook: `useWordPressTaxonomiesSaas`
+
+En `src/hooks/useWordPressTaxonomiesSaas.ts`:
+
+```typescript
+export function useTaxonomiesSaas(wordpressConfigId: string | undefined) {
+  // Obtener categorías y tags del config
+}
+
+export function useSyncTaxonomiesSaas() {
+  // Invocar edge function sync-wordpress-taxonomies-saas
+}
+```
+
+### 1.4 Componente: Selector de Taxonomías en Diálogo de Publicación
+
+Modificar `WordPressPublishDialogSaas.tsx` para incluir:
+- Checkboxes para seleccionar categorías
+- Checkboxes para seleccionar tags
+- Botón "Sincronizar" para actualizar lista desde WordPress
+
+---
+
+## PARTE 2: Enviar Taxonomías al Publicar
+
+### 2.1 Modificar `publish-to-wordpress-saas`
+
+Añadir soporte para `category_ids` y `tag_ids` en la request:
 
 ```typescript
 interface PublishRequest {
@@ -41,148 +92,168 @@ interface PublishRequest {
   image_alt?: string;
   meta_description?: string;
   lang?: 'es' | 'ca';
+  category_ids?: number[];  // NUEVO
+  tag_ids?: number[];       // NUEVO
 }
 ```
 
-#### 2. Componente: `src/components/saas/WordPressPublishDialogSaas.tsx`
-
-Basado en `WordPressPublishDialog.tsx` de farmacias pero adaptado:
-- Usa `site_id` en lugar de `farmacia_id`
-- Consulta `wordpress_configs` para verificar si hay WP configurado
-- Selector de idiomas (español/catalán)
-- Opciones de publicación: ahora, borrador, programar
-- Muestra resultados con link al post publicado
-
-#### 3. Hook: Añadir a `src/hooks/useArticlesSaas.ts`
+Y en el `postData` enviado a WordPress:
 
 ```typescript
-export function usePublishToWordPressSaas() {
-  return useMutation({
-    mutationFn: async (input: PublishInput) => {
-      const { data, error } = await supabase.functions.invoke('publish-to-wordpress-saas', {
-        body: input
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      return data;
-    },
-    onSuccess: (result) => {
-      toast.success('Artículo publicado en WordPress');
-    },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
-    }
-  });
+const postData = {
+  title: body.title,
+  content: body.content,
+  slug: slug,
+  status: body.status,
+  lang: body.lang || 'es',
+  categories: body.category_ids || [],  // NUEVO
+  tags: body.tag_ids || [],              // NUEVO
+  // ...
+};
+```
+
+### 2.2 Actualizar Hook `usePublishToWordPressSaas`
+
+Añadir `category_ids` y `tag_ids` al interface de input.
+
+---
+
+## PARTE 3: Frase SEO con Enlaces al Blog y Redes
+
+### 3.1 Modificar `generate-article-saas`
+
+Añadir el SEO footer como en MKPro después de generar el contenido español:
+
+```typescript
+// Guardar contenido español SIN SEO para traducir a catalán
+const spanishContentWithoutSeoLinks = spanishArticle?.content || '';
+
+// Añadir SEO links al contenido español
+if (spanishArticle?.content) {
+  const seoLinks: string[] = [];
+  
+  if (site.blog_url) {
+    seoLinks.push(`<a href="${site.blog_url}" target="_blank" rel="noopener">nuestro blog</a>`);
+  }
+  if (site.instagram_url) {
+    seoLinks.push(`<a href="${site.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
+  }
+  
+  if (seoLinks.length > 0) {
+    const linksText = seoLinks.join(' y ');
+    const closingParagraph = `<p><strong>¿Quieres más consejos?</strong> Visita ${linksText} para descubrir más contenido de ${site.name}.</p>`;
+    spanishArticle.content += closingParagraph;
+  }
 }
 ```
 
----
-
-### Archivos a Modificar
-
-#### 4. `src/components/saas/SiteArticles.tsx`
-
-Reemplazar el placeholder por el diálogo real:
+Y después de la traducción al catalán:
 
 ```typescript
-// Antes (línea 68-71)
-const handlePublish = (article: Article) => {
-  toast.info('Publicación en WordPress próximamente');
-};
-
-// Después
-const [publishArticle, setPublishArticle] = useState<Article | null>(null);
-
-const handlePublish = (article: Article) => {
-  setPublishArticle(article);
-};
-
-// En JSX, añadir el diálogo:
-<WordPressPublishDialogSaas
-  open={!!publishArticle}
-  onClose={() => setPublishArticle(null)}
-  article={publishArticle}
-  siteId={siteId}
-/>
+// Añadir SEO links al catalán DESPUÉS de traducir
+if (catalanArticle?.content) {
+  const seoLinksCa: string[] = [];
+  
+  if (site.blog_url) {
+    seoLinksCa.push(`<a href="${site.blog_url}" target="_blank" rel="noopener">el nostre blog</a>`);
+  }
+  if (site.instagram_url) {
+    seoLinksCa.push(`<a href="${site.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
+  }
+  
+  if (seoLinksCa.length > 0) {
+    const linksTextCa = seoLinksCa.join(' i ');
+    const closingParagraphCa = `<p><strong>Vols més consells?</strong> Visita ${linksTextCa} per descobrir més contingut de ${site.name}.</p>`;
+    catalanArticle.content += closingParagraphCa;
+  }
+}
 ```
 
-#### 5. `src/components/saas/ArticlePreviewDialog.tsx`
-
-Pasar `siteId` al diálogo y conectar con el diálogo de publicación.
-
-#### 6. `supabase/config.toml`
-
-Añadir configuración del nuevo edge function.
+**Importante**: La traducción al catalán se hace ANTES de añadir los enlaces SEO para evitar duplicar el footer en ambos idiomas de forma incorrecta.
 
 ---
 
-### Flujo de Publicación
+## Archivos a Crear
+
+| Archivo | Descripción |
+|---------|-------------|
+| `supabase/functions/sync-wordpress-taxonomies-saas/index.ts` | Edge function para sincronizar taxonomías |
+| `src/hooks/useWordPressTaxonomiesSaas.ts` | Hook para gestionar taxonomías SaaS |
+
+---
+
+## Archivos a Modificar
+
+| Archivo | Cambios |
+|---------|---------|
+| Base de datos | Crear tabla `wordpress_taxonomies_saas` con RLS |
+| `supabase/functions/generate-article-saas/index.ts` | Añadir SEO footer con enlaces a blog/redes |
+| `supabase/functions/publish-to-wordpress-saas/index.ts` | Añadir `category_ids` y `tag_ids` al post |
+| `src/hooks/useArticlesSaas.ts` | Añadir taxonomías al interface de publicación |
+| `src/components/saas/WordPressPublishDialogSaas.tsx` | UI para seleccionar categorías/tags + sincronizar |
+| `supabase/config.toml` | Registrar nueva edge function |
+
+---
+
+## Flujo Completo
 
 ```text
-Usuario hace clic en "Publicar"
-        │
-        ▼
-Abre WordPressPublishDialogSaas
-        │
-        ▼
-Verifica si hay WordPress configurado
-        │
-   ┌────┴────┐
-   │         │
-  NO        SÍ
-   │         │
-   ▼         ▼
-Mensaje:   Mostrar opciones:
-"Configura  - Idiomas (ES/CA)
-WordPress   - Publicar/Borrador/Programar
-primero"    - Fecha si programar
-   │         │
-   │         ▼
-   │    Edge Function invocado
-   │         │
-   │         ▼
-   │    Busca credenciales en wordpress_configs
-   │         │
-   │         ▼
-   │    Sube imagen si existe
-   │         │
-   │         ▼
-   │    Publica vía REST API
-   │         │
-   │         ▼
-   └─────────┴──> Muestra resultado con link
+┌─────────────────────────────────────────────────────────────────┐
+│                    GENERACIÓN DE ARTÍCULO                       │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. Generar artículo español                                     │
+│ 2. Guardar contenido SIN enlaces SEO                            │
+│ 3. Traducir a catalán (si aplica) desde contenido limpio        │
+│ 4. Añadir enlaces SEO al español                                │
+│ 5. Añadir enlaces SEO al catalán                                │
+│ 6. Guardar artículo con ambas versiones                         │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    PUBLICACIÓN A WORDPRESS                      │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. Usuario abre diálogo de publicación                          │
+│ 2. Se cargan taxonomías sincronizadas (si existen)              │
+│ 3. Usuario selecciona idiomas + categorías + tags               │
+│ 4. Se envía POST con:                                           │
+│    - lang: 'es' | 'ca' (para Polylang)                          │
+│    - categories: [1, 5, 12] (IDs de WP)                         │
+│    - tags: [3, 7] (IDs de WP)                                   │
+│ 5. WordPress asigna taxonomías y idioma al post                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Comparación de Tablas
+## Ejemplo de Resultado
 
-| Aspecto | MKPro (Farmacias/Empresas) | SaaS |
-|---------|---------------------------|------|
-| Tabla credenciales | `wordpress_sites` | `wordpress_configs` |
-| Campo entidad | `farmacia_id` / `empresa_id` | `site_id` |
-| RLS | Sin user_id | Con user_id |
-| Edge function | `publish-to-wordpress` | `publish-to-wordpress-saas` (nuevo) |
+### Artículo Español (con SEO footer)
 
----
+```html
+<h2>Estrategias de marketing digital</h2>
+<p>Contenido del artículo...</p>
 
-### Archivos a Crear/Modificar
+<h2>Cómo implementar estas técnicas</h2>
+<p>Más contenido...</p>
 
-| Archivo | Acción |
-|---------|--------|
-| `supabase/functions/publish-to-wordpress-saas/index.ts` | **CREAR** |
-| `src/components/saas/WordPressPublishDialogSaas.tsx` | **CREAR** |
-| `src/hooks/useArticlesSaas.ts` | Añadir hook `usePublishToWordPressSaas` |
-| `src/components/saas/SiteArticles.tsx` | Integrar diálogo de publicación |
-| `src/components/saas/ArticlePreviewDialog.tsx` | Conectar botón "Publicar" |
-| `supabase/config.toml` | Añadir función |
+<p><strong>¿Quieres más consejos?</strong> Visita 
+<a href="https://farmapro.es/blog" target="_blank">nuestro blog</a> y 
+<a href="https://instagram.com/farmapro" target="_blank">Instagram</a> 
+para descubrir más contenido de FarmaPro.</p>
+```
 
----
+### Artículo Catalán (con SEO footer)
 
-### Beneficios
+```html
+<h2>Estratègies de màrqueting digital</h2>
+<p>Contingut de l'article...</p>
 
-- Los usuarios de SaaS podrán publicar artículos directamente a su WordPress
-- Mantiene la separación con el módulo MKPro (tablas y funciones separadas)
-- Soporta múltiples idiomas y programación de posts
-- Verifica que WordPress esté configurado antes de mostrar opciones
+<h2>Com implementar aquestes tècniques</h2>
+<p>Més contingut...</p>
+
+<p><strong>Vols més consells?</strong> Visita 
+<a href="https://farmapro.es/blog" target="_blank">el nostre blog</a> i 
+<a href="https://instagram.com/farmapro" target="_blank">Instagram</a> 
+per descobrir més contingut de FarmaPro.</p>
+```
 
