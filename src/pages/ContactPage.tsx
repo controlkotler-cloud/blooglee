@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Mail, MapPin, Clock, Send, CheckCircle2 } from 'lucide-react';
 import { z } from 'zod';
+import { SEOHead } from '@/components/seo';
 
 const contactSchema = z.object({
   name: z.string().trim().min(1, 'El nombre es requerido').max(100, 'Nombre demasiado largo'),
@@ -63,6 +64,12 @@ const ContactPage = () => {
 
   return (
     <PublicLayout>
+      <SEOHead 
+        title="Contacto"
+        description="Contacta con el equipo de Blooglee. Estamos en Barcelona, España. Soporte técnico, información general y colaboraciones."
+        canonicalUrl="/contact"
+        keywords="contacto Blooglee, soporte técnico, atención cliente, Barcelona"
+      />
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">

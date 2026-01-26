@@ -15,6 +15,7 @@ import {
   Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SEOHead } from '@/components/seo';
 
 const features = [
   {
@@ -97,6 +98,12 @@ const comparison = [
 const FeaturesPage = () => {
   return (
     <PublicLayout>
+      <SEOHead 
+        title="Características"
+        description="Descubre las funcionalidades de Blooglee: generación de contenido con IA, publicación en WordPress, SEO automático, múltiples idiomas y más."
+        canonicalUrl="/features"
+        keywords="características Blooglee, generación IA, WordPress automático, SEO automático, contenido multiidioma"
+      />
       {/* Hero Section */}
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
         <div className="text-center max-w-4xl mx-auto mb-16 sm:mb-24">

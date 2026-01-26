@@ -5,12 +5,18 @@ import { blogPosts } from '@/data/blogPosts';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, BookOpen, Mail } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-
+import { SEOHead } from '@/components/seo';
 const categories = ['Todos', 'SEO', 'Marketing', 'Tutoriales'];
 
 const BlogIndex = () => {
   return (
     <PublicLayout>
+      <SEOHead 
+        title="Blog"
+        description="Aprende sobre SEO, marketing de contenidos y cómo automatizar tu estrategia digital con Blooglee. Artículos y tutoriales."
+        canonicalUrl="/blog"
+        keywords="blog SEO, marketing contenidos, automatización blog, tutoriales WordPress, estrategia digital"
+      />
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">

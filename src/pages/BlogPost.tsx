@@ -5,6 +5,7 @@ import { BlogCard } from '@/components/marketing/BlogCard';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, ArrowLeft, ArrowRight, Share2, Twitter, Linkedin, Facebook, Copy } from 'lucide-react';
 import { toast } from 'sonner';
+import { SEOHead, BlogPostingSchema, BreadcrumbSchema } from '@/components/seo';
 
 const BlogPost = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -22,9 +23,37 @@ const BlogPost = () => {
 
   const shareUrl = encodeURIComponent(window.location.href);
   const shareTitle = encodeURIComponent(post.title);
+  const fullUrl = `https://blooglee.lovable.app/blog/${post.slug}`;
 
   return (
     <PublicLayout showBlobs={false}>
+      <SEOHead 
+        title={post.title}
+        description={post.excerpt}
+        canonicalUrl={`/blog/${post.slug}`}
+        ogImage={post.image}
+        ogType="article"
+        article={{
+          publishedTime: post.date,
+          author: post.author.name,
+          section: post.category,
+        }}
+      />
+      <BlogPostingSchema 
+        title={post.title}
+        description={post.excerpt}
+        image={post.image}
+        datePublished={post.date}
+        author={{ name: post.author.name, role: post.author.role }}
+        url={fullUrl}
+      />
+      <BreadcrumbSchema 
+        items={[
+          { name: 'Inicio', url: 'https://blooglee.lovable.app/' },
+          { name: 'Blog', url: 'https://blooglee.lovable.app/blog' },
+          { name: post.title, url: fullUrl },
+        ]}
+      />
       <article className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
         {/* Breadcrumb */}
         <div className="mb-8">

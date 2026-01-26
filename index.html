@@ -6,21 +6,90 @@
     <title>Blooglee - Blog en piloto automático con IA</title>
     <meta name="description" content="Genera y publica artículos para tu blog WordPress automáticamente. Ideal para empresas y agencias de marketing.">
     <meta name="author" content="Blooglee" />
+    <meta name="keywords" content="blog automático, generación contenido IA, WordPress, marketing contenidos, SEO, artículos automáticos" />
     <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="canonical" href="https://blooglee.lovable.app/" />
 
+    <!-- Hreflang -->
+    <link rel="alternate" hreflang="es" href="https://blooglee.lovable.app/" />
+    <link rel="alternate" hreflang="x-default" href="https://blooglee.lovable.app/" />
+
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://images.unsplash.com" />
+
+    <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:image" content="https://blooglee.lovable.app/og-image.png" />
     <meta property="og:title" content="Blooglee - Blog en piloto automático con IA">
     <meta property="og:description" content="Genera y publica artículos para tu blog WordPress automáticamente. Ideal para empresas y agencias.">
+    <meta property="og:url" content="https://blooglee.lovable.app/" />
+    <meta property="og:site_name" content="Blooglee" />
+    <meta property="og:locale" content="es_ES" />
 
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@Blooglee" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:image" content="https://blooglee.lovable.app/og-image.png" />
     <meta name="twitter:title" content="Blooglee - Blog en piloto automático con IA">
     <meta name="twitter:description" content="Genera y publica artículos para tu blog WordPress automáticamente. Ideal para empresas y agencias.">
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Blooglee",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "url": "https://blooglee.lovable.app",
+      "logo": "https://blooglee.lovable.app/favicon.png",
+      "description": "Plataforma de generación automática de contenido para blogs WordPress con IA",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "EUR"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "Blooglee",
+        "url": "https://blooglee.lovable.app",
+        "logo": "https://blooglee.lovable.app/favicon.png",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Barcelona",
+          "addressCountry": "ES"
+        },
+        "sameAs": [
+          "https://twitter.com/Blooglee",
+          "https://linkedin.com/company/blooglee",
+          "https://instagram.com/blooglee"
+        ]
+      }
+    }
+    </script>
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Blooglee",
+      "url": "https://blooglee.lovable.app",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://blooglee.lovable.app/blog?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
 </head>
 
   <body>
+    <!-- Skip Link for Accessibility -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-violet-600 focus:text-white focus:rounded-lg">
+      Saltar al contenido principal
+    </a>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
