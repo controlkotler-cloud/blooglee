@@ -1,201 +1,158 @@
 
 
-## Plan: Mejorar Generación de Artículos con Descripción de Empresa e Imágenes con IA
+## Plan: Corregir Prompt de Imágenes, Mayúsculas y Año en Títulos
 
-### Dos Mejoras a Implementar
+### Resumen de Problemas Identificados
 
----
-
-## MEJORA 1: Añadir Campo "Descripción de Empresa"
-
-### Problema Identificado
-Los artículos pueden ser genéricos cuando el sector es estándar. Ejemplo: "Marketing" → artículos demasiado amplios.
-
-Con una descripción como "ecosistema digital de referencia para farmacias en España", la IA genera contenido mucho más enfocado.
-
-### Solución
-
-#### 1.1 Añadir columna a la tabla `sites`
-
-```sql
-ALTER TABLE sites ADD COLUMN description TEXT;
-```
-
-#### 1.2 Modificar Onboarding (Step 1)
-
-Añadir un campo de texto después del sector:
-
-```typescript
-<div className="space-y-2">
-  <Label htmlFor="description">Breve descripción de tu negocio (opcional)</Label>
-  <Textarea
-    id="description"
-    placeholder="Ej: Plataforma digital para verificar contratos de alquiler..."
-    value={description}
-    onChange={(e) => setDescription(e.target.value)}
-    className="min-h-[80px]"
-  />
-  <p className="text-xs text-muted-foreground">
-    Una descripción ayuda a generar artículos más relevantes para tu negocio específico.
-  </p>
-</div>
-```
-
-#### 1.3 Modificar Edge Function
-
-Incluir la descripción en el prompt de generación:
-
-```typescript
-const systemPrompt = `...
-EMPRESA: ${site.name}
-SECTOR: ${site.sector}
-${site.description ? `DESCRIPCIÓN: ${site.description}` : ''}
-...`;
-```
+| Problema | Causa | Líneas |
+|----------|-------|--------|
+| Imágenes idénticas | Prompt muy específico (beige, cream, workspace) | 592-614 |
+| Title Case inglés | Instrucción débil que la IA ignora | 431-432 |
+| Año 2026 en títulos | Fecha en prompt interpretada como parte del título | 371, 407, 434 |
 
 ---
 
-## MEJORA 2: Generar Imágenes con IA (en lugar de Unsplash)
+### Solución 1: Prompt de Imagen Dinámico por Sector
 
-### Problema Identificado
-Unsplash devuelve imágenes irrelevantes:
-- Botes de medicamentos para artículos de estrategia
-- Fachadas con texto en chino
-- Brazos de robot sin contexto
+**Problema actual:**
+```typescript
+const imagePrompt = `Generate a professional blog header image...
+STYLE:
+- Soft neutral colors: beige, cream, light brown, white...
+- Professional office/workspace or lifestyle setting...`;
+```
 
-### Referencia Visual (tu otro proyecto)
-Las imágenes del proyecto de alquileres tienen:
-- Estilo minimalista y profesional
-- Tonos neutros: beige, crema, marrón suave
-- Objetos de oficina/profesionales: libros, gafas, portátil, mazo
-- Interior luminoso con luz natural
-- Relación sutil con el tema (no literal)
-
-### Solución: Usar Lovable AI para Generación
-
-#### 2.1 Prompt de Generación de Imagen
-
+**Solución - Prompt simple y adaptativo:**
 ```typescript
 const imagePrompt = `Generate a professional blog header image.
 
-STYLE:
-- Minimalist, clean, modern
-- Soft neutral colors: beige, cream, light brown, white
-- Natural lighting, bright and airy interior
+TOPIC: "${topic}"
+SECTOR: ${site.sector || "professional services"}
+${site.description ? `CONTEXT: ${site.description}` : ''}
+
+REQUIREMENTS:
+- Clean, professional photograph
+- Visually related to the topic and sector
 - NO text, NO logos, NO faces
+- Suitable for blog header, 16:9 ratio
+- High quality, editorial style
 
-COMPOSITION:
-- Professional office/workspace setting
-- Subtle objects related to the topic: ${topic}
-- Books, glasses, laptop, documents, coffee cup
-- Elegant and sophisticated
-
-MOOD: Professional, trustworthy, calm, modern`;
+Generate an image that a ${site.sector || "professional"} business would use for their blog.`;
 ```
 
-#### 2.2 Llamada a la API de Generación
-
-```typescript
-const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${LOVABLE_API_KEY}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    model: "google/gemini-2.5-flash-image", // Nano banana
-    messages: [{ role: "user", content: imagePrompt }],
-    modalities: ["image", "text"]
-  })
-});
-```
-
-#### 2.3 Procesar la Respuesta
-
-```typescript
-const imageData = await imageResponse.json();
-const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-// base64Image = "data:image/png;base64,iVBORw0KGgo..."
-```
-
-#### 2.4 Subir a Supabase Storage
-
-```typescript
-// Crear bucket 'article-images' si no existe
-const fileName = `${siteId}/${articleId}.png`;
-const imageBuffer = base64ToBuffer(base64Image);
-
-const { data, error } = await supabase.storage
-  .from('article-images')
-  .upload(fileName, imageBuffer, { contentType: 'image/png' });
-
-// Obtener URL pública
-const publicUrl = supabase.storage.from('article-images').getPublicUrl(fileName).data.publicUrl;
-```
-
-#### 2.5 Fallback a Unsplash
-
-Si la generación de IA falla (timeout, error), usar Unsplash como fallback.
+**Beneficio:** La IA decidirá colores, composición y estilo según el sector automáticamente.
 
 ---
 
-## Archivos a Modificar
+### Solución 2: Forzar Capitalización Española
 
-| Archivo | Cambio |
-|---------|--------|
-| Base de datos | Añadir columna `description` a `sites` |
-| `src/pages/Onboarding.tsx` | Añadir campo de descripción |
-| `src/components/saas/SiteSettings.tsx` | Añadir campo de descripción |
-| `src/hooks/useSites.ts` | Incluir `description` en mutations |
-| `supabase/functions/generate-article-saas/index.ts` | Usar descripción en prompt + generar imagen con IA |
-| Supabase Storage | Crear bucket `article-images` con política pública |
-
----
-
-## Resultado Esperado
-
-### Antes (Unsplash)
-Imágenes con:
-- Botes de medicamentos
-- Texto en otros idiomas
-- Robots sin contexto
-
-### Después (IA Generativa)
-Imágenes con:
-- Estilo consistente minimalista
-- Tonos neutros profesionales
-- Objetos sutiles relacionados con el tema
-- Sin texto ni logos
-- Aspecto editorial de alta calidad
-
----
-
-## Consideraciones Técnicas
-
-### Ventajas de Generación con IA
-- Imágenes 100% relevantes al contenido
-- Estilo visual consistente en todos los artículos
-- Sin problemas de derechos de autor
-- Sin texto en idiomas incorrectos
-
-### Posibles Desventajas
-- Más tiempo de generación (5-15 segundos adicionales)
-- Costo de API (pero ya está incluido en Lovable AI)
-- Tamaño de las imágenes base64 (se mitiga subiendo a storage)
-
-### Configuración de Storage (necesaria)
-
-```sql
--- Crear bucket
-INSERT INTO storage.buckets (id, name, public) 
-VALUES ('article-images', 'article-images', true);
-
--- Política de lectura pública
-CREATE POLICY "Public access" ON storage.objects 
-FOR SELECT USING (bucket_id = 'article-images');
-
--- Política de escritura para usuarios autenticados
-CREATE POLICY "Users can upload" ON storage.objects 
-FOR INSERT WITH CHECK (bucket_id = 'article-images');
+**Problema actual (líneas 431-432):**
+```typescript
+ORTOGRAFÍA:
+- Usa mayúscula solo inicial en títulos (español, no Title Case inglés)
 ```
+
+La instrucción es ignorada porque está entre otras reglas.
+
+**Solución - Instrucción enfática y separada:**
+```typescript
+⚠️ CAPITALIZACIÓN ESPAÑOLA OBLIGATORIA:
+- SOLO la primera letra del título en mayúscula (+ nombres propios)
+- INCORRECTO: "Claves Del Éxito Digital Para Farmacias"
+- CORRECTO: "Claves del éxito digital para farmacias"
+- Los subtítulos H2 siguen la misma regla
+- NO uses Title Case inglés bajo ninguna circunstancia
+```
+
+Además, añadir instrucción en el prompt de generación de tema:
+```typescript
+6. Usa capitalización española (solo inicial mayúscula, no Title Case)
+```
+
+---
+
+### Solución 3: Eliminar Año de los Títulos
+
+**Problema actual:**
+La fecha `${monthNameEs} ${year}` aparece en múltiples puntos del prompt, y la IA la interpreta como parte obligatoria del título.
+
+**Cambios:**
+
+1. **Prompt de generación de tema (línea 371):**
+```typescript
+// ANTES
+MES: ${monthNameEs} ${year}
+
+// DESPUÉS
+CONTEXTO TEMPORAL: Estamos en ${monthNameEs} ${year}, considera estacionalidad si aplica.
+```
+
+2. **Reglas del tema (línea 373):**
+```typescript
+// AÑADIR
+6. NO incluyas el año en el título
+7. Evita referencias temporales explícitas (ej: "en 2026", "este año")
+```
+
+3. **Título del artículo (líneas 425-426):**
+```typescript
+// ANTES
+- TÍTULO H1: Máximo 60 caracteres. SIN nombre de empresa.
+
+// DESPUÉS  
+- TÍTULO H1: Máximo 60 caracteres. SIN nombre de empresa. SIN año (ej: "2026").
+```
+
+4. **Fallback de tema (línea 407):**
+```typescript
+// ANTES
+topic = `Novedades del sector ${site.sector} para ${monthNameEs} ${year}`;
+
+// DESPUÉS
+topic = `Novedades y tendencias en ${site.sector || "el sector"}`;
+```
+
+5. **Fecha contextual (línea 434):**
+```typescript
+// ANTES
+FECHA: ${dateContext}
+
+// DESPUÉS
+CONTEXTO TEMPORAL: Hoy es ${dateContext}. Usa esta información para estacionalidad, pero NO incluyas el año en el título ni subtítulos.
+```
+
+---
+
+### Archivo a Modificar
+
+| Archivo | Cambios |
+|---------|---------|
+| `supabase/functions/generate-article-saas/index.ts` | Modificar prompts (tema, artículo, imagen) |
+
+---
+
+### Resultado Esperado
+
+#### Títulos - Antes vs Después
+
+| Antes | Después |
+|-------|---------|
+| "Claves Del Éxito Online Para Farmacias En 2026" | "Claves del éxito online para farmacias" |
+| "Estrategia Digital Para Tu Negocio En 2026" | "Estrategia digital para impulsar tu negocio" |
+
+#### Imágenes - Antes vs Después
+
+| Antes | Después |
+|-------|---------|
+| Siempre beige/crema con escritorio | Adapta colores y escenario al sector |
+| Objetos genéricos (libros, café) | Objetos relevantes al tema específico |
+| Estilo "alquiler" clonado | Estilo propio según contexto |
+
+---
+
+### Consideraciones
+
+- **El año sigue disponible** para la IA como contexto temporal (estacionalidad), pero con instrucciones explícitas de NO incluirlo en títulos
+- **Las imágenes variarán** según sector: farmacia = tonos limpios/médicos, marketing = vibrantes, hostelería = cálidos, etc.
+- **La capitalización** ahora tiene ejemplos concretos de correcto/incorrecto que la IA puede seguir
 
