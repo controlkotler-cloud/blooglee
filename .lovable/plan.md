@@ -1,373 +1,157 @@
 
-## Plan: Sistema de Generación con Frecuencia Diferenciada y Validación de Límites
 
-### Resumen del Problema
+## Plan: Permitir a Admins Acceso Libre a Dashboard y MKPro
 
-1. **Farmacias (MKPro)**: El cron actual funciona bien para ellas (primer lunes del mes)
-2. **Empresas (MKPro)**: Tienen `publish_frequency` configurado pero el cron lo ignora
-3. **Sites (SaaS)**: Aún no están integrados en el cron
-4. **mkpro tiene `daily`** pero el cron solo se ejecuta mensualmente
+### Problema Actual
 
----
+La lógica en `ProtectedRoute.tsx` fuerza a todos los usuarios con rol `admin` o `mkpro_admin` a ir siempre a `/mkpro`, sin poder acceder al dashboard SaaS.
 
-## Arquitectura de la Solución
+```
+Flujo actual:
+Usuario con mkpro_admin → SIEMPRE redirigido a /mkpro
+Usuario sin sites → SIEMPRE redirigido a /onboarding
+```
 
-```text
-+------------------+     +------------------+     +------------------+
-|   FARMACIAS      |     |   EMPRESAS       |     |   SITES (SaaS)   |
-|   (MKPro)        |     |   (MKPro)        |     |                  |
-+------------------+     +------------------+     +------------------+
-        |                        |                        |
-        v                        v                        v
-  [FIXED: Primer           [DYNAMIC:               [DYNAMIC:
-   lunes del mes]           daily/weekly/           segun plan +
-                            monthly segun           publish_frequency]
-                            config]
-        |                        |                        |
-        +------------------------+------------------------+
-                                 |
-                                 v
-                    +------------------------+
-                    |  CRON DIARIO 9:00 AM   |
-                    |  generate-monthly-     |
-                    |  articles              |
-                    +------------------------+
-                                 |
-                    +------------+------------+
-                    |                         |
-                    v                         v
-           [Validar si toca    [Validar limites
-            generar segun       del plan antes
-            frecuencia]         de generar]
-                    |                         |
-                    +------------+------------+
-                                 |
-                                 v
-                    +------------------------+
-                    |   RATE LIMIT: 50/hora  |
-                    |   (Unsplash pending)   |
-                    +------------------------+
+### Solución Propuesta
+
+Cambiar la lógica para que los admins tengan **acceso libre** a todas las rutas protegidas, sin redirecciones forzadas.
+
+```
+Flujo nuevo:
+Usuario admin → Puede navegar libremente (dashboard, mkpro, site/:id, etc.)
+Usuario normal sin sites → Redirigido a /onboarding
+Usuario normal con sites → Acceso a dashboard y sites
 ```
 
 ---
 
-## Cambios en Base de Datos
+## Cambios en ProtectedRoute.tsx
 
-### 1. Agregar columna `posts_limit` a profiles
+### Lógica Actual (líneas 27-38)
+```typescript
+// MKPro admins should go to /mkpro, not onboarding
+if (isMKProAdmin) {
+  if (location.pathname !== '/mkpro') {
+    navigate('/mkpro', { replace: true });
+  }
+  return;
+}
 
-```sql
-ALTER TABLE profiles 
-ADD COLUMN posts_limit integer NOT NULL DEFAULT 4;
-
--- Actualizar limites segun plan
-COMMENT ON COLUMN profiles.posts_limit IS 
-  'Free=1, Starter=4, Pro=30, Agency=100';
+// Regular users without sites go to onboarding
+if (sites?.length === 0 && location.pathname !== '/onboarding') {
+  navigate('/onboarding', { replace: true });
+}
 ```
 
-### 2. Agregar columnas de control de generacion a articulos_empresas
+### Lógica Nueva
+```typescript
+// Admins have free access to all protected routes
+if (isAdmin) {
+  // No forced redirects - admins can go anywhere
+  return;
+}
 
-```sql
--- Ya existe day_of_month y week_of_month, usaremos esos para tracking
+// MKPro-only admins (not full admins) go to /mkpro
+if (isMKProAdmin && !isAdmin) {
+  if (location.pathname !== '/mkpro') {
+    navigate('/mkpro', { replace: true });
+  }
+  return;
+}
+
+// Regular users without sites go to onboarding
+if (sites?.length === 0 && location.pathname !== '/onboarding') {
+  navigate('/onboarding', { replace: true });
+}
 ```
 
 ---
 
-## Logica de Frecuencia por Entidad
+## Cambios en useProfile.ts
 
-### Farmacias (sin cambios)
-- **Frecuencia**: Fija al primer lunes de cada mes
-- **Validacion**: Verificar si ya existe articulo para month/year
-
-### Empresas (cambio mayor)
-- **daily**: Verificar si ya existe articulo HOY (generated_at >= inicio del dia)
-- **weekly**: Verificar si ya existe articulo ESTA SEMANA (lunes actual)
-- **monthly**: Verificar si ya existe articulo ESTE MES (como ahora)
-
-### Sites SaaS (nueva logica)
-- Igual que empresas PERO:
-- **Validar limites del plan** antes de generar
-- Si el usuario excede su `posts_limit` mensual, NO generar y enviar email de aviso
-
----
-
-## Implementacion en generate-monthly-articles
-
-### Nueva funcion: shouldGenerateForEntity
+Agregar un nuevo hook `useIsAdmin` para distinguir entre:
+- `admin`: Acceso total a todo (dashboard SaaS + MKPro)
+- `mkpro_admin`: Solo acceso a MKPro
 
 ```typescript
-async function shouldGenerateForEntity(
-  supabase: SupabaseClient,
-  entityId: string,
-  entityType: 'farmacia' | 'empresa' | 'site',
-  frequency: string,
-  currentMonth: number,
-  currentYear: number
-): Promise<{ shouldGenerate: boolean; reason?: string }> {
-  const now = new Date();
-  const table = entityType === 'farmacia' ? 'articulos' 
-              : entityType === 'empresa' ? 'articulos_empresas' 
-              : 'articles';
-  const idColumn = entityType === 'farmacia' ? 'farmacia_id'
-                 : entityType === 'empresa' ? 'empresa_id'
-                 : 'site_id';
+export function useIsAdmin() {
+  const { data: roles = [], isLoading } = useUserRoles();
   
-  // FARMACIAS: Solo primer lunes del mes
-  if (entityType === 'farmacia') {
-    const isFirstMonday = isFirstMondayOfMonth(now);
-    if (!isFirstMonday) {
-      return { shouldGenerate: false, reason: 'No es el primer lunes del mes' };
-    }
-    // Verificar si ya existe para este mes
-    const { data } = await supabase
-      .from(table)
-      .select('id')
-      .eq(idColumn, entityId)
-      .eq('month', currentMonth)
-      .eq('year', currentYear)
-      .limit(1);
-    return { 
-      shouldGenerate: !data || data.length === 0,
-      reason: data?.length ? 'Ya tiene articulo este mes' : undefined
-    };
-  }
+  const isAdmin = roles.some(r => r.role === 'admin');
   
-  // EMPRESAS y SITES: Segun frequency
-  if (frequency === 'daily') {
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const { data } = await supabase
-      .from(table)
-      .select('id')
-      .eq(idColumn, entityId)
-      .gte('generated_at', todayStart.toISOString())
-      .limit(1);
-    return { 
-      shouldGenerate: !data || data.length === 0,
-      reason: data?.length ? 'Ya tiene articulo hoy' : undefined
-    };
-  }
+  return { isAdmin, isLoading };
+}
+
+// Modificar useIsMKProAdmin para excluir admins
+export function useIsMKProAdmin() {
+  const { data: roles = [], isLoading } = useUserRoles();
   
-  if (frequency === 'weekly') {
-    const weekStart = getStartOfWeek(now); // Lunes de esta semana
-    const { data } = await supabase
-      .from(table)
-      .select('id')
-      .eq(idColumn, entityId)
-      .gte('generated_at', weekStart.toISOString())
-      .limit(1);
-    return { 
-      shouldGenerate: !data || data.length === 0,
-      reason: data?.length ? 'Ya tiene articulo esta semana' : undefined
-    };
-  }
+  const isMKProAdmin = roles.some(r => r.role === 'mkpro_admin');
+  const isAdmin = roles.some(r => r.role === 'admin');
   
-  // monthly (default)
-  const { data } = await supabase
-    .from(table)
-    .select('id')
-    .eq(idColumn, entityId)
-    .eq('month', currentMonth)
-    .eq('year', currentYear)
-    .limit(1);
   return { 
-    shouldGenerate: !data || data.length === 0,
-    reason: data?.length ? 'Ya tiene articulo este mes' : undefined
+    isMKProAdmin, 
+    isAdmin,
+    canAccessMKPro: isMKProAdmin || isAdmin,
+    isLoading 
   };
-}
-```
-
-### Nueva funcion: checkPlanLimits (solo para Sites SaaS)
-
-```typescript
-async function checkPlanLimits(
-  supabase: SupabaseClient,
-  userId: string,
-  currentMonth: number,
-  currentYear: number
-): Promise<{ withinLimits: boolean; used: number; limit: number }> {
-  // Obtener perfil del usuario
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('posts_limit')
-    .eq('user_id', userId)
-    .single();
-  
-  const postsLimit = profile?.posts_limit ?? 1; // Default Free = 1
-  
-  // Contar articulos generados este mes para este usuario
-  const { count } = await supabase
-    .from('articles')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('month', currentMonth)
-    .eq('year', currentYear);
-  
-  const used = count || 0;
-  
-  return {
-    withinLimits: used < postsLimit,
-    used,
-    limit: postsLimit
-  };
-}
-```
-
-### Nueva funcion: generateDynamicTopic (mejorada)
-
-```typescript
-async function generateDynamicTopic(
-  lovableApiKey: string,
-  entity: { name: string; sector: string; location: string },
-  currentMonth: number,
-  currentYear: number,
-  usedTopics: string[]
-): Promise<string> {
-  // Obtener fecha real actual
-  const now = new Date();
-  const dayOfMonth = now.getDate();
-  const dayOfWeek = ['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'][now.getDay()];
-  
-  const prompt = `Eres un experto en SEO y marketing de contenidos.
-Fecha REAL de hoy: ${dayOfMonth} de ${MONTH_NAMES[currentMonth - 1]} de ${currentYear} (${dayOfWeek})
-
-Empresa: ${entity.name}
-Sector: ${entity.sector || "servicios profesionales"}
-Localidad: ${entity.location || "Espana"}
-
-TEMAS YA USADOS (NO repetir): ${usedTopics.slice(-10).join(', ') || 'ninguno'}
-
-Genera UN tema para articulo de blog que:
-1. Sea 100% relevante para el sector "${entity.sector}"
-2. Considere eventos/efemerides REALES de esta fecha (${dayOfMonth}/${currentMonth}/${currentYear})
-3. Tenga en cuenta tendencias actuales de ${currentYear}
-4. NO sea generico - debe ser especifico y util
-5. Maximo 60 caracteres
-6. NO incluir nombre de empresa
-7. NO repetir temas ya usados
-
-Solo responde con el tema, sin explicaciones.`;
-
-  // ... llamada a AI ...
 }
 ```
 
 ---
 
-## Cambios en el Cron Job
+## Cambio de Rol en Base de Datos
 
-### Cambiar a ejecucion diaria
+Tu usuario actual (`control@mkpro.es`) tiene rol `mkpro_admin`. Para tener acceso libre a todo, necesitas el rol `admin`:
 
 ```sql
--- Eliminar cron actual
-SELECT cron.unschedule('generate-monthly-articles');
+-- Opción 1: Cambiar el rol existente a admin
+UPDATE user_roles 
+SET role = 'admin' 
+WHERE user_id = '2840b1e0-0dcc-4c8f-969c-f086f4db0c90';
 
--- Crear nuevo cron diario
-SELECT cron.schedule(
-  'generate-articles-daily',
-  '0 9 * * *',  -- Todos los dias a las 9:00 AM
-  $$
-  SELECT net.http_post(
-    url := 'https://gqtikajhhggyoiypkbgw.supabase.co/functions/v1/generate-monthly-articles',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer [ANON_KEY]"}'::jsonb,
-    body := '{}'::jsonb
-  ) AS request_id;
-  $$
-);
+-- Opción 2: Agregar rol admin adicional (mantener mkpro_admin)
+INSERT INTO user_roles (user_id, role)
+VALUES ('2840b1e0-0dcc-4c8f-969c-f086f4db0c90', 'admin');
 ```
 
 ---
 
-## Rate Limiting (50/hora Unsplash)
+## Actualización del Dashboard SaaS
 
-### Logica de control
+En `SaasDashboard.tsx`, agregar acceso directo a MKPro para admins:
 
 ```typescript
-const MAX_ARTICLES_PER_RUN = 50; // Limite Unsplash
-let articlesGenerated = 0;
-
-// En el loop de generacion:
-if (articlesGenerated >= MAX_ARTICLES_PER_RUN) {
-  console.log(`Rate limit reached (${MAX_ARTICLES_PER_RUN}), stopping generation`);
-  break;
-}
-
-// Prioridad de generacion:
-// 1. Farmacias (primer lunes)
-// 2. Empresas daily
-// 3. Empresas weekly  
-// 4. Sites SaaS daily
-// 5. Sites SaaS weekly
-// 6. Empresas monthly
-// 7. Sites SaaS monthly
+// Ya existe en el menú, pero asegurar que esté visible:
+{canAccessMKPro && (
+  <DropdownMenuItem onClick={() => navigate('/mkpro')}>
+    MKPro Admin
+  </DropdownMenuItem>
+)}
 ```
 
 ---
 
-## Flujo de Notificaciones
+## Resumen de Cambios
 
-### Nuevo email para limites excedidos
-
-```typescript
-async function sendLimitExceededEmail(
-  resend: Resend,
-  userEmail: string,
-  siteName: string,
-  used: number,
-  limit: number
-) {
-  await resend.emails.send({
-    from: "Blooglee <onboarding@resend.dev>",
-    to: [userEmail],
-    subject: `Has alcanzado tu limite de articulos - ${siteName}`,
-    html: `
-      <h1>Limite de articulos alcanzado</h1>
-      <p>No se ha podido generar el articulo automatico para <strong>${siteName}</strong>.</p>
-      <p>Has usado <strong>${used}</strong> de <strong>${limit}</strong> articulos este mes.</p>
-      <p>Actualiza tu plan para generar mas articulos.</p>
-      <a href="${PORTAL_URL}/billing">Ver planes</a>
-    `,
-  });
-}
-```
+| Archivo | Cambio |
+|---------|--------|
+| `src/hooks/useProfile.ts` | Agregar `useIsAdmin`, modificar `useIsMKProAdmin` |
+| `src/components/ProtectedRoute.tsx` | Nueva lógica de redirección para admins |
+| Base de datos | Cambiar/agregar rol `admin` a tu usuario |
 
 ---
 
-## Archivos a Modificar
+## Resultado Final
 
-1. **supabase/functions/generate-monthly-articles/index.ts**
-   - Agregar `shouldGenerateForEntity()`
-   - Agregar `checkPlanLimits()`
-   - Agregar `generateDynamicTopic()` mejorado
-   - Agregar procesamiento de Sites SaaS
-   - Agregar rate limiting (50/hora)
-   - Agregar notificaciones de limites
+| Rol | Acceso Dashboard SaaS | Acceso MKPro | Requiere Sites |
+|-----|----------------------|--------------|----------------|
+| `admin` | Si | Si | No |
+| `mkpro_admin` | No | Si | N/A |
+| `user` | Si | No | Si (o va a onboarding) |
 
-2. **Migracion SQL**
-   - Agregar `posts_limit` a profiles
-   - Actualizar cron job a ejecucion diaria
+Tu usuario con rol `admin` podrá:
+- Acceder a `/dashboard` sin tener sitios
+- Acceder a `/mkpro` cuando lo necesites
+- Navegar libremente por todas las rutas protegidas
 
----
-
-## Resumen de Reglas Finales
-
-| Entidad | Frecuencia | Validacion | Limites |
-|---------|------------|------------|---------|
-| Farmacias | Fijo: 1er lunes/mes | month+year | Sin limite |
-| Empresas MKPro | Configurable | Segun frequency | Sin limite |
-| Sites SaaS | Configurable | Segun frequency + plan | Segun plan |
-
-| Plan | Sites | Posts/mes |
-|------|-------|-----------|
-| Free | 1 | 1 |
-| Starter | 1 | 4 |
-| Pro | 3 | 30 |
-| Agency | 10 | 100 |
-
----
-
-## Orden de Implementacion
-
-1. Migracion SQL: agregar `posts_limit` a profiles
-2. Modificar edge function con nueva logica
-3. Actualizar cron job a diario
-4. Probar con mkpro (daily) manualmente
-5. Verificar que farmacias solo generen el primer lunes
