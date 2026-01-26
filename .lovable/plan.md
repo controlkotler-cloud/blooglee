@@ -1,77 +1,92 @@
 
 
-## Plan: Actualizar Imagotipo de Blooglee en Toda la Aplicación
+## Plan: Rediseñar BloogleeLogo con Imagotipo Más Grande y Nuevos Colores
 
-### Archivos Afectados
+### Cambios en el Componente BloogleeLogo
 
-| Ubicación | Uso Actual | Cambio |
-|-----------|------------|--------|
-| `src/assets/blooglee-logo.png` | Logo en componente BloogleeLogo | Reemplazar con nuevo imagotipo |
-| `public/favicon.png` | Favicon del navegador | Reemplazar con nuevo imagotipo |
-| `src/components/saas/ProductMockup.tsx` | Usa icono Sparkles genérico | Usar el logo real importado |
+El componente `src/components/saas/BloogleeLogo.tsx` necesita estos ajustes:
 
 ---
 
-## Cambios Detallados
+### 1. Aumentar tamaños del imagotipo
 
-### 1. Copiar nuevo imagotipo a assets
+Los tamaños actuales son pequeños. Se aumentarán proporcionalmente:
 
-```bash
-# Copiar la imagen subida a src/assets (reemplaza el logo actual)
-lov-copy user-uploads://bloogleeimagotipo.png src/assets/blooglee-logo.png
+| Size | Antes | Después |
+|------|-------|---------|
+| xs | w-6 h-6 | w-8 h-8 |
+| sm | w-8 h-8 | w-10 h-10 |
+| md | w-10 h-10 | w-12 h-12 |
+| lg | w-12 h-12 | w-14 h-14 |
+| xl | w-16 h-16 | w-20 h-20 |
 
-# Copiar también a public para favicon
-lov-copy user-uploads://bloogleeimagotipo.png public/favicon.png
+---
+
+### 2. Actualizar gradiente del texto
+
+Cambiar el gradiente actual (violeta → fucsia → naranja) por el de la imagen de referencia:
+
+**Antes:**
+```typescript
+bg-gradient-to-r from-violet-600 via-fuchsia-600 to-orange-500
 ```
 
-### 2. Actualizar ProductMockup.tsx (líneas 69-74)
-
-Actualmente usa un icono genérico de Sparkles:
-
+**Después (colores como en la imagen):**
 ```typescript
-// ANTES (línea 71-72):
-<div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-  <Sparkles className="w-4 h-4 text-white" />
-</div>
+bg-gradient-to-r from-purple-600 via-fuchsia-500 to-orange-500
 ```
 
-Cambiar para usar el logo real:
+Los colores exactos de la imagen de referencia:
+- Inicio: Violeta/púrpura profundo (`#7C3AED` - violet-600)
+- Transición: Rosa/fucsia (`#D946EF` - fuchsia-500) 
+- Final: Coral/naranja (`#F97316` - orange-500)
+
+---
+
+### 3. Aumentar espaciado entre imagotipo y texto
+
+Para que el logo respire mejor con el imagotipo más grande:
+
+**Antes:**
+```typescript
+<div className={`flex items-center gap-2 ${className}`}>
+```
+
+**Después:**
+```typescript
+<div className={`flex items-center gap-3 ${className}`}>
+```
+
+---
+
+### 4. Actualizar ProductMockup.tsx
+
+El mockup usa su propia instancia del logo. Actualizarlo para que coincida:
 
 ```typescript
-// DESPUÉS:
-import bloogleeLogo from '@/assets/blooglee-logo.png';
-
-// En el mini header (línea 71):
+// Aumentar tamaño del imagotipo en el mockup
 <img 
   src={bloogleeLogo} 
   alt="Blooglee" 
-  className="w-8 h-8 object-contain"
+  className="w-10 h-10 object-contain"  // Antes: w-8 h-8
 />
 ```
 
 ---
 
-## Resultado Visual
+## Archivos a Modificar
 
-El nuevo imagotipo (pluma con estrellas en gradiente violeta-rosa) aparecerá en:
-
-- Navbar pública (PublicNavbar)
-- Footer público (PublicFooter)
-- Header del Dashboard SaaS
-- Header de Account Settings
-- Simulación del producto en la Landing page (ProductMockup)
-- Favicon del navegador
-- Cualquier otro lugar que use el componente BloogleeLogo
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/saas/BloogleeLogo.tsx` | Aumentar sizeClasses, actualizar gradiente, ajustar gap |
+| `src/components/saas/ProductMockup.tsx` | Aumentar tamaño del imagotipo en el mockup |
 
 ---
 
-## Archivos a Modificar
+## Resultado Visual
 
-1. **Copiar imágenes**:
-   - `user-uploads://bloogleeimagotipo.png` → `src/assets/blooglee-logo.png`
-   - `user-uploads://bloogleeimagotipo.png` → `public/favicon.png`
-
-2. **`src/components/saas/ProductMockup.tsx`**:
-   - Importar el logo
-   - Reemplazar el icono Sparkles del mini header por una imagen del logo
+- El imagotipo (pluma con estrellas) será más prominente en todas partes
+- El texto "Blooglee" mantendrá el gradiente violeta → fucsia → naranja
+- Los lugares con `showText={false}` solo mostrarán el imagotipo más grande
+- El mockup del producto también reflejará estos cambios
 
