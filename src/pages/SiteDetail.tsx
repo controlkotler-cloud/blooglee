@@ -143,6 +143,7 @@ export default function SiteDetail() {
           <TabsContent value="articles">
             <SiteArticles
               siteId={site.id}
+              siteName={site.name}
               onGenerateArticle={handleGenerateArticle}
               isGenerating={isGenerating}
             />

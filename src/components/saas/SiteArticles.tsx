@@ -12,10 +12,12 @@ import { Loader2, FileText, Sparkles } from 'lucide-react';
 import { useArticlesSaas, useDeleteArticleSaas, type Article } from '@/hooks/useArticlesSaas';
 import { ArticleCard } from './ArticleCard';
 import { ArticlePreviewDialog } from './ArticlePreviewDialog';
+import { WordPressPublishDialogSaas } from './WordPressPublishDialogSaas';
 import { toast } from 'sonner';
 
 interface SiteArticlesProps {
   siteId: string;
+  siteName?: string;
   onGenerateArticle: () => void;
   isGenerating: boolean;
 }
@@ -35,11 +37,12 @@ const months = [
   { value: '12', label: 'Diciembre' },
 ];
 
-export function SiteArticles({ siteId, onGenerateArticle, isGenerating }: SiteArticlesProps) {
+export function SiteArticles({ siteId, siteName, onGenerateArticle, isGenerating }: SiteArticlesProps) {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(String(currentDate.getMonth() + 1));
   const [selectedYear, setSelectedYear] = useState(String(currentDate.getFullYear()));
   const [previewArticle, setPreviewArticle] = useState<Article | null>(null);
+  const [publishArticle, setPublishArticle] = useState<Article | null>(null);
 
   const { data: articles = [], isLoading } = useArticlesSaas(
     siteId,
@@ -66,8 +69,7 @@ export function SiteArticles({ siteId, onGenerateArticle, isGenerating }: SiteAr
   };
 
   const handlePublish = (article: Article) => {
-    // TODO: Open WordPress publish dialog
-    toast.info('Publicación en WordPress próximamente');
+    setPublishArticle(article);
   };
 
   const handleDelete = (article: Article) => {
@@ -162,8 +164,20 @@ export function SiteArticles({ siteId, onGenerateArticle, isGenerating }: SiteAr
         open={!!previewArticle}
         onClose={() => setPreviewArticle(null)}
         onPublish={() => {
-          if (previewArticle) handlePublish(previewArticle);
+          if (previewArticle) {
+            setPreviewArticle(null);
+            handlePublish(previewArticle);
+          }
         }}
+      />
+
+      {/* Publish dialog */}
+      <WordPressPublishDialogSaas
+        open={!!publishArticle}
+        onClose={() => setPublishArticle(null)}
+        article={publishArticle}
+        siteId={siteId}
+        siteName={siteName}
       />
     </div>
   );
