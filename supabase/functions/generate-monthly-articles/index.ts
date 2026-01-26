@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
@@ -7,13 +7,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PORTAL_URL = "https://id-preview--7642327a-37a5-4883-a473-7870867f7567.lovable.app";
+const PORTAL_URL = "https://blooglee.lovable.app";
 const NOTIFICATION_EMAILS = ["control@mkpro.es", "laura@mkpro.es"];
+const MAX_ARTICLES_PER_RUN = 50; // Unsplash rate limit
 
 const MONTH_NAMES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ];
+
+const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
 interface SeasonalTopic {
   tema: string;
@@ -21,7 +24,7 @@ interface SeasonalTopic {
   pexels_query: string;
 }
 
-// Seasonal topics por mes (copia de src/lib/seasonalTopics.ts)
+// Seasonal topics for pharmacies
 const SEASONAL_TOPICS: Record<number, SeasonalTopic[]> = {
   1: [
     { tema: "Propósitos saludables de año nuevo", keywords: ["hábitos saludables", "vitaminas", "detox", "ejercicio"], pexels_query: "morning wellness nature fresh start" },
@@ -109,33 +112,246 @@ const SEASONAL_TOPICS: Record<number, SeasonalTopic[]> = {
   ],
 };
 
-// Función para obtener un tema aleatorio del mes
+// ============= HELPER FUNCTIONS =============
+
+function isFirstMondayOfMonth(date: Date): boolean {
+  // Check if it's Monday (1)
+  if (date.getDay() !== 1) return false;
+  // Check if it's in the first week (day 1-7)
+  return date.getDate() <= 7;
+}
+
+function getStartOfWeek(date: Date): Date {
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Monday
+  const weekStart = new Date(date.getFullYear(), date.getMonth(), diff);
+  weekStart.setHours(0, 0, 0, 0);
+  return weekStart;
+}
+
 function getRandomTopic(month: number, usedTopics: string[]): SeasonalTopic | null {
   const monthTopics = SEASONAL_TOPICS[month] || SEASONAL_TOPICS[1];
   const availableTopics = monthTopics.filter(t => !usedTopics.includes(t.tema));
   
   if (availableTopics.length === 0) {
-    // Si ya se usaron todos, seleccionar cualquiera aleatorio
     return monthTopics[Math.floor(Math.random() * monthTopics.length)];
   }
   
   return availableTopics[Math.floor(Math.random() * availableTopics.length)];
 }
 
-interface WordPressPublishResult {
-  success: boolean;
-  postUrl?: string;
-  error?: string;
+// ============= FREQUENCY VALIDATION =============
+
+interface ShouldGenerateResult {
+  shouldGenerate: boolean;
+  reason?: string;
 }
 
-interface GenerationResult {
-  entityName: string;
-  entityType: 'farmacia' | 'empresa';
-  success: boolean;
-  error?: string;
-  wpSpanish?: WordPressPublishResult;
-  wpCatalan?: WordPressPublishResult;
+async function shouldGenerateForEntity(
+  supabase: SupabaseClient,
+  entityId: string,
+  entityType: 'farmacia' | 'empresa' | 'site',
+  frequency: string,
+  currentMonth: number,
+  currentYear: number,
+  now: Date
+): Promise<ShouldGenerateResult> {
+  const table = entityType === 'farmacia' ? 'articulos' 
+              : entityType === 'empresa' ? 'articulos_empresas' 
+              : 'articles';
+  const idColumn = entityType === 'farmacia' ? 'farmacia_id'
+                 : entityType === 'empresa' ? 'empresa_id'
+                 : 'site_id';
+  
+  // FARMACIAS: Fixed to first Monday of month
+  if (entityType === 'farmacia') {
+    if (!isFirstMondayOfMonth(now)) {
+      return { shouldGenerate: false, reason: 'No es el primer lunes del mes' };
+    }
+    const { data } = await supabase
+      .from(table)
+      .select('id')
+      .eq(idColumn, entityId)
+      .eq('month', currentMonth)
+      .eq('year', currentYear)
+      .limit(1);
+    return { 
+      shouldGenerate: !data || data.length === 0,
+      reason: data?.length ? 'Ya tiene artículo este mes' : undefined
+    };
+  }
+  
+  // EMPRESAS and SITES: Based on frequency
+  if (frequency === 'daily') {
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const { data } = await supabase
+      .from(table)
+      .select('id')
+      .eq(idColumn, entityId)
+      .gte('generated_at', todayStart.toISOString())
+      .limit(1);
+    return { 
+      shouldGenerate: !data || data.length === 0,
+      reason: data?.length ? 'Ya tiene artículo hoy' : undefined
+    };
+  }
+  
+  if (frequency === 'weekly') {
+    const weekStart = getStartOfWeek(now);
+    const { data } = await supabase
+      .from(table)
+      .select('id')
+      .eq(idColumn, entityId)
+      .gte('generated_at', weekStart.toISOString())
+      .limit(1);
+    return { 
+      shouldGenerate: !data || data.length === 0,
+      reason: data?.length ? 'Ya tiene artículo esta semana' : undefined
+    };
+  }
+  
+  // monthly (default)
+  const { data } = await supabase
+    .from(table)
+    .select('id')
+    .eq(idColumn, entityId)
+    .eq('month', currentMonth)
+    .eq('year', currentYear)
+    .limit(1);
+  return { 
+    shouldGenerate: !data || data.length === 0,
+    reason: data?.length ? 'Ya tiene artículo este mes' : undefined
+  };
 }
+
+// ============= PLAN LIMITS (SaaS Only) =============
+
+interface PlanLimitsResult {
+  withinLimits: boolean;
+  used: number;
+  limit: number;
+  userEmail?: string;
+}
+
+async function checkPlanLimits(
+  supabase: SupabaseClient,
+  userId: string,
+  currentMonth: number,
+  currentYear: number
+): Promise<PlanLimitsResult> {
+  // Get user profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('posts_limit, email')
+    .eq('user_id', userId)
+    .single();
+  
+  const postsLimit = profile?.posts_limit ?? 1; // Default Free = 1
+  
+  // Count articles generated this month for this user
+  const { count } = await supabase
+    .from('articles')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('month', currentMonth)
+    .eq('year', currentYear);
+  
+  const used = count || 0;
+  
+  return {
+    withinLimits: used < postsLimit,
+    used,
+    limit: postsLimit,
+    userEmail: profile?.email
+  };
+}
+
+// ============= DYNAMIC TOPIC GENERATION =============
+
+async function generateDynamicTopic(
+  lovableApiKey: string,
+  entity: { name: string; sector?: string | null; location?: string | null },
+  currentMonth: number,
+  currentYear: number,
+  usedTopics: string[],
+  now: Date
+): Promise<string> {
+  const dayOfMonth = now.getDate();
+  const dayOfWeek = DAY_NAMES[now.getDay()];
+  
+  const prompt = `Eres un experto en SEO y marketing de contenidos.
+Fecha REAL de hoy: ${dayOfMonth} de ${MONTH_NAMES[currentMonth - 1]} de ${currentYear} (${dayOfWeek})
+
+Empresa: ${entity.name}
+Sector: ${entity.sector || "servicios profesionales"}
+Localidad: ${entity.location || "España"}
+
+TEMAS YA USADOS (NO repetir): ${usedTopics.slice(-20).join(', ') || 'ninguno'}
+
+Genera UN tema para artículo de blog que:
+1. Sea 100% relevante para el sector "${entity.sector || 'servicios profesionales'}"
+2. Considere eventos/efemérides REALES de esta fecha (${dayOfMonth}/${currentMonth}/${currentYear})
+3. Tenga en cuenta tendencias actuales de ${currentYear}
+4. NO sea genérico - debe ser específico y útil
+5. Máximo 60 caracteres
+6. NO incluir nombre de empresa
+7. NO repetir temas ya usados
+
+Solo responde con el tema, sin explicaciones ni comillas.`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 100,
+        temperature: 0.8,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI response not ok: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const topic = data.choices?.[0]?.message?.content?.trim();
+    
+    if (!topic) throw new Error("Empty topic from AI");
+    
+    return topic;
+  } catch (error) {
+    console.error("Failed to generate dynamic topic:", error);
+    // Fallback
+    return `Novedades en ${entity.sector || "servicios"} para ${MONTH_NAMES[currentMonth - 1]}`;
+  }
+}
+
+// ============= GET USED TOPICS =============
+
+async function getUsedTopics(
+  supabase: SupabaseClient,
+  entityId: string,
+  entityType: 'empresa' | 'site'
+): Promise<string[]> {
+  const table = entityType === 'empresa' ? 'articulos_empresas' : 'articles';
+  const idColumn = entityType === 'empresa' ? 'empresa_id' : 'site_id';
+  
+  const { data } = await supabase
+    .from(table)
+    .select('topic')
+    .eq(idColumn, entityId)
+    .order('generated_at', { ascending: false })
+    .limit(30);
+  
+  return data?.map(a => a.topic) || [];
+}
+
+// ============= TAXONOMY SELECTION =============
 
 interface TaxonomyItem {
   wp_id: number;
@@ -143,7 +359,6 @@ interface TaxonomyItem {
   taxonomy_type: string;
 }
 
-// Function to select taxonomies intelligently based on article content
 async function selectTaxonomiesWithAI(
   articleTitle: string,
   articleContent: string,
@@ -151,24 +366,18 @@ async function selectTaxonomiesWithAI(
   tags: TaxonomyItem[],
   lovableApiKey: string
 ): Promise<{ categoryIds: number[]; tagIds: number[] }> {
-  // If no categories, return empty
   if (categories.length === 0) {
-    // Handle tags separately
     if (tags.length === 0) return { categoryIds: [], tagIds: [] };
     if (tags.length === 1) return { categoryIds: [], tagIds: [tags[0].wp_id] };
-    // Multiple tags - use AI
   }
   
-  // If only 1 category, use it directly
   if (categories.length === 1) {
     let tagIds: number[] = [];
     if (tags.length === 1) {
       tagIds = [tags[0].wp_id];
     } else if (tags.length > 1) {
-      // Use AI just for tags
       try {
-        const tagSelection = await selectTagsWithAI(articleTitle, articleContent, tags, lovableApiKey);
-        tagIds = tagSelection;
+        tagIds = await selectTagsWithAI(articleTitle, articleContent, tags, lovableApiKey);
       } catch {
         console.log("AI tag selection failed, using no tags");
       }
@@ -176,7 +385,6 @@ async function selectTaxonomiesWithAI(
     return { categoryIds: [categories[0].wp_id], tagIds };
   }
   
-  // Multiple categories - use AI
   const prompt = `Eres un experto en clasificación de contenido para blogs.
 
 Dado este artículo:
@@ -215,30 +423,21 @@ IMPORTANTE: Responde ÚNICAMENTE con JSON válido, sin explicaciones:
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content?.trim();
     
-    if (!content) {
-      throw new Error("Empty AI response");
-    }
+    if (!content) throw new Error("Empty AI response");
     
-    // Parse JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in response");
-    }
+    if (!jsonMatch) throw new Error("No JSON found in response");
     
     const parsed = JSON.parse(jsonMatch[0]);
     const categoryId = parsed.category_id;
     const tagIds = Array.isArray(parsed.tag_ids) ? parsed.tag_ids : [];
     
-    // Validate IDs exist in our lists
     const validCategoryIds = categories.some(c => c.wp_id === categoryId) ? [categoryId] : [];
     const validTagIds = tagIds.filter((id: number) => tags.some(t => t.wp_id === id));
-    
-    console.log(`AI selected category: ${validCategoryIds}, tags: ${validTagIds}`);
     
     return { categoryIds: validCategoryIds, tagIds: validTagIds };
   } catch (error) {
     console.error("AI taxonomy selection failed:", error);
-    // Fallback: use first category if available
     return { 
       categoryIds: categories.length > 0 ? [categories[0].wp_id] : [], 
       tagIds: [] 
@@ -246,7 +445,6 @@ IMPORTANTE: Responde ÚNICAMENTE con JSON válido, sin explicaciones:
   }
 }
 
-// Helper function to select only tags with AI
 async function selectTagsWithAI(
   articleTitle: string,
   articleContent: string,
@@ -291,26 +489,20 @@ Responde SOLO con JSON: {"tag_ids": number[]}`;
   return tagIds.filter((id: number) => tags.some(t => t.wp_id === id));
 }
 
-// Get taxonomies for a WordPress site and select appropriate ones
 async function getTaxonomiesForPublish(
-  supabaseUrl: string,
-  supabaseServiceKey: string,
+  supabase: SupabaseClient,
   wpSiteId: string,
   articleTitle: string,
   articleContent: string,
   lovableApiKey: string | undefined
 ): Promise<{ categoryIds: number[]; tagIds: number[] }> {
   try {
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Get all synced taxonomies for this WordPress site
-    const { data: allTaxonomies, error } = await supabaseClient
+    const { data: allTaxonomies, error } = await supabase
       .from("wordpress_taxonomies")
       .select("wp_id, name, taxonomy_type")
       .eq("wordpress_site_id", wpSiteId);
 
     if (error || !allTaxonomies || allTaxonomies.length === 0) {
-      console.log("No taxonomies found for site, skipping taxonomy selection");
       return { categoryIds: [], tagIds: [] };
     }
 
@@ -321,22 +513,14 @@ async function getTaxonomiesForPublish(
       .filter(t => t.taxonomy_type === "tag")
       .map(t => ({ wp_id: t.wp_id as number, name: t.name as string, taxonomy_type: t.taxonomy_type as string }));
 
-    console.log(`Found ${categories.length} categories and ${tags.length} tags for site`);
-
-    // Apply selection logic
-    // 0 categories = no category
     if (categories.length === 0) {
-      // Handle tags
       if (tags.length === 0) return { categoryIds: [], tagIds: [] };
       if (tags.length === 1) return { categoryIds: [], tagIds: [tags[0].wp_id] };
-      // Multiple tags without AI key = no tags
       if (!lovableApiKey) return { categoryIds: [], tagIds: [] };
-      // Use AI for tags only
       const tagIds = await selectTagsWithAI(articleTitle, articleContent, tags, lovableApiKey);
       return { categoryIds: [], tagIds };
     }
 
-    // 1 category = use that one
     if (categories.length === 1) {
       let tagIds: number[] = [];
       if (tags.length === 1) {
@@ -347,24 +531,43 @@ async function getTaxonomiesForPublish(
       return { categoryIds: [categories[0].wp_id], tagIds };
     }
 
-    // Multiple categories = use AI
     if (!lovableApiKey) {
-      console.log("LOVABLE_API_KEY not available for AI taxonomy selection, using first category");
       const tagIds = tags.length === 1 ? [tags[0].wp_id] : [];
       return { categoryIds: [categories[0].wp_id], tagIds };
     }
 
     return await selectTaxonomiesWithAI(articleTitle, articleContent, categories, tags, lovableApiKey);
   } catch (error) {
-    console.error("Error getting taxonomies for publish:", error);
+    console.error("Error getting taxonomies:", error);
     return { categoryIds: [], tagIds: [] };
   }
 }
 
+// ============= RESULT INTERFACES =============
+
+interface WordPressPublishResult {
+  success: boolean;
+  postUrl?: string;
+  error?: string;
+}
+
+interface GenerationResult {
+  entityName: string;
+  entityType: 'farmacia' | 'empresa' | 'site';
+  success: boolean;
+  error?: string;
+  wpSpanish?: WordPressPublishResult;
+  wpCatalan?: WordPressPublishResult;
+  skippedReason?: string;
+  limitExceeded?: boolean;
+}
+
+// ============= MAIN HANDLER =============
+
 const handler = async (req: Request): Promise<Response> => {
-  console.log("=== GENERATE MONTHLY ARTICLES STARTED ===");
+  console.log("=== GENERATE ARTICLES STARTED ===");
+  console.log(`Timestamp: ${new Date().toISOString()}`);
   
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -382,388 +585,256 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
 
-    // Calculate current month and year
     const now = new Date();
-    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
-
-    console.log(`Processing articles for ${MONTH_NAMES[currentMonth - 1]} ${currentYear}`);
-
-    // Get all farmacias with auto_generate = true
-    const { data: farmacias, error: farmaciasError } = await supabase
-      .from("farmacias")
-      .select("*")
-      .eq("auto_generate", true)
-      .order("created_at", { ascending: true });
-
-    if (farmaciasError) {
-      throw new Error(`Error fetching farmacias: ${farmaciasError.message}`);
-    }
-
-    console.log(`Found ${farmacias?.length || 0} farmacias`);
-
-    // Get existing articles for this month
-    const { data: existingArticles, error: articlesError } = await supabase
-      .from("articulos")
-      .select("farmacia_id")
-      .eq("month", currentMonth)
-      .eq("year", currentYear);
-
-    if (articlesError) {
-      throw new Error(`Error fetching existing articles: ${articlesError.message}`);
-    }
-
-    const existingFarmaciaIds = new Set(existingArticles?.map(a => a.farmacia_id) || []);
-    const farmaciasToProcess = farmacias?.filter(f => !existingFarmaciaIds.has(f.id)) || [];
-
-    console.log(`${existingFarmaciaIds.size} articles already exist, ${farmaciasToProcess.length} to generate`);
-
-    if (farmaciasToProcess.length === 0) {
-      console.log("No articles to generate, sending notification email");
-      
-      await resend.emails.send({
-        from: "PharmaBlog Manager <onboarding@resend.dev>",
-        to: NOTIFICATION_EMAILS,
-        subject: `Posts de ${MONTH_NAMES[currentMonth - 1]} ${currentYear} - Sin cambios`,
-        html: `
-          <h1>PharmaBlog Manager</h1>
-          <p>Hola,</p>
-          <p>Se ha ejecutado la generación automática de artículos para <strong>${MONTH_NAMES[currentMonth - 1]} ${currentYear}</strong>.</p>
-          <h2>Resumen</h2>
-          <ul>
-            <li><strong>Farmacias totales:</strong> ${farmacias?.length || 0}</li>
-            <li><strong>Artículos ya existentes:</strong> ${existingFarmaciaIds.size}</li>
-            <li><strong>Artículos generados:</strong> 0</li>
-          </ul>
-          <p>Todos los artículos ya estaban generados. No se requiere acción.</p>
-          <p><a href="${PORTAL_URL}">Acceder al portal</a></p>
-          <p>Saludos,<br>PharmaBlog Manager</p>
-        `,
-      });
-
-      return new Response(
-        JSON.stringify({ 
-          message: "No articles to generate", 
-          existing: existingFarmaciaIds.size 
-        }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    // Generate articles for each farmacia
-    const results: GenerationResult[] = [];
     const generateArticleUrl = `${supabaseUrl}/functions/v1/generate-article`;
-    const usedTopics: string[] = [];
+    const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress`;
 
-    for (let i = 0; i < farmaciasToProcess.length; i++) {
-      const farmacia = farmaciasToProcess[i];
+    console.log(`Processing for ${DAY_NAMES[now.getDay()]} ${now.getDate()} ${MONTH_NAMES[currentMonth - 1]} ${currentYear}`);
+    console.log(`Is first Monday: ${isFirstMondayOfMonth(now)}`);
+
+    const results: GenerationResult[] = [];
+    let articlesGenerated = 0;
+    const usedTopicsPharmacy: string[] = [];
+
+    // ========== 1. PROCESS FARMACIAS (First Monday only) ==========
+    if (isFirstMondayOfMonth(now)) {
+      console.log("=== Processing FARMACIAS (First Monday) ===");
       
-      // Seleccionar un tema aleatorio del mes que no se haya usado aún
-      const topic = getRandomTopic(currentMonth, usedTopics);
-      if (!topic) {
-        console.error(`No topic found for month ${currentMonth}`);
-        continue;
-      }
-      usedTopics.push(topic.tema);
-      
-      console.log(`[${i + 1}/${farmaciasToProcess.length}] Generating article for ${farmacia.name} - Topic: ${topic.tema}`);
+      const { data: farmacias, error: farmaciasError } = await supabase
+        .from("farmacias")
+        .select("*")
+        .eq("auto_generate", true)
+        .order("created_at", { ascending: true });
 
-      try {
-        const response = await fetch(generateArticleUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            pharmacy: {
-              id: farmacia.id,
-              name: farmacia.name,
-              location: farmacia.location,
-              languages: farmacia.languages,
-              blog_url: farmacia.blog_url || undefined,
-              instagram_url: farmacia.instagram_url || undefined,
-            },
-            topic: {
-              tema: topic.tema,
-              keywords: topic.keywords,
-              pexels_query: topic.pexels_query,
-            },
-            month: currentMonth,
-            year: currentYear,
-          }),
-        });
+      if (farmaciasError) {
+        console.error(`Error fetching farmacias: ${farmaciasError.message}`);
+      } else {
+        console.log(`Found ${farmacias?.length || 0} farmacias with auto_generate`);
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
+        for (const farmacia of farmacias || []) {
+          if (articlesGenerated >= MAX_ARTICLES_PER_RUN) {
+            console.log(`Rate limit reached (${MAX_ARTICLES_PER_RUN}), stopping`);
+            break;
+          }
 
-        const generatedData = await response.json();
-        console.log(`✓ Generated article content for ${farmacia.name}`);
-        
-        // Guardar el artículo en la base de datos
-        const { error: insertError } = await supabase
-          .from("articulos")
-          .insert({
-            farmacia_id: farmacia.id,
-            month: currentMonth,
-            year: currentYear,
-            topic: topic.tema,
-            content_spanish: generatedData.content?.spanish || null,
-            content_catalan: generatedData.content?.catalan || null,
-            image_url: generatedData.image?.url || null,
-            image_photographer: generatedData.image?.photographer || null,
-            image_photographer_url: generatedData.image?.photographer_url || null,
-            pexels_query: generatedData.pexels_query || topic.pexels_query,
-          });
-
-        if (insertError) {
-          throw new Error(`Error saving article: ${insertError.message}`);
-        }
-
-        console.log(`✓ Saved article for ${farmacia.name}: ${topic.tema}`);
-        
-        // ========== PUBLICACIÓN AUTOMÁTICA A WORDPRESS ==========
-        let wpSpanish: WordPressPublishResult | undefined;
-        let wpCatalan: WordPressPublishResult | undefined;
-        
-        // Verificar si la farmacia tiene WordPress configurado
-        const { data: wpSite } = await supabase
-          .from("wordpress_sites")
-          .select("*")
-          .eq("farmacia_id", farmacia.id)
-          .maybeSingle();
-
-        if (wpSite) {
-          console.log(`WordPress configured for ${farmacia.name}, publishing...`);
-          const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress`;
-          
-          // Get taxonomies for this article
-          const articleTitle = generatedData.content?.spanish?.title || topic.tema;
-          const articleContent = generatedData.content?.spanish?.content || "";
-          const { categoryIds, tagIds } = await getTaxonomiesForPublish(
-            supabaseUrl,
-            supabaseServiceKey,
-            wpSite.id,
-            articleTitle,
-            articleContent,
-            lovableApiKey
+          const check = await shouldGenerateForEntity(
+            supabase, farmacia.id, 'farmacia', 'monthly', currentMonth, currentYear, now
           );
-          
-          console.log(`Using categories: [${categoryIds.join(",")}], tags: [${tagIds.join(",")}]`);
-          
-          // Publicar versión ESPAÑOL
-          if (generatedData.content?.spanish) {
-            try {
-              console.log(`Publishing Spanish version for ${farmacia.name}...`);
-              const spanishPublishResponse = await fetch(publishUrl, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${supabaseServiceKey}`,
-                },
-                body: JSON.stringify({
-                  farmacia_id: farmacia.id,
-                  title: generatedData.content.spanish.title,
-                  content: generatedData.content.spanish.content,
-                  slug: generatedData.content.spanish.slug,
-                  status: "publish",
-                  image_url: generatedData.image?.url,
-                  image_alt: generatedData.content.spanish.title,
-                  meta_description: generatedData.content.spanish.meta_description,
-                  lang: "es",
-                  category_ids: categoryIds,
-                  tag_ids: tagIds,
-                }),
-              });
-              
-              const spanishResult = await spanishPublishResponse.json();
-              if (spanishResult.success) {
-                wpSpanish = { success: true, postUrl: spanishResult.post_url };
-                console.log(`✓ Published Spanish to WordPress: ${spanishResult.post_url}`);
-              } else {
-                wpSpanish = { success: false, error: spanishResult.error || "Unknown error" };
-                console.error(`✗ Failed to publish Spanish:`, spanishResult.error);
-              }
-            } catch (wpError) {
-              const wpErrorMsg = wpError instanceof Error ? wpError.message : String(wpError);
-              wpSpanish = { success: false, error: wpErrorMsg };
-              console.error(`✗ Error publishing Spanish to WordPress:`, wpError);
-            }
-          }
-          
-          // Publicar versión CATALÁN (con sufijo -ca en slug)
-          if (generatedData.content?.catalan) {
-            try {
-              console.log(`Publishing Catalan version for ${farmacia.name}...`);
-              const catalanPublishResponse = await fetch(publishUrl, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${supabaseServiceKey}`,
-                },
-                body: JSON.stringify({
-                  farmacia_id: farmacia.id,
-                  title: generatedData.content.catalan.title,
-                  content: generatedData.content.catalan.content,
-                  slug: `${generatedData.content.catalan.slug}-ca`,
-                  status: "publish",
-                  image_url: generatedData.image?.url,
-                  image_alt: generatedData.content.catalan.title,
-                  meta_description: generatedData.content.catalan.meta_description,
-                  lang: "ca",
-                  category_ids: categoryIds,
-                  tag_ids: tagIds,
-                }),
-              });
-              
-              const catalanResult = await catalanPublishResponse.json();
-              if (catalanResult.success) {
-                wpCatalan = { success: true, postUrl: catalanResult.post_url };
-                console.log(`✓ Published Catalan to WordPress: ${catalanResult.post_url}`);
-              } else {
-                wpCatalan = { success: false, error: catalanResult.error || "Unknown error" };
-                console.error(`✗ Failed to publish Catalan:`, catalanResult.error);
-              }
-            } catch (wpError) {
-              const wpErrorMsg = wpError instanceof Error ? wpError.message : String(wpError);
-              wpCatalan = { success: false, error: wpErrorMsg };
-              console.error(`✗ Error publishing Catalan to WordPress:`, wpError);
-            }
-          }
-        } else {
-          console.log(`No WordPress configured for ${farmacia.name}, skipping auto-publish`);
-        }
-        
-        results.push({
-          entityName: farmacia.name,
-          entityType: 'farmacia',
-          success: true,
-          wpSpanish,
-          wpCatalan,
-        });
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`✗ Error generating article for ${farmacia.name}:`, error);
-        results.push({
-          entityName: farmacia.name,
-          entityType: 'farmacia',
-          success: false,
-          error: errorMessage,
-        });
-      }
 
-      // Delay between requests to avoid rate limiting (3 seconds)
-      if (i < farmaciasToProcess.length - 1) {
-        console.log("Waiting 3 seconds before next generation...");
-        await new Promise(resolve => setTimeout(resolve, 3000));
+          if (!check.shouldGenerate) {
+            console.log(`Skipping farmacia ${farmacia.name}: ${check.reason}`);
+            results.push({
+              entityName: farmacia.name,
+              entityType: 'farmacia',
+              success: true,
+              skippedReason: check.reason
+            });
+            continue;
+          }
+
+          const topic = getRandomTopic(currentMonth, usedTopicsPharmacy);
+          if (!topic) continue;
+          usedTopicsPharmacy.push(topic.tema);
+
+          console.log(`[Farmacia] Generating for ${farmacia.name} - Topic: ${topic.tema}`);
+
+          try {
+            const response = await fetch(generateArticleUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                pharmacy: {
+                  id: farmacia.id,
+                  name: farmacia.name,
+                  location: farmacia.location,
+                  languages: farmacia.languages,
+                  blog_url: farmacia.blog_url,
+                  instagram_url: farmacia.instagram_url,
+                },
+                topic: topic,
+                month: currentMonth,
+                year: currentYear,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+            }
+
+            const generatedData = await response.json();
+            
+            await supabase.from("articulos").insert({
+              farmacia_id: farmacia.id,
+              month: currentMonth,
+              year: currentYear,
+              topic: topic.tema,
+              content_spanish: generatedData.content?.spanish || null,
+              content_catalan: generatedData.content?.catalan || null,
+              image_url: generatedData.image?.url || null,
+              image_photographer: generatedData.image?.photographer || null,
+              image_photographer_url: generatedData.image?.photographer_url || null,
+              pexels_query: generatedData.pexels_query || topic.pexels_query,
+            });
+
+            articlesGenerated++;
+            console.log(`✓ Generated article for farmacia ${farmacia.name}`);
+
+            // WordPress publish
+            let wpSpanish: WordPressPublishResult | undefined;
+            let wpCatalan: WordPressPublishResult | undefined;
+
+            const { data: wpSite } = await supabase
+              .from("wordpress_sites")
+              .select("*")
+              .eq("farmacia_id", farmacia.id)
+              .maybeSingle();
+
+            if (wpSite && generatedData.content?.spanish) {
+              const { categoryIds, tagIds } = await getTaxonomiesForPublish(
+                supabase, wpSite.id,
+                generatedData.content.spanish.title,
+                generatedData.content.spanish.content,
+                lovableApiKey
+              );
+
+              // Spanish
+              try {
+                const spanishResp = await fetch(publishUrl, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+                  body: JSON.stringify({
+                    farmacia_id: farmacia.id,
+                    title: generatedData.content.spanish.title,
+                    content: generatedData.content.spanish.content,
+                    slug: generatedData.content.spanish.slug,
+                    status: "publish",
+                    image_url: generatedData.image?.url,
+                    image_alt: generatedData.content.spanish.title,
+                    meta_description: generatedData.content.spanish.meta_description,
+                    lang: "es",
+                    category_ids: categoryIds,
+                    tag_ids: tagIds,
+                  }),
+                });
+                const spanishResult = await spanishResp.json();
+                wpSpanish = spanishResult.success 
+                  ? { success: true, postUrl: spanishResult.post_url }
+                  : { success: false, error: spanishResult.error };
+              } catch (e) {
+                wpSpanish = { success: false, error: String(e) };
+              }
+
+              // Catalan
+              if (generatedData.content?.catalan) {
+                try {
+                  const catalanResp = await fetch(publishUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+                    body: JSON.stringify({
+                      farmacia_id: farmacia.id,
+                      title: generatedData.content.catalan.title,
+                      content: generatedData.content.catalan.content,
+                      slug: `${generatedData.content.catalan.slug}-ca`,
+                      status: "publish",
+                      image_url: generatedData.image?.url,
+                      image_alt: generatedData.content.catalan.title,
+                      meta_description: generatedData.content.catalan.meta_description,
+                      lang: "ca",
+                      category_ids: categoryIds,
+                      tag_ids: tagIds,
+                    }),
+                  });
+                  const catalanResult = await catalanResp.json();
+                  wpCatalan = catalanResult.success 
+                    ? { success: true, postUrl: catalanResult.post_url }
+                    : { success: false, error: catalanResult.error };
+                } catch (e) {
+                  wpCatalan = { success: false, error: String(e) };
+                }
+              }
+            }
+
+            results.push({
+              entityName: farmacia.name,
+              entityType: 'farmacia',
+              success: true,
+              wpSpanish,
+              wpCatalan,
+            });
+          } catch (error) {
+            console.error(`✗ Error for farmacia ${farmacia.name}:`, error);
+            results.push({
+              entityName: farmacia.name,
+              entityType: 'farmacia',
+              success: false,
+              error: String(error),
+            });
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
       }
+    } else {
+      console.log("Not first Monday, skipping farmacias");
     }
 
-    // ========== PROCESS EMPRESAS ==========
+    // ========== 2. PROCESS EMPRESAS (Based on frequency) ==========
     console.log("=== Processing EMPRESAS ===");
     
-    // Get all empresas with auto_generate = true
     const { data: empresas, error: empresasError } = await supabase
       .from("empresas")
       .select("*")
       .eq("auto_generate", true)
-      .order("created_at", { ascending: true });
+      .order("publish_frequency", { ascending: true }); // daily first
 
     if (empresasError) {
       console.error(`Error fetching empresas: ${empresasError.message}`);
     } else {
       console.log(`Found ${empresas?.length || 0} empresas with auto_generate`);
 
-      // Get existing empresa articles for this month
-      const { data: existingEmpresaArticles } = await supabase
-        .from("articulos_empresas")
-        .select("empresa_id")
-        .eq("month", currentMonth)
-        .eq("year", currentYear);
-
-      const existingEmpresaIds = new Set(existingEmpresaArticles?.map(a => a.empresa_id) || []);
-      const empresasToProcess = empresas?.filter(e => !existingEmpresaIds.has(e.id)) || [];
-
-      console.log(`${existingEmpresaIds.size} empresa articles already exist, ${empresasToProcess.length} to generate`);
-
-      for (let i = 0; i < empresasToProcess.length; i++) {
-        const empresa = empresasToProcess[i];
-        
-        // Generate topic: use custom_topic if exists, otherwise AI generates one
-        let topicTema = empresa.custom_topic;
-        
-        if (!topicTema) {
-          // Generate topic using AI
-          console.log(`Generating AI topic for empresa ${empresa.name}...`);
-          
-          if (!lovableApiKey) {
-            console.error("LOVABLE_API_KEY not configured, skipping empresa");
-            continue;
-          }
-          
-          const topicPrompt = `Eres un experto en SEO y marketing de contenidos para el sector ${empresa.sector || "servicios profesionales"}.
-Genera UN SOLO tema para un artículo de blog optimizado para SEO.
-
-Empresa: ${empresa.name}
-Sector: ${empresa.sector || "servicios profesionales"}
-Localidad: ${empresa.location}
-Mes: ${MONTH_NAMES[currentMonth - 1]} ${currentYear}
-
-El tema debe:
-- Ser MUY relevante para el sector de la empresa
-- Tener en cuenta la época del año (${MONTH_NAMES[currentMonth - 1]}) y tendencias actuales de ${currentYear}
-- Ser atractivo para SEO local en ${empresa.location}
-- Máximo 60 caracteres
-- NO incluir el nombre de la empresa en el tema
-- Ser específico y útil para los clientes potenciales
-
-Responde SOLO con el tema, sin explicaciones ni comillas.`;
-
-          try {
-            const topicResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${lovableApiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "google/gemini-2.5-flash",
-                messages: [{ role: "user", content: topicPrompt }],
-                max_tokens: 100,
-              }),
-            });
-
-            if (!topicResponse.ok) {
-              const errorText = await topicResponse.text();
-              console.error(`AI topic generation failed: ${errorText}`);
-              throw new Error("AI topic generation failed");
-            }
-
-            const topicData = await topicResponse.json();
-            topicTema = topicData.choices?.[0]?.message?.content?.trim() || null;
-            
-            if (!topicTema) {
-              throw new Error("Empty topic from AI");
-            }
-            
-            console.log(`✓ AI generated topic: ${topicTema}`);
-          } catch (topicError) {
-            console.error(`Failed to generate AI topic for ${empresa.name}:`, topicError);
-            // Fallback to a generic topic based on sector
-            topicTema = `Novedades en ${empresa.sector || "servicios profesionales"} para ${MONTH_NAMES[currentMonth - 1]}`;
-            console.log(`Using fallback topic: ${topicTema}`);
-          }
+      for (const empresa of empresas || []) {
+        if (articlesGenerated >= MAX_ARTICLES_PER_RUN) {
+          console.log(`Rate limit reached (${MAX_ARTICLES_PER_RUN}), stopping`);
+          break;
         }
-        
+
+        const check = await shouldGenerateForEntity(
+          supabase, empresa.id, 'empresa', empresa.publish_frequency || 'monthly',
+          currentMonth, currentYear, now
+        );
+
+        if (!check.shouldGenerate) {
+          console.log(`Skipping empresa ${empresa.name}: ${check.reason}`);
+          continue;
+        }
+
+        // Get used topics for variety
+        const usedTopics = await getUsedTopics(supabase, empresa.id, 'empresa');
+
+        // Generate topic
+        let topicTema = empresa.custom_topic;
+        if (!topicTema && lovableApiKey) {
+          topicTema = await generateDynamicTopic(
+            lovableApiKey,
+            { name: empresa.name, sector: empresa.sector, location: empresa.location },
+            currentMonth, currentYear, usedTopics, now
+          );
+        } else if (!topicTema) {
+          topicTema = `Novedades en ${empresa.sector || "servicios"} para ${MONTH_NAMES[currentMonth - 1]}`;
+        }
+
         const topic = {
           tema: topicTema,
           keywords: [],
-          pexels_query: empresa.sector ? `${empresa.sector} professional business` : "business professional wellness"
+          pexels_query: empresa.sector ? `${empresa.sector} professional business` : "business professional"
         };
-        
-        console.log(`[${i + 1}/${empresasToProcess.length}] Generating article for empresa ${empresa.name} - Topic: ${topic.tema}`);
+
+        console.log(`[Empresa] Generating for ${empresa.name} (${empresa.publish_frequency}) - Topic: ${topic.tema}`);
 
         try {
           const response = await fetch(generateArticleUrl, {
@@ -779,8 +850,8 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
                 location: empresa.location,
                 sector: empresa.sector,
                 languages: empresa.languages,
-                blog_url: empresa.blog_url || undefined,
-                instagram_url: empresa.instagram_url || undefined,
+                blog_url: empresa.blog_url,
+                instagram_url: empresa.instagram_url,
                 geographic_scope: empresa.geographic_scope || "local",
               },
               topic: topic,
@@ -791,113 +862,78 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
           });
 
           if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
+            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
           }
 
           const generatedData = await response.json();
-          console.log(`✓ Generated article content for empresa ${empresa.name}`);
           
-          // Save to articulos_empresas table
-          const { error: insertError } = await supabase
-            .from("articulos_empresas")
-            .insert({
-              empresa_id: empresa.id,
-              month: currentMonth,
-              year: currentYear,
-              topic: topic.tema,
-              content_spanish: generatedData.content?.spanish || null,
-              content_catalan: generatedData.content?.catalan || null,
-              image_url: generatedData.image?.url || null,
-              image_photographer: generatedData.image?.photographer || null,
-              image_photographer_url: generatedData.image?.photographer_url || null,
-              pexels_query: generatedData.pexels_query || topic.pexels_query,
-            });
+          await supabase.from("articulos_empresas").insert({
+            empresa_id: empresa.id,
+            month: currentMonth,
+            year: currentYear,
+            topic: topic.tema,
+            day_of_month: now.getDate(),
+            week_of_month: Math.ceil(now.getDate() / 7),
+            content_spanish: generatedData.content?.spanish || null,
+            content_catalan: generatedData.content?.catalan || null,
+            image_url: generatedData.image?.url || null,
+            image_photographer: generatedData.image?.photographer || null,
+            image_photographer_url: generatedData.image?.photographer_url || null,
+            pexels_query: generatedData.pexels_query || topic.pexels_query,
+          });
 
-          if (insertError) {
-            throw new Error(`Error saving article: ${insertError.message}`);
-          }
+          articlesGenerated++;
+          console.log(`✓ Generated article for empresa ${empresa.name}`);
 
-          console.log(`✓ Saved empresa article for ${empresa.name}: ${topic.tema}`);
-          
-          // WordPress auto-publish for empresas
+          // WordPress publish
           let wpSpanish: WordPressPublishResult | undefined;
           let wpCatalan: WordPressPublishResult | undefined;
-          
+
           const { data: wpSite } = await supabase
             .from("wordpress_sites")
             .select("*")
             .eq("empresa_id", empresa.id)
             .maybeSingle();
 
-          if (wpSite) {
-            console.log(`WordPress configured for empresa ${empresa.name}, publishing...`);
-            const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress`;
-            
-            // Get taxonomies for this article
-            const articleTitle = generatedData.content?.spanish?.title || topic.tema;
-            const articleContent = generatedData.content?.spanish?.content || "";
+          if (wpSite && generatedData.content?.spanish) {
             const { categoryIds, tagIds } = await getTaxonomiesForPublish(
-              supabaseUrl,
-              supabaseServiceKey,
-              wpSite.id,
-              articleTitle,
-              articleContent,
+              supabase, wpSite.id,
+              generatedData.content.spanish.title,
+              generatedData.content.spanish.content,
               lovableApiKey
             );
-            
-            console.log(`Using categories: [${categoryIds.join(",")}], tags: [${tagIds.join(",")}]`);
-            
-            // Publish Spanish version
-            if (generatedData.content?.spanish) {
-              try {
-                console.log(`Publishing Spanish version for empresa ${empresa.name}...`);
-                const spanishPublishResponse = await fetch(publishUrl, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${supabaseServiceKey}`,
-                  },
-                  body: JSON.stringify({
-                    empresa_id: empresa.id,
-                    title: generatedData.content.spanish.title,
-                    content: generatedData.content.spanish.content,
-                    slug: generatedData.content.spanish.slug,
-                    status: "publish",
-                    image_url: generatedData.image?.url,
-                    image_alt: generatedData.content.spanish.title,
-                    meta_description: generatedData.content.spanish.meta_description,
-                    lang: "es",
-                    category_ids: categoryIds,
-                    tag_ids: tagIds,
-                  }),
-                });
-                
-                const spanishResult = await spanishPublishResponse.json();
-                if (spanishResult.success) {
-                  wpSpanish = { success: true, postUrl: spanishResult.post_url };
-                  console.log(`✓ Published Spanish to WordPress: ${spanishResult.post_url}`);
-                } else {
-                  wpSpanish = { success: false, error: spanishResult.error || "Unknown error" };
-                  console.error(`✗ Failed to publish Spanish:`, spanishResult.error);
-                }
-              } catch (wpError) {
-                const wpErrorMsg = wpError instanceof Error ? wpError.message : String(wpError);
-                wpSpanish = { success: false, error: wpErrorMsg };
-                console.error(`✗ Error publishing Spanish to WordPress:`, wpError);
-              }
+
+            try {
+              const spanishResp = await fetch(publishUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
+                body: JSON.stringify({
+                  empresa_id: empresa.id,
+                  title: generatedData.content.spanish.title,
+                  content: generatedData.content.spanish.content,
+                  slug: generatedData.content.spanish.slug,
+                  status: "publish",
+                  image_url: generatedData.image?.url,
+                  image_alt: generatedData.content.spanish.title,
+                  meta_description: generatedData.content.spanish.meta_description,
+                  lang: "es",
+                  category_ids: categoryIds,
+                  tag_ids: tagIds,
+                }),
+              });
+              const spanishResult = await spanishResp.json();
+              wpSpanish = spanishResult.success 
+                ? { success: true, postUrl: spanishResult.post_url }
+                : { success: false, error: spanishResult.error };
+            } catch (e) {
+              wpSpanish = { success: false, error: String(e) };
             }
-            
-            // Publish Catalan version
+
             if (generatedData.content?.catalan) {
               try {
-                console.log(`Publishing Catalan version for empresa ${empresa.name}...`);
-                const catalanPublishResponse = await fetch(publishUrl, {
+                const catalanResp = await fetch(publishUrl, {
                   method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${supabaseServiceKey}`,
-                  },
+                  headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
                   body: JSON.stringify({
                     empresa_id: empresa.id,
                     title: generatedData.content.catalan.title,
@@ -912,25 +948,16 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
                     tag_ids: tagIds,
                   }),
                 });
-                
-                const catalanResult = await catalanPublishResponse.json();
-                if (catalanResult.success) {
-                  wpCatalan = { success: true, postUrl: catalanResult.post_url };
-                  console.log(`✓ Published Catalan to WordPress: ${catalanResult.post_url}`);
-                } else {
-                  wpCatalan = { success: false, error: catalanResult.error || "Unknown error" };
-                  console.error(`✗ Failed to publish Catalan:`, catalanResult.error);
-                }
-              } catch (wpError) {
-                const wpErrorMsg = wpError instanceof Error ? wpError.message : String(wpError);
-                wpCatalan = { success: false, error: wpErrorMsg };
-                console.error(`✗ Error publishing Catalan to WordPress:`, wpError);
+                const catalanResult = await catalanResp.json();
+                wpCatalan = catalanResult.success 
+                  ? { success: true, postUrl: catalanResult.post_url }
+                  : { success: false, error: catalanResult.error };
+              } catch (e) {
+                wpCatalan = { success: false, error: String(e) };
               }
             }
-          } else {
-            console.log(`No WordPress configured for empresa ${empresa.name}, skipping auto-publish`);
           }
-          
+
           results.push({
             entityName: empresa.name,
             entityType: 'empresa',
@@ -938,39 +965,210 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
             wpSpanish,
             wpCatalan,
           });
-        } catch (error: unknown) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error(`✗ Error generating article for empresa ${empresa.name}:`, error);
+        } catch (error) {
+          console.error(`✗ Error for empresa ${empresa.name}:`, error);
           results.push({
             entityName: empresa.name,
             entityType: 'empresa',
             success: false,
-            error: errorMessage,
+            error: String(error),
           });
         }
 
-        // Delay between requests
-        if (i < empresasToProcess.length - 1) {
-          console.log("Waiting 3 seconds before next generation...");
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        }
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
     }
 
-    // Calculate summary
-    const successCount = results.filter(r => r.success).length;
+    // ========== 3. PROCESS SITES (SaaS - Based on frequency + plan limits) ==========
+    console.log("=== Processing SITES (SaaS) ===");
+    
+    const { data: sites, error: sitesError } = await supabase
+      .from("sites")
+      .select("*")
+      .eq("auto_generate", true)
+      .order("publish_frequency", { ascending: true });
+
+    if (sitesError) {
+      console.error(`Error fetching sites: ${sitesError.message}`);
+    } else {
+      console.log(`Found ${sites?.length || 0} sites with auto_generate`);
+
+      for (const site of sites || []) {
+        if (articlesGenerated >= MAX_ARTICLES_PER_RUN) {
+          console.log(`Rate limit reached (${MAX_ARTICLES_PER_RUN}), stopping`);
+          break;
+        }
+
+        // Check frequency
+        const check = await shouldGenerateForEntity(
+          supabase, site.id, 'site', site.publish_frequency || 'monthly',
+          currentMonth, currentYear, now
+        );
+
+        if (!check.shouldGenerate) {
+          console.log(`Skipping site ${site.name}: ${check.reason}`);
+          continue;
+        }
+
+        // Check plan limits
+        const limits = await checkPlanLimits(supabase, site.user_id, currentMonth, currentYear);
+        
+        if (!limits.withinLimits) {
+          console.log(`Site ${site.name} exceeded plan limits (${limits.used}/${limits.limit})`);
+          
+          // Send notification email
+          if (limits.userEmail) {
+            try {
+              await resend.emails.send({
+                from: "Blooglee <onboarding@resend.dev>",
+                to: [limits.userEmail],
+                subject: `Límite de artículos alcanzado - ${site.name}`,
+                html: `
+                  <h1>Límite de artículos alcanzado</h1>
+                  <p>No se ha podido generar el artículo automático para <strong>${site.name}</strong>.</p>
+                  <p>Has usado <strong>${limits.used}</strong> de <strong>${limits.limit}</strong> artículos este mes.</p>
+                  <p>Actualiza tu plan para generar más artículos.</p>
+                  <p><a href="${PORTAL_URL}/billing">Ver planes</a></p>
+                `,
+              });
+            } catch (e) {
+              console.error("Failed to send limit exceeded email:", e);
+            }
+          }
+
+          results.push({
+            entityName: site.name,
+            entityType: 'site',
+            success: false,
+            limitExceeded: true,
+            error: `Límite excedido: ${limits.used}/${limits.limit}`,
+          });
+          continue;
+        }
+
+        // Get used topics
+        const usedTopics = await getUsedTopics(supabase, site.id, 'site');
+
+        // Generate topic
+        let topicTema = site.custom_topic;
+        if (!topicTema && lovableApiKey) {
+          topicTema = await generateDynamicTopic(
+            lovableApiKey,
+            { name: site.name, sector: site.sector, location: site.location },
+            currentMonth, currentYear, usedTopics, now
+          );
+        } else if (!topicTema) {
+          topicTema = `Novedades en ${site.sector || "servicios"} para ${MONTH_NAMES[currentMonth - 1]}`;
+        }
+
+        const topic = {
+          tema: topicTema,
+          keywords: [],
+          pexels_query: site.sector ? `${site.sector} professional business` : "business professional"
+        };
+
+        console.log(`[Site] Generating for ${site.name} (${site.publish_frequency}) - Topic: ${topic.tema}`);
+
+        try {
+          const response = await fetch(generateArticleUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              pharmacy: {
+                id: site.id,
+                name: site.name,
+                location: site.location,
+                sector: site.sector,
+                languages: site.languages,
+                blog_url: site.blog_url,
+                instagram_url: site.instagram_url,
+                geographic_scope: site.geographic_scope || "local",
+              },
+              topic: topic,
+              month: currentMonth,
+              year: currentYear,
+              skipImage: site.include_featured_image === false,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+          }
+
+          const generatedData = await response.json();
+          
+          await supabase.from("articles").insert({
+            site_id: site.id,
+            user_id: site.user_id,
+            month: currentMonth,
+            year: currentYear,
+            topic: topic.tema,
+            day_of_month: now.getDate(),
+            week_of_month: Math.ceil(now.getDate() / 7),
+            content_spanish: generatedData.content?.spanish || null,
+            content_catalan: generatedData.content?.catalan || null,
+            image_url: generatedData.image?.url || null,
+            image_photographer: generatedData.image?.photographer || null,
+            image_photographer_url: generatedData.image?.photographer_url || null,
+            pexels_query: generatedData.pexels_query || topic.pexels_query,
+          });
+
+          articlesGenerated++;
+          console.log(`✓ Generated article for site ${site.name}`);
+
+          // WordPress publish for SaaS sites
+          let wpSpanish: WordPressPublishResult | undefined;
+          let wpCatalan: WordPressPublishResult | undefined;
+
+          const { data: wpConfig } = await supabase
+            .from("wordpress_configs")
+            .select("*")
+            .eq("site_id", site.id)
+            .maybeSingle();
+
+          if (wpConfig && generatedData.content?.spanish) {
+            // For SaaS, we need to call publish differently (or create a new function)
+            // For now, log that WP is configured but skip auto-publish
+            console.log(`WordPress configured for site ${site.name}, auto-publish not yet implemented for SaaS`);
+          }
+
+          results.push({
+            entityName: site.name,
+            entityType: 'site',
+            success: true,
+            wpSpanish,
+            wpCatalan,
+          });
+        } catch (error) {
+          console.error(`✗ Error for site ${site.name}:`, error);
+          results.push({
+            entityName: site.name,
+            entityType: 'site',
+            success: false,
+            error: String(error),
+          });
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    }
+
+    // ========== SUMMARY ==========
+    const successCount = results.filter(r => r.success && !r.skippedReason).length;
+    const skippedCount = results.filter(r => r.skippedReason).length;
     const failCount = results.filter(r => !r.success).length;
+    const limitExceededCount = results.filter(r => r.limitExceeded).length;
     const wpPublished = results.filter(r => r.wpSpanish?.success || r.wpCatalan?.success).length;
 
     console.log(`=== GENERATION COMPLETE ===`);
-    console.log(`Success: ${successCount}, Failed: ${failCount}, WP Published: ${wpPublished}`);
+    console.log(`Generated: ${successCount}, Skipped: ${skippedCount}, Failed: ${failCount}, Limit Exceeded: ${limitExceededCount}, WP: ${wpPublished}`);
 
-    // Build email content
-    const successResults = results.filter(r => r.success);
-    const failedResults = results.filter(r => !r.success);
-
+    // Build email
     let successTableRows = '';
-    for (const result of successResults) {
+    for (const result of results.filter(r => r.success && !r.skippedReason)) {
       const wpStatus = [];
       if (result.wpSpanish?.success) wpStatus.push(`<a href="${result.wpSpanish.postUrl}">ES ✓</a>`);
       if (result.wpSpanish && !result.wpSpanish.success) wpStatus.push(`ES ✗`);
@@ -980,32 +1178,35 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
       successTableRows += `
         <tr>
           <td style="padding: 8px; border: 1px solid #ddd;">${result.entityName}</td>
-          <td style="padding: 8px; border: 1px solid #ddd;">${result.entityType === 'farmacia' ? 'Farmacia' : 'Empresa'}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${result.entityType}</td>
           <td style="padding: 8px; border: 1px solid #ddd;">${wpStatus.length > 0 ? wpStatus.join(' | ') : 'No WP'}</td>
         </tr>
       `;
     }
 
     let failedTableRows = '';
-    for (const result of failedResults) {
+    for (const result of results.filter(r => !r.success)) {
       failedTableRows += `
         <tr>
           <td style="padding: 8px; border: 1px solid #ddd;">${result.entityName}</td>
-          <td style="padding: 8px; border: 1px solid #ddd;">${result.entityType === 'farmacia' ? 'Farmacia' : 'Empresa'}</td>
-          <td style="padding: 8px; border: 1px solid #ddd; color: red;">${result.error || 'Unknown error'}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${result.entityType}</td>
+          <td style="padding: 8px; border: 1px solid #ddd; color: ${result.limitExceeded ? 'orange' : 'red'};">
+            ${result.limitExceeded ? '⚠️ ' : ''}${result.error || 'Unknown error'}
+          </td>
         </tr>
       `;
     }
 
     const emailHtml = `
-      <h1>PharmaBlog Manager - Generación Automática</h1>
-      <p>Hola,</p>
-      <p>Se ha completado la generación automática de artículos para <strong>${MONTH_NAMES[currentMonth - 1]} ${currentYear}</strong>.</p>
+      <h1>Blooglee - Generación Automática</h1>
+      <p>Fecha: <strong>${now.getDate()} ${MONTH_NAMES[currentMonth - 1]} ${currentYear}</strong></p>
       
       <h2>Resumen</h2>
       <ul>
         <li><strong>Artículos generados:</strong> ${successCount}</li>
+        <li><strong>Omitidos (ya existían):</strong> ${skippedCount}</li>
         <li><strong>Errores:</strong> ${failCount}</li>
+        <li><strong>Límite excedido:</strong> ${limitExceededCount}</li>
         <li><strong>Publicados en WordPress:</strong> ${wpPublished}</li>
       </ul>
       
@@ -1019,9 +1220,7 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
               <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">WordPress</th>
             </tr>
           </thead>
-          <tbody>
-            ${successTableRows}
-          </tbody>
+          <tbody>${successTableRows}</tbody>
         </table>
       ` : ''}
       
@@ -1035,31 +1234,34 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
               <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Error</th>
             </tr>
           </thead>
-          <tbody>
-            ${failedTableRows}
-          </tbody>
+          <tbody>${failedTableRows}</tbody>
         </table>
       ` : ''}
       
-      <p><a href="${PORTAL_URL}">Acceder al portal</a></p>
-      <p>Saludos,<br>PharmaBlog Manager</p>
+      <p><a href="${PORTAL_URL}/mkpro">Acceder al portal MKPro</a></p>
+      <p>Saludos,<br>Blooglee</p>
     `;
 
-    // Send notification email
-    await resend.emails.send({
-      from: "PharmaBlog Manager <onboarding@resend.dev>",
-      to: NOTIFICATION_EMAILS,
-      subject: `Posts de ${MONTH_NAMES[currentMonth - 1]} ${currentYear} - ${successCount} generados`,
-      html: emailHtml,
-    });
-
-    console.log("Notification email sent");
+    // Only send email if something was generated or there were errors
+    if (successCount > 0 || failCount > 0) {
+      await resend.emails.send({
+        from: "Blooglee <onboarding@resend.dev>",
+        to: NOTIFICATION_EMAILS,
+        subject: `Blooglee ${now.getDate()}/${currentMonth}/${currentYear} - ${successCount} generados`,
+        html: emailHtml,
+      });
+      console.log("Notification email sent");
+    } else {
+      console.log("No changes, skipping notification email");
+    }
 
     return new Response(
       JSON.stringify({
         message: "Generation complete",
-        success: successCount,
+        generated: successCount,
+        skipped: skippedCount,
         failed: failCount,
+        limitExceeded: limitExceededCount,
         wpPublished,
         results,
       }),
@@ -1068,22 +1270,21 @@ Responde SOLO con el tema, sin explicaciones ni comillas.`;
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Fatal error in generate-monthly-articles:", error);
+    console.error("Fatal error:", error);
 
-    // Try to send error notification
     try {
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (resendApiKey) {
         const resend = new Resend(resendApiKey);
         await resend.emails.send({
-          from: "PharmaBlog Manager <onboarding@resend.dev>",
+          from: "Blooglee <onboarding@resend.dev>",
           to: NOTIFICATION_EMAILS,
-          subject: "ERROR - Generación automática de artículos",
+          subject: "ERROR - Generación automática Blooglee",
           html: `
-            <h1>Error en PharmaBlog Manager</h1>
-            <p>Se ha producido un error durante la generación automática de artículos:</p>
+            <h1>Error en Blooglee</h1>
+            <p>Se ha producido un error durante la generación automática:</p>
             <pre style="background: #f5f5f5; padding: 15px; border-radius: 5px;">${errorMessage}</pre>
-            <p><a href="${PORTAL_URL}">Acceder al portal</a></p>
+            <p><a href="${PORTAL_URL}/mkpro">Acceder al portal</a></p>
           `,
         });
       }
