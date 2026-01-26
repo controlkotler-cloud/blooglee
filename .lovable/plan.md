@@ -1,157 +1,77 @@
 
 
-## Plan: Permitir a Admins Acceso Libre a Dashboard y MKPro
+## Plan: Actualizar Imagotipo de Blooglee en Toda la Aplicación
 
-### Problema Actual
+### Archivos Afectados
 
-La lógica en `ProtectedRoute.tsx` fuerza a todos los usuarios con rol `admin` o `mkpro_admin` a ir siempre a `/mkpro`, sin poder acceder al dashboard SaaS.
-
-```
-Flujo actual:
-Usuario con mkpro_admin → SIEMPRE redirigido a /mkpro
-Usuario sin sites → SIEMPRE redirigido a /onboarding
-```
-
-### Solución Propuesta
-
-Cambiar la lógica para que los admins tengan **acceso libre** a todas las rutas protegidas, sin redirecciones forzadas.
-
-```
-Flujo nuevo:
-Usuario admin → Puede navegar libremente (dashboard, mkpro, site/:id, etc.)
-Usuario normal sin sites → Redirigido a /onboarding
-Usuario normal con sites → Acceso a dashboard y sites
-```
+| Ubicación | Uso Actual | Cambio |
+|-----------|------------|--------|
+| `src/assets/blooglee-logo.png` | Logo en componente BloogleeLogo | Reemplazar con nuevo imagotipo |
+| `public/favicon.png` | Favicon del navegador | Reemplazar con nuevo imagotipo |
+| `src/components/saas/ProductMockup.tsx` | Usa icono Sparkles genérico | Usar el logo real importado |
 
 ---
 
-## Cambios en ProtectedRoute.tsx
+## Cambios Detallados
 
-### Lógica Actual (líneas 27-38)
-```typescript
-// MKPro admins should go to /mkpro, not onboarding
-if (isMKProAdmin) {
-  if (location.pathname !== '/mkpro') {
-    navigate('/mkpro', { replace: true });
-  }
-  return;
-}
+### 1. Copiar nuevo imagotipo a assets
 
-// Regular users without sites go to onboarding
-if (sites?.length === 0 && location.pathname !== '/onboarding') {
-  navigate('/onboarding', { replace: true });
-}
+```bash
+# Copiar la imagen subida a src/assets (reemplaza el logo actual)
+lov-copy user-uploads://bloogleeimagotipo.png src/assets/blooglee-logo.png
+
+# Copiar también a public para favicon
+lov-copy user-uploads://bloogleeimagotipo.png public/favicon.png
 ```
 
-### Lógica Nueva
-```typescript
-// Admins have free access to all protected routes
-if (isAdmin) {
-  // No forced redirects - admins can go anywhere
-  return;
-}
+### 2. Actualizar ProductMockup.tsx (líneas 69-74)
 
-// MKPro-only admins (not full admins) go to /mkpro
-if (isMKProAdmin && !isAdmin) {
-  if (location.pathname !== '/mkpro') {
-    navigate('/mkpro', { replace: true });
-  }
-  return;
-}
-
-// Regular users without sites go to onboarding
-if (sites?.length === 0 && location.pathname !== '/onboarding') {
-  navigate('/onboarding', { replace: true });
-}
-```
-
----
-
-## Cambios en useProfile.ts
-
-Agregar un nuevo hook `useIsAdmin` para distinguir entre:
-- `admin`: Acceso total a todo (dashboard SaaS + MKPro)
-- `mkpro_admin`: Solo acceso a MKPro
+Actualmente usa un icono genérico de Sparkles:
 
 ```typescript
-export function useIsAdmin() {
-  const { data: roles = [], isLoading } = useUserRoles();
-  
-  const isAdmin = roles.some(r => r.role === 'admin');
-  
-  return { isAdmin, isLoading };
-}
-
-// Modificar useIsMKProAdmin para excluir admins
-export function useIsMKProAdmin() {
-  const { data: roles = [], isLoading } = useUserRoles();
-  
-  const isMKProAdmin = roles.some(r => r.role === 'mkpro_admin');
-  const isAdmin = roles.some(r => r.role === 'admin');
-  
-  return { 
-    isMKProAdmin, 
-    isAdmin,
-    canAccessMKPro: isMKProAdmin || isAdmin,
-    isLoading 
-  };
-}
+// ANTES (línea 71-72):
+<div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+  <Sparkles className="w-4 h-4 text-white" />
+</div>
 ```
 
----
-
-## Cambio de Rol en Base de Datos
-
-Tu usuario actual (`control@mkpro.es`) tiene rol `mkpro_admin`. Para tener acceso libre a todo, necesitas el rol `admin`:
-
-```sql
--- Opción 1: Cambiar el rol existente a admin
-UPDATE user_roles 
-SET role = 'admin' 
-WHERE user_id = '2840b1e0-0dcc-4c8f-969c-f086f4db0c90';
-
--- Opción 2: Agregar rol admin adicional (mantener mkpro_admin)
-INSERT INTO user_roles (user_id, role)
-VALUES ('2840b1e0-0dcc-4c8f-969c-f086f4db0c90', 'admin');
-```
-
----
-
-## Actualización del Dashboard SaaS
-
-En `SaasDashboard.tsx`, agregar acceso directo a MKPro para admins:
+Cambiar para usar el logo real:
 
 ```typescript
-// Ya existe en el menú, pero asegurar que esté visible:
-{canAccessMKPro && (
-  <DropdownMenuItem onClick={() => navigate('/mkpro')}>
-    MKPro Admin
-  </DropdownMenuItem>
-)}
+// DESPUÉS:
+import bloogleeLogo from '@/assets/blooglee-logo.png';
+
+// En el mini header (línea 71):
+<img 
+  src={bloogleeLogo} 
+  alt="Blooglee" 
+  className="w-8 h-8 object-contain"
+/>
 ```
 
 ---
 
-## Resumen de Cambios
+## Resultado Visual
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/hooks/useProfile.ts` | Agregar `useIsAdmin`, modificar `useIsMKProAdmin` |
-| `src/components/ProtectedRoute.tsx` | Nueva lógica de redirección para admins |
-| Base de datos | Cambiar/agregar rol `admin` a tu usuario |
+El nuevo imagotipo (pluma con estrellas en gradiente violeta-rosa) aparecerá en:
+
+- Navbar pública (PublicNavbar)
+- Footer público (PublicFooter)
+- Header del Dashboard SaaS
+- Header de Account Settings
+- Simulación del producto en la Landing page (ProductMockup)
+- Favicon del navegador
+- Cualquier otro lugar que use el componente BloogleeLogo
 
 ---
 
-## Resultado Final
+## Archivos a Modificar
 
-| Rol | Acceso Dashboard SaaS | Acceso MKPro | Requiere Sites |
-|-----|----------------------|--------------|----------------|
-| `admin` | Si | Si | No |
-| `mkpro_admin` | No | Si | N/A |
-| `user` | Si | No | Si (o va a onboarding) |
+1. **Copiar imágenes**:
+   - `user-uploads://bloogleeimagotipo.png` → `src/assets/blooglee-logo.png`
+   - `user-uploads://bloogleeimagotipo.png` → `public/favicon.png`
 
-Tu usuario con rol `admin` podrá:
-- Acceder a `/dashboard` sin tener sitios
-- Acceder a `/mkpro` cuando lo necesites
-- Navegar libremente por todas las rutas protegidas
+2. **`src/components/saas/ProductMockup.tsx`**:
+   - Importar el logo
+   - Reemplazar el icono Sparkles del mini header por una imagen del logo
 
