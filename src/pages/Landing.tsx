@@ -12,14 +12,12 @@ import {
   Star,
   Play,
   BarChart3,
-  Palette,
-  Menu,
-  X
+  Palette
 } from 'lucide-react';
 import { ProductMockup } from '@/components/saas/ProductMockup';
 import { LiquidBlobs } from '@/components/saas/LiquidBlobs';
-import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
-import { useState } from 'react';
+import { PublicNavbar } from '@/components/marketing/PublicNavbar';
+import { PublicFooter } from '@/components/marketing/PublicFooter';
 
 const features = [
   {
@@ -95,101 +93,13 @@ const stats = [
 ];
 
 const Landing = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-fuchsia-50/50 to-orange-50/30 overflow-hidden">
       {/* LIQUID BLOBS BACKGROUND */}
       <LiquidBlobs variant="hero" />
 
-      {/* Navigation - Mobile First */}
-      <nav className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 py-3 sm:py-4">
-        <div className="container-custom">
-          <div className="glass-card-strong rounded-2xl sm:rounded-full px-4 sm:px-6 py-3 flex items-center justify-between shadow-xl">
-            <Link to="/" className="flex items-center gap-2 sm:gap-3 group">
-              <BloogleeLogo size="md" />
-            </Link>
-            
-            {/* Desktop nav */}
-            <div className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors">
-                Características
-              </a>
-              <a href="#testimonials" className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors">
-                Testimonios
-              </a>
-              <a href="#pricing" className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors">
-                Precios
-              </a>
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Link 
-                to="/auth" 
-                className="hidden sm:block text-sm font-medium text-foreground/70 hover:text-foreground transition-colors px-3 sm:px-4 py-2"
-              >
-                Iniciar sesión
-              </Link>
-              <Link 
-                to="/auth" 
-                className="relative group px-4 sm:px-6 py-2 sm:py-2.5 rounded-full font-semibold text-white text-sm overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400" />
-                <span className="relative flex items-center gap-1.5 sm:gap-2">
-                  <span className="hidden xs:inline">Empezar</span>
-                  <span className="xs:hidden">Iniciar</span>
-                  <ArrowRight className="w-4 h-4" />
-                </span>
-              </Link>
-              
-              {/* Mobile menu button */}
-              <button 
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                aria-label="Menú"
-              >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile menu dropdown */}
-          {mobileMenuOpen && (
-            <div className="md:hidden mt-2 glass-card-strong rounded-2xl p-4 shadow-xl animate-fade-in">
-              <div className="flex flex-col gap-3">
-                <a 
-                  href="#features" 
-                  className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors py-2 px-3 rounded-xl hover:bg-muted/50"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Características
-                </a>
-                <a 
-                  href="#testimonials" 
-                  className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors py-2 px-3 rounded-xl hover:bg-muted/50"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Testimonios
-                </a>
-                <a 
-                  href="#pricing" 
-                  className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors py-2 px-3 rounded-xl hover:bg-muted/50"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Precios
-                </a>
-                <Link 
-                  to="/auth" 
-                  className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors py-2 px-3 rounded-xl hover:bg-muted/50"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Iniciar sesión
-                </Link>
-              </div>
-            </div>
-          )}
-        </div>
-      </nav>
+      {/* Unified Navigation */}
+      <PublicNavbar />
 
       {/* Hero Section - Mobile First */}
       <section className="relative pt-28 pb-12 sm:pt-32 sm:pb-16 lg:pt-44 lg:pb-24 px-4 sm:px-6">
@@ -521,26 +431,8 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Footer - Mobile optimized */}
-      <footer className="relative py-8 sm:py-12 lg:py-16 px-4 sm:px-6 z-10">
-        <div className="container-custom">
-          <div className="flex flex-col items-center gap-6 sm:gap-8 md:flex-row md:justify-between">
-            <BloogleeLogo size="sm" />
-            
-            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 lg:gap-8 text-xs sm:text-sm text-foreground/60">
-              <Link to="/features" className="hover:text-foreground transition-colors">Características</Link>
-              <Link to="/blog" className="hover:text-foreground transition-colors">Blog</Link>
-              <Link to="/terms" className="hover:text-foreground transition-colors">Términos</Link>
-              <Link to="/privacy" className="hover:text-foreground transition-colors">Privacidad</Link>
-              <Link to="/contact" className="hover:text-foreground transition-colors">Contacto</Link>
-            </div>
-            
-            <p className="text-xs sm:text-sm text-foreground/50 text-center">
-              © {new Date().getFullYear()} Blooglee. Todos los derechos reservados.
-            </p>
-          </div>
-        </div>
-      </footer>
+      {/* Unified Footer */}
+      <PublicFooter />
     </div>
   );
 };

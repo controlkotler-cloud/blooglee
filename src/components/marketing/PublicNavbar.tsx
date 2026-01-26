@@ -35,25 +35,19 @@ export const PublicNavbar = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Desktop/Tablet CTA - hidden on mobile */}
             <Link 
               to="/auth" 
-              className="hidden sm:block text-sm font-medium text-foreground/70 hover:text-foreground transition-colors px-3 sm:px-4 py-2"
-            >
-              Iniciar sesión
-            </Link>
-            <Link 
-              to="/auth" 
-              className="relative group px-4 sm:px-6 py-2 sm:py-2.5 rounded-full font-semibold text-white text-sm overflow-hidden"
+              className="hidden md:flex relative group px-5 py-2.5 rounded-full font-semibold text-white text-sm overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400" />
-              <span className="relative flex items-center gap-1.5 sm:gap-2">
-                <span className="hidden xs:inline">Empezar</span>
-                <span className="xs:hidden">Iniciar</span>
+              <span className="relative flex items-center gap-2">
+                Empezar gratis
                 <ArrowRight className="w-4 h-4" />
               </span>
             </Link>
             
-            {/* Mobile menu button */}
+            {/* Mobile menu button - only on mobile */}
             <button 
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
@@ -78,12 +72,19 @@ export const PublicNavbar = () => {
                   {link.label}
                 </Link>
               ))}
+              {/* Separator */}
+              <div className="border-t border-border/50 my-1" />
+              {/* CTA button in mobile menu */}
               <Link 
                 to="/auth" 
-                className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors py-2 px-3 rounded-xl hover:bg-muted/50"
+                className="relative group mt-1 py-3 rounded-xl font-semibold text-white text-sm text-center overflow-hidden"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Iniciar sesión
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400" />
+                <span className="relative flex items-center justify-center gap-2">
+                  Empezar gratis
+                  <ArrowRight className="w-4 h-4" />
+                </span>
               </Link>
             </div>
           </div>
