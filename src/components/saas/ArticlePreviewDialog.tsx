@@ -8,15 +8,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Upload, ExternalLink } from 'lucide-react';
+import { Copy, Upload, ExternalLink, ImagePlus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Article } from '@/hooks/useArticlesSaas';
+import { useRegenerateImageSaas } from '@/hooks/useArticlesSaas';
 
 interface ArticlePreviewDialogProps {
   article: Article | null;
   open: boolean;
   onClose: () => void;
   onPublish: () => void;
+  siteSector?: string;
 }
 
 export function ArticlePreviewDialog({
@@ -24,8 +26,10 @@ export function ArticlePreviewDialog({
   open,
   onClose,
   onPublish,
+  siteSector,
 }: ArticlePreviewDialogProps) {
   const [selectedLang, setSelectedLang] = useState<'spanish' | 'catalan'>('spanish');
+  const regenerateMutation = useRegenerateImageSaas();
 
   if (!article) return null;
 
@@ -46,6 +50,21 @@ export function ArticlePreviewDialog({
     navigator.clipboard.writeText(content.content);
     toast.success('HTML copiado al portapapeles');
   };
+
+  const handleRegenerateImage = () => {
+    if (!article) return;
+    
+    regenerateMutation.mutate({
+      articleId: article.id,
+      pexelsQuery: article.pexels_query || article.topic,
+      articleTitle: article.content_spanish?.title,
+      articleContent: article.content_spanish?.content,
+      companySector: siteSector,
+      usedImageUrls: article.image_url ? [article.image_url] : []
+    });
+  };
+
+  const isRegeneratingImage = regenerateMutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -107,19 +126,35 @@ export function ArticlePreviewDialog({
                     <ExternalLink className="w-6 h-6 text-white" />
                   </div>
                 </a>
-                {article.image_photographer && (
-                  <p className="text-xs text-muted-foreground">
-                    Foto por{' '}
-                    <a
-                      href={article.image_photographer_url || '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:underline"
-                    >
-                      {article.image_photographer}
-                    </a>
-                  </p>
-                )}
+                <div className="flex items-center justify-between">
+                  {article.image_photographer && (
+                    <p className="text-xs text-muted-foreground">
+                      Foto por{' '}
+                      <a
+                        href={article.image_photographer_url || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline"
+                      >
+                        {article.image_photographer}
+                      </a>
+                    </p>
+                  )}
+                  <Button
+                    onClick={handleRegenerateImage}
+                    disabled={isRegeneratingImage}
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    {isRegeneratingImage ? (
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    ) : (
+                      <ImagePlus className="w-3 h-3 mr-1" />
+                    )}
+                    Cambiar
+                  </Button>
+                </div>
               </div>
             )}
 

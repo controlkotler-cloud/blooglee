@@ -222,3 +222,56 @@ export function useDeleteArticleSaas() {
     },
   });
 }
+
+// Regenerate image hook
+interface RegenerateImageParams {
+  articleId: string;
+  pexelsQuery: string;
+  articleTitle?: string;
+  articleContent?: string;
+  companySector?: string;
+  usedImageUrls?: string[];
+}
+
+export function useRegenerateImageSaas() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: RegenerateImageParams) => {
+      const { data, error } = await supabase.functions.invoke('regenerate-image', {
+        body: {
+          pexelsQuery: params.pexelsQuery,
+          articleTitle: params.articleTitle,
+          articleContent: params.articleContent,
+          companySector: params.companySector,
+          usedImageUrls: params.usedImageUrls || []
+        }
+      });
+      
+      if (error) throw error;
+      if (!data?.url) throw new Error('No se obtuvo imagen');
+      
+      // Update article with new image
+      const { error: updateError } = await supabase
+        .from('articles')
+        .update({
+          image_url: data.url,
+          image_photographer: data.photographer,
+          image_photographer_url: data.photographer_url
+        })
+        .eq('id', params.articleId);
+        
+      if (updateError) throw updateError;
+      
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['articles'] });
+      toast.success('Imagen actualizada');
+    },
+    onError: (error: Error) => {
+      console.error('Error regenerating image:', error);
+      toast.error(`Error: ${error.message}`);
+    }
+  });
+}

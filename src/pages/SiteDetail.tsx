@@ -144,6 +144,7 @@ export default function SiteDetail() {
             <SiteArticles
               siteId={site.id}
               siteName={site.name}
+              siteSector={site.sector || undefined}
               onGenerateArticle={handleGenerateArticle}
               isGenerating={isGenerating}
             />

@@ -155,3 +155,46 @@ export function useDeleteSite() {
     },
   });
 }
+
+export function useImportSites() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (sites: SiteInput[]): Promise<Site[]> => {
+      if (!user?.id) throw new Error('No user logged in');
+      
+      const sitesToInsert = sites.map(site => ({
+        user_id: user.id,
+        name: site.name,
+        sector: site.sector ?? null,
+        description: site.description ?? null,
+        location: site.location ?? null,
+        geographic_scope: site.geographic_scope ?? 'local',
+        languages: site.languages ?? ['spanish'],
+        blog_url: site.blog_url ?? null,
+        instagram_url: site.instagram_url ?? null,
+        auto_generate: site.auto_generate ?? true,
+        custom_topic: site.custom_topic ?? null,
+        include_featured_image: site.include_featured_image ?? true,
+        publish_frequency: site.publish_frequency ?? 'monthly',
+      }));
+
+      const { data, error } = await supabase
+        .from('sites')
+        .insert(sitesToInsert)
+        .select();
+
+      if (error) throw error;
+      return data as Site[];
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['sites'] });
+      toast.success(`${data.length} sitios importados correctamente`);
+    },
+    onError: (error) => {
+      console.error('Error importing sites:', error);
+      toast.error('Error al importar sitios');
+    },
+  });
+}
