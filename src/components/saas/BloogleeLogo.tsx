@@ -9,11 +9,11 @@ interface BloogleeLogoProps {
 }
 
 const sizeClasses: Record<LogoSize, string> = {
-  xs: 'w-6 h-6',
-  sm: 'w-8 h-8',
-  md: 'w-10 h-10',
-  lg: 'w-12 h-12',
-  xl: 'w-16 h-16'
+  xs: 'w-8 h-8',
+  sm: 'w-10 h-10',
+  md: 'w-12 h-12',
+  lg: 'w-14 h-14',
+  xl: 'w-20 h-20'
 };
 
 const textSizeClasses: Record<LogoSize, string> = {
@@ -30,14 +30,14 @@ export function BloogleeLogo({
   className = '' 
 }: BloogleeLogoProps) {
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center gap-3 ${className}`}>
       <img 
         src={bloogleeLogo} 
         alt="Blooglee" 
         className={`${sizeClasses[size]} object-contain`}
       />
       {showText && (
-        <span className={`font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-600 to-orange-500 bg-clip-text text-transparent ${textSizeClasses[size]}`}>
+        <span className={`font-display font-bold bg-gradient-to-r from-purple-600 via-fuchsia-500 to-orange-500 bg-clip-text text-transparent ${textSizeClasses[size]}`}>
           Blooglee
         </span>
       )}
