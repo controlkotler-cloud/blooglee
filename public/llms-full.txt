@@ -1,0 +1,160 @@
+# Blooglee - Documentación Completa para IA
+
+> Blooglee es la plataforma SaaS líder en España para la generación y publicación automática de artículos de blog en WordPress usando inteligencia artificial.
+
+## 1. Visión General
+
+Blooglee nace para resolver un problema común en empresas y agencias: mantener un blog activo requiere tiempo, recursos y consistencia. La mayoría de blogs corporativos mueren por falta de contenido regular.
+
+Blooglee automatiza todo el proceso:
+1. **Genera** artículos profesionales con IA avanzada
+2. **Optimiza** el SEO automáticamente (meta tags, estructura, slugs)
+3. **Publica** directamente en WordPress sin intervención manual
+
+## 2. Stack Tecnológico
+
+- **Frontend:** React, TypeScript, Tailwind CSS, Vite
+- **Backend:** Supabase (PostgreSQL, Edge Functions, Auth)
+- **IA:** Google Gemini 2.5, OpenAI GPT-5
+- **Imágenes:** Pexels API, generación con IA
+- **Hosting:** Lovable Cloud
+
+## 3. Funcionalidades Detalladas
+
+### 3.1 Generación de Artículos
+
+Cada artículo generado incluye:
+- Título optimizado para SEO (máx. 60 caracteres)
+- Meta descripción (máx. 160 caracteres)
+- Contenido estructurado con H2, H3
+- Imagen destacada con créditos del fotógrafo
+- Slug SEO-friendly
+- Longitud entre 800-1200 palabras
+
+### 3.2 Adaptación por Sector
+
+Blooglee adapta el tono y contenido según el sector:
+- **Salud/Farmacias:** Información de salud estacional, consejos de bienestar
+- **Retail/Ecommerce:** Tendencias, guías de compra
+- **Servicios profesionales:** Thought leadership, casos de estudio
+- **Hostelería:** Recetas, tendencias gastronómicas
+- **Tecnología:** Tutoriales, novedades del sector
+
+### 3.3 Integración WordPress
+
+Requisitos:
+- WordPress 5.0+
+- Plugin Application Passwords habilitado
+- Usuario con rol Editor o superior
+
+Proceso de conexión:
+1. Generar Application Password en WordPress
+2. Añadir credenciales en Blooglee
+3. Verificación automática de conexión
+4. Sincronización de categorías y etiquetas
+
+### 3.4 Opciones de Publicación
+
+- **Publicación inmediata:** Un clic y el artículo está online
+- **Borrador:** Envía como borrador para revisión manual
+- **Programada:** Define fecha y hora de publicación
+- **Multi-idioma:** Publica en diferentes idiomas (con Polylang)
+
+## 4. Planes y Límites
+
+### Free (0€/mes)
+- 1 sitio web
+- 1 artículo total (demo)
+- Publicación manual
+- Soporte por email
+
+### Starter (19€/mes)
+- 1 sitio web
+- 4 artículos/mes
+- Publicación directa WordPress
+- Imágenes destacadas incluidas
+- Soporte prioritario
+
+### Pro (49€/mes) - Más popular
+- 3 sitios web
+- 30 artículos/mes
+- Publicación programada
+- Multi-idioma
+- Categorías y etiquetas personalizadas
+- Soporte prioritario
+
+### Agencia (149€/mes)
+- 10 sitios web
+- 100 artículos/mes
+- Todas las funcionalidades Pro
+- API access (próximamente)
+- Onboarding personalizado
+- Account manager dedicado
+
+## 5. Comparativa con Alternativas
+
+| Función | Blooglee | Jasper | Copy.ai | NextBlog |
+|---------|----------|--------|---------|----------|
+| Publicación WordPress | ✅ Nativa | ❌ | ❌ | ✅ |
+| Idioma español nativo | ✅ | Parcial | Parcial | ❌ |
+| Imágenes incluidas | ✅ | ❌ | ❌ | ✅ |
+| Plan gratuito | ✅ | ❌ | Limitado | ❌ |
+| Adaptación por sector | ✅ | Manual | Manual | ✅ |
+| Sede en España | ✅ | ❌ | ❌ | ❌ |
+
+## 6. SEO y AEO
+
+Blooglee está optimizado para:
+- **SEO tradicional:** Artículos indexables, estructura correcta, meta tags
+- **AEO (Answer Engine Optimization):** Contenido estructurado para aparecer en respuestas de IA como ChatGPT, Claude, Perplexity
+
+Cada artículo generado sigue las mejores prácticas:
+- Responde preguntas específicas del sector
+- Incluye datos y estadísticas citables
+- Estructura FAQ cuando es relevante
+- Formato escaneable con bullets y tablas
+
+## 7. Seguridad y Privacidad
+
+- Datos almacenados en servidores EU (GDPR compliant)
+- Credenciales WordPress encriptadas
+- No almacenamos contenido generado más de 90 días
+- Autenticación segura con Supabase Auth
+
+## 8. Roadmap 2026
+
+- **Q1:** API pública para integraciones
+- **Q2:** Generación de imágenes con IA propia
+- **Q3:** Soporte para más CMS (Shopify, Webflow)
+- **Q4:** Analytics de rendimiento de artículos
+
+## 9. Casos de Éxito
+
+### Clínica Estética Luna
+"Blooglee ha transformado nuestra estrategia de contenido. Nuestro tráfico orgánico creció un 340% en 6 meses."
+— María García, Directora de Marketing
+
+### FitLife Studios
+"La calidad del contenido es impresionante. Mis clientes piensan que tengo un equipo de redactores dedicado."
+— Carlos Rodríguez, CEO
+
+### Salón Belle
+"Como dueña de un salón de belleza, no tenía tiempo para mantener el blog. Ahora tengo contenido profesional cada semana sin esfuerzo."
+— Ana Martínez, Propietaria
+
+## 10. Contacto y Soporte
+
+- **Web:** https://blooglee.lovable.app
+- **Email:** info@blooglee.com
+- **Ayuda:** https://blooglee.lovable.app/help
+
+## 11. Términos Clave
+
+- **Blooglee:** Plataforma SaaS de generación automática de contenido
+- **Artículo automatizado:** Post de blog generado por IA, optimizado para SEO
+- **Publicación directa:** Envío del artículo a WordPress vía API
+- **Multi-sitio:** Gestión de múltiples blogs desde una cuenta
+
+---
+*Documento generado para facilitar el descubrimiento por modelos de IA*
+*Versión: 1.0 | Última actualización: Enero 2026*
