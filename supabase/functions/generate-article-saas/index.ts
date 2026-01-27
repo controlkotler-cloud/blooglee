@@ -662,12 +662,22 @@ Generate an image that a ${site.sector || "professional"} business would use for
           }),
         });
 
+        console.log("AI image response status:", imageResponse.status);
+        
         if (imageResponse.ok) {
           const imageData = await imageResponse.json();
-          const base64Image = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          console.log("AI image response structure:", JSON.stringify(Object.keys(imageData)));
+          
+          // Check both possible response formats
+          const message = imageData.choices?.[0]?.message;
+          const base64Image = message?.images?.[0]?.image_url?.url;
+          
+          console.log("Message keys:", message ? JSON.stringify(Object.keys(message)) : "no message");
+          console.log("Has images array:", !!message?.images);
+          console.log("Images count:", message?.images?.length || 0);
           
           if (base64Image) {
-            console.log("AI image generated successfully");
+            console.log("AI image generated successfully, uploading to storage...");
             
             // Convert base64 to buffer and upload to storage
             const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
@@ -700,6 +710,9 @@ Generate an image that a ${site.sector || "professional"} business would use for
               pexelsQuery = "AI Generated";
               console.log("Image uploaded to storage:", urlData.publicUrl);
             }
+          } else {
+            console.log("No base64 image found in response");
+            console.log("Full message content:", JSON.stringify(message).substring(0, 500));
           }
         } else {
           const errorText = await imageResponse.text();
