@@ -1,120 +1,66 @@
 
-# Plan: Implementar generación de imágenes con IA en MKPro
 
-## Objetivo
-Actualizar las Edge Functions de MKPro (`generate-article` y `generate-article-empresa`) para que usen el modelo `google/gemini-3-pro-image-preview` para generar imágenes, igual que en Blooglee.
+# Plan: Mejorar manejo de errores transitorios en generación de artículos MKPro
 
-## Cambios a realizar
+## Problema identificado
+Cuando la generación de artículos falla en el primer intento pero tiene éxito en el segundo (retry), el usuario ve mensajes de error intermedios que generan confusión, aunque el proceso termine correctamente.
 
-### 1. `supabase/functions/generate-article/index.ts` (Farmacias)
+## Causa raíz
+El error "No Spanish content received from AI" ocurrió en el primer intento (11:32:57), pero el segundo intento (11:33:11) funcionó perfectamente. El frontend muestra el error del primer intento antes de recibir el éxito del segundo.
 
-**Reemplazar la sección de generación de imagen (lineas 530-698)** con la nueva lógica:
+## Solución propuesta
 
-- Importar `createClient` de Supabase al inicio del archivo
-- Crear el prompt de imagen basado en el tema y sector (farmacia/salud)
-- Llamar a `google/gemini-3-pro-image-preview` con `modalities: ["image", "text"]`
-- Extraer la imagen base64 del response
-- Subir al bucket `article-images` en Supabase Storage
-- Si falla la IA, usar Unsplash como fallback (mantener lógica actual)
+### Opcion A: Mejorar el retry interno en la Edge Function (Recomendado)
+Añadir un retry automático DENTRO de la edge function cuando falla la generación del contenido en español, antes de devolver error al frontend.
 
-### 2. `supabase/functions/generate-article-empresa/index.ts` (Empresas)
+**Archivo a modificar:** `supabase/functions/generate-article/index.ts`
 
-**Reemplazar la sección de generación de imagen (lineas 994-1098)** con la misma lógica:
-
-- Importar (ya tiene) `createClient` de Supabase
-- Crear el prompt de imagen adaptado al sector de la empresa
-- Llamar a `google/gemini-3-pro-image-preview`
-- Subir imagen al storage
-- Fallback a Unsplash si falla
-
-## Detalles tecnicos
-
-### Estructura del prompt de imagen
-```
-Generate a professional blog header image.
-
-TOPIC: "${topic}"
-SECTOR: ${sector || "health/pharmacy"}
-CONTEXT: Professional pharmacy/healthcare content
-
-REQUIREMENTS:
-- Clean, professional photograph
-- Visually related to the topic and sector
-- NO text, NO logos, NO faces
-- Suitable for blog header, 16:9 ratio
-- High quality, editorial style
-```
-
-### Estructura de la llamada a la API
 ```typescript
-const imageResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
-  method: "POST",
-  headers: {
-    "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    model: "google/gemini-3-pro-image-preview",
-    messages: [{ role: "user", content: imagePrompt }],
-    modalities: ["image", "text"]
-  }),
-});
-```
+// Añadir retry para generación de contenido español
+let spanishContent = null;
+let retryCount = 0;
+const MAX_CONTENT_RETRIES = 2;
 
-### Extraccion y subida de imagen
-```typescript
-const base64Image = message?.images?.[0]?.image_url?.url;
-if (base64Image) {
-  const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-  const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-  
-  const fileName = `${entityId}/${timestamp}-${topic.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.png`;
-  
-  await supabaseAdmin.storage
-    .from('article-images')
-    .upload(fileName, imageBuffer, { contentType: 'image/png', upsert: true });
+while (!spanishContent && retryCount < MAX_CONTENT_RETRIES) {
+  try {
+    const response = await fetchWithRetry(...);
+    spanishContent = parseResponse(response);
+  } catch (error) {
+    retryCount++;
+    console.log(`Spanish content retry ${retryCount}/${MAX_CONTENT_RETRIES}`);
+    if (retryCount >= MAX_CONTENT_RETRIES) throw error;
+    await new Promise(r => setTimeout(r, 2000)); // esperar 2s antes de reintentar
+  }
 }
 ```
 
-## Flujo resultante
+### Opcion B: Mejorar feedback en el frontend
+Modificar el hook `useGenerateArticle` para no mostrar toasts de error cuando hay reintentos pendientes.
 
-```text
-+------------------+
-|  Generar imagen  |
-+------------------+
-         |
-         v
-+----------------------------------+
-|  Llamar gemini-3-pro-image      |
-|  con prompt del articulo         |
-+----------------------------------+
-         |
-    ¿Exito?
-    /      \
-  Si        No
-   |         |
-   v         v
-+--------+  +------------------+
-| Subir  |  | Fallback:        |
-| a      |  | Buscar en        |
-| Storage|  | Unsplash         |
-+--------+  +------------------+
-   |              |
-   v              v
-+----------------------------------+
-|  Retornar URL de imagen          |
-+----------------------------------+
-```
+## Cambios técnicos detallados
 
-## Archivos a modificar
-- `supabase/functions/generate-article/index.ts`
-- `supabase/functions/generate-article-empresa/index.ts`
+### 1. Edge Function (`generate-article/index.ts`)
+- Añadir variable `MAX_CONTENT_RETRIES = 2`
+- Envolver la generación de contenido español en un bucle de retry
+- Añadir logging para indicar "Retry X/2 for Spanish content"
+- Solo lanzar error si todos los reintentos fallan
+
+### 2. Edge Function (`generate-article-empresa/index.ts`)
+- Aplicar la misma lógica de retry para empresas
 
 ## Lo que NO cambia
-- La logica de generacion de articulos
+- La lógica de generación de artículos
+- El prompt del artículo
+- La generación de imágenes con IA (ya funciona bien)
+- Los hooks del frontend
 - La estructura de respuesta de la API
-- Los hooks del frontend (`useArticulos.ts`, `useArticulosEmpresas.ts`)
-- Los componentes de preview
 
 ## Resultado esperado
-Las imagenes generadas en MKPro usaran IA de alta calidad en lugar de fotos de stock de Unsplash, con un fallback automatico a Unsplash si la IA falla.
+- Los errores transitorios de la IA se manejan silenciosamente dentro de la edge function
+- El usuario solo ve errores si TODOS los reintentos fallan
+- Experiencia más fluida sin mensajes de error confusos
+
+## Tiempo estimado
+- 15-20 minutos de implementación
+- Impacto mínimo, solo afecta al manejo de errores
+
