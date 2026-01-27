@@ -80,7 +80,7 @@ Blooglee ofrece un **plan gratuito** para probar la plataforma:
 
 Blooglee democratiza el content marketing, permitiendo que cualquier empresa tenga un blog profesional y activo sin invertir horas de trabajo. Es la solución perfecta para quien quiere los beneficios del SEO sin el esfuerzo de la redacción manual.
 
-**¿Listo para probarlo?** Crea tu cuenta gratis en [blooglee.lovable.app](https://blooglee.lovable.app).
+**¿Listo para probarlo?** Crea tu cuenta gratis en [blooglee.com](https://blooglee.com).
     `,
     image: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&h=400&fit=crop',
     date: '27 Ene 2026',
@@ -235,7 +235,7 @@ Los beneficios de la automatización son claros:
 Para WordPress, recomendamos **Blooglee** por su integración nativa. Alternativas como Jasper o Copy.ai requieren copiar y pegar manualmente.
 
 **Crear cuenta en Blooglee:**
-1. Ve a [blooglee.lovable.app](https://blooglee.lovable.app)
+1. Ve a [blooglee.com](https://blooglee.com)
 2. Crea tu cuenta (plan gratuito disponible)
 3. Completa el onboarding
 
@@ -297,7 +297,7 @@ Empresas que automatizan su blog con Blooglee reportan:
 
 Automatizar tu blog WordPress ya no es ciencia ficción. Con herramientas como Blooglee, cualquier empresa puede mantener una estrategia de contenido profesional sin dedicar horas de trabajo manual.
 
-**¿Listo para empezar?** [Crea tu cuenta gratuita](https://blooglee.lovable.app) y genera tu primer artículo en 5 minutos.
+**¿Listo para empezar?** [Crea tu cuenta gratuita](https://blooglee.com) y genera tu primer artículo en 5 minutos.
     `,
     image: 'https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?w=800&h=400&fit=crop',
     date: '22 Ene 2026',

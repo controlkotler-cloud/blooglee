@@ -15,7 +15,7 @@ interface SEOHeadProps {
   noIndex?: boolean;
 }
 
-const BASE_URL = 'https://blooglee.lovable.app';
+const BASE_URL = 'https://blooglee.com';
 const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`;
 const SITE_NAME = 'Blooglee';
 
