@@ -286,56 +286,77 @@ Genera el artículo completo EN ESPAÑOL. RESPONDE SOLO CON JSON VÁLIDO en este
 
     console.log("Generating Spanish article for:", pharmacy.name, "Topic:", topic.tema, "Date:", dateContext);
 
-    // Generate Spanish article with retry logic
-    const spanishResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: spanishSystemPrompt },
-          { role: "user", content: spanishUserPrompt },
-        ],
-        max_tokens: 8000,
-      }),
-    });
+    // Generate Spanish article with INTERNAL retry logic for transient failures
+    const MAX_CONTENT_RETRIES = 2;
+    let spanishContent: string | null = null;
+    let spanishArticle: any = null;
+    let lastContentError: Error | null = null;
 
-    if (!spanishResponse.ok) {
-      if (spanishResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required. Please add credits to your workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+    for (let contentRetry = 0; contentRetry < MAX_CONTENT_RETRIES; contentRetry++) {
+      try {
+        console.log(`Spanish content generation attempt ${contentRetry + 1}/${MAX_CONTENT_RETRIES}`);
+        
+        const spanishResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: spanishSystemPrompt },
+              { role: "user", content: spanishUserPrompt },
+            ],
+            max_tokens: 8000,
+          }),
         });
+
+        if (!spanishResponse.ok) {
+          if (spanishResponse.status === 402) {
+            return new Response(JSON.stringify({ error: "Payment required. Please add credits to your workspace." }), {
+              status: 402,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          const errorText = await spanishResponse.text();
+          console.error(`AI gateway error (Spanish) attempt ${contentRetry + 1}:`, spanishResponse.status, errorText);
+          throw new Error(`AI gateway error: ${spanishResponse.status}`);
+        }
+
+        const spanishData = await spanishResponse.json();
+        spanishContent = spanishData.choices?.[0]?.message?.content;
+        
+        if (!spanishContent) {
+          throw new Error("No Spanish content received from AI");
+        }
+
+        console.log("Spanish AI response received, parsing JSON...");
+
+        // Parse Spanish JSON
+        const jsonMatch = spanishContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          spanishArticle = JSON.parse(jsonMatch[0]);
+          console.log(`✓ Spanish content generated successfully on attempt ${contentRetry + 1}`);
+          break; // Success! Exit the retry loop
+        } else {
+          throw new Error("No JSON found in Spanish response");
+        }
+      } catch (parseError) {
+        lastContentError = parseError instanceof Error ? parseError : new Error(String(parseError));
+        console.error(`Spanish content attempt ${contentRetry + 1} failed:`, lastContentError.message);
+        
+        if (contentRetry < MAX_CONTENT_RETRIES - 1) {
+          console.log(`Retrying Spanish content generation in 2 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
       }
-      const errorText = await spanishResponse.text();
-      console.error("AI gateway error (Spanish):", spanishResponse.status, errorText);
-      throw new Error(`AI gateway error: ${spanishResponse.status}`);
     }
 
-    const spanishData = await spanishResponse.json();
-    const spanishContent = spanishData.choices?.[0]?.message?.content;
-    
-    if (!spanishContent) {
-      throw new Error("No Spanish content received from AI");
-    }
-
-    console.log("Spanish AI response received, parsing JSON...");
-
-    // Parse Spanish JSON
-    let spanishArticle;
-    try {
-      const jsonMatch = spanishContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        spanishArticle = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found in Spanish response");
-      }
-    } catch (parseError) {
-      console.error("JSON parse error (Spanish):", parseError, "Content:", spanishContent.substring(0, 500));
-      throw new Error("Failed to parse Spanish AI response as JSON");
+    // If all retries failed, throw the last error
+    if (!spanishArticle) {
+      console.error("All Spanish content retries failed");
+      throw lastContentError || new Error("Failed to generate Spanish content after all retries");
     }
 
     // Save Spanish content WITHOUT SEO links for Catalan prompt
