@@ -15,7 +15,27 @@ import {
   Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SEOHead } from '@/components/seo';
+import { SEOHead, FAQSchema } from '@/components/seo';
+
+// FAQs para AEO - Preguntas sobre funcionalidades
+const featuresFAQs = [
+  {
+    question: '¿Qué tipo de artículos genera Blooglee?',
+    answer: 'Blooglee genera artículos de blog profesionales de 800-1200 palabras, adaptados al sector de cada negocio (salud, retail, servicios, tecnología, etc.). Cada artículo incluye título optimizado para SEO, meta descripción, estructura con encabezados H2-H3, imagen destacada con créditos, y slug SEO-friendly.',
+  },
+  {
+    question: '¿Las imágenes de Blooglee están libres de derechos?',
+    answer: 'Sí, todas las imágenes destacadas incluidas en los artículos de Blooglee provienen de bancos de imágenes libres de derechos (Pexels, Unsplash) o son generadas por IA. Los créditos del fotógrafo se incluyen automáticamente cuando corresponde.',
+  },
+  {
+    question: '¿Puedo programar publicaciones automáticas en Blooglee?',
+    answer: 'Sí, Blooglee permite configurar la frecuencia de publicación (semanal, quincenal, mensual) y genera automáticamente los artículos según el calendario. También puedes publicar manualmente cuando prefieras revisar antes de publicar.',
+  },
+  {
+    question: '¿Qué modelos de IA utiliza Blooglee?',
+    answer: 'Blooglee utiliza los modelos de IA más avanzados disponibles: GPT-5 de OpenAI y Gemini 2.5 de Google. Esto garantiza contenido de alta calidad, coherente y adaptado al contexto de cada negocio.',
+  },
+];
 
 const features = [
   {
@@ -104,6 +124,7 @@ const FeaturesPage = () => {
         canonicalUrl="/features"
         keywords="características Blooglee, generación IA, WordPress automático, SEO automático, contenido multiidioma"
       />
+      <FAQSchema faqs={featuresFAQs} />
       {/* Hero Section */}
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
         <div className="text-center max-w-4xl mx-auto mb-16 sm:mb-24">

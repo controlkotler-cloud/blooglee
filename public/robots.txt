@@ -1,7 +1,51 @@
 # Blooglee - Robots.txt
 # https://blooglee.lovable.app
 
-# Crawlers principales
+# ===========================================
+# AI Crawlers - Permitir acceso para AEO
+# ===========================================
+
+User-agent: GPTBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Disallow: /dashboard
+Disallow: /account
+Disallow: /billing
+Disallow: /mkpro
+Disallow: /onboarding
+Disallow: /site/
+Disallow: /auth
+
+User-agent: ChatGPT-User
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+User-agent: Claude-Web
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+User-agent: Anthropic-AI
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+User-agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+# ===========================================
+# Crawlers principales de buscadores
+# ===========================================
+
 User-agent: Googlebot
 Allow: /
 Disallow: /dashboard
@@ -22,7 +66,10 @@ Disallow: /onboarding
 Disallow: /site/
 Disallow: /auth
 
+# ===========================================
 # Redes sociales
+# ===========================================
+
 User-agent: Twitterbot
 Allow: /
 
@@ -32,7 +79,10 @@ Allow: /
 User-agent: LinkedInBot
 Allow: /
 
+# ===========================================
 # Otros crawlers
+# ===========================================
+
 User-agent: *
 Allow: /
 Disallow: /dashboard
@@ -43,5 +93,8 @@ Disallow: /onboarding
 Disallow: /site/
 Disallow: /auth
 
-# Sitemap
+# ===========================================
+# Archivos de descubrimiento
+# ===========================================
+
 Sitemap: https://blooglee.lovable.app/sitemap.xml

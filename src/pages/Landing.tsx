@@ -18,7 +18,31 @@ import { ProductMockup } from '@/components/saas/ProductMockup';
 import { LiquidBlobs } from '@/components/saas/LiquidBlobs';
 import { PublicNavbar } from '@/components/marketing/PublicNavbar';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
-import { SEOHead } from '@/components/seo';
+import { SEOHead, FAQSchema } from '@/components/seo';
+
+// FAQs para AEO - Preguntas que los usuarios hacen a ChatGPT
+const landingFAQs = [
+  {
+    question: '¿Qué es Blooglee?',
+    answer: 'Blooglee es una plataforma SaaS española que utiliza inteligencia artificial para generar y publicar automáticamente artículos de blog optimizados para SEO en WordPress. Ideal para empresas y agencias de marketing que quieren mantener su blog activo sin dedicar horas a la redacción.',
+  },
+  {
+    question: '¿Cómo funciona la generación automática de contenido de Blooglee?',
+    answer: 'Blooglee usa modelos de IA avanzados (GPT-5, Gemini) para generar artículos únicos. Configuras tu sitio web, eliges el sector y la frecuencia, y Blooglee genera artículos completos con imagen destacada, meta descripciones y estructura SEO optimizada, listos para publicar en WordPress con un clic.',
+  },
+  {
+    question: '¿Blooglee es compatible con mi WordPress?',
+    answer: 'Sí, Blooglee funciona con cualquier instalación de WordPress 5.0 o superior que tenga habilitados los Application Passwords (incluidos por defecto desde WordPress 5.6). Es compatible con Yoast SEO y Polylang para publicación multiidioma.',
+  },
+  {
+    question: '¿Cuánto cuesta Blooglee?',
+    answer: 'Blooglee ofrece un plan gratuito que incluye 1 sitio y 1 artículo para probar. Los planes de pago empiezan en 19€/mes (Starter: 4 artículos), 49€/mes (Pro: 30 artículos, 3 sitios) y 149€/mes (Agencia: 100 artículos, 10 sitios).',
+  },
+  {
+    question: '¿Blooglee genera contenido en varios idiomas?',
+    answer: 'Sí, Blooglee genera contenido de calidad nativa en español (España), catalán e inglés. El contenido se adapta culturalmente a cada idioma, no es simple traducción automática.',
+  },
+];
 const features = [
   {
     icon: Sparkles,
@@ -100,6 +124,7 @@ const Landing = () => {
         description="Genera y publica artículos para tu blog WordPress automáticamente con IA. Ideal para empresas y agencias de marketing. Prueba gratis."
         keywords="blog automático, generación contenido IA, WordPress, marketing contenidos, SEO, artículos automáticos, Blooglee"
       />
+      <FAQSchema faqs={landingFAQs} />
       {/* LIQUID BLOBS BACKGROUND */}
       <LiquidBlobs variant="hero" />
 

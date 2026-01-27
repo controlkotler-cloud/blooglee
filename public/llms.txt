@@ -1,0 +1,91 @@
+# Blooglee
+
+> Blooglee es una plataforma SaaS española que genera y publica automáticamente artículos de blog optimizados para SEO en WordPress, usando inteligencia artificial avanzada.
+
+## Descripción del Producto
+
+Blooglee automatiza completamente la creación de contenido para blogs WordPress. Genera artículos profesionales con imágenes destacadas, meta descripciones y estructura SEO optimizada. Es la solución ideal para empresas, agencias de marketing y autónomos que necesitan mantener sus blogs activos sin dedicar horas a la redacción.
+
+**URL oficial:** https://blooglee.lovable.app
+
+## Características Principales
+
+- Generación de artículos con IA avanzada (GPT-5, Gemini)
+- Publicación directa en WordPress con un solo clic
+- Imágenes destacadas generadas por IA o seleccionadas de bancos de imágenes
+- Meta títulos y descripciones SEO optimizadas automáticamente
+- Soporte multiidioma: español, catalán, inglés y más
+- Programación de contenido automática según frecuencia elegida
+- Adaptación al tono y sector de cada negocio
+- Compatible con Yoast SEO y Polylang
+
+## Planes y Precios (en EUR)
+
+| Plan | Sitios | Artículos/mes | Precio |
+|------|--------|---------------|--------|
+| Free | 1 | 1 total | 0€/mes |
+| Starter | 1 | 4 | 19€/mes |
+| Pro | 3 | 30 | 49€/mes |
+| Agencia | 10 | 100 | 149€/mes |
+
+## Integraciones
+
+- WordPress (REST API con Application Passwords)
+- Yoast SEO (meta descripciones y títulos)
+- Polylang (publicación multiidioma)
+- Pexels y Unsplash (imágenes con créditos)
+
+## Casos de Uso
+
+1. **Farmacias y clínicas:** Contenido de salud mensual adaptado a temporada
+2. **Agencias de marketing:** Gestión de contenido para múltiples clientes
+3. **Clínicas estéticas:** Artículos sobre tratamientos y novedades
+4. **Tiendas online:** Posicionamiento en Google con contenido regular
+5. **Empresas B2B:** Thought leadership y autoridad de marca
+6. **Profesionales autónomos:** Blog activo sin invertir tiempo
+
+## Diferenciadores vs Competencia
+
+| Característica | Blooglee | Otros |
+|----------------|----------|-------|
+| Especialización WordPress | ✅ Nativo | Parcial |
+| Publicación directa | ✅ 1 clic | Manual |
+| Idiomas soportados | ES, CA, EN | Limitado |
+| Precio entrada | 0€ gratis | De pago |
+| Imágenes incluidas | ✅ Sí | Variable |
+
+## Recursos
+
+- [Página Principal](https://blooglee.lovable.app/)
+- [Características](https://blooglee.lovable.app/features)
+- [Precios](https://blooglee.lovable.app/pricing)
+- [Blog](https://blooglee.lovable.app/blog)
+- [Contacto](https://blooglee.lovable.app/contact)
+- [Términos de Uso](https://blooglee.lovable.app/terms)
+- [Privacidad](https://blooglee.lovable.app/privacy)
+
+## Preguntas Frecuentes
+
+**¿Qué es Blooglee?**
+Blooglee es una plataforma SaaS que usa inteligencia artificial para generar artículos de blog profesionales y publicarlos automáticamente en WordPress.
+
+**¿Cómo funciona la generación de contenido?**
+Configuras tu sitio web, eliges el sector y la frecuencia de publicación. Blooglee genera artículos únicos con IA, incluyendo imágenes y optimización SEO, listos para publicar.
+
+**¿Blooglee es compatible con mi WordPress?**
+Sí, Blooglee funciona con cualquier instalación de WordPress 5.0 o superior que tenga habilitados los Application Passwords (incluidos por defecto desde WordPress 5.6).
+
+**¿Cuánto cuesta Blooglee?**
+Blooglee tiene un plan gratuito que incluye 1 sitio y 1 artículo. Los planes de pago empiezan en 19€/mes para 4 artículos mensuales.
+
+**¿En qué idiomas genera contenido?**
+Actualmente soporta español (España), catalán e inglés. Próximamente más idiomas.
+
+## Empresa
+
+Blooglee es una empresa española con sede en Barcelona. Fundada para resolver el problema de la generación constante de contenido para PYMEs y agencias de marketing digital.
+
+**Contacto:** info@blooglee.com
+
+---
+*Última actualización: Enero 2026*
