@@ -832,72 +832,88 @@ FORMATO DE RESPUESTA (JSON):
 
     console.log("Generating Spanish article for:", company.name, "Topic:", topic);
 
-    // Generate Spanish article
-    const spanishResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 8000,
-      }),
-    });
+    // Generate Spanish article with INTERNAL retry logic for transient failures
+    const MAX_CONTENT_RETRIES = 2;
+    let spanishContent: string | null = null;
+    let spanishArticle: any = null;
+    let lastContentError: Error | null = null;
 
-    if (!spanishResponse.ok) {
-      if (spanishResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+    for (let contentRetry = 0; contentRetry < MAX_CONTENT_RETRIES; contentRetry++) {
+      try {
+        console.log(`Spanish content generation attempt ${contentRetry + 1}/${MAX_CONTENT_RETRIES}`);
+        
+        const spanishResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            temperature: 0.7,
+            max_tokens: 8000,
+          }),
         });
+
+        if (!spanishResponse.ok) {
+          if (spanishResponse.status === 402) {
+            return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), {
+              status: 402,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          const errorText = await spanishResponse.text();
+          throw new Error(`Spanish generation failed: ${spanishResponse.status} - ${errorText}`);
+        }
+
+        const spanishData = await spanishResponse.json();
+        spanishContent = spanishData.choices?.[0]?.message?.content;
+
+        if (!spanishContent) {
+          throw new Error("No Spanish content generated");
+        }
+
+        // Parse JSON from response with robust cleaning
+        let cleanContent = spanishContent
+          .replace(/```json\s*/gi, '')
+          .replace(/```\s*/g, '')
+          .trim();
+        
+        const firstBrace = cleanContent.indexOf('{');
+        const lastBrace = cleanContent.lastIndexOf('}');
+        
+        if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+          throw new Error("No JSON object found in response");
+        }
+        
+        const jsonString = cleanContent.substring(firstBrace, lastBrace + 1);
+        const sanitizedJson = jsonString.replace(/[\x00-\x1F\x7F]/g, (char: string) => {
+          if (char === '\n' || char === '\r' || char === '\t') return char;
+          return '';
+        });
+        
+        spanishArticle = JSON.parse(sanitizedJson);
+        console.log(`✓ Spanish content generated successfully on attempt ${contentRetry + 1}`);
+        break; // Success! Exit the retry loop
+        
+      } catch (e) {
+        lastContentError = e instanceof Error ? e : new Error(String(e));
+        console.error(`Spanish content attempt ${contentRetry + 1} failed:`, lastContentError.message);
+        
+        if (contentRetry < MAX_CONTENT_RETRIES - 1) {
+          console.log(`Retrying Spanish content generation in 2 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
       }
-      const errorText = await spanishResponse.text();
-      throw new Error(`Spanish generation failed: ${spanishResponse.status} - ${errorText}`);
     }
 
-    const spanishData = await spanishResponse.json();
-    let spanishContent = spanishData.choices?.[0]?.message?.content;
-
-    if (!spanishContent) {
-      throw new Error("No Spanish content generated");
-    }
-
-    // Parse JSON from response
-    let spanishArticle;
-    try {
-      // Robust markdown fence removal (handles newlines, spaces, anywhere in content)
-      let cleanContent = spanishContent
-        .replace(/```json\s*/gi, '')  // Remove ```json anywhere
-        .replace(/```\s*/g, '')       // Remove remaining ``` anywhere
-        .trim();
-      
-      // Extract JSON object - find the first { and last }
-      const firstBrace = cleanContent.indexOf('{');
-      const lastBrace = cleanContent.lastIndexOf('}');
-      
-      if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-        console.error("No JSON braces found in content:", cleanContent.substring(0, 300));
-        throw new Error("No JSON object found in response");
-      }
-      
-      const jsonString = cleanContent.substring(firstBrace, lastBrace + 1);
-      
-      // Sanitize control characters that break JSON parsing
-      const sanitizedJson = jsonString.replace(/[\x00-\x1F\x7F]/g, (char: string) => {
-        if (char === '\n' || char === '\r' || char === '\t') return char;
-        return '';
-      });
-      
-      spanishArticle = JSON.parse(sanitizedJson);
-    } catch (e) {
-      console.error("Error parsing Spanish JSON:", e);
-      console.error("Raw content preview:", spanishContent.substring(0, 500));
+    // If all retries failed, throw the last error
+    if (!spanishArticle) {
+      console.error("All Spanish content retries failed");
       throw new Error("Failed to parse Spanish article JSON");
     }
 
