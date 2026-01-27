@@ -9,8 +9,8 @@ export const OrganizationSchema = ({ type = 'Organization' }: OrganizationSchema
     '@context': 'https://schema.org',
     '@type': type,
     name: 'Blooglee',
-    url: 'https://blooglee.lovable.app',
-    logo: 'https://blooglee.lovable.app/favicon.png',
+    url: 'https://blooglee.com',
+    logo: 'https://blooglee.com/favicon.png',
     description: 'Plataforma de generación automática de contenido para blogs WordPress con IA',
     sameAs: [
       'https://twitter.com/Blooglee',
@@ -80,7 +80,7 @@ export const BlogPostingSchema = ({
       name: 'Blooglee',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://blooglee.lovable.app/favicon.png',
+        url: 'https://blooglee.com/favicon.png',
       },
     },
     mainEntityOfPage: {

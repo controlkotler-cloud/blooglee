@@ -144,9 +144,9 @@ Cada artículo generado sigue las mejores prácticas:
 
 ## 10. Contacto y Soporte
 
-- **Web:** https://blooglee.lovable.app
+- **Web:** https://blooglee.com
 - **Email:** info@blooglee.com
-- **Ayuda:** https://blooglee.lovable.app/help
+- **Ayuda:** https://blooglee.com/help
 
 ## 11. Términos Clave
 

@@ -6,7 +6,7 @@
 
 Blooglee automatiza completamente la creación de contenido para blogs WordPress. Genera artículos profesionales con imágenes destacadas, meta descripciones y estructura SEO optimizada. Es la solución ideal para empresas, agencias de marketing y autónomos que necesitan mantener sus blogs activos sin dedicar horas a la redacción.
 
-**URL oficial:** https://blooglee.lovable.app
+**URL oficial:** https://blooglee.com
 
 ## Características Principales
 
@@ -56,13 +56,13 @@ Blooglee automatiza completamente la creación de contenido para blogs WordPress
 
 ## Recursos
 
-- [Página Principal](https://blooglee.lovable.app/)
-- [Características](https://blooglee.lovable.app/features)
-- [Precios](https://blooglee.lovable.app/pricing)
-- [Blog](https://blooglee.lovable.app/blog)
-- [Contacto](https://blooglee.lovable.app/contact)
-- [Términos de Uso](https://blooglee.lovable.app/terms)
-- [Privacidad](https://blooglee.lovable.app/privacy)
+- [Página Principal](https://blooglee.com/)
+- [Características](https://blooglee.com/features)
+- [Precios](https://blooglee.com/pricing)
+- [Blog](https://blooglee.com/blog)
+- [Contacto](https://blooglee.com/contact)
+- [Términos de Uso](https://blooglee.com/terms)
+- [Privacidad](https://blooglee.com/privacy)
 
 ## Preguntas Frecuentes
 
