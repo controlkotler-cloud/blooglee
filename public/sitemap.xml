@@ -2,25 +2,25 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- Páginas principales -->
   <url>
-    <loc>https://blooglee.lovable.app/</loc>
+    <loc>https://blooglee.com/</loc>
     <lastmod>2026-01-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://blooglee.lovable.app/features</loc>
+    <loc>https://blooglee.com/features</loc>
     <lastmod>2026-01-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://blooglee.lovable.app/pricing</loc>
+    <loc>https://blooglee.com/pricing</loc>
     <lastmod>2026-01-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://blooglee.lovable.app/contact</loc>
+    <loc>https://blooglee.com/contact</loc>
     <lastmod>2026-01-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -28,65 +28,65 @@
   
   <!-- Blog -->
   <url>
-    <loc>https://blooglee.lovable.app/blog</loc>
+    <loc>https://blooglee.com/blog</loc>
     <lastmod>2026-01-27</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   
-  <!-- Artículos AEO (nuevos) -->
+  <!-- Artículos AEO -->
   <url>
-    <loc>https://blooglee.lovable.app/blog/que-es-blooglee</loc>
+    <loc>https://blooglee.com/blog/que-es-blooglee</loc>
     <lastmod>2026-01-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://blooglee.lovable.app/blog/mejores-herramientas-contenido-ia-wordpress</loc>
+    <loc>https://blooglee.com/blog/mejores-herramientas-contenido-ia-wordpress</loc>
     <lastmod>2026-01-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://blooglee.lovable.app/blog/automatizar-blog-wordpress-2026</loc>
+    <loc>https://blooglee.com/blog/automatizar-blog-wordpress-2026</loc>
     <lastmod>2026-01-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://blooglee.lovable.app/blog/blooglee-vs-alternativas-comparativa</loc>
+    <loc>https://blooglee.com/blog/blooglee-vs-alternativas-comparativa</loc>
     <lastmod>2026-01-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://blooglee.lovable.app/blog/aeo-seo-optimizar-contenido-ia</loc>
+    <loc>https://blooglee.com/blog/aeo-seo-optimizar-contenido-ia</loc>
     <lastmod>2026-01-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
-  <!-- Artículos anteriores (actualizados) -->
+  <!-- Artículos anteriores -->
   <url>
-    <loc>https://blooglee.lovable.app/blog/como-mejorar-seo-contenido-automatizado</loc>
+    <loc>https://blooglee.com/blog/como-mejorar-seo-contenido-automatizado</loc>
     <lastmod>2026-01-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://blooglee.lovable.app/blog/5-beneficios-automatizar-creacion-contenido</loc>
+    <loc>https://blooglee.com/blog/5-beneficios-automatizar-creacion-contenido</loc>
     <lastmod>2026-01-10</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://blooglee.lovable.app/blog/guia-conectar-wordpress-blooglee</loc>
+    <loc>https://blooglee.com/blog/guia-conectar-wordpress-blooglee</loc>
     <lastmod>2026-01-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://blooglee.lovable.app/blog/contenido-regular-mejora-posicionamiento</loc>
+    <loc>https://blooglee.com/blog/contenido-regular-mejora-posicionamiento</loc>
     <lastmod>2026-01-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -94,19 +94,19 @@
   
   <!-- Páginas legales -->
   <url>
-    <loc>https://blooglee.lovable.app/terms</loc>
+    <loc>https://blooglee.com/terms</loc>
     <lastmod>2026-01-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://blooglee.lovable.app/privacy</loc>
+    <loc>https://blooglee.com/privacy</loc>
     <lastmod>2026-01-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://blooglee.lovable.app/cookies</loc>
+    <loc>https://blooglee.com/cookies</loc>
     <lastmod>2026-01-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
@@ -114,7 +114,7 @@
   
   <!-- Archivos de descubrimiento para IA -->
   <url>
-    <loc>https://blooglee.lovable.app/llms.txt</loc>
+    <loc>https://blooglee.com/llms.txt</loc>
     <lastmod>2026-01-27</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>

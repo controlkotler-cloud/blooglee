@@ -97,4 +97,4 @@ Disallow: /auth
 # Archivos de descubrimiento
 # ===========================================
 
-Sitemap: https://blooglee.lovable.app/sitemap.xml
+Sitemap: https://blooglee.com/sitemap.xml
