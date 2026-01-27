@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -527,175 +528,212 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
       }
     }
 
-    // ========== PASO 3: Generate image (if not skipped) ==========
+    // ========== PASO 3: Generate image with AI (if not skipped) ==========
     let imageData: { url: string; photographer: string; photographer_url: string } | null = null;
     let aiGeneratedQuery = "";
 
     if (!skipImage) {
-      console.log("Generating image search query with AI...");
+      console.log("Generating image with AI...");
       
-      // Extract clean text from HTML content for analysis
-      const cleanTextContent = spanishArticle.content
-        ?.replace(/<[^>]*>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .substring(0, 800) || '';
+      // Create Supabase admin client for storage
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      
+      if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+        console.error("Missing Supabase credentials for storage");
+      }
+      
+      const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+      
+      // Build image prompt
+      const imagePrompt = `Generate a professional blog header image.
 
-      const imageQueryPrompt = `Analiza el siguiente artículo y genera UN ÚNICO query de búsqueda para encontrar una imagen de stock relevante en Unsplash.
+TOPIC: "${topic.tema}"
+SECTOR: health/pharmacy/wellness
+CONTEXT: Professional pharmacy/healthcare content
 
-TÍTULO DEL ARTÍCULO: ${spanishArticle.title}
-TEMA PRINCIPAL: ${topic.tema}
-EXTRACTO DEL CONTENIDO: ${cleanTextContent.substring(0, 500)}
+REQUIREMENTS:
+- Clean, professional photograph style
+- Visually related to the topic: ${topic.tema}
+- NO text, NO logos, NO faces showing
+- NO pills, NO medicine bottles, NO pharmaceutical products
+- Focus on: natural ingredients, wellness lifestyle, healthy living, botanical elements
+- Suitable for blog header, 16:9 aspect ratio
+- High quality, editorial style
+- Bright, clean, modern aesthetic`;
 
-REGLAS ESTRICTAS para el query:
-1. Máximo 4-5 palabras en INGLÉS (Unsplash funciona mejor en inglés)
-2. PROHIBIDO TOTALMENTE incluir estas palabras: pharmacy, pharmacist, pharmacies, medicine, medicines, pills, pill, drugs, drug, doctor, doctors, hospital, medical, medications, medication, capsule, capsules, prescription, prescriptions, bottle, bottles, pharmaceutical, clinic, nurse, patient, healthcare, health care, treatment, product, container, packaging, jar, tube, cosmetic product
-3. PROHIBIDO incluir nombres de marcas comerciales
-4. PROHIBIDO buscar imágenes de PRODUCTOS o ENVASES - busca INGREDIENTES, TEXTURAS o PERSONAS
-5. Enfócate en: ingredientes naturales (aceites, plantas, frutas), texturas de crema/serum sin envase, manos aplicando producto, rostros de personas, paisajes de bienestar
-6. Prioriza conceptos abstractos y naturales: gotas de agua, pétalos, hojas, manos, piel, rostro
-7. Piensa en imágenes bonitas y evocadoras SIN packaging visible
-
-EJEMPLOS DE BUENOS QUERIES (SIN PRODUCTOS):
-- Para cosmética natural: "woman hands applying cream skin closeup" (manos, no envase)
-- Para vitaminas: "fresh citrus fruits orange slices colorful"
-- Para cuidado capilar: "woman beautiful shiny hair natural light"
-- Para hidratación: "water droplets clear skin woman face"
-- Para protección solar: "woman face sunlight golden hour smile"
-- Para skincare: "rose petals natural oils texture macro"
-
-EJEMPLOS DE MALOS QUERIES (NUNCA USES ESTOS):
-- "skincare products bottles" ❌ (muestra envases)
-- "cosmetic cream jar" ❌ (muestra packaging)
-- "beauty products display" ❌ (muestra productos)
-- "serum bottle dropper" ❌ (muestra envase)
-
-RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin puntuación final.`;
-
-      aiGeneratedQuery = FALLBACK_QUERIES[Math.floor(Math.random() * FALLBACK_QUERIES.length)];
-
+      let aiImageSuccess = false;
+      
       try {
-        const imageQueryResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        console.log("Calling gemini-3-pro-image-preview for image generation...");
+        
+        const imageResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              { role: "user", content: imageQueryPrompt },
-            ],
-            max_tokens: 50,
+            model: "google/gemini-3-pro-image-preview",
+            messages: [{ role: "user", content: imagePrompt }],
+            modalities: ["image", "text"]
           }),
         });
 
-        if (imageQueryResponse.ok) {
-          const queryData = await imageQueryResponse.json();
-          const rawQuery = queryData.choices?.[0]?.message?.content?.trim();
+        console.log("AI image response status:", imageResponse.status);
+        
+        if (imageResponse.ok) {
+          const imageDataResponse = await imageResponse.json();
+          console.log("AI image response structure:", JSON.stringify(Object.keys(imageDataResponse)));
           
-          if (rawQuery && rawQuery.length > 5 && rawQuery.length < 100) {
-            // Clean any prohibited terms (double safety)
-            const cleanedQuery = rawQuery
-              .toLowerCase()
-              .replace(/pharmacy|pharmacist|pharmacies|medicine|medicines|pills?|drugs?|doctor|doctors?|hospital|medical|medications?|capsules?|prescriptions?|bottles?|pharmaceutical|clinic|nurse|patient|healthcare|treatment/gi, "")
-              .replace(/\s+/g, " ")
-              .trim();
+          const message = imageDataResponse.choices?.[0]?.message;
+          console.log("Message keys:", JSON.stringify(Object.keys(message || {})));
+          console.log("Has images array:", !!message?.images);
+          console.log("Images count:", message?.images?.length || 0);
+          
+          const base64Image = message?.images?.[0]?.image_url?.url;
+          
+          if (base64Image && base64Image.startsWith("data:image")) {
+            console.log("AI image generated successfully, uploading to storage...");
             
-            if (cleanedQuery.length > 5) {
-              aiGeneratedQuery = cleanedQuery;
-              console.log("AI generated image query:", aiGeneratedQuery);
+            // Extract base64 data and convert to buffer
+            const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+            const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+            
+            // Generate filename
+            const timestamp = Date.now();
+            const safeTopicName = topic.tema.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '-');
+            const fileName = `farmacias/${timestamp}-${safeTopicName}.png`;
+            
+            // Upload to Supabase Storage
+            const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+              .from('article-images')
+              .upload(fileName, imageBuffer, { 
+                contentType: 'image/png', 
+                upsert: true 
+              });
+            
+            if (uploadError) {
+              console.error("Storage upload error:", uploadError);
             } else {
-              console.warn("AI query was cleaned to empty, using fallback");
+              // Get public URL
+              const { data: publicUrlData } = supabaseAdmin.storage
+                .from('article-images')
+                .getPublicUrl(fileName);
+              
+              if (publicUrlData?.publicUrl) {
+                imageData = {
+                  url: publicUrlData.publicUrl,
+                  photographer: "AI Generated",
+                  photographer_url: "https://ai.gateway.lovable.dev",
+                };
+                aiImageSuccess = true;
+                console.log("Image uploaded to storage:", publicUrlData.publicUrl);
+              }
             }
           } else {
-            console.warn("AI query response invalid, using fallback. Raw:", rawQuery);
+            console.log("No valid base64 image found in AI response");
+            if (message?.content) {
+              console.log("Message content preview:", message.content.substring(0, 200));
+            }
           }
         } else {
-          console.warn("Failed to generate AI image query, status:", imageQueryResponse.status);
+          const errorText = await imageResponse.text();
+          console.error("AI image generation failed:", imageResponse.status, errorText);
         }
-      } catch (queryError) {
-        console.error("Error generating AI image query:", queryError);
+      } catch (aiImageError) {
+        console.error("AI image generation error:", aiImageError);
       }
 
-      // Search Unsplash
-      console.log("Searching Unsplash with AI-generated query:", aiGeneratedQuery);
-      console.log("Excluding URLs:", usedImageUrls.length, "images");
-      
-      const randomFallbackImage = FALLBACK_IMAGES[Math.floor(Math.random() * FALLBACK_IMAGES.length)];
-      imageData = { ...randomFallbackImage };
-
-      try {
-        const unsplashResponse = await fetch(
-          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(aiGeneratedQuery)}&per_page=30&orientation=landscape`,
-          { 
-            headers: { 
-              Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` 
-            } 
-          }
-        );
-
-        console.log("Unsplash response status:", unsplashResponse.status);
+      // Fallback to Unsplash if AI image generation failed
+      if (!aiImageSuccess && UNSPLASH_ACCESS_KEY) {
+        console.log("AI image failed, falling back to Unsplash...");
         
-        if (unsplashResponse.ok) {
-          const unsplashData = await unsplashResponse.json();
-          console.log("Unsplash results count:", unsplashData.results?.length || 0);
+        // Generate search query for Unsplash
+        aiGeneratedQuery = FALLBACK_QUERIES[Math.floor(Math.random() * FALLBACK_QUERIES.length)];
+        
+        // Extract clean text from HTML content for analysis
+        const cleanTextContent = spanishArticle.content
+          ?.replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .substring(0, 800) || '';
+
+        const imageQueryPrompt = `Genera un query de búsqueda para Unsplash basado en este artículo de farmacia.
+
+TÍTULO: ${spanishArticle.title}
+TEMA: ${topic.tema}
+
+REGLAS:
+1. Máximo 4-5 palabras en INGLÉS
+2. PROHIBIDO: pharmacy, medicine, pills, drugs, doctor, hospital, medical, capsules, bottles
+3. Enfócate en: ingredientes naturales, wellness, lifestyle, botanical
+4. Responde SOLO con el query, sin explicaciones.`;
+
+        try {
+          const queryResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [{ role: "user", content: imageQueryPrompt }],
+              max_tokens: 50,
+            }),
+          });
+
+          if (queryResponse.ok) {
+            const queryData = await queryResponse.json();
+            const rawQuery = queryData.choices?.[0]?.message?.content?.trim();
+            if (rawQuery && rawQuery.length > 5 && rawQuery.length < 100) {
+              aiGeneratedQuery = rawQuery.toLowerCase().replace(/['"]/g, "");
+              console.log("AI generated Unsplash query:", aiGeneratedQuery);
+            }
+          }
+        } catch (e) {
+          console.error("Error generating Unsplash query:", e);
+        }
+
+        // Search Unsplash
+        const randomFallbackImage = FALLBACK_IMAGES[Math.floor(Math.random() * FALLBACK_IMAGES.length)];
+        imageData = { ...randomFallbackImage };
+
+        try {
+          const unsplashResponse = await fetch(
+            `https://api.unsplash.com/search/photos?query=${encodeURIComponent(aiGeneratedQuery)}&per_page=30&orientation=landscape`,
+            { headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` } }
+          );
+
+          console.log("Unsplash response status:", unsplashResponse.status);
           
-          if (unsplashData.results && unsplashData.results.length > 0) {
-            const availablePhotos = unsplashData.results.filter(
-              (photo: { urls: { regular: string } }) => !usedImageUrls.includes(photo.urls.regular)
-            );
+          if (unsplashResponse.ok) {
+            const unsplashData = await unsplashResponse.json();
+            console.log("Unsplash results count:", unsplashData.results?.length || 0);
             
-            console.log("Available photos after filtering:", availablePhotos.length, "out of", unsplashData.results.length);
-            
-            if (availablePhotos.length > 0) {
-              const randomIndex = Math.floor(Math.random() * Math.min(10, availablePhotos.length));
-              const selectedPhoto = availablePhotos[randomIndex];
-              
-              imageData = {
-                url: selectedPhoto.urls.regular,
-                photographer: selectedPhoto.user.name,
-                photographer_url: selectedPhoto.user.links.html,
-              };
-              console.log("Selected Unsplash image from photographer:", selectedPhoto.user.name);
-            } else {
-              console.log("No available photos with AI query, trying fallback...");
-              const fallbackQuery = "natural wellness beauty botanical healthy";
-              const fallbackResponse = await fetch(
-                `https://api.unsplash.com/search/photos?query=${encodeURIComponent(fallbackQuery)}&per_page=20&orientation=landscape`,
-                { 
-                  headers: { 
-                    Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` 
-                  } 
-                }
+            if (unsplashData.results && unsplashData.results.length > 0) {
+              const availablePhotos = unsplashData.results.filter(
+                (photo: { urls: { regular: string } }) => !usedImageUrls.includes(photo.urls.regular)
               );
               
-              if (fallbackResponse.ok) {
-                const fallbackData = await fallbackResponse.json();
-                const fallbackPhotos = fallbackData.results?.filter(
-                  (p: { urls: { regular: string } }) => !usedImageUrls.includes(p.urls.regular)
-                ) || [];
-                
-                if (fallbackPhotos.length > 0) {
-                  const randomFallback = fallbackPhotos[Math.floor(Math.random() * Math.min(10, fallbackPhotos.length))];
-                  imageData = {
-                    url: randomFallback.urls.regular,
-                    photographer: randomFallback.user.name,
-                    photographer_url: randomFallback.user.links.html,
-                  };
-                  console.log("Selected fallback Unsplash image from:", randomFallback.user.name);
-                }
+              if (availablePhotos.length > 0) {
+                const randomIndex = Math.floor(Math.random() * Math.min(10, availablePhotos.length));
+                const selectedPhoto = availablePhotos[randomIndex];
+                imageData = {
+                  url: selectedPhoto.urls.regular,
+                  photographer: selectedPhoto.user.name,
+                  photographer_url: selectedPhoto.user.links.html,
+                };
+                console.log("Selected Unsplash image from:", selectedPhoto.user.name);
               }
             }
           }
-        } else {
-          const errorText = await unsplashResponse.text();
-          console.error("Unsplash API error:", unsplashResponse.status, errorText);
+        } catch (unsplashError) {
+          console.error("Unsplash error:", unsplashError);
         }
-      } catch (unsplashError) {
-        console.error("Unsplash error (using fallback):", unsplashError);
       }
 
-      console.log("Article generated successfully with image:", imageData?.url?.substring(0, 50));
+      console.log("Article generated with image:", imageData?.url?.substring(0, 60));
     } else {
       console.log("Skipping image generation as requested");
     }
