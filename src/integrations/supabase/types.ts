@@ -190,6 +190,7 @@ export type Database = {
       }
       blog_posts: {
         Row: {
+          audience: string
           author_avatar: string | null
           author_name: string
           author_role: string | null
@@ -208,6 +209,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          audience?: string
           author_avatar?: string | null
           author_name?: string
           author_role?: string | null
@@ -226,6 +228,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          audience?: string
           author_avatar?: string | null
           author_name?: string
           author_role?: string | null
@@ -337,6 +340,7 @@ export type Database = {
       }
       newsletter_subscribers: {
         Row: {
+          audience: string | null
           created_at: string
           email: string
           id: string
@@ -346,6 +350,7 @@ export type Database = {
           unsubscribed_at: string | null
         }
         Insert: {
+          audience?: string | null
           created_at?: string
           email: string
           id?: string
@@ -355,6 +360,7 @@ export type Database = {
           unsubscribed_at?: string | null
         }
         Update: {
+          audience?: string | null
           created_at?: string
           email?: string
           id?: string

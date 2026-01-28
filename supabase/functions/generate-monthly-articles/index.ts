@@ -1218,6 +1218,37 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Error updating SEO assets:", e);
     }
 
+    // ========== 6. SEND SEGMENTED NEWSLETTERS ==========
+    console.log("=== Sending Segmented Newsletters ===");
+    
+    if (blogGeneratedCount > 0) {
+      try {
+        const newsletterResponse = await fetch(`${supabaseUrl}/functions/v1/send-newsletter`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({}),
+        });
+
+        if (newsletterResponse.ok) {
+          const newsletterResult = await newsletterResponse.json();
+          if (newsletterResult.skipped) {
+            console.log(`Newsletter skipped: ${newsletterResult.reason}`);
+          } else {
+            console.log(`✓ Newsletters sent: ${newsletterResult.emailsSent || 0} emails`);
+          }
+        } else {
+          console.error(`Failed to send newsletters: ${newsletterResponse.status}`);
+        }
+      } catch (e) {
+        console.error("Error sending newsletters:", e);
+      }
+    } else {
+      console.log("No blog posts generated today, skipping newsletters");
+    }
+
     // ========== SUMMARY ==========
     const successCount = results.filter(r => r.success && !r.skippedReason).length;
     const skippedCount = results.filter(r => r.skippedReason).length;
