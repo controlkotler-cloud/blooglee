@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PublicLayout } from '@/components/marketing/PublicLayout';
 import { BlogCard } from '@/components/marketing/BlogCard';
-import { AudienceTabs } from '@/components/marketing/AudienceTabs';
+import { AudienceCards } from '@/components/marketing/AudienceCards';
 import { NewsletterForm } from '@/components/marketing/NewsletterForm';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
@@ -82,14 +82,12 @@ const BlogIndex = () => {
           </p>
         </div>
 
-        {/* Audience Tabs */}
-        <div className="mb-6">
-          <AudienceTabs
-            selected={selectedAudience}
-            onSelect={handleAudienceChange}
-            counts={audienceCounts}
-          />
-        </div>
+        {/* Audience Cards (large cards when "todos", compact tabs when specific) */}
+        <AudienceCards
+          selected={selectedAudience}
+          onSelect={handleAudienceChange}
+          counts={audienceCounts}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12">
           {/* Main Content */}

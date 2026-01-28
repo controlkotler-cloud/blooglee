@@ -193,25 +193,136 @@ async function fetchUnsplashImage(query: string, accessKey: string): Promise<str
   }
 }
 
+// Normalize thematic category with fuzzy matching
+function normalizeThematicCategory(raw: string): string {
+  if (!raw) return 'Marketing';
+  
+  const normalized = raw.toLowerCase().trim();
+  
+  const mapping: Record<string, string> = {
+    // SEO
+    'seo': 'SEO',
+    'search engine optimization': 'SEO',
+    'posicionamiento': 'SEO',
+    'posicionamiento web': 'SEO',
+    'optimización seo': 'SEO',
+    'keywords': 'SEO',
+    'google': 'SEO',
+    'search': 'SEO',
+    
+    // Marketing
+    'marketing': 'Marketing',
+    'marketing digital': 'Marketing',
+    'estrategia': 'Marketing',
+    'estrategias': 'Marketing',
+    'campañas': 'Marketing',
+    'roi': 'Marketing',
+    'branding': 'Marketing',
+    'publicidad': 'Marketing',
+    'ads': 'Marketing',
+    
+    // Tutoriales
+    'tutoriales': 'Tutoriales',
+    'tutorial': 'Tutoriales',
+    'guía': 'Tutoriales',
+    'guias': 'Tutoriales',
+    'how-to': 'Tutoriales',
+    'howto': 'Tutoriales',
+    'paso a paso': 'Tutoriales',
+    'cómo': 'Tutoriales',
+    'configuración': 'Tutoriales',
+    'setup': 'Tutoriales',
+    
+    // Comparativas
+    'comparativas': 'Comparativas',
+    'comparativa': 'Comparativas',
+    'vs': 'Comparativas',
+    'versus': 'Comparativas',
+    'comparación': 'Comparativas',
+    'análisis': 'Comparativas',
+    'review': 'Comparativas',
+    'rankings': 'Comparativas',
+    'mejores': 'Comparativas',
+    'top': 'Comparativas',
+    
+    // Producto
+    'producto': 'Producto',
+    'blooglee': 'Producto',
+    'actualización': 'Producto',
+    'feature': 'Producto',
+    'features': 'Producto',
+    'novedades': 'Producto',
+    'novedad': 'Producto',
+    'changelog': 'Producto',
+    
+    // Tendencias
+    'tendencias': 'Tendencias',
+    'tendencia': 'Tendencias',
+    'futuro': 'Tendencias',
+    'predicciones': 'Tendencias',
+    'trends': 'Tendencias',
+    'innovación': 'Tendencias',
+    'ia': 'Tendencias',
+    'inteligencia artificial': 'Tendencias',
+    'ai': 'Tendencias',
+    'emergente': 'Tendencias',
+  };
+  
+  // Direct match
+  if (mapping[normalized]) {
+    return mapping[normalized];
+  }
+  
+  // Partial match
+  for (const [key, value] of Object.entries(mapping)) {
+    if (normalized.includes(key) || key.includes(normalized)) {
+      return value;
+    }
+  }
+  
+  // Check if it's already a valid category (case-insensitive)
+  const validCategories = ['SEO', 'Marketing', 'Tutoriales', 'Comparativas', 'Producto', 'Tendencias'];
+  for (const cat of validCategories) {
+    if (normalized === cat.toLowerCase()) {
+      return cat;
+    }
+  }
+  
+  return 'Marketing';
+}
+
 // Step 1: Generate metadata (title, slug, excerpt, keywords)
 async function generateMetadata(
   lovableApiKey: string,
   category: string,
   usedTopics: string[],
-  currentYear: number
+  currentYear: number,
+  forceCategory?: string
 ): Promise<{ title: string; slug: string; excerpt: string; keywords: string[]; topic: string; thematic_category: string } | null> {
   const topicPool = category === 'Empresas' ? EMPRESA_TOPICS : AGENCIA_TOPICS;
-  const thematicCategories = THEMATIC_CATEGORIES.join(', ');
   const audienceContext = category === 'Empresas' 
     ? "PYMEs españolas que quieren automatizar su marketing de contenidos"
     : "agencias de marketing digital que gestionan contenido para múltiples clientes";
+
+  // If forceCategory is provided, focus the prompt on that category
+  const categoryInstruction = forceCategory 
+    ? `CATEGORÍA OBLIGATORIA: ${forceCategory}
+El artículo DEBE ser sobre ${forceCategory}. Elige un tema que encaje perfectamente con esta categoría.`
+    : `CATEGORÍAS TEMÁTICAS DISPONIBLES (elige UNA que mejor represente el contenido):
+- "SEO" → Posicionamiento web, keywords, optimización técnica, Google, rankings
+- "Marketing" → Estrategias, campañas, ROI, branding, publicidad
+- "Tutoriales" → Guías paso a paso, how-to, configuración, setup
+- "Comparativas" → Análisis de herramientas, X vs Y, rankings, reviews
+- "Producto" → Novedades de Blooglee, actualizaciones, casos de uso
+- "Tendencias" → Novedades del sector, predicciones, IA, innovación`;
 
   const prompt = `Eres un experto en SEO y marketing de contenidos.
 
 AUDIENCIA: ${audienceContext}
 TEMAS DISPONIBLES: ${topicPool.join(', ')}
 TEMAS YA USADOS (evitar): ${usedTopics.slice(0, 15).join(', ') || 'ninguno'}
-CATEGORÍAS TEMÁTICAS DISPONIBLES: ${thematicCategories}
+
+${categoryInstruction}
 
 Elige un tema ÚNICO y genera los metadatos para un artículo de blog épico.
 
@@ -220,13 +331,17 @@ REGLAS:
 - NO incluir el año en el título (contenido evergreen)
 - El título debe ser irresistible y tener máximo 60 caracteres
 - El excerpt debe tener máximo 155 caracteres
-- Elige UNA categoría temática de las disponibles que mejor represente el contenido
 
 REGLAS DE CAPITALIZACIÓN (ESPAÑOL - MUY IMPORTANTE):
 - Solo la primera letra del título en mayúscula (más nombres propios)
 - NO usar capitalización tipo inglés (Title Case)
 - Ejemplo CORRECTO: "Cómo automatizar tu blog con inteligencia artificial"
 - Ejemplo INCORRECTO: "Cómo Automatizar Tu Blog Con Inteligencia Artificial"
+
+IMPORTANTE: El campo "thematic_category" DEBE ser EXACTAMENTE una de estas palabras:
+SEO, Marketing, Tutoriales, Comparativas, Producto, Tendencias
+
+${forceCategory ? `El campo "thematic_category" DEBE ser: "${forceCategory}"` : ''}
 
 Responde SOLO con este JSON válido:
 {
@@ -235,7 +350,7 @@ Responde SOLO con este JSON válido:
   "slug": "url-amigable-sin-acentos",
   "excerpt": "Meta description atractiva (max 155 chars)",
   "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
-  "thematic_category": "UNA de: SEO, Marketing, Tutoriales, Comparativas, Producto, Tendencias"
+  "thematic_category": "${forceCategory || 'UNA de: SEO, Marketing, Tutoriales, Comparativas, Producto, Tendencias'}"
 }`;
 
   try {
@@ -264,10 +379,9 @@ Responde SOLO con este JSON válido:
     const jsonStr = rawContent.substring(jsonStart, jsonEnd + 1).replace(/[\x00-\x1F\x7F]/g, '');
     const parsed = JSON.parse(jsonStr);
     
-    // Validate thematic category
-    const validCategory = THEMATIC_CATEGORIES.includes(parsed.thematic_category) 
-      ? parsed.thematic_category 
-      : 'Marketing';
+    // Use forceCategory if provided, otherwise normalize the AI response
+    const validCategory = forceCategory || normalizeThematicCategory(parsed.thematic_category);
+    console.log(`Category: AI said "${parsed.thematic_category}" → normalized to "${validCategory}"`);
     
     return {
       title: parsed.title || "Artículo sin título",
@@ -412,7 +526,8 @@ async function generateBlogContent(
   lovableApiKey: string,
   category: string,
   usedTopics: string[],
-  now: Date
+  now: Date,
+  forceCategory?: string
 ): Promise<BlogPostData | null> {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
@@ -420,14 +535,14 @@ async function generateBlogContent(
   
   // Step 1: Generate metadata
   console.log("Step 1: Generating metadata...");
-  const metadata = await generateMetadata(lovableApiKey, category, usedTopics, currentYear);
+  const metadata = await generateMetadata(lovableApiKey, category, usedTopics, currentYear, forceCategory);
   
   if (!metadata) {
     console.error("Failed to generate metadata");
     return null;
   }
   
-  console.log(`Metadata ready: "${metadata.title}"`);
+  console.log(`Metadata ready: "${metadata.title}" [${metadata.thematic_category}]`);
 
   // Step 2: Generate content
   console.log("Step 2: Generating content...");
@@ -466,10 +581,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { category, force } = await req.json();
+    const { category, force, forceThematicCategory } = await req.json();
     
     if (!category || !['Empresas', 'Agencias'].includes(category)) {
       throw new Error("Invalid category. Must be 'Empresas' or 'Agencias'");
+    }
+    
+    // Validate forceThematicCategory if provided
+    if (forceThematicCategory && !THEMATIC_CATEGORIES.includes(forceThematicCategory)) {
+      throw new Error(`Invalid forceThematicCategory. Must be one of: ${THEMATIC_CATEGORIES.join(', ')}`);
     }
 
     console.log(`=== Generating PREMIUM blog post for category: ${category} ===`);
@@ -502,7 +622,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Found ${usedTopics.length} existing topics to avoid`);
 
     // Generate premium content (2-step process)
-    const blogData = await generateBlogContent(lovableApiKey, category, usedTopics, now);
+    console.log(`Generating with forceThematicCategory: ${forceThematicCategory || 'auto'}`);
+    const blogData = await generateBlogContent(lovableApiKey, category, usedTopics, now, forceThematicCategory);
     
     if (!blogData) {
       throw new Error("Failed to generate blog content");
