@@ -130,11 +130,11 @@ const Pricing = () => {
       <FAQSchema faqs={pricingFaqs} />
 
       {/* Header */}
-      <section className="pt-28 sm:pt-32 pb-12 sm:pb-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 badge-aurora badge-aurora-glow mb-6">
-            <Sparkles className="w-4 h-4" />
-            <span>Planes flexibles</span>
+      <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
+        <div className="text-center max-w-4xl mx-auto mb-12 sm:mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-violet-200/50 shadow-lg mb-6">
+            <Sparkles className="w-4 h-4 text-violet-500" />
+            <span className="text-sm font-medium text-violet-600">Planes flexibles</span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold mb-4 sm:mb-6">
@@ -285,9 +285,9 @@ const Pricing = () => {
       <section className="pb-20 sm:pb-32 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 badge-aurora badge-aurora-glow mb-6">
-              <HelpCircle className="w-4 h-4" />
-              <span>Preguntas frecuentes</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-violet-200/50 shadow-lg mb-6">
+              <HelpCircle className="w-4 h-4 text-violet-500" />
+              <span className="text-sm font-medium text-violet-600">Preguntas frecuentes</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-display font-bold mb-4">
               Resolvemos tus dudas
