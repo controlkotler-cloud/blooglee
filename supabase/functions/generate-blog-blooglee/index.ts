@@ -215,6 +215,12 @@ REGLAS:
 - El título debe ser irresistible y tener máximo 60 caracteres
 - El excerpt debe tener máximo 155 caracteres
 
+REGLAS DE CAPITALIZACIÓN (ESPAÑOL - MUY IMPORTANTE):
+- Solo la primera letra del título en mayúscula (más nombres propios)
+- NO usar capitalización tipo inglés (Title Case)
+- Ejemplo CORRECTO: "Cómo automatizar tu blog con inteligencia artificial"
+- Ejemplo INCORRECTO: "Cómo Automatizar Tu Blog Con Inteligencia Artificial"
+
 Responde SOLO con este JSON válido:
 {
   "topic": "tema elegido en 2-4 palabras",
@@ -294,6 +300,13 @@ ESTRUCTURA OBLIGATORIA (2500-3500 palabras en Markdown):
    - Usar ## para títulos
    - Incluir ### para subsecciones
    - Al final de secciones importantes: 💡 **Clave:** [insight principal]
+   - IMPORTANTE: Los títulos H2 y H3 también deben seguir capitalización española (solo primera letra mayúscula)
+
+REGLAS DE CAPITALIZACIÓN (ESPAÑOL - MUY IMPORTANTE):
+- Solo la primera letra de títulos/subtítulos en mayúscula (más nombres propios)
+- NO usar capitalización tipo inglés (Title Case)
+- Ejemplo CORRECTO: "## Cómo automatizar tu estrategia de contenidos"
+- Ejemplo INCORRECTO: "## Cómo Automatizar Tu Estrategia De Contenidos"
 
 3. 2 TABLAS COMPARATIVAS mínimo (formato Markdown)
    | Columna 1 | Columna 2 | Columna 3 |
@@ -438,7 +451,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { category } = await req.json();
+    const { category, force } = await req.json();
     
     if (!category || !['Empresas', 'Agencias'].includes(category)) {
       throw new Error("Invalid category. Must be 'Empresas' or 'Agencias'");
@@ -448,21 +461,25 @@ const handler = async (req: Request): Promise<Response> => {
 
     const now = new Date();
 
-    // Check if already generated today for this category
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const { data: existingToday } = await supabase
-      .from('blog_posts')
-      .select('id')
-      .eq('category', category)
-      .gte('published_at', todayStart.toISOString())
-      .limit(1);
+    // Check if already generated today for this category (skip if force=true)
+    if (!force) {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const { data: existingToday } = await supabase
+        .from('blog_posts')
+        .select('id')
+        .eq('category', category)
+        .gte('published_at', todayStart.toISOString())
+        .limit(1);
 
-    if (existingToday && existingToday.length > 0) {
-      console.log(`Already generated ${category} post today, skipping`);
-      return new Response(
-        JSON.stringify({ success: true, skipped: true, reason: "Already generated today" }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      if (existingToday && existingToday.length > 0) {
+        console.log(`Already generated ${category} post today, skipping`);
+        return new Response(
+          JSON.stringify({ success: true, skipped: true, reason: "Already generated today" }),
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+    } else {
+      console.log("Force mode enabled - skipping daily check");
     }
 
     // Get used topics to avoid repetition
@@ -521,7 +538,7 @@ const handler = async (req: Request): Promise<Response> => {
         image_url: imageUrl,
         category: category,
         author_name: "Equipo Blooglee",
-        author_avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
+        author_avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
         author_role: "Marketing Digital",
         read_time: blogData.read_time,
         published_at: now.toISOString(),
