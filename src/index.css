@@ -1,5 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap');
-
+/* Fonts loaded via preload in index.html for better FCP */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -265,16 +264,19 @@
   }
 
   /* ============================================
-     MOCKUP FLOTANTE
+     MOCKUP FLOTANTE - GPU Optimized
      ============================================ */
   .mockup-container {
     position: relative;
     perspective: 1000px;
+    contain: layout style;
   }
 
   .mockup-float {
     animation: mockup-float 6s ease-in-out infinite;
     transform-style: preserve-3d;
+    will-change: transform;
+    contain: layout style paint;
   }
 
   .mockup-shadow {
@@ -287,6 +289,7 @@
     background: radial-gradient(ellipse at center, hsl(265, 50%, 30%, 0.2) 0%, transparent 70%);
     filter: blur(15px);
     animation: shadow-pulse 6s ease-in-out infinite;
+    will-change: opacity;
   }
 
   .mockup-glow {
@@ -296,6 +299,23 @@
     filter: blur(30px);
     animation: glow-pulse 4s ease-in-out infinite;
     z-index: -1;
+    will-change: opacity;
+  }
+  
+  /* Liquid blob GPU optimization */
+  .liquid-blob {
+    will-change: transform, opacity;
+  }
+  
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .mockup-float,
+    .mockup-shadow,
+    .mockup-glow,
+    .liquid-blob {
+      animation: none !important;
+      will-change: auto;
+    }
   }
 
   /* ============================================

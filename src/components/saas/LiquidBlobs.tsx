@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface LiquidBlobsProps {
   variant?: 'hero' | 'section' | 'minimal';
@@ -7,15 +8,62 @@ interface LiquidBlobsProps {
 
 export const LiquidBlobs = ({ variant = 'hero', className = '' }: LiquidBlobsProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const isMobile = useIsMobile();
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
+    // Check for reduced motion preference
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mediaQuery.matches);
+    
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    
     // Añadir pequeñas variaciones aleatorias a la animación
     const blobs = svgRef.current?.querySelectorAll('.liquid-blob');
     blobs?.forEach((blob, i) => {
       const delay = i * 0.5;
       (blob as SVGElement).style.animationDelay = `${delay}s`;
     });
-  }, []);
+  }, [prefersReducedMotion]);
+  
+  // Simplified version for mobile - less blobs, no heavy filters
+  if (isMobile || prefersReducedMotion) {
+    return (
+      <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
+        <svg
+          className="absolute inset-0 w-full h-full"
+          viewBox="0 0 1000 600"
+          preserveAspectRatio="xMidYMid slice"
+        >
+          <defs>
+            <linearGradient id="mobile-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="hsl(265, 89%, 65%)" />
+              <stop offset="100%" stopColor="hsl(330, 85%, 65%)" />
+            </linearGradient>
+            <linearGradient id="mobile-grad-2" x1="100%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="hsl(25, 95%, 65%)" />
+              <stop offset="100%" stopColor="hsl(330, 85%, 60%)" />
+            </linearGradient>
+          </defs>
+          
+          {/* Simplified blobs - no blur filters, static positions */}
+          <ellipse cx="200" cy="150" rx="120" ry="90" fill="url(#mobile-grad-1)" opacity="0.25" />
+          <ellipse cx="800" cy="400" rx="150" ry="100" fill="url(#mobile-grad-2)" opacity="0.2" />
+          <ellipse cx="500" cy="500" rx="100" ry="70" fill="url(#mobile-grad-1)" opacity="0.15" />
+        </svg>
+        
+        {variant === 'hero' && (
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/80 pointer-events-none" />
+        )}
+      </div>
+    );
+  }
 
   if (variant === 'minimal') {
     return (

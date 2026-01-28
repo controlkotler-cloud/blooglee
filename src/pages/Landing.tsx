@@ -198,7 +198,10 @@ const Landing = () => {
                       key={i}
                       src={src}
                       alt="Usuario de Blooglee"
+                      width={40}
+                      height={40}
                       loading="lazy"
+                      decoding="async"
                       className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 sm:border-3 border-white object-cover shadow-md"
                     />
                   ))}
@@ -396,6 +399,10 @@ const Landing = () => {
                   <img 
                     src={testimonial.image} 
                     alt={testimonial.name}
+                    width={56}
+                    height={56}
+                    loading="lazy"
+                    decoding="async"
                     className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl object-cover shadow-lg"
                   />
                   <div>

@@ -12,16 +12,25 @@ const mockArticles = [
 export function ProductMockup() {
   const [activeArticle, setActiveArticle] = useState(0);
   const [typingText, setTypingText] = useState("");
+  const [animationsReady, setAnimationsReady] = useState(false);
   const fullText = "Contenido generado automáticamente con IA...";
 
+  // Defer animations until after LCP (~2s) to improve PageSpeed
   useEffect(() => {
+    const timer = setTimeout(() => setAnimationsReady(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!animationsReady) return;
     const interval = setInterval(() => {
       setActiveArticle((prev) => (prev + 1) % mockArticles.length);
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [animationsReady]);
 
   useEffect(() => {
+    if (!animationsReady) return;
     let index = 0;
     setTypingText("");
     const typeInterval = setInterval(() => {
@@ -33,7 +42,7 @@ export function ProductMockup() {
       }
     }, 50);
     return () => clearInterval(typeInterval);
-  }, [activeArticle]);
+  }, [activeArticle, animationsReady]);
 
   return (
     <div className="mockup-container w-full max-w-lg mx-auto">
