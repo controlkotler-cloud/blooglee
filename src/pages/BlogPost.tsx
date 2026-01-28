@@ -1,12 +1,12 @@
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { useMemo } from 'react';
 import { PublicLayout } from '@/components/marketing/PublicLayout';
-import { getBlogPost, getRelatedPosts } from '@/data/blogPosts';
 import { BlogCard } from '@/components/marketing/BlogCard';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, ArrowLeft, ArrowRight, Share2, Twitter, Linkedin, Facebook, Copy } from 'lucide-react';
+import { Calendar, Clock, ArrowLeft, ArrowRight, Share2, Twitter, Linkedin, Facebook, Copy, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SEOHead, BlogPostingSchema, BreadcrumbSchema } from '@/components/seo';
+import { useBlogPost, useRelatedPosts } from '@/hooks/useBlogPosts';
 
 // Utility to generate slug from heading text
 const slugify = (text: string): string => {
@@ -60,8 +60,16 @@ const parseContent = (content: string): string => {
 
 const BlogPost = () => {
   const { slug } = useParams<{ slug: string }>();
-  const post = slug ? getBlogPost(slug) : undefined;
-  const relatedPosts = slug ? getRelatedPosts(slug, 2) : [];
+  
+  // Fetch post from database
+  const { data: post, isLoading, error } = useBlogPost(slug || '');
+  
+  // Fetch related posts
+  const { data: relatedPosts = [] } = useRelatedPosts(
+    slug || '', 
+    post?.category || 'SEO', 
+    2
+  );
 
   // Extract headings for ToC
   const headings = useMemo(() => {
@@ -73,7 +81,19 @@ const BlogPost = () => {
     return post ? parseContent(post.content) : '';
   }, [post]);
 
-  if (!post) {
+  // Loading state
+  if (isLoading) {
+    return (
+      <PublicLayout showBlobs={false}>
+        <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+        </div>
+      </PublicLayout>
+    );
+  }
+
+  // Error or not found
+  if (error || !post) {
     return <Navigate to="/blog" replace />;
   }
 
@@ -84,7 +104,7 @@ const BlogPost = () => {
 
   const shareUrl = encodeURIComponent(window.location.href);
   const shareTitle = encodeURIComponent(post.title);
-  const fullUrl = `https://blooglee.lovable.app/blog/${post.slug}`;
+  const fullUrl = `https://blooglee.com/blog/${post.slug}`;
 
   return (
     <PublicLayout showBlobs={false}>
@@ -110,8 +130,8 @@ const BlogPost = () => {
       />
       <BreadcrumbSchema 
         items={[
-          { name: 'Inicio', url: 'https://blooglee.lovable.app/' },
-          { name: 'Blog', url: 'https://blooglee.lovable.app/blog' },
+          { name: 'Inicio', url: 'https://blooglee.com/' },
+          { name: 'Blog', url: 'https://blooglee.com/blog' },
           { name: post.title, url: fullUrl },
         ]}
       />

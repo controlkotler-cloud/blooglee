@@ -2,40 +2,41 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PublicLayout } from '@/components/marketing/PublicLayout';
 import { BlogCard } from '@/components/marketing/BlogCard';
-import { blogPosts } from '@/data/blogPosts';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BookOpen, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, BookOpen, Mail, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { SEOHead } from '@/components/seo';
+import { useBlogPosts, useBlogCategories } from '@/hooks/useBlogPosts';
+import { useNewsletterSubscribe } from '@/hooks/useNewsletterSubscribe';
 
-const categories = ['Todos', 'SEO', 'Marketing', 'Tutoriales'];
 const POSTS_PER_PAGE = 4;
+const BASE_CATEGORIES = ['Todos', 'SEO', 'Marketing', 'Tutoriales', 'Comparativas', 'Producto', 'Empresas', 'Agencias'];
 
 const BlogIndex = () => {
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [currentPage, setCurrentPage] = useState(1);
+  const [email, setEmail] = useState('');
 
-  // Filter posts by category
-  const filteredPosts = useMemo(() => {
-    return selectedCategory === 'Todos'
-      ? blogPosts
-      : blogPosts.filter(post => post.category === selectedCategory);
-  }, [selectedCategory]);
+  // Fetch posts from database
+  const { data: posts = [], isLoading, error } = useBlogPosts(selectedCategory);
+  const { data: categoryCounts = {} } = useBlogCategories();
+
+  // Newsletter subscription
+  const { subscribe, isLoading: isSubscribing } = useNewsletterSubscribe();
 
   // Calculate pagination
-  const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE);
+  const totalPages = Math.ceil(posts.length / POSTS_PER_PAGE);
   const paginatedPosts = useMemo(() => {
     const start = (currentPage - 1) * POSTS_PER_PAGE;
-    return filteredPosts.slice(start, start + POSTS_PER_PAGE);
-  }, [filteredPosts, currentPage]);
+    return posts.slice(start, start + POSTS_PER_PAGE);
+  }, [posts, currentPage]);
 
-  // Count posts per category
-  const categoryCounts = useMemo(() => {
-    return categories.slice(1).reduce((acc, cat) => {
-      acc[cat] = blogPosts.filter(p => p.category === cat).length;
-      return acc;
-    }, {} as Record<string, number>);
-  }, []);
+  // Get unique categories from posts
+  const categories = useMemo(() => {
+    const uniqueCats = new Set(BASE_CATEGORIES);
+    Object.keys(categoryCounts).forEach(cat => uniqueCats.add(cat));
+    return Array.from(uniqueCats);
+  }, [categoryCounts]);
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
@@ -45,6 +46,14 @@ const BlogIndex = () => {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await subscribe(email, 'blog');
+    if (result.success) {
+      setEmail('');
+    }
   };
 
   return (
@@ -95,24 +104,40 @@ const BlogIndex = () => {
               ))}
             </div>
 
+            {/* Loading state */}
+            {isLoading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+              </div>
+            )}
+
+            {/* Error state */}
+            {error && (
+              <div className="text-center py-12">
+                <p className="text-red-500">Error al cargar los artículos. Por favor, inténtalo de nuevo.</p>
+              </div>
+            )}
+
             {/* Blog Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {paginatedPosts.map((post) => (
-                <BlogCard
-                  key={post.slug}
-                  slug={post.slug}
-                  title={post.title}
-                  excerpt={post.excerpt}
-                  image={post.image}
-                  date={post.date}
-                  readTime={post.readTime}
-                  category={post.category}
-                />
-              ))}
-            </div>
+            {!isLoading && !error && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {paginatedPosts.map((post) => (
+                  <BlogCard
+                    key={post.slug}
+                    slug={post.slug}
+                    title={post.title}
+                    excerpt={post.excerpt}
+                    image={post.image}
+                    date={post.date}
+                    readTime={post.readTime}
+                    category={post.category}
+                  />
+                ))}
+              </div>
+            )}
 
             {/* Empty state */}
-            {paginatedPosts.length === 0 && (
+            {!isLoading && !error && paginatedPosts.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-foreground/60">No hay artículos en esta categoría.</p>
               </div>
@@ -169,22 +194,37 @@ const BlogIndex = () => {
               <p className="text-white/80 text-sm mb-4">
                 Recibe tips de SEO y marketing de contenidos directamente en tu email.
               </p>
-              <div className="space-y-3">
+              <form onSubmit={handleSubscribe} className="space-y-3">
                 <Input 
+                  type="email"
                   placeholder="tu@email.com" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="bg-white/20 border-white/30 placeholder:text-white/60 text-white"
+                  required
                 />
-                <Button className="w-full bg-white text-violet-600 hover:bg-white/90">
-                  Suscribirse
+                <Button 
+                  type="submit"
+                  className="w-full bg-white text-violet-600 hover:bg-white/90"
+                  disabled={isSubscribing}
+                >
+                  {isSubscribing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Suscribiendo...
+                    </>
+                  ) : (
+                    'Suscribirse'
+                  )}
                 </Button>
-              </div>
+              </form>
             </div>
 
-            {/* Popular Categories - Now with real counts */}
+            {/* Popular Categories */}
             <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6">
               <h3 className="font-display text-lg font-bold mb-4">Categorías populares</h3>
               <ul className="space-y-3">
-                {categories.slice(1).map((cat) => (
+                {Object.entries(categoryCounts).slice(0, 6).map(([cat, count]) => (
                   <li key={cat}>
                     <button 
                       onClick={() => handleCategoryChange(cat)}
@@ -195,7 +235,7 @@ const BlogIndex = () => {
                       }`}
                     >
                       <span>{cat}</span>
-                      <span className="text-sm text-foreground/40">{categoryCounts[cat] || 0}</span>
+                      <span className="text-sm text-foreground/40">{count}</span>
                     </button>
                   </li>
                 ))}

@@ -188,6 +188,63 @@ export type Database = {
           },
         ]
       }
+      blog_posts: {
+        Row: {
+          author_avatar: string | null
+          author_name: string
+          author_role: string | null
+          category: string
+          content: string
+          created_at: string
+          excerpt: string
+          id: string
+          image_url: string | null
+          is_published: boolean
+          published_at: string
+          read_time: string
+          seo_keywords: string[] | null
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_avatar?: string | null
+          author_name?: string
+          author_role?: string | null
+          category?: string
+          content: string
+          created_at?: string
+          excerpt: string
+          id?: string
+          image_url?: string | null
+          is_published?: boolean
+          published_at?: string
+          read_time?: string
+          seo_keywords?: string[] | null
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_avatar?: string | null
+          author_name?: string
+          author_role?: string | null
+          category?: string
+          content?: string
+          created_at?: string
+          excerpt?: string
+          id?: string
+          image_url?: string | null
+          is_published?: boolean
+          published_at?: string
+          read_time?: string
+          seo_keywords?: string[] | null
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       empresas: {
         Row: {
           auto_generate: boolean
@@ -275,6 +332,36 @@ export type Database = {
           location?: string
           name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      newsletter_subscribers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          source: string | null
+          subscribed_at: string
+          unsubscribed_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          source?: string | null
+          subscribed_at?: string
+          unsubscribed_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          source?: string | null
+          subscribed_at?: string
+          unsubscribed_at?: string | null
         }
         Relationships: []
       }
