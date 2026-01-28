@@ -18,7 +18,11 @@ interface BlogPostData {
   content: string;
   seo_keywords: string[];
   read_time: string;
+  thematic_category: string;
 }
+
+// Thematic categories (separate from audience)
+const THEMATIC_CATEGORIES = ['SEO', 'Marketing', 'Tutoriales', 'Comparativas', 'Producto', 'Tendencias'];
 
 // Topics for empresas (businesses) - expanded for premium content
 const EMPRESA_TOPICS = [
@@ -58,11 +62,11 @@ const AGENCIA_TOPICS = [
   "dashboards reporting clientes",
 ];
 
-async function getUsedBlogTopics(supabase: any, category: string): Promise<string[]> {
+async function getUsedBlogTopics(supabase: any, audience: string): Promise<string[]> {
   const { data } = await supabase
     .from('blog_posts')
     .select('title')
-    .eq('category', category)
+    .eq('audience', audience.toLowerCase())
     .order('published_at', { ascending: false })
     .limit(50);
   
@@ -195,8 +199,9 @@ async function generateMetadata(
   category: string,
   usedTopics: string[],
   currentYear: number
-): Promise<{ title: string; slug: string; excerpt: string; keywords: string[]; topic: string } | null> {
+): Promise<{ title: string; slug: string; excerpt: string; keywords: string[]; topic: string; thematic_category: string } | null> {
   const topicPool = category === 'Empresas' ? EMPRESA_TOPICS : AGENCIA_TOPICS;
+  const thematicCategories = THEMATIC_CATEGORIES.join(', ');
   const audienceContext = category === 'Empresas' 
     ? "PYMEs españolas que quieren automatizar su marketing de contenidos"
     : "agencias de marketing digital que gestionan contenido para múltiples clientes";
@@ -206,6 +211,7 @@ async function generateMetadata(
 AUDIENCIA: ${audienceContext}
 TEMAS DISPONIBLES: ${topicPool.join(', ')}
 TEMAS YA USADOS (evitar): ${usedTopics.slice(0, 15).join(', ') || 'ninguno'}
+CATEGORÍAS TEMÁTICAS DISPONIBLES: ${thematicCategories}
 
 Elige un tema ÚNICO y genera los metadatos para un artículo de blog épico.
 
@@ -214,6 +220,7 @@ REGLAS:
 - NO incluir el año en el título (contenido evergreen)
 - El título debe ser irresistible y tener máximo 60 caracteres
 - El excerpt debe tener máximo 155 caracteres
+- Elige UNA categoría temática de las disponibles que mejor represente el contenido
 
 REGLAS DE CAPITALIZACIÓN (ESPAÑOL - MUY IMPORTANTE):
 - Solo la primera letra del título en mayúscula (más nombres propios)
@@ -227,7 +234,8 @@ Responde SOLO con este JSON válido:
   "title": "Título SEO optimizado (max 60 chars)",
   "slug": "url-amigable-sin-acentos",
   "excerpt": "Meta description atractiva (max 155 chars)",
-  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"]
+  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
+  "thematic_category": "UNA de: SEO, Marketing, Tutoriales, Comparativas, Producto, Tendencias"
 }`;
 
   try {
@@ -256,12 +264,18 @@ Responde SOLO con este JSON válido:
     const jsonStr = rawContent.substring(jsonStart, jsonEnd + 1).replace(/[\x00-\x1F\x7F]/g, '');
     const parsed = JSON.parse(jsonStr);
     
+    // Validate thematic category
+    const validCategory = THEMATIC_CATEGORIES.includes(parsed.thematic_category) 
+      ? parsed.thematic_category 
+      : 'Marketing';
+    
     return {
       title: parsed.title || "Artículo sin título",
       slug: parsed.slug || `articulo-${Date.now()}`,
       excerpt: parsed.excerpt || "",
       keywords: parsed.keywords || [],
-      topic: parsed.topic || "marketing digital"
+      topic: parsed.topic || "marketing digital",
+      thematic_category: validCategory
     };
   } catch (error) {
     console.error("Metadata generation error:", error);
@@ -435,6 +449,7 @@ async function generateBlogContent(
     content: content,
     seo_keywords: metadata.keywords,
     read_time: `${readMinutes} min`,
+    thematic_category: metadata.thematic_category,
   };
 }
 
@@ -527,7 +542,9 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Insert into database
+    // Insert into database with audience (empresas/agencias) and thematic category
+    const audienceValue = category.toLowerCase(); // 'Empresas' -> 'empresas'
+    
     const { data: insertedPost, error: insertError } = await supabase
       .from('blog_posts')
       .insert({
@@ -536,7 +553,8 @@ const handler = async (req: Request): Promise<Response> => {
         excerpt: blogData.excerpt,
         content: blogData.content,
         image_url: imageUrl,
-        category: category,
+        audience: audienceValue,
+        category: blogData.thematic_category, // Now uses thematic category (SEO, Marketing, etc.)
         author_name: "Equipo Blooglee",
         author_avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
         author_role: "Marketing Digital",
@@ -555,6 +573,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`✓ PREMIUM blog post created: ${blogData.title}`);
     console.log(`  - Slug: ${insertedPost.slug}`);
     console.log(`  - Words: ${wordCount}`);
+    console.log(`  - Audience: ${audienceValue}`);
     console.log(`  - Category: ${insertedPost.category}`);
 
     return new Response(
@@ -564,6 +583,7 @@ const handler = async (req: Request): Promise<Response> => {
           id: insertedPost.id,
           slug: insertedPost.slug,
           title: insertedPost.title,
+          audience: audienceValue,
           category: insertedPost.category,
           wordCount: wordCount,
           hasAIImage: aiImage?.isAI || false,

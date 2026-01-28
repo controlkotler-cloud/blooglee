@@ -11,7 +11,11 @@ interface SubscribeResult {
 export function useNewsletterSubscribe() {
   const [isLoading, setIsLoading] = useState(false);
 
-  const subscribe = async (email: string, source: string = "blog"): Promise<SubscribeResult> => {
+  const subscribe = async (
+    email: string, 
+    source: string = "blog",
+    audience: 'empresas' | 'agencias' | 'both' = 'both'
+  ): Promise<SubscribeResult> => {
     if (!email || !email.includes("@")) {
       toast.error("Por favor, introduce un email válido");
       return { success: false, error: "Email inválido" };
@@ -21,7 +25,7 @@ export function useNewsletterSubscribe() {
 
     try {
       const { data, error } = await supabase.functions.invoke("subscribe-newsletter", {
-        body: { email, source },
+        body: { email, source, audience },
       });
 
       if (error) {

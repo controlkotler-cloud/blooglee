@@ -2,27 +2,28 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PublicLayout } from '@/components/marketing/PublicLayout';
 import { BlogCard } from '@/components/marketing/BlogCard';
+import { AudienceTabs } from '@/components/marketing/AudienceTabs';
+import { NewsletterForm } from '@/components/marketing/NewsletterForm';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, BookOpen, Mail, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { SEOHead } from '@/components/seo';
-import { useBlogPosts, useBlogCategories } from '@/hooks/useBlogPosts';
-import { useNewsletterSubscribe } from '@/hooks/useNewsletterSubscribe';
+import { useBlogPosts, useBlogCategories, useAudienceCounts } from '@/hooks/useBlogPosts';
 
 const POSTS_PER_PAGE = 4;
-const BASE_CATEGORIES = ['Todos', 'SEO', 'Marketing', 'Tutoriales', 'Comparativas', 'Producto', 'Empresas', 'Agencias'];
+const BASE_CATEGORIES = ['Todos', 'SEO', 'Marketing', 'Tutoriales', 'Comparativas', 'Producto', 'Tendencias'];
 
 const BlogIndex = () => {
+  const [selectedAudience, setSelectedAudience] = useState('todos');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [currentPage, setCurrentPage] = useState(1);
-  const [email, setEmail] = useState('');
 
-  // Fetch posts from database
-  const { data: posts = [], isLoading, error } = useBlogPosts(selectedCategory);
+  // Fetch posts from database with audience and category filters
+  const { data: posts = [], isLoading, error } = useBlogPosts(
+    selectedAudience === 'todos' ? undefined : selectedAudience,
+    selectedCategory
+  );
   const { data: categoryCounts = {} } = useBlogCategories();
-
-  // Newsletter subscription
-  const { subscribe, isLoading: isSubscribing } = useNewsletterSubscribe();
+  const { data: audienceCounts } = useAudienceCounts();
 
   // Calculate pagination
   const totalPages = Math.ceil(posts.length / POSTS_PER_PAGE);
@@ -38,6 +39,11 @@ const BlogIndex = () => {
     return Array.from(uniqueCats);
   }, [categoryCounts]);
 
+  const handleAudienceChange = (audience: string) => {
+    setSelectedAudience(audience);
+    setCurrentPage(1);
+  };
+
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
     setCurrentPage(1);
@@ -46,14 +52,6 @@ const BlogIndex = () => {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleSubscribe = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const result = await subscribe(email, 'blog');
-    if (result.success) {
-      setEmail('');
-    }
   };
 
   return (
@@ -66,7 +64,7 @@ const BlogIndex = () => {
       />
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
+        <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-violet-200/50 shadow-lg mb-6">
             <BookOpen className="w-4 h-4 text-violet-500" />
             <span className="text-sm font-medium text-violet-600">Blog</span>
@@ -84,24 +82,54 @@ const BlogIndex = () => {
           </p>
         </div>
 
+        {/* Audience Tabs */}
+        <div className="mb-6">
+          <AudienceTabs
+            selected={selectedAudience}
+            onSelect={handleAudienceChange}
+            counts={audienceCounts}
+          />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12">
           {/* Main Content */}
           <div className="lg:col-span-3">
-            {/* Categories */}
-            <div className="flex flex-wrap gap-2 mb-8">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => handleCategoryChange(category)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    category === selectedCategory
-                      ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white'
-                      : 'bg-white/70 text-foreground/70 hover:bg-white hover:text-foreground border border-white/50'
-                  }`}
+            {/* Thematic Category Filters */}
+            <div className="mb-6">
+              {/* Mobile: Dropdown */}
+              <div className="sm:hidden">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/70 border border-white/50 text-foreground font-medium"
                 >
-                  {category}
-                </button>
-              ))}
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category} {categoryCounts[category] ? `(${categoryCounts[category]})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Tablet/Desktop: Pills */}
+              <div className="hidden sm:flex flex-wrap gap-2">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => handleCategoryChange(category)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      category === selectedCategory
+                        ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white'
+                        : 'bg-white/70 text-foreground/70 hover:bg-white hover:text-foreground border border-white/50'
+                    }`}
+                  >
+                    {category}
+                    {categoryCounts[category] && (
+                      <span className="ml-1.5 text-xs opacity-70">({categoryCounts[category]})</span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Loading state */}
@@ -138,8 +166,10 @@ const BlogIndex = () => {
 
             {/* Empty state */}
             {!isLoading && !error && paginatedPosts.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-foreground/60">No hay artículos en esta categoría.</p>
+              <div className="text-center py-12 bg-white/50 rounded-2xl">
+                <BookOpen className="w-12 h-12 mx-auto text-foreground/30 mb-4" />
+                <p className="text-foreground/60 mb-2">No hay artículos en esta selección.</p>
+                <p className="text-sm text-foreground/40">Prueba a cambiar los filtros o vuelve más tarde.</p>
               </div>
             )}
 
@@ -155,7 +185,7 @@ const BlogIndex = () => {
                     className="gap-1"
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    Anterior
+                    <span className="hidden sm:inline">Anterior</span>
                   </Button>
                   <div className="flex items-center gap-1">
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
@@ -177,7 +207,7 @@ const BlogIndex = () => {
                     onClick={() => handlePageChange(currentPage + 1)}
                     className="gap-1"
                   >
-                    Siguiente
+                    <span className="hidden sm:inline">Siguiente</span>
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
@@ -187,38 +217,11 @@ const BlogIndex = () => {
 
           {/* Sidebar */}
           <aside className="lg:col-span-1 space-y-6">
-            {/* Newsletter */}
-            <div className="bg-gradient-to-br from-violet-500 via-fuchsia-500 to-orange-400 rounded-2xl p-6 text-white">
-              <Mail className="w-8 h-8 mb-4" />
-              <h3 className="font-display text-lg font-bold mb-2">Newsletter</h3>
-              <p className="text-white/80 text-sm mb-4">
-                Recibe tips de SEO y marketing de contenidos directamente en tu email.
-              </p>
-              <form onSubmit={handleSubscribe} className="space-y-3">
-                <Input 
-                  type="email"
-                  placeholder="tu@email.com" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-white/20 border-white/30 placeholder:text-white/60 text-white"
-                  required
-                />
-                <Button 
-                  type="submit"
-                  className="w-full bg-white text-violet-600 hover:bg-white/90"
-                  disabled={isSubscribing}
-                >
-                  {isSubscribing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Suscribiendo...
-                    </>
-                  ) : (
-                    'Suscribirse'
-                  )}
-                </Button>
-              </form>
-            </div>
+            {/* Newsletter with audience selection */}
+            <NewsletterForm 
+              variant="sidebar"
+              defaultAudience={selectedAudience === 'todos' ? 'both' : selectedAudience as 'empresas' | 'agencias'}
+            />
 
             {/* Popular Categories */}
             <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6">

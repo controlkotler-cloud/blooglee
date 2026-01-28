@@ -62,9 +62,9 @@ function transformPost(post: BlogPost): FormattedBlogPost {
   };
 }
 
-export function useBlogPosts(category?: string) {
+export function useBlogPosts(audience?: string, category?: string) {
   return useQuery({
-    queryKey: ["blog_posts", category],
+    queryKey: ["blog_posts", audience, category],
     queryFn: async () => {
       let query = supabase
         .from("blog_posts")
@@ -72,6 +72,12 @@ export function useBlogPosts(category?: string) {
         .eq("is_published", true)
         .order("published_at", { ascending: false });
 
+      // Filter by audience if specified
+      if (audience && audience !== "todos") {
+        query = query.eq("audience", audience.toLowerCase());
+      }
+
+      // Filter by thematic category if specified
       if (category && category !== "Todos") {
         query = query.eq("category", category);
       }
@@ -86,6 +92,34 @@ export function useBlogPosts(category?: string) {
       return (data || []).map(transformPost);
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
+
+export function useAudienceCounts() {
+  return useQuery({
+    queryKey: ["audience_counts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .select("audience")
+        .eq("is_published", true);
+
+      if (error) {
+        console.error("Error fetching audience counts:", error);
+        throw error;
+      }
+
+      const counts: Record<string, number> = { empresas: 0, agencias: 0 };
+      (data || []).forEach((post) => {
+        const aud = post.audience?.toLowerCase() || 'general';
+        if (aud === 'empresas' || aud === 'agencias') {
+          counts[aud] = (counts[aud] || 0) + 1;
+        }
+      });
+
+      return counts;
+    },
+    staleTime: 1000 * 60 * 5,
   });
 }
 

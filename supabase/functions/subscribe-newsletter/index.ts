@@ -19,7 +19,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { email, source = "blog" } = await req.json();
+    const { email, source = "blog", audience = "both" } = await req.json();
 
     // Validate email
     if (!email || typeof email !== 'string') {
@@ -64,12 +64,15 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Insert new subscriber
+    // Insert new subscriber with audience preference
+    const validAudience = ['empresas', 'agencias', 'both'].includes(audience) ? audience : 'both';
+    
     const { error: insertError } = await supabase
       .from('newsletter_subscribers')
       .insert({
         email: email.toLowerCase().trim(),
         source,
+        audience: validAudience,
         is_active: true,
       });
 
