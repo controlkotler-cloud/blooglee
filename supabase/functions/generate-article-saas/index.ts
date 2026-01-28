@@ -1,10 +1,91 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Send email notification to user when article is generated
+async function sendArticleNotification(
+  userEmail: string,
+  siteName: string,
+  articleTitle: string,
+  articleExcerpt: string,
+  siteId: string
+): Promise<void> {
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  if (!RESEND_API_KEY) {
+    console.log("RESEND_API_KEY not configured, skipping email notification");
+    return;
+  }
+
+  try {
+    const resend = new Resend(RESEND_API_KEY);
+    const siteUrl = "https://blooglee.lovable.app";
+    
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f3ff;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 16px; overflow: hidden; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+    <header style="background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #F97316 100%); padding: 40px 30px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">📝 Tu artículo está listo</h1>
+    </header>
+    
+    <main style="padding: 40px 30px;">
+      <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hola,</p>
+      <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Se ha generado un nuevo artículo para <strong style="color: #8B5CF6;">${siteName}</strong>:</p>
+      
+      <div style="background: linear-gradient(to right, #faf5ff, #fdf4ff); padding: 24px; border-radius: 12px; border-left: 4px solid #8B5CF6; margin: 24px 0;">
+        <h2 style="color: #1f2937; margin: 0 0 12px 0; font-size: 20px; font-weight: 600;">${articleTitle}</h2>
+        <p style="color: #6b7280; margin: 0; font-size: 14px; line-height: 1.5;">${articleExcerpt}</p>
+      </div>
+      
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${siteUrl}/site/${siteId}" style="display: inline-block; background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%); color: white; padding: 16px 32px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px 0 rgba(139, 92, 246, 0.4);">
+          Ver artículo en tu panel
+        </a>
+      </div>
+      
+      <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
+        Si tienes WordPress configurado, puedes publicar el artículo directamente desde tu panel.
+      </p>
+    </main>
+    
+    <footer style="background-color: #faf5ff; padding: 24px 30px; text-align: center; border-top: 1px solid #e9d5ff;">
+      <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+        Blooglee - Automatiza tu blog con IA
+      </p>
+      <p style="margin: 8px 0 0 0;">
+        <a href="https://www.instagram.com/blooglee_/" style="color: #8B5CF6; text-decoration: none; font-size: 12px;">Síguenos en Instagram</a>
+      </p>
+    </footer>
+  </div>
+</body>
+</html>`;
+
+    const { error } = await resend.emails.send({
+      from: "Blooglee <noreply@blooglee.com>",
+      to: [userEmail],
+      subject: `📝 Nuevo artículo generado para ${siteName}`,
+      html,
+    });
+
+    if (error) {
+      console.error("Error sending notification email:", error);
+    } else {
+      console.log("Notification email sent to:", userEmail);
+    }
+  } catch (error) {
+    console.error("Exception sending notification email:", error);
+  }
+}
 
 interface SiteData {
   id: string;
@@ -801,6 +882,27 @@ Generate an image that a ${site.sector || "professional"} business would use for
 
     console.log("=== ARTICLE GENERATION COMPLETE ===");
     console.log("Article ID:", savedArticle.id);
+
+    // Send notification email to user
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('user_id', userId)
+      .single();
+
+    if (userProfile?.email) {
+      const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
+      const articleExcerpt = spanishArticle?.meta_description || catalanArticle?.meta_description || `Nuevo artículo sobre ${topic}`;
+      
+      // Don't await - send email in background
+      sendArticleNotification(
+        userProfile.email,
+        site.name,
+        articleTitle,
+        articleExcerpt,
+        siteId
+      ).catch(err => console.error("Background email error:", err));
+    }
 
     return new Response(JSON.stringify({
       success: true,
