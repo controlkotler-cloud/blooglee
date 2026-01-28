@@ -1,65 +1,116 @@
 
-# Plan: Unificar fondo de Pricing con el resto de páginas
 
-## Problema Detectado
+# Plan: Unificar Cabeceras de Páginas Públicas
 
-La página `/pricing` usa un sistema de fondo diferente al resto de páginas públicas:
+## Diferencias Detectadas
 
-| Página | Sistema de fondo | Resultado |
-|--------|------------------|-----------|
-| Features, Blog, Contact | `PublicLayout` (gradiente Tailwind + LiquidBlobs) | Consistente |
-| Landing | Gradiente Tailwind directo + LiquidBlobs | Consistente |
-| **Pricing** | `aurora-bg aurora-bg-intense` (clases CSS) | **Diferente** |
+Analizando las cuatro páginas, he encontrado las siguientes inconsistencias en la sección superior:
 
-Las clases `aurora-bg` y `aurora-bg-intense` usan pseudo-elementos CSS (::before, ::after) con gradientes radiales animados, lo que crea un efecto visual diferente y puede causar problemas de renderizado en algunos dispositivos.
+| Página | Badge | Padding Superior | Container |
+|--------|-------|------------------|-----------|
+| **Features** (base) | `bg-white/80 backdrop-blur-sm border border-violet-200/50 shadow-lg` | `py-8 sm:py-12 lg:py-16` | `container mx-auto max-w-7xl` |
+| **Pricing** | `badge-aurora badge-aurora-glow` (diferente) | `pt-28 sm:pt-32` (excesivo) | `max-w-4xl` (más estrecho) |
+| **Blog** | Igual que Features | Igual que Features | Igual que Features |
+| **Contact** | **Sin badge** | Igual que Features | Igual que Features |
+
+## Problemas Específicos
+
+1. **Pricing**: 
+   - Usa clases CSS custom (`badge-aurora`) en lugar del estilo glass
+   - Tiene `pt-28 sm:pt-32` que añade padding excesivo (la navbar ya está manejada por `PublicLayout`)
+   - El contenedor es `max-w-4xl` en lugar de centrar el header dentro de uno más amplio
+
+2. **Contact**: 
+   - No tiene badge/chip superior con icono
+   - El resto está bien
 
 ## Solución
 
-Migrar Pricing.tsx para usar `PublicLayout`, igual que FeaturesPage, ContactPage y BlogIndex.
+Unificar todas las páginas usando exactamente el mismo patrón que **Features**:
 
-## Cambio Único
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ <section className="container mx-auto max-w-7xl            │
+│            px-4 sm:px-6 py-8 sm:py-12 lg:py-16">           │
+│                                                             │
+│   <div className="text-center max-w-4xl mx-auto mb-X">     │
+│                                                             │
+│     ┌─────────────────────────────────────┐                 │
+│     │ [Icono] Badge                       │  ← Badge glass  │
+│     └─────────────────────────────────────┘                 │
+│                                                             │
+│     <h1 className="font-display text-4xl                   │
+│         sm:text-5xl lg:text-6xl font-bold mb-X">           │
+│       Título con gradiente                                  │
+│     </h1>                                                   │
+│                                                             │
+│     <p className="text-lg sm:text-xl text-foreground/60">  │
+│       Subtítulo descriptivo                                 │
+│     </p>                                                   │
+│                                                             │
+│   </div>                                                   │
+│ </section>                                                 │
+└─────────────────────────────────────────────────────────────┘
+```
 
-**Archivo:** `src/pages/Pricing.tsx`
+## Cambios por Archivo
 
-**Antes:**
+### 1. Pricing.tsx
+
+**Línea 133:** Cambiar estructura del header
+
+Antes:
 ```tsx
-return (
-  <div className="min-h-screen aurora-bg aurora-bg-intense">
-    ...
-    <LiquidBlobs variant="hero" />
-    <PublicNavbar />
-    ...
-    <PublicFooter />
+<section className="pt-28 sm:pt-32 pb-12 sm:pb-16 px-4">
+  <div className="max-w-4xl mx-auto text-center">
+    <div className="inline-flex items-center gap-2 badge-aurora badge-aurora-glow mb-6">
+```
+
+Después:
+```tsx
+<section className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
+  <div className="text-center max-w-4xl mx-auto mb-12 sm:mb-16">
+    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-violet-200/50 shadow-lg mb-6">
+```
+
+### 2. ContactPage.tsx
+
+**Línea 75:** Añadir badge con icono
+
+Antes:
+```tsx
+<div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
+  <h1 className="font-display ...
+```
+
+Después:
+```tsx
+<div className="text-center max-w-4xl mx-auto mb-12 sm:mb-16">
+  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-violet-200/50 shadow-lg mb-6">
+    <Mail className="w-4 h-4 text-violet-500" />
+    <span className="text-sm font-medium text-violet-600">Contacto</span>
   </div>
-);
+  
+  <h1 className="font-display ...
 ```
 
-**Después:**
-```tsx
-import { PublicLayout } from '@/components/marketing/PublicLayout';
+### 3. BlogIndex.tsx (ya correcto)
 
-return (
-  <PublicLayout>
-    ...
-    {/* LiquidBlobs, Navbar y Footer ya están incluidos en PublicLayout */}
-  </PublicLayout>
-);
-```
+Sin cambios necesarios - ya usa el patrón correcto.
 
-## Beneficios
+## Resumen de Cambios
 
-1. **Consistencia visual** - Mismo fondo que todas las páginas públicas
-2. **Mantenibilidad** - Un solo lugar para cambiar el fondo de todo el sitio
-3. **Responsive** - PublicLayout ya está probado en mobile/tablet/desktop
-4. **Rendimiento** - Elimina animaciones CSS complejas que pueden causar problemas
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/Pricing.tsx` | Cambiar container y badge a estilo glass |
+| `src/pages/ContactPage.tsx` | Añadir badge con icono Mail, ajustar max-w a 4xl |
 
-## Elementos a Eliminar de Pricing.tsx
+## Resultado Visual
 
-- `<div className="min-h-screen aurora-bg aurora-bg-intense">` → Usar `<PublicLayout>`
-- `<LiquidBlobs variant="hero" />` → Ya incluido en PublicLayout
-- `<PublicNavbar />` → Ya incluido en PublicLayout
-- `<PublicFooter />` → Ya incluido en PublicLayout
+Después de los cambios, las 4 páginas tendrán:
 
-## Impacto en Responsive
+- Mismo contenedor: `container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16`
+- Mismo estilo de badge: fondo glass blanco con borde violeta y sombra
+- Mismo espaciado entre elementos
+- Mismo tamaño de tipografía responsive
 
-El contenido interno de Pricing (cards, FAQ, toggle) no cambia. Solo se unifica el contenedor exterior, manteniendo el diseño responsive actual de las tarjetas de precios.
