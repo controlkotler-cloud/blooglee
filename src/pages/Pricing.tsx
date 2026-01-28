@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Sparkles, Building2, Users, Rocket, ArrowRight, X, HelpCircle } from "lucide-react";
-import { LiquidBlobs } from "@/components/saas/LiquidBlobs";
-import { PublicNavbar } from "@/components/marketing/PublicNavbar";
-import { PublicFooter } from "@/components/marketing/PublicFooter";
+import { PublicLayout } from "@/components/marketing/PublicLayout";
 import { SEOHead, FAQSchema } from '@/components/seo';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
@@ -122,7 +120,7 @@ const Pricing = () => {
   ];
 
   return (
-    <div className="min-h-screen aurora-bg aurora-bg-intense">
+    <PublicLayout>
       <SEOHead 
         title="Precios y Planes"
         description="Planes flexibles de Blooglee desde 0€/mes. Free, Starter, Pro y Agencia. Sin permanencia, cancela cuando quieras."
@@ -130,9 +128,6 @@ const Pricing = () => {
         keywords="precios Blooglee, planes blog automático, suscripción contenido IA, tarifas WordPress automático"
       />
       <FAQSchema faqs={pricingFaqs} />
-      <LiquidBlobs variant="hero" />
-      {/* Unified Navigation */}
-      <PublicNavbar />
 
       {/* Header */}
       <section className="pt-28 sm:pt-32 pb-12 sm:pb-16 px-4">
@@ -345,9 +340,7 @@ const Pricing = () => {
         </div>
       </section>
 
-      {/* Unified Footer */}
-      <PublicFooter />
-    </div>
+    </PublicLayout>
   );
 };
 
