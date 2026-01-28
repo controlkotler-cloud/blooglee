@@ -20,32 +20,42 @@ interface BlogPostData {
   read_time: string;
 }
 
-// Topics for empresas (businesses)
+// Topics for empresas (businesses) - expanded for premium content
 const EMPRESA_TOPICS = [
-  "automatizar marketing contenidos",
-  "SEO para pequeñas empresas",
-  "content marketing ROI",
-  "blog corporativo beneficios",
+  "automatizar marketing contenidos pymes",
+  "SEO local para pequeñas empresas",
+  "content marketing ROI medición",
+  "blog corporativo estrategia beneficios",
   "estrategia contenidos digital",
-  "IA para marketing empresarial",
-  "posicionamiento web local",
-  "generación leads blog",
-  "WordPress para empresas",
-  "analytics marketing contenidos",
+  "IA para marketing empresarial automatización",
+  "posicionamiento web local negocios",
+  "generación leads inbound marketing blog",
+  "WordPress para empresas optimización",
+  "analytics marketing contenidos métricas",
+  "branded content storytelling empresas",
+  "email marketing automatización contenidos",
+  "estrategia omnicanal contenidos",
+  "marketing automation herramientas",
+  "customer journey contenidos digitales",
 ];
 
-// Topics for agencias (agencies)
+// Topics for agencias (agencies) - expanded
 const AGENCIA_TOPICS = [
   "escalar producción contenidos clientes",
-  "gestionar múltiples blogs WordPress",
-  "white label content tools",
-  "reporting automatizado agencias",
-  "workflow agencia marketing",
-  "herramientas IA para agencias",
+  "gestionar múltiples blogs WordPress agencia",
+  "white label content tools agencias",
+  "reporting automatizado clientes agencia",
+  "workflow agencia marketing eficiencia",
+  "herramientas IA agencias marketing",
   "pricing servicios content marketing",
-  "client onboarding process",
-  "content calendar management",
-  "multi-client SEO strategy",
+  "client onboarding proceso agencias",
+  "content calendar management equipos",
+  "multi-client SEO strategy escalable",
+  "rentabilidad servicios contenidos agencia",
+  "pitch propuestas content marketing",
+  "retención clientes agencias marketing",
+  "formación equipos content marketing",
+  "dashboards reporting clientes",
 ];
 
 async function getUsedBlogTopics(supabase: any, category: string): Promise<string[]> {
@@ -54,12 +64,112 @@ async function getUsedBlogTopics(supabase: any, category: string): Promise<strin
     .select('title')
     .eq('category', category)
     .order('published_at', { ascending: false })
-    .limit(30);
+    .limit(50);
   
   return data?.map((p: any) => p.title.toLowerCase()) || [];
 }
 
-async function fetchUnsplashImage(query: string, accessKey: string): Promise<{ url: string; photographer: string; photographer_url: string } | null> {
+// Generate AI image with Blooglee brand aesthetics
+async function generateAIImage(lovableApiKey: string, topic: string, category: string): Promise<{ url: string; isAI: boolean } | null> {
+  try {
+    console.log("Generating AI image for topic:", topic);
+    
+    const imagePrompt = `Create a stunning, professional blog header image.
+
+VISUAL STYLE:
+- Abstract, modern, conceptual design representing digital transformation
+- Primary gradient colors flowing naturally: vibrant purple (#8B5CF6) transitioning to magenta/fuchsia (#D946EF) to warm coral (#F97316)
+- Geometric shapes, flowing lines, or abstract patterns suggesting innovation
+- High contrast, professional aesthetic with depth and dimension
+- Clean, minimal, tech-forward look
+- Soft glowing elements and light effects
+
+COMPOSITION:
+- 16:9 landscape aspect ratio
+- Visual elements following rule-of-thirds
+- Ample negative space
+- NO text, NO logos, NO letters, NO words
+- NO realistic human faces or photographs
+- Abstract representation only
+
+CONCEPT: ${topic}
+MOOD: ${category === 'Empresas' ? 'Professional, trustworthy, growth-oriented' : 'Creative, innovative, collaborative'}
+
+Create an image that represents content automation, digital marketing, and AI-powered innovation.
+Make it look premium, cutting-edge, and suitable for a SaaS marketing blog.`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-pro-image-preview",
+        messages: [{ role: "user", content: imagePrompt }],
+        modalities: ["image", "text"],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("AI image generation failed:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const imageData = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    
+    if (!imageData) {
+      console.error("No image data in response");
+      return null;
+    }
+
+    console.log("AI image generated successfully");
+    return { url: imageData, isAI: true };
+  } catch (error) {
+    console.error("AI image generation error:", error);
+    return null;
+  }
+}
+
+// Upload base64 image to Supabase storage
+async function uploadImageToStorage(
+  supabase: any, 
+  base64Data: string, 
+  slug: string
+): Promise<string | null> {
+  try {
+    const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, '');
+    const imageBuffer = Uint8Array.from(atob(base64Content), c => c.charCodeAt(0));
+    
+    const fileName = `blog/${slug}-${Date.now()}.png`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('article-images')
+      .upload(fileName, imageBuffer, {
+        contentType: 'image/png',
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error("Storage upload error:", uploadError);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('article-images')
+      .getPublicUrl(fileName);
+
+    console.log("Image uploaded to storage:", urlData.publicUrl);
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error("Image upload error:", error);
+    return null;
+  }
+}
+
+// Fallback to Unsplash
+async function fetchUnsplashImage(query: string, accessKey: string): Promise<string | null> {
   try {
     const response = await fetch(
       `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=5&orientation=landscape`,
@@ -72,75 +182,161 @@ async function fetchUnsplashImage(query: string, accessKey: string): Promise<{ u
     if (!data.results?.length) return null;
     
     const photo = data.results[Math.floor(Math.random() * Math.min(data.results.length, 3))];
-    return {
-      url: `${photo.urls.regular}&w=800&h=400&fit=crop`,
-      photographer: photo.user.name,
-      photographer_url: photo.user.links.html,
-    };
+    return `${photo.urls.regular}&w=1200&h=630&fit=crop`;
   } catch (error) {
     console.error("Unsplash error:", error);
     return null;
   }
 }
 
-async function generateBlogContent(
+// Step 1: Generate metadata (title, slug, excerpt, keywords)
+async function generateMetadata(
   lovableApiKey: string,
   category: string,
   usedTopics: string[],
-  now: Date
-): Promise<BlogPostData | null> {
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-  const dayOfMonth = now.getDate();
-  
+  currentYear: number
+): Promise<{ title: string; slug: string; excerpt: string; keywords: string[]; topic: string } | null> {
   const topicPool = category === 'Empresas' ? EMPRESA_TOPICS : AGENCIA_TOPICS;
+  const audienceContext = category === 'Empresas' 
+    ? "PYMEs españolas que quieren automatizar su marketing de contenidos"
+    : "agencias de marketing digital que gestionan contenido para múltiples clientes";
+
+  const prompt = `Eres un experto en SEO y marketing de contenidos.
+
+AUDIENCIA: ${audienceContext}
+TEMAS DISPONIBLES: ${topicPool.join(', ')}
+TEMAS YA USADOS (evitar): ${usedTopics.slice(0, 15).join(', ') || 'ninguno'}
+
+Elige un tema ÚNICO y genera los metadatos para un artículo de blog épico.
+
+REGLAS:
+- El año actual es ${currentYear}. NO menciones años anteriores.
+- NO incluir el año en el título (contenido evergreen)
+- El título debe ser irresistible y tener máximo 60 caracteres
+- El excerpt debe tener máximo 155 caracteres
+
+Responde SOLO con este JSON válido:
+{
+  "topic": "tema elegido en 2-4 palabras",
+  "title": "Título SEO optimizado (max 60 chars)",
+  "slug": "url-amigable-sin-acentos",
+  "excerpt": "Meta description atractiva (max 155 chars)",
+  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"]
+}`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const rawContent = data.choices?.[0]?.message?.content || "";
+    
+    const jsonStart = rawContent.indexOf('{');
+    const jsonEnd = rawContent.lastIndexOf('}');
+    if (jsonStart === -1 || jsonEnd === -1) return null;
+    
+    const jsonStr = rawContent.substring(jsonStart, jsonEnd + 1).replace(/[\x00-\x1F\x7F]/g, '');
+    const parsed = JSON.parse(jsonStr);
+    
+    return {
+      title: parsed.title || "Artículo sin título",
+      slug: parsed.slug || `articulo-${Date.now()}`,
+      excerpt: parsed.excerpt || "",
+      keywords: parsed.keywords || [],
+      topic: parsed.topic || "marketing digital"
+    };
+  } catch (error) {
+    console.error("Metadata generation error:", error);
+    return null;
+  }
+}
+
+// Step 2: Generate full content separately
+async function generateContent(
+  lovableApiKey: string,
+  metadata: { title: string; topic: string },
+  category: string,
+  currentYear: number,
+  monthName: string
+): Promise<string | null> {
   const audienceContext = category === 'Empresas' 
     ? "pequeñas y medianas empresas españolas que quieren mejorar su presencia digital"
     : "agencias de marketing digital que gestionan contenido para múltiples clientes";
 
-  const prompt = `Eres un experto en SEO, AEO (Answer Engine Optimization) y marketing de contenidos.
-Fecha REAL de hoy: ${dayOfMonth} de ${MONTH_NAMES[currentMonth - 1]} de ${currentYear}
+  const prompt = `Eres el mejor copywriter de España, especializado en SEO y AEO.
+Escribe un artículo de blog ÉPICO y COMPLETO sobre: "${metadata.title}"
 
-IMPORTANTE - RESTRICCIONES TEMPORALES:
-- El año actual es ${currentYear}. NO menciones años anteriores (2025, 2024, etc.)
-- EVITA poner el año en títulos - el contenido debe ser atemporal/evergreen
-- Si necesitas mencionar fechas específicas, usa siempre ${currentYear}
+CONTEXTO:
+- Fecha actual: ${monthName} de ${currentYear}
+- Plataforma: Blooglee (https://blooglee.com) - SaaS de automatización de blogs con IA
+- Instagram: https://www.instagram.com/blooglee_/
+- Audiencia: ${audienceContext}
 
-Tu objetivo: Escribir un artículo de blog para Blooglee.com optimizado para:
-1. SEO tradicional (Google)
-2. AEO - Aparecer en respuestas de ChatGPT, Claude, Perplexity
-3. AI Overviews de Google
+ESTRUCTURA OBLIGATORIA (2500-3500 palabras en Markdown):
 
-AUDIENCIA: ${audienceContext}
+1. INTRODUCCIÓN (150-200 palabras)
+   - Dato impactante o pregunta provocadora
+   - Promesa de valor
 
-TEMAS POSIBLES (elige uno y desarróllalo): ${topicPool.join(', ')}
-TEMAS YA USADOS (NO repetir): ${usedTopics.slice(0, 15).join(', ') || 'ninguno'}
+2. 5-7 SECCIONES H2 (300-500 palabras cada una)
+   - Usar ## para títulos
+   - Incluir ### para subsecciones
+   - Al final de secciones importantes: 💡 **Clave:** [insight principal]
 
-REQUISITOS DEL ARTÍCULO:
-1. Título: máximo 60 caracteres, incluir keyword principal, SIN incluir el año
-2. Excerpt/Meta description: máximo 155 caracteres, llamativo y con CTA implícito
-3. Contenido: 1000-1500 palabras en Markdown
-4. Incluir al menos 1 tabla comparativa
-5. Incluir sección FAQ al final (3-4 preguntas)
-6. Mencionar Blooglee naturalmente 2-3 veces (sin ser spam)
-7. Incluir datos/estadísticas citables (inventados pero realistas)
-8. Estructura: H2 y H3, listas, párrafos cortos
-9. Tono: profesional pero cercano, evitar jerga técnica excesiva
-10. IMPORTANTE: Optimizado para que LLMs puedan extraer respuestas directas
+3. 2 TABLAS COMPARATIVAS mínimo (formato Markdown)
+   | Columna 1 | Columna 2 | Columna 3 |
+   |-----------|-----------|-----------|
+   | dato 1    | dato 2    | dato 3    |
 
-FORMATO DE RESPUESTA (JSON):
-{
-  "title": "Título SEO optimizado (sin año)",
-  "slug": "url-amigable-sin-acentos",
-  "excerpt": "Meta description atractiva",
-  "content": "Contenido completo en Markdown",
-  "seo_keywords": ["keyword1", "keyword2", "keyword3"],
-  "read_time": "X min"
-}
+4. 3+ LISTAS con bullets (- item)
 
-Responde SOLO con el JSON válido, sin explicaciones.`;
+5. DATOS ESTADÍSTICOS (6+ datos porcentuales realistas)
+   Ejemplo: "El 73% de las empresas...", "Un incremento del 340%..."
+
+6. FAQ (5-7 preguntas en formato):
+   ## Preguntas Frecuentes
+   ### ¿Pregunta 1?
+   Respuesta completa.
+
+7. ENLACES INTERNOS (usar Markdown):
+   - [funcionalidades de Blooglee](/features)
+   - [planes y precios](/pricing)
+   - [nuestro blog](/blog)
+   - [Prueba Blooglee gratis](/auth)
+
+8. FOOTER FINAL:
+---
+
+**¿Te ha resultado útil este artículo?** 
+
+Síguenos en [Instagram](https://www.instagram.com/blooglee_/) para más consejos de marketing.
+
+[Prueba Blooglee gratis](/auth) y transforma tu estrategia de contenidos.
+
+IMPORTANTE:
+- NO uses JSON, solo Markdown puro
+- NO incluyas el título del artículo al inicio (ya lo tenemos)
+- Menciona Blooglee naturalmente 3-4 veces
+- El contenido debe ser EXHAUSTIVO y de alta calidad
+- Año actual: ${currentYear} (no menciones años anteriores)
+
+Escribe el artículo completo ahora:`;
 
   try {
+    console.log("Generating content for:", metadata.title);
+    
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -155,37 +351,78 @@ Responde SOLO con el JSON válido, sin explicaciones.`;
     });
 
     if (!response.ok) {
-      console.error(`AI error: ${response.status}`);
+      console.error("Content generation failed:", response.status);
       return null;
     }
 
     const data = await response.json();
-    const rawContent = data.choices?.[0]?.message?.content;
+    const content = data.choices?.[0]?.message?.content;
     
-    if (!rawContent) return null;
+    if (!content) {
+      console.error("No content in response");
+      return null;
+    }
 
-    // Parse JSON from response
-    const jsonStart = rawContent.indexOf('{');
-    const jsonEnd = rawContent.lastIndexOf('}');
-    if (jsonStart === -1 || jsonEnd === -1) return null;
-    
-    const jsonStr = rawContent.substring(jsonStart, jsonEnd + 1)
-      .replace(/[\x00-\x1F\x7F]/g, ''); // Remove control characters
-    
-    const parsed = JSON.parse(jsonStr);
-    
-    return {
-      title: parsed.title || "Artículo sin título",
-      slug: parsed.slug || `articulo-${Date.now()}`,
-      excerpt: parsed.excerpt || "",
-      content: parsed.content || "",
-      seo_keywords: parsed.seo_keywords || [],
-      read_time: parsed.read_time || "5 min",
-    };
+    // Clean up content - remove any JSON wrapper if present
+    let cleanContent = content.trim();
+    if (cleanContent.startsWith('```markdown')) {
+      cleanContent = cleanContent.replace(/^```markdown\n?/, '').replace(/\n?```$/, '');
+    } else if (cleanContent.startsWith('```')) {
+      cleanContent = cleanContent.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    }
+
+    const wordCount = cleanContent.split(/\s+/).length;
+    console.log(`Content generated: ${wordCount} words`);
+
+    return cleanContent;
   } catch (error) {
-    console.error("Failed to generate blog content:", error);
+    console.error("Content generation error:", error);
     return null;
   }
+}
+
+async function generateBlogContent(
+  lovableApiKey: string,
+  category: string,
+  usedTopics: string[],
+  now: Date
+): Promise<BlogPostData | null> {
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  const monthName = MONTH_NAMES[currentMonth];
+  
+  // Step 1: Generate metadata
+  console.log("Step 1: Generating metadata...");
+  const metadata = await generateMetadata(lovableApiKey, category, usedTopics, currentYear);
+  
+  if (!metadata) {
+    console.error("Failed to generate metadata");
+    return null;
+  }
+  
+  console.log(`Metadata ready: "${metadata.title}"`);
+
+  // Step 2: Generate content
+  console.log("Step 2: Generating content...");
+  const content = await generateContent(lovableApiKey, metadata, category, currentYear, monthName);
+  
+  if (!content) {
+    console.error("Failed to generate content");
+    return null;
+  }
+
+  // Calculate read time (average 200 words per minute)
+  const wordCount = content.split(/\s+/).length;
+  const readMinutes = Math.ceil(wordCount / 200);
+  
+  return {
+    title: metadata.title,
+    slug: metadata.slug,
+    excerpt: metadata.excerpt,
+    content: content,
+    seo_keywords: metadata.keywords,
+    read_time: `${readMinutes} min`,
+  };
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -207,7 +444,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Invalid category. Must be 'Empresas' or 'Agencias'");
     }
 
-    console.log(`Generating blog post for category: ${category}`);
+    console.log(`=== Generating PREMIUM blog post for category: ${category} ===`);
 
     const now = new Date();
 
@@ -228,27 +465,48 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get used topics
+    // Get used topics to avoid repetition
     const usedTopics = await getUsedBlogTopics(supabase, category);
+    console.log(`Found ${usedTopics.length} existing topics to avoid`);
 
-    // Generate content
+    // Generate premium content (2-step process)
     const blogData = await generateBlogContent(lovableApiKey, category, usedTopics, now);
     
     if (!blogData) {
       throw new Error("Failed to generate blog content");
     }
 
-    // Fetch image
-    const imageQuery = category === 'Empresas' 
-      ? "business office marketing digital"
-      : "marketing agency team creative";
+    const wordCount = blogData.content.split(/\s+/).length;
+    console.log(`Content ready: "${blogData.title}" (${wordCount} words)`);
+
+    // Generate AI image with Blooglee aesthetics
+    let imageUrl = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200&h=630&fit=crop";
     
-    let imageUrl = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&h=400&fit=crop";
+    const aiImage = await generateAIImage(lovableApiKey, blogData.title, category);
     
-    if (unsplashKey) {
-      const image = await fetchUnsplashImage(imageQuery, unsplashKey);
-      if (image) {
-        imageUrl = image.url;
+    if (aiImage?.isAI && aiImage.url) {
+      const storedUrl = await uploadImageToStorage(supabase, aiImage.url, blogData.slug);
+      if (storedUrl) {
+        imageUrl = storedUrl;
+        console.log("✓ AI image generated and stored");
+      } else {
+        console.log("AI image storage failed, using Unsplash fallback");
+        if (unsplashKey) {
+          const unsplashUrl = await fetchUnsplashImage(
+            category === 'Empresas' ? "business digital marketing technology" : "creative agency team marketing",
+            unsplashKey
+          );
+          if (unsplashUrl) imageUrl = unsplashUrl;
+        }
+      }
+    } else {
+      console.log("AI image generation failed, using Unsplash fallback");
+      if (unsplashKey) {
+        const unsplashUrl = await fetchUnsplashImage(
+          category === 'Empresas' ? "business digital marketing technology" : "marketing agency creative",
+          unsplashKey
+        );
+        if (unsplashUrl) imageUrl = unsplashUrl;
       }
     }
 
@@ -277,7 +535,10 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Database insert failed: ${insertError.message}`);
     }
 
-    console.log(`✓ Generated blog post: ${blogData.title}`);
+    console.log(`✓ PREMIUM blog post created: ${blogData.title}`);
+    console.log(`  - Slug: ${insertedPost.slug}`);
+    console.log(`  - Words: ${wordCount}`);
+    console.log(`  - Category: ${insertedPost.category}`);
 
     return new Response(
       JSON.stringify({
@@ -287,6 +548,8 @@ const handler = async (req: Request): Promise<Response> => {
           slug: insertedPost.slug,
           title: insertedPost.title,
           category: insertedPost.category,
+          wordCount: wordCount,
+          hasAIImage: aiImage?.isAI || false,
         }
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -294,7 +557,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error generating blog post:", error);
+    console.error("Error generating premium blog post:", error);
     
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),

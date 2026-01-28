@@ -39,23 +39,103 @@ const extractHeadings = (content: string): { id: string; text: string; level: nu
   return headings;
 };
 
-// Parse markdown content with IDs on headings
+// Parse markdown content with rich formatting support
 const parseContent = (content: string): string => {
-  return content
-    .replace(/^## (.+)$/gm, (_, title) => {
-      const id = slugify(title);
-      return `<h2 id="${id}" class="scroll-mt-24">${title}</h2>`;
-    })
-    .replace(/^### (.+)$/gm, (_, title) => {
-      const id = slugify(title);
-      return `<h3 id="${id}" class="scroll-mt-24">${title}</h3>`;
-    })
-    .replace(/\n/g, '<br/>')
-    .replace(/<h2/g, '</p><h2')
-    .replace(/<h3/g, '</p><h3')
-    .replace(/- \*\*/g, '<li><strong>')
-    .replace(/\*\*:/g, '</strong>:')
-    .replace(/\*\*/g, '</strong>');
+  let html = content;
+
+  // Convert headers with IDs
+  html = html.replace(/^## (.+)$/gm, (_, title) => {
+    const id = slugify(title);
+    return `<h2 id="${id}" class="scroll-mt-24 font-display text-2xl sm:text-3xl font-bold mt-10 mb-4 text-foreground">${title}</h2>`;
+  });
+  
+  html = html.replace(/^### (.+)$/gm, (_, title) => {
+    const id = slugify(title);
+    return `<h3 id="${id}" class="scroll-mt-24 font-display text-xl sm:text-2xl font-semibold mt-8 mb-3 text-foreground">${title}</h3>`;
+  });
+
+  // Convert key takeaways (💡 **Clave:**)
+  html = html.replace(/💡\s*\*\*Clave:\*\*\s*(.+)/g, (_, text) => {
+    return `<div class="blooglee-callout my-6 p-4 rounded-xl bg-gradient-to-r from-violet-50 to-fuchsia-50 border-l-4 border-violet-500">
+      <div class="flex items-start gap-3">
+        <span class="text-2xl">💡</span>
+        <p class="text-foreground/80 font-medium m-0"><strong class="text-violet-700">Clave:</strong> ${text.trim()}</p>
+      </div>
+    </div>`;
+  });
+
+  // Convert markdown tables
+  html = html.replace(/\|(.+)\|\n\|[-:| ]+\|\n((?:\|.+\|\n?)+)/g, (match, header, rows) => {
+    const headerCells = header.split('|').filter((c: string) => c.trim());
+    const headerHtml = headerCells.map((cell: string) => 
+      `<th class="px-4 py-3 text-left text-sm font-semibold text-foreground bg-violet-50">${cell.trim()}</th>`
+    ).join('');
+    
+    const rowLines = rows.trim().split('\n');
+    const rowsHtml = rowLines.map((row: string, i: number) => {
+      const cells = row.split('|').filter((c: string) => c.trim());
+      const cellsHtml = cells.map((cell: string) => 
+        `<td class="px-4 py-3 text-sm text-foreground/70 border-t border-violet-100">${cell.trim()}</td>`
+      ).join('');
+      return `<tr class="${i % 2 === 0 ? 'bg-white' : 'bg-violet-50/30'}">${cellsHtml}</tr>`;
+    }).join('');
+    
+    return `<div class="overflow-x-auto my-6">
+      <table class="w-full border-collapse rounded-xl overflow-hidden border border-violet-100">
+        <thead><tr>${headerHtml}</tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+  });
+
+  // Convert markdown links - handle internal links specially
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
+    const isInternal = url.startsWith('/');
+    const isInstagram = url.includes('instagram.com');
+    const linkClass = isInternal 
+      ? 'text-violet-600 hover:text-violet-700 underline decoration-violet-300 hover:decoration-violet-500 transition-colors font-medium'
+      : 'text-violet-600 hover:text-violet-700 underline decoration-violet-300 hover:decoration-violet-500 transition-colors';
+    
+    if (isInternal) {
+      // For internal links, we'll use a data attribute to handle them
+      return `<a href="${url}" class="${linkClass}" data-internal="true">${text}</a>`;
+    }
+    
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="${linkClass}">${text}</a>`;
+  });
+
+  // Convert bold text
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>');
+  
+  // Convert italic text
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+  // Convert unordered lists
+  html = html.replace(/^- (.+)$/gm, '<li class="ml-4 mb-2 text-foreground/70">$1</li>');
+  html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, (match) => {
+    return `<ul class="my-4 space-y-1 list-disc list-inside">${match}</ul>`;
+  });
+
+  // Convert ordered lists
+  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-4 mb-2 text-foreground/70">$1</li>');
+
+  // Convert horizontal rules
+  html = html.replace(/^---$/gm, '<hr class="my-8 border-t border-violet-200" />');
+
+  // Convert paragraphs (lines not already converted)
+  html = html.split('\n').map(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('<')) return line; // Already HTML
+    if (trimmed.startsWith('#')) return line; // Heading (shouldn't happen)
+    return `<p class="mb-4 text-foreground/70 leading-relaxed">${line}</p>`;
+  }).join('\n');
+
+  // Clean up empty paragraphs
+  html = html.replace(/<p class="[^"]*"><\/p>/g, '');
+  html = html.replace(/<p class="[^"]*">\s*<\/p>/g, '');
+
+  return html;
 };
 
 const BlogPost = () => {
@@ -187,7 +267,7 @@ const BlogPost = () => {
             </header>
 
             {/* Featured Image */}
-            <div className="relative aspect-video rounded-2xl overflow-hidden mb-8">
+            <div className="relative aspect-video rounded-2xl overflow-hidden mb-8 shadow-xl">
               <img 
                 src={post.image} 
                 alt={`Imagen destacada: ${post.title}`}
@@ -199,8 +279,19 @@ const BlogPost = () => {
             {/* Content */}
             <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6 sm:p-8 lg:p-10 mb-8">
               <div 
-                className="prose prose-violet max-w-none prose-headings:font-display prose-headings:font-bold prose-p:text-foreground/70 prose-li:text-foreground/70 prose-a:text-violet-600"
+                className="prose prose-lg max-w-none"
                 dangerouslySetInnerHTML={{ __html: parsedContent }}
+                onClick={(e) => {
+                  // Handle internal link clicks
+                  const target = e.target as HTMLElement;
+                  if (target.tagName === 'A' && target.getAttribute('data-internal') === 'true') {
+                    e.preventDefault();
+                    const href = target.getAttribute('href');
+                    if (href) {
+                      window.location.href = href;
+                    }
+                  }
+                }}
               />
             </div>
 
@@ -299,13 +390,13 @@ const BlogPost = () => {
                   <h3 className="font-display text-sm font-bold mb-4 text-foreground/60 uppercase tracking-wider">
                     En este artículo
                   </h3>
-                  <nav className="space-y-2">
+                  <nav className="space-y-2 max-h-[50vh] overflow-y-auto">
                     {headings.map((heading, index) => (
                       <a
                         key={index}
                         href={`#${heading.id}`}
-                        className={`block text-sm text-foreground/70 hover:text-foreground transition-colors py-1 ${
-                          heading.level === 3 ? 'pl-4' : ''
+                        className={`block text-sm text-foreground/70 hover:text-violet-600 transition-colors py-1 ${
+                          heading.level === 3 ? 'pl-4 text-xs' : ''
                         }`}
                       >
                         {heading.text}
@@ -332,6 +423,23 @@ const BlogPost = () => {
                     <div className="text-sm text-foreground/60">{post.author.role}</div>
                   </div>
                 </div>
+              </div>
+
+              {/* Instagram CTA */}
+              <div className="bg-gradient-to-br from-violet-500 via-fuchsia-500 to-orange-400 rounded-2xl p-6 text-white">
+                <h3 className="font-display text-sm font-bold mb-2">Síguenos en Instagram</h3>
+                <p className="text-white/80 text-sm mb-4">
+                  Más consejos de marketing y contenido cada día.
+                </p>
+                <Button asChild variant="secondary" size="sm" className="w-full bg-white text-violet-600 hover:bg-white/90">
+                  <a 
+                    href="https://www.instagram.com/blooglee_/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                  >
+                    @blooglee_
+                  </a>
+                </Button>
               </div>
             </div>
           </aside>
