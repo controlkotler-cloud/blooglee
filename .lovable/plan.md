@@ -1,160 +1,334 @@
 
-# Plan: Mejorar el rendimiento de PageSpeed (74 → 90+)
+# Plan: Sistema de Blog Interno para Blooglee + Newsletter + Automatización SEO
 
-## Objetivo
-Mejorar las métricas de Core Web Vitals, especialmente FCP (4.0s → <1.8s) y LCP (4.3s → <2.5s).
+## Resumen Ejecutivo
 
-## Cambios a implementar
+Implementar un sistema completo de generación de contenido para el blog de Blooglee con tres componentes principales:
 
-### 1. Optimizar carga de fuentes (Impacto: Alto)
+1. **Sistema de generación de posts** - 2 artículos diarios (1 empresas, 1 agencias)
+2. **Newsletter con Resend** - Suscripción y envío automático
+3. **Automatización SEO** - Actualización automática de sitemap.xml, llms.txt, robots.txt cuando se publique contenido nuevo
 
-**Archivo:** `index.html`
+---
 
-Cambiar de `@import` a preload + font-display:swap para eliminar el bloqueo de renderizado.
+## Arquitectura del Sistema
 
-```html
-<!-- Preload crítico de fuentes -->
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+```text
+                    +------------------+
+                    |   Cron Diario    |
+                    | (9:00 AM UTC)    |
+                    +--------+---------+
+                             |
+              +-------------+-------------+
+              |                           |
+    +---------v---------+       +---------v---------+
+    | generate-blog-    |       | generate-blog-    |
+    | article-empresas  |       | article-agencias  |
+    +--------+----------+       +--------+----------+
+              |                           |
+              +-----------+---------------+
+                          |
+                +---------v----------+
+                |    blog_posts      |
+                |  (nueva tabla DB)  |
+                +--------+-----------+
+                         |
+        +---------------+---------------+
+        |               |               |
++-------v-------+ +-----v------+ +------v------+
+| sitemap.xml   | | llms.txt   | | newsletter  |
+| (dinámico)    | | (dinámico) | | (resend)    |
++---------------+ +------------+ +-------------+
 ```
 
-**Archivo:** `src/index.css`
+---
 
-Eliminar la línea 1 con `@import` ya que las fuentes se cargarán desde HTML.
+## Parte 1: Base de Datos para Blog Posts
 
-### 2. Simplificar LiquidBlobs para móviles (Impacto: Alto)
+### Nueva tabla: `blog_posts`
 
-**Archivo:** `src/components/saas/LiquidBlobs.tsx`
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| id | uuid | PK |
+| slug | text | URL única del post |
+| title | text | Título del artículo |
+| excerpt | text | Resumen (160 caracteres) |
+| content | text | Contenido completo en Markdown |
+| image_url | text | Imagen destacada |
+| category | text | "empresas" o "agencias" |
+| author_name | text | Nombre del autor |
+| author_avatar | text | URL avatar |
+| author_role | text | Rol del autor |
+| read_time | text | "5 min", "8 min", etc. |
+| published_at | timestamp | Fecha de publicación |
+| is_published | boolean | Estado de publicación |
+| seo_keywords | text[] | Keywords para SEO |
+| created_at | timestamp | Fecha creación |
 
-- Reducir número de blobs en móvil (usar media query o detección)
-- Eliminar filtros blur pesados en móvil
-- Usar `will-change: transform` para optimizar animaciones
-- Añadir `prefers-reduced-motion` para accesibilidad
+**RLS:** Lectura pública (SELECT sin auth), escritura solo service_role.
 
-```tsx
-// Detectar móvil y reducir complejidad
-const isMobile = window.innerWidth < 768;
-const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+---
 
-// Si es móvil o reduce-motion, mostrar versión simplificada
-if (isMobile || prefersReducedMotion) {
-  return <SimplifiedBlobs />
+## Parte 2: Edge Function de Generación de Blog
+
+### Nueva función: `generate-blog-blooglee`
+
+Esta función generará artículos optimizados para:
+- SEO tradicional (meta tags, estructura H1-H6, keywords)
+- AEO (Answer Engine Optimization para LLMs)
+- AI Overviews de Google
+
+**Flujo de generación:**
+
+1. **Detectar audiencia** (empresas o agencias según parámetro)
+2. **Generar tema dinámico** basado en:
+   - Tendencias actuales (fecha real)
+   - Temas ya publicados (evitar duplicados)
+   - Keywords con alto potencial SEO
+3. **Crear contenido con IA** usando Lovable AI (google/gemini-2.5-flash):
+   - Título optimizado (max 60 chars)
+   - Meta description (max 160 chars)
+   - Contenido estructurado con FAQs
+   - Datos citables para LLMs
+4. **Seleccionar imagen** de Unsplash
+5. **Guardar en blog_posts**
+6. **Disparar actualización de SEO assets**
+
+### Estructura del prompt para SEO/AEO:
+
+```text
+Eres un experto en SEO y AEO (Answer Engine Optimization).
+Fecha REAL de hoy: [fecha actual]
+Audiencia: [empresas/agencias de marketing]
+
+Genera un artículo de blog para Blooglee que:
+1. Responda una pregunta específica que [empresas/agencias] hacen
+2. Incluya datos y estadísticas citables
+3. Tenga estructura FAQ al final
+4. Sea útil para LLMs (ChatGPT, Claude, Perplexity)
+5. Mencione Blooglee naturalmente sin ser spam
+6. Longitud: 1000-1500 palabras
+7. Incluya tabla comparativa o lista procesable
+```
+
+---
+
+## Parte 3: Sistema de Newsletter con Resend
+
+### Nueva tabla: `newsletter_subscribers`
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| id | uuid | PK |
+| email | text | Email del suscriptor |
+| subscribed_at | timestamp | Fecha suscripción |
+| is_active | boolean | Estado activo |
+| source | text | Origen (blog, landing, etc.) |
+| unsubscribed_at | timestamp | Fecha baja (nullable) |
+
+### Nueva función: `subscribe-newsletter`
+
+- Endpoint para suscribirse desde el blog
+- Validación de email
+- Confirmación doble opcional
+- Almacenamiento en DB
+
+### Nueva función: `send-newsletter`
+
+- Se ejecuta después de publicar nuevo post
+- Usa Resend con template HTML
+- Incluye el último artículo publicado
+- Link de unsubscribe
+
+### Componente frontend actualizado
+
+El formulario de Newsletter en BlogIndex.tsx se conectará a la nueva Edge Function.
+
+---
+
+## Parte 4: Automatización de SEO Assets
+
+### Sistema de actualización dinámica
+
+Actualmente los archivos sitemap.xml, llms.txt y llms-full.txt son estáticos. Hay dos enfoques posibles:
+
+**Opción A: API Route dinámica** (Recomendado)
+- Crear endpoints que generen estos archivos dinámicamente
+- `/api/sitemap.xml` → Lee de blog_posts y genera XML
+- `/api/llms.txt` → Lee blog_posts y genera contenido
+
+**Opción B: Edge Function post-publicación**
+- Después de publicar un post, regenerar archivos estáticos
+- Menos eficiente pero mantiene archivos estáticos
+
+### Para este proyecto: Opción A - Rutas dinámicas
+
+Crear páginas React que devuelvan contenido dinámico:
+- `/sitemap` → Genera sitemap.xml dinámico con todos los posts
+- `/llms` → Genera llms.txt dinámico con artículos recientes
+
+**Nota importante:** Como Lovable usa React (SPA), necesitamos que el servidor devuelva estos archivos correctamente. La solución será:
+1. Mantener un sitemap base estático
+2. Crear una Edge Function `generate-seo-assets` que actualice los archivos después de cada publicación
+3. Almacenar el contenido generado y servirlo
+
+### Edge Function: `update-seo-assets`
+
+Después de publicar un post:
+1. Leer todos los posts de blog_posts
+2. Generar nuevo sitemap.xml
+3. Generar nuevo llms.txt con artículos recientes
+4. Actualizar llms-full.txt con sección de blog
+5. Almacenar en Supabase Storage (bucket público)
+
+---
+
+## Parte 5: Integración con Cron Existente
+
+### Modificar `generate-monthly-articles`
+
+Añadir una sección nueva al final del cron existente:
+
+```typescript
+// ========== 4. GENERATE BLOOGLEE BLOG POSTS ==========
+console.log("=== Generating Blooglee Blog Posts ===");
+
+// Generate 1 post for "empresas" audience
+await generateBlogPost(supabase, lovableApiKey, "empresas");
+
+// Generate 1 post for "agencias" audience  
+await generateBlogPost(supabase, lovableApiKey, "agencias");
+
+// Update SEO assets
+await updateSeoAssets(supabase);
+
+// Send newsletter if new posts
+await sendNewsletterDigest(resend, supabase);
+```
+
+---
+
+## Parte 6: Frontend - Migración a DB
+
+### Actualizar BlogIndex.tsx y BlogPost.tsx
+
+1. Cambiar de leer `blogPosts` estático a query de Supabase
+2. Mantener compatibilidad con posts existentes (migrar a DB)
+3. Hook nuevo: `useBlogPosts()`
+
+### Nuevo hook: `useBlogPosts.ts`
+
+```typescript
+export function useBlogPosts(category?: string) {
+  return useQuery({
+    queryKey: ["blog_posts", category],
+    queryFn: async () => {
+      let query = supabase
+        .from("blog_posts")
+        .select("*")
+        .eq("is_published", true)
+        .order("published_at", { ascending: false });
+      
+      if (category && category !== "Todos") {
+        query = query.eq("category", category);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+  });
 }
 ```
 
-### 3. Optimizar imágenes del hero (Impacto: Medio)
+---
 
-**Archivo:** `src/pages/Landing.tsx`
+## Parte 7: Correcciones Pendientes
 
-Añadir dimensiones explícitas y optimizar carga:
+### Arreglar referencia al dominio viejo
 
-```tsx
-// Avatares con dimensiones fijas
-<img
-  src={src}
-  alt="Usuario de Blooglee"
-  width={40}
-  height={40}
-  loading="lazy"
-  decoding="async"
-  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full..."
-/>
+En `src/pages/BlogPost.tsx` línea 87:
+```typescript
+// ANTES (incorrecto)
+const fullUrl = `https://blooglee.lovable.app/blog/${post.slug}`;
+
+// DESPUÉS (correcto)
+const fullUrl = `https://blooglee.com/blog/${post.slug}`;
 ```
 
-Para testimonios (más abajo en la página):
-```tsx
-<img
-  src={testimonial.image}
-  alt={testimonial.name}
-  width={100}
-  height={100}
-  loading="lazy"
-  decoding="async"
-  ...
-/>
+También en las líneas 113-114 del BreadcrumbSchema.
+
+---
+
+## Archivos a Crear/Modificar
+
+### Nuevos archivos:
+1. `supabase/functions/generate-blog-blooglee/index.ts` - Generación de posts
+2. `supabase/functions/subscribe-newsletter/index.ts` - Suscripción newsletter
+3. `supabase/functions/update-seo-assets/index.ts` - Actualización sitemap/llms
+4. `src/hooks/useBlogPosts.ts` - Hook para leer posts de DB
+5. `src/hooks/useNewsletterSubscribe.ts` - Hook para suscribirse
+
+### Archivos a modificar:
+1. `supabase/functions/generate-monthly-articles/index.ts` - Añadir sección blog
+2. `src/pages/BlogIndex.tsx` - Usar hook de DB + form newsletter funcional
+3. `src/pages/BlogPost.tsx` - Usar hook de DB + arreglar URLs
+4. `src/data/blogPosts.ts` - Migrar posts existentes a DB
+5. `supabase/config.toml` - Añadir nuevas funciones
+
+### Migraciones SQL:
+1. Crear tabla `blog_posts`
+2. Crear tabla `newsletter_subscribers`
+3. Políticas RLS para ambas tablas
+4. Migrar posts estáticos existentes
+
+---
+
+## Flujo Completo Diario
+
+```text
+09:00 AM (Cron)
+    │
+    ├── Generar artículos para farmacias/empresas/sites (existente)
+    │
+    ├── Generar 1 post "empresas" para blog Blooglee
+    │   └── Tema: "Cómo X puede ayudar a tu empresa..."
+    │
+    ├── Generar 1 post "agencias" para blog Blooglee
+    │   └── Tema: "10 formas de escalar contenido para clientes..."
+    │
+    ├── Actualizar SEO assets
+    │   ├── sitemap.xml (añadir nuevos posts)
+    │   ├── llms.txt (añadir resumen posts recientes)
+    │   └── llms-full.txt (actualizar sección blog)
+    │
+    └── Enviar newsletter digest (si hay suscriptores)
+        └── "Nuevos artículos esta semana en Blooglee"
 ```
 
-### 4. Diferir animaciones no críticas (Impacto: Medio)
+---
 
-**Archivo:** `src/components/saas/ProductMockup.tsx`
+## Resultado Esperado
 
-Retrasar el inicio de animaciones hasta después del LCP:
+| Métrica | Antes | Después |
+|---------|-------|---------|
+| Posts/semana | 0 (manual) | 14 (2/día) |
+| Newsletter | No funcional | Automatizado |
+| Sitemap | Estático | Dinámico |
+| llms.txt | Estático | Se actualiza con posts |
+| Cobertura SEO | Limitada | Empresas + Agencias |
+| AEO/LLM visibility | Básica | Optimizada |
 
-```tsx
-const [animationsReady, setAnimationsReady] = useState(false);
+---
 
-useEffect(() => {
-  // Esperar a que pase el LCP (~2.5s) antes de iniciar animaciones
-  const timer = setTimeout(() => setAnimationsReady(true), 2500);
-  return () => clearTimeout(timer);
-}, []);
+## Consideraciones Técnicas
 
-// Solo iniciar intervalos si animationsReady es true
-useEffect(() => {
-  if (!animationsReady) return;
-  const interval = setInterval(() => {
-    setActiveArticle((prev) => (prev + 1) % mockArticles.length);
-  }, 3000);
-  return () => clearInterval(interval);
-}, [animationsReady]);
-```
+1. **Rate limits:** Los 2 posts diarios no afectan a los límites de la plataforma (separados de los artículos de usuarios)
 
-### 5. Añadir CSS crítico inline (Impacto: Medio-Alto)
+2. **Resend:** Ya está configurado el secret `RESEND_API_KEY`, se usará el mismo
 
-**Archivo:** `index.html`
+3. **Contenido único:** El sistema de deduplicación evitará temas repetidos
 
-Añadir estilos críticos inline en el `<head>` para el primer renderizado:
+4. **Categorías ampliadas:** Se añadirán "Empresas" y "Agencias" a las categorías del blog
 
-```html
-<style>
-  /* CSS crítico para FCP */
-  body { 
-    margin: 0; 
-    font-family: system-ui, -apple-system, sans-serif; 
-    background: hsl(40, 30%, 98%);
-  }
-  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
-</style>
-```
-
-### 6. Optimizar CSS con will-change (Impacto: Bajo)
-
-**Archivo:** `src/index.css`
-
-Añadir hints de optimización para animaciones:
-
-```css
-.mockup-float {
-  will-change: transform;
-  contain: layout style paint;
-}
-
-.liquid-blob {
-  will-change: transform, opacity;
-}
-```
-
-## Resultado esperado
-
-| Métrica | Antes | Después (estimado) |
-|---------|-------|---------------------|
-| FCP | 4.0s | ~1.5s |
-| LCP | 4.3s | ~2.2s |
-| Speed Index | 5.0s | ~2.5s |
-| Score móvil | 74 | 88-95 |
-
-## Notas técnicas
-
-- Las fuentes preload eliminan ~1.5s de bloqueo
-- Simplificar SVG en móvil reduce CPU y mejora paint
-- Diferir animaciones permite que el contenido estático cargue primero
-- `will-change` prepara la GPU para las animaciones
-
-## Lo que no cambia
-
-- El diseño visual de la landing
-- La funcionalidad del ProductMockup
-- Los efectos de LiquidBlobs en desktop
-- El contenido de texto o estructura HTML
+5. **Compatibilidad:** Los 9 posts estáticos existentes se migrarán a la DB para mantener URLs
