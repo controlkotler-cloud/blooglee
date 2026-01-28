@@ -29,3 +29,12 @@ verify_jwt = false
 
 [functions.sync-wordpress-taxonomies-saas]
 verify_jwt = false
+
+[functions.generate-blog-blooglee]
+verify_jwt = false
+
+[functions.subscribe-newsletter]
+verify_jwt = false
+
+[functions.update-seo-assets]
+verify_jwt = false

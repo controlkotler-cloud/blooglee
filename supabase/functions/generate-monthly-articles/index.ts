@@ -1156,6 +1156,68 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // ========== 4. GENERATE BLOOGLEE BLOG POSTS ==========
+    console.log("=== Generating Blooglee Blog Posts ===");
+
+    let blogGeneratedCount = 0;
+    const blogCategories = ['Empresas', 'Agencias'];
+    
+    for (const blogCategory of blogCategories) {
+      try {
+        console.log(`Generating blog post for ${blogCategory}...`);
+        
+        const blogResponse = await fetch(`${supabaseUrl}/functions/v1/generate-blog-blooglee`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({ category: blogCategory }),
+        });
+
+        if (blogResponse.ok) {
+          const blogResult = await blogResponse.json();
+          if (blogResult.success && !blogResult.skipped) {
+            console.log(`✓ Generated blog post: ${blogResult.post?.title || blogCategory}`);
+            blogGeneratedCount++;
+          } else if (blogResult.skipped) {
+            console.log(`Blog post for ${blogCategory} already exists today`);
+          }
+        } else {
+          console.error(`Failed to generate blog post for ${blogCategory}: ${blogResponse.status}`);
+        }
+      } catch (e) {
+        console.error(`Error generating blog post for ${blogCategory}:`, e);
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    console.log(`Blog posts generated: ${blogGeneratedCount}`);
+
+    // ========== 5. UPDATE SEO ASSETS ==========
+    console.log("=== Updating SEO Assets ===");
+    
+    try {
+      const seoResponse = await fetch(`${supabaseUrl}/functions/v1/update-seo-assets`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (seoResponse.ok) {
+        const seoResult = await seoResponse.json();
+        console.log(`✓ SEO assets updated: ${seoResult.generated?.posts_count || 0} posts in sitemap`);
+      } else {
+        console.error(`Failed to update SEO assets: ${seoResponse.status}`);
+      }
+    } catch (e) {
+      console.error("Error updating SEO assets:", e);
+    }
+
     // ========== SUMMARY ==========
     const successCount = results.filter(r => r.success && !r.skippedReason).length;
     const skippedCount = results.filter(r => r.skippedReason).length;
@@ -1164,7 +1226,7 @@ const handler = async (req: Request): Promise<Response> => {
     const wpPublished = results.filter(r => r.wpSpanish?.success || r.wpCatalan?.success).length;
 
     console.log(`=== GENERATION COMPLETE ===`);
-    console.log(`Generated: ${successCount}, Skipped: ${skippedCount}, Failed: ${failCount}, Limit Exceeded: ${limitExceededCount}, WP: ${wpPublished}`);
+    console.log(`Generated: ${successCount}, Skipped: ${skippedCount}, Failed: ${failCount}, Limit Exceeded: ${limitExceededCount}, WP: ${wpPublished}, Blog: ${blogGeneratedCount}`);
 
     // Build email
     let successTableRows = '';
