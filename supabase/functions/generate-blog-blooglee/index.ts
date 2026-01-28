@@ -101,6 +101,11 @@ async function generateBlogContent(
   const prompt = `Eres un experto en SEO, AEO (Answer Engine Optimization) y marketing de contenidos.
 Fecha REAL de hoy: ${dayOfMonth} de ${MONTH_NAMES[currentMonth - 1]} de ${currentYear}
 
+IMPORTANTE - RESTRICCIONES TEMPORALES:
+- El año actual es ${currentYear}. NO menciones años anteriores (2025, 2024, etc.)
+- EVITA poner el año en títulos - el contenido debe ser atemporal/evergreen
+- Si necesitas mencionar fechas específicas, usa siempre ${currentYear}
+
 Tu objetivo: Escribir un artículo de blog para Blooglee.com optimizado para:
 1. SEO tradicional (Google)
 2. AEO - Aparecer en respuestas de ChatGPT, Claude, Perplexity
@@ -112,7 +117,7 @@ TEMAS POSIBLES (elige uno y desarróllalo): ${topicPool.join(', ')}
 TEMAS YA USADOS (NO repetir): ${usedTopics.slice(0, 15).join(', ') || 'ninguno'}
 
 REQUISITOS DEL ARTÍCULO:
-1. Título: máximo 60 caracteres, incluir keyword principal
+1. Título: máximo 60 caracteres, incluir keyword principal, SIN incluir el año
 2. Excerpt/Meta description: máximo 155 caracteres, llamativo y con CTA implícito
 3. Contenido: 1000-1500 palabras en Markdown
 4. Incluir al menos 1 tabla comparativa
@@ -125,7 +130,7 @@ REQUISITOS DEL ARTÍCULO:
 
 FORMATO DE RESPUESTA (JSON):
 {
-  "title": "Título SEO optimizado",
+  "title": "Título SEO optimizado (sin año)",
   "slug": "url-amigable-sin-acentos",
   "excerpt": "Meta description atractiva",
   "content": "Contenido completo en Markdown",
