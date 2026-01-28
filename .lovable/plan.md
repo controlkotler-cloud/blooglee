@@ -1,309 +1,238 @@
 
+# Plan: Sistema de Notificaciones + Categorías de Blog
 
-# Plan: Sistema Completo de Blog Segmentado + Newsletters
+## Análisis de lo Encontrado
 
-## Análisis del Problema
+### 1. Email de notificación al usuario SaaS
+**Estado actual**: ❌ NO existe
+- Cuando `generate-article-saas` genera un artículo, **NO** se envía ningún email al usuario
+- Los únicos emails que se envían son:
+  - Newsletter a suscriptores
+  - Notificación de límite excedido  
+  - Emails a admins
 
-### Estructura Actual vs Deseada
+**En MKPro**: Tampoco existe esta funcionalidad de forma automática.
 
-| Aspecto | Ahora | Objetivo |
-|---------|-------|----------|
-| **Categorías en BD** | `category` = "Empresas" o "Agencias" | Separar en `audience` + `category` |
-| **Filtros en UI** | Mezcla audiencias con temas | Primero elegir audiencia, luego filtrar por tema |
-| **Newsletter** | Una genérica para todos | Una para Empresas, otra para Agencias |
-| **Suscripción** | Solo pide email | Pide email + tipo de audiencia |
-| **Generación diaria** | ✅ Ya funciona (1 Empresas + 1 Agencias) | Añadir categoría temática variable |
+### 2. Problema con las Categorías
+**Estado actual**: Todos los posts tienen `category = "Marketing"`
 
-### La confusión: Audiencia ≠ Categoría temática
-
-```text
-AUDIENCIA (para quién)          TEMA/CATEGORÍA (de qué)
-├── Empresas (PYMEs)            ├── SEO
-└── Agencias (Marketing)        ├── Marketing
-                                ├── Tutoriales
-                                ├── Comparativas
-                                └── Producto
+El código en `generate-blog-blooglee/index.ts` (líneas 268-270) tiene:
+```typescript
+const validCategory = THEMATIC_CATEGORIES.includes(parsed.thematic_category) 
+  ? parsed.thematic_category 
+  : 'Marketing'; // ← SIEMPRE cae aquí
 ```
 
-Un artículo puede ser:
-- **Audiencia**: Empresas + **Tema**: SEO → "SEO local para pequeños negocios"
-- **Audiencia**: Agencias + **Tema**: Tutoriales → "Cómo gestionar 10 WordPress a la vez"
+La IA genera el campo `thematic_category` pero parece que no coincide con las opciones válidas, por lo que siempre se usa "Marketing" como fallback.
+
+### 3. Diseño de referencia (imagen)
+La imagen muestra un diseño elegante con:
+- Dos tarjetas grandes para elegir perfil (Inquilino / Propietario)
+- Iconos distintivos
+- Descripción clara de qué contenido encontrarán
+- Newsletter segmentada abajo
 
 ---
 
-## Solución Propuesta
+## Cambios Propuestos
 
-### Parte 1: Actualizar Modelo de Datos
+### Parte 1: Email de Notificación al Usuario SaaS
 
-**1.1 Añadir columna `audience` a `blog_posts`**
-
-```sql
-ALTER TABLE blog_posts 
-ADD COLUMN audience TEXT NOT NULL DEFAULT 'general';
-
--- Migrar datos existentes
-UPDATE blog_posts SET audience = category WHERE category IN ('Empresas', 'Agencias');
-
--- Cambiar categoría a tema temático (por ahora dejar como estaba)
-UPDATE blog_posts SET category = 'Marketing' WHERE audience IN ('Empresas', 'Agencias');
-```
-
-**1.2 Añadir columna `audience` a `newsletter_subscribers`**
-
-```sql
-ALTER TABLE newsletter_subscribers 
-ADD COLUMN audience TEXT DEFAULT NULL;
--- NULL = interesado en ambos
--- 'empresas' = solo contenido para empresas
--- 'agencias' = solo contenido para agencias
-```
-
-### Parte 2: Actualizar Generación de Blog
-
-**2.1 Modificar `generate-blog-blooglee/index.ts`**
-
-- Recibir `category` (audiencia: Empresas/Agencias)
-- Generar también una categoría temática (SEO, Marketing, etc.)
-- Guardar ambos campos: `audience` + `category`
-
-```typescript
-// Antes
-{ category: "Empresas" }
-
-// Después  
-{ 
-  audience: "Empresas",
-  category: await selectThematicCategory(topic) // "SEO", "Marketing", etc.
-}
-```
-
-### Parte 3: Rediseñar UI del Blog
-
-**3.1 Segmentación por audiencia (tabs o filtro principal)**
+Cuando un artículo se genera (manual o automáticamente), enviar email al usuario:
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│  Blog Blooglee                                              │
-│                                                             │
-│  [🏢 Para Empresas]  [🏬 Para Agencias]  [📚 Todos]         │  ← Audiencia
-│                                                             │
-│  Filtrar por tema: [SEO] [Marketing] [Tutoriales] [...]     │  ← Categoría temática
-│                                                             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-│  │ Post 1   │  │ Post 2   │  │ Post 3   │  │ Post 4   │    │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │
-└─────────────────────────────────────────────────────────────┘
+📝 Tu artículo está listo
+
+Hola,
+
+Se ha generado un nuevo artículo para [Nombre del Site]:
+
+📌 "[Título del artículo]"
+
+[Ver artículo]
+
+Si has configurado WordPress, publica el artículo directamente desde tu panel.
+
+---
+Blooglee - Automatiza tu blog con IA
 ```
 
-**3.2 Diseño Responsive**
+**Archivo a modificar**: `supabase/functions/generate-article-saas/index.ts`
+- Después de guardar el artículo en la base de datos
+- Obtener email del usuario desde la tabla `profiles`
+- Enviar email con Resend
 
-| Tamaño | Audiencia | Temas |
-|--------|-----------|-------|
-| **Mobile** | Tabs horizontales (scroll) | Dropdown compacto |
-| **Tablet** | Tabs horizontales (full) | Pills horizontales |
-| **Desktop** | Tabs destacados + badge | Pills horizontales con contador |
+### Parte 2: Arreglar Sistema de Categorías Temáticas
 
-**3.3 Newsletter en Sidebar (mejorada)**
+**Problema**: La IA genera categorías que no coinciden exactamente con la lista
+
+**Solución**:
+1. Mejorar el prompt para ser más explícito
+2. Añadir normalización de categorías (fuzzy matching)
+3. Asegurar que cada audiencia tenga variedad
+
+**Categorías temáticas propuestas**:
+| Categoría | Descripción |
+|-----------|-------------|
+| SEO | Posicionamiento, keywords, técnicas SEO |
+| Marketing | Estrategias, campañas, ROI |
+| Tutoriales | Guías paso a paso, how-to |
+| Comparativas | Análisis de herramientas, vs |
+| Producto | Novedades de Blooglee |
+| Tendencias | Novedades del sector, futuro |
+
+**Archivo a modificar**: `supabase/functions/generate-blog-blooglee/index.ts`
+- Línea 231-238: Hacer el prompt más explícito
+- Línea 268-270: Añadir normalización
+
+### Parte 3: Rediseño UI del Blog (inspirado en imagen)
+
+El diseño actual tiene tabs pequeños. El diseño de referencia muestra tarjetas grandes.
+
+**Propuesta híbrida**: Mantener la estructura actual pero mejorar visualmente:
 
 ```text
-┌─────────────────────────────────┐
-│  📧 Newsletter                  │
-│  ────────────────────────────── │
-│  Soy:                           │
-│  ○ Empresa/PYME                 │
-│  ○ Agencia de marketing         │
-│  ○ Ambos                        │
-│                                 │
-│  [tu@email.com                ] │
-│  [     Suscribirme            ] │
-└─────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  Blog Blooglee                                                  │
+│  Recursos para crecer online                                    │
+│                                                                 │
+│  ┌───────────────────────────┐  ┌───────────────────────────┐   │
+│  │ 🏢                         │  │ 🏬                         │   │
+│  │ Para empresas             │  │ Para agencias             │   │
+│  │ Marketing digital, SEO,   │  │ Escalabilidad, multi-     │   │
+│  │ automatización para tu    │  │ cliente, workflows y      │   │
+│  │ negocio                   │  │ herramientas              │   │
+│  │                           │  │                           │   │
+│  │ Ver artículos →           │  │ Ver artículos →           │   │
+│  └───────────────────────────┘  └───────────────────────────┘   │
+│                                                                 │
+│  ───── O explora todo el contenido ─────                        │
+│                                                                 │
+│  [SEO] [Marketing] [Tutoriales] [Comparativas] [Tendencias]     │
+│                                                                 │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐               │
+│  │ Post 1  │ │ Post 2  │ │ Post 3  │ │ Post 4  │               │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘               │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Parte 4: Sistema de Newsletters Segmentadas
+**Archivos a modificar**:
+- `src/pages/BlogIndex.tsx` - Añadir tarjetas de audiencia grandes
+- `src/components/marketing/AudienceTabs.tsx` - Convertir a AudienceCards
 
-**4.1 Crear Edge Function `send-newsletter`**
+### Parte 4: Generar Posts de Cada Categoría para Cada Audiencia
 
-Se ejecuta automáticamente después de generar posts del blog:
+**Objetivo**: Lanzar con contenido variado
 
-```typescript
-// 1. Obtener posts publicados hoy
-// 2. Para cada audiencia (Empresas, Agencias):
-//    - Filtrar suscriptores de esa audiencia
-//    - Obtener posts de esa audiencia
-//    - Enviar email con diseño premium
+| Audiencia | SEO | Marketing | Tutoriales | Comparativas | Tendencias |
+|-----------|-----|-----------|------------|--------------|------------|
+| Empresas | 1 | 1 | 1 | 1 | 1 |
+| Agencias | 1 | 1 | 1 | 1 | 1 |
 
-const empresasPost = await getLatestPost('empresas');
-const agenciasPost = await getLatestPost('agencias');
+**Total**: 10 posts (5 por audiencia, 1 por categoría)
 
-// Enviar a suscriptores de empresas
-await sendToAudience('empresas', empresasPost);
-
-// Enviar a suscriptores de agencias
-await sendToAudience('agencias', agenciasPost);
-
-// Enviar a suscriptores "ambos" (los dos posts)
-await sendToAudience('both', [empresasPost, agenciasPost]);
-```
-
-**4.2 Template de Newsletter Premium**
-
-- Diseño coherente con estética Blooglee (gradientes violet/fuchsia/coral)
-- Imagen destacada del artículo
-- Extracto con CTA "Leer artículo completo"
-- Footer con links sociales (Instagram)
-- Link de desuscripción
-
-### Parte 5: Integrar en Cron Diario
-
-**Flujo actualizado de `generate-monthly-articles`:**
-
-```text
-1. Generar artículos farmacias/empresas/sites
-         ↓
-2. Generar blog posts Blooglee
-   ├── 1x Empresas (con tema aleatorio: SEO, Marketing, etc.)
-   └── 1x Agencias (con tema aleatorio)
-         ↓
-3. Actualizar SEO assets (sitemap, llms.txt)
-         ↓
-4. ⭐ NUEVO: Enviar newsletters segmentadas
-   ├── Newsletter Empresas → suscriptores empresas + ambos
-   └── Newsletter Agencias → suscriptores agencias + ambos
-```
+**Proceso**:
+1. Eliminar posts actuales (todos son "Marketing")
+2. Generar 10 posts nuevos forzando categoría específica
+3. Modificar edge function para aceptar `forceCategory` parameter
 
 ---
 
 ## Archivos a Modificar/Crear
 
-### Nuevos archivos
-
-| Archivo | Propósito |
-|---------|-----------|
-| `supabase/functions/send-newsletter/index.ts` | Envío automatizado de newsletters |
-
-### Archivos a modificar
+### Edge Functions
 
 | Archivo | Cambios |
 |---------|---------|
-| `supabase/functions/generate-blog-blooglee/index.ts` | Añadir campo `audience`, generar tema temático |
-| `supabase/functions/subscribe-newsletter/index.ts` | Aceptar campo `audience` |
-| `supabase/functions/generate-monthly-articles/index.ts` | Llamar a `send-newsletter` al final |
-| `src/pages/BlogIndex.tsx` | Tabs de audiencia + filtros temáticos + formulario suscripción mejorado |
-| `src/hooks/useBlogPosts.ts` | Filtrar por `audience` además de `category` |
-| `src/hooks/useNewsletterSubscribe.ts` | Enviar `audience` en suscripción |
+| `supabase/functions/generate-article-saas/index.ts` | Añadir envío de email al usuario cuando se genera artículo |
+| `supabase/functions/generate-blog-blooglee/index.ts` | Mejorar prompt de categorías, añadir `forceCategory`, normalizar categorías |
 
-### Migraciones SQL
+### Frontend
 
-```sql
--- 1. Añadir audience a blog_posts
-ALTER TABLE blog_posts ADD COLUMN audience TEXT NOT NULL DEFAULT 'general';
+| Archivo | Cambios |
+|---------|---------|
+| `src/pages/BlogIndex.tsx` | Añadir tarjetas de audiencia estilo referencia |
+| `src/components/marketing/AudienceCards.tsx` | Nuevo componente con tarjetas grandes |
 
--- 2. Migrar datos (los posts actuales tienen la audiencia en category)
-UPDATE blog_posts SET audience = 'empresas' WHERE category = 'Empresas';
-UPDATE blog_posts SET audience = 'agencias' WHERE category = 'Agencias';
+---
 
--- 3. Asignar categoría temática a posts existentes
-UPDATE blog_posts SET category = 'Marketing' WHERE audience IN ('empresas', 'agencias');
+## Prompt Mejorado para Categorías
 
--- 4. Añadir audience a newsletter_subscribers
-ALTER TABLE newsletter_subscribers ADD COLUMN audience TEXT DEFAULT 'both';
+```text
+CATEGORÍAS TEMÁTICAS (ELIGE EXACTAMENTE UNA):
+- "SEO" → Para artículos sobre posicionamiento web, keywords, optimización técnica
+- "Marketing" → Para artículos sobre estrategias, campañas, ROI, branding
+- "Tutoriales" → Para guías paso a paso, how-to, configuración
+- "Comparativas" → Para análisis de herramientas, X vs Y, rankings
+- "Producto" → Para novedades de Blooglee, actualizaciones, casos de uso
+- "Tendencias" → Para novedades del sector, predicciones, tecnologías emergentes
+
+IMPORTANTE: El campo "thematic_category" DEBE ser EXACTAMENTE una de las palabras anteriores:
+SEO, Marketing, Tutoriales, Comparativas, Producto, Tendencias
 ```
 
 ---
 
-## UI/UX Responsive Detallado
+## Normalización de Categorías
 
-### Mobile (< 640px)
-
-```text
-┌────────────────────────────┐
-│ 📚 Blog                    │
-├────────────────────────────┤
-│ [Empresas][Agencias][Todos]│  ← Tabs scroll horizontal
-├────────────────────────────┤
-│ Tema: [▼ Todos        ]    │  ← Dropdown compacto
-├────────────────────────────┤
-│ ┌──────────────────────┐   │
-│ │ [Imagen post 1    ]  │   │  ← 1 columna
-│ │ Título del post...   │   │
-│ └──────────────────────┘   │
-│ ┌──────────────────────┐   │
-│ │ [Imagen post 2    ]  │   │
-│ │ Título del post...   │   │
-│ └──────────────────────┘   │
-├────────────────────────────┤
-│ 📧 Newsletter              │  ← Al final en mobile
-│ ○ Empresa ○ Agencia ○ Ambos│
-│ [email@...]                │
-│ [Suscribirme]              │
-└────────────────────────────┘
-```
-
-### Tablet (640px - 1024px)
-
-```text
-┌──────────────────────────────────────────────────┐
-│ 📚 Blog Blooglee                                 │
-├──────────────────────────────────────────────────┤
-│ [🏢 Empresas] [🏬 Agencias] [📚 Todos]           │
-│                                                  │
-│ [SEO] [Marketing] [Tutoriales] [Comparativas]    │
-├──────────────────────────────────────────────────┤
-│ ┌─────────────┐  ┌─────────────┐                 │
-│ │ Post 1      │  │ Post 2      │                 │  ← 2 columnas
-│ └─────────────┘  └─────────────┘                 │
-├──────────────────────────────────────────────────┤
-│ 📧 Newsletter (horizontal)                       │
-│ [○Empresa ○Agencia ○Ambos] [email] [Suscribir]  │
-└──────────────────────────────────────────────────┘
-```
-
-### Desktop (> 1024px)
-
-```text
-┌────────────────────────────────────────────────────────────────────┐
-│ 📚 Blog Blooglee                                                   │
-├───────────────────────────────────────────────────────┬────────────┤
-│                                                       │            │
-│ [🏢 Empresas (3)] [🏬 Agencias (2)] [📚 Todos (5)]    │  📧 News   │
-│                                                       │            │
-│ [SEO] [Marketing] [Tutoriales] [Comparativas] [...]   │  Soy:      │
-│                                                       │  ○ Empresa │
-│ ┌───────────┐ ┌───────────┐ ┌───────────┐            │  ○ Agencia │
-│ │ Post 1    │ │ Post 2    │ │ Post 3    │            │  ○ Ambos   │
-│ └───────────┘ └───────────┘ └───────────┘            │            │
-│ ┌───────────┐ ┌───────────┐ ┌───────────┐            │  [email]   │
-│ │ Post 4    │ │ Post 5    │ │ Post 6    │            │  [Suscr.]  │
-│ └───────────┘ └───────────┘ └───────────┘            │            │
-└───────────────────────────────────────────────────────┴────────────┘
+```typescript
+function normalizeCategory(raw: string): string {
+  const normalized = raw.toLowerCase().trim();
+  
+  const mapping: Record<string, string> = {
+    'seo': 'SEO',
+    'search engine optimization': 'SEO',
+    'posicionamiento': 'SEO',
+    'marketing': 'Marketing',
+    'marketing digital': 'Marketing',
+    'estrategia': 'Marketing',
+    'tutoriales': 'Tutoriales',
+    'tutorial': 'Tutoriales',
+    'guía': 'Tutoriales',
+    'comparativas': 'Comparativas',
+    'comparativa': 'Comparativas',
+    'vs': 'Comparativas',
+    'producto': 'Producto',
+    'blooglee': 'Producto',
+    'tendencias': 'Tendencias',
+    'tendencia': 'Tendencias',
+    'futuro': 'Tendencias',
+  };
+  
+  return mapping[normalized] || 'Marketing';
+}
 ```
 
 ---
 
-## Template Newsletter (Resend)
+## Email de Notificación (Template)
 
 ```html
-<!-- Newsletter Empresas -->
 <div style="max-width: 600px; margin: 0 auto; font-family: sans-serif;">
-  <header style="background: linear-gradient(135deg, #8B5CF6, #D946EF); padding: 30px; text-align: center;">
-    <h1 style="color: white; margin: 0;">Blooglee para Empresas</h1>
-    <p style="color: rgba(255,255,255,0.8);">Tu dosis semanal de marketing con IA</p>
+  <header style="background: linear-gradient(135deg, #8B5CF6, #D946EF); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+    <h1 style="color: white; margin: 0;">📝 Tu artículo está listo</h1>
   </header>
   
-  <main style="padding: 30px;">
-    <img src="[imagen_post]" style="width: 100%; border-radius: 12px;" />
-    <h2 style="color: #1a1a2e;">[Título del artículo]</h2>
-    <p style="color: #666;">[Extracto 150 caracteres...]</p>
-    <a href="[url_post]" style="display: inline-block; background: #8B5CF6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none;">
-      Leer artículo completo →
+  <main style="padding: 30px; background: #faf5ff;">
+    <p>Hola,</p>
+    <p>Se ha generado un nuevo artículo para <strong>[Site Name]</strong>:</p>
+    
+    <div style="background: white; padding: 20px; border-radius: 12px; margin: 20px 0;">
+      <h2 style="color: #1a1a2e; margin: 0 0 10px 0;">[Título del Artículo]</h2>
+      <p style="color: #666;">[Extracto...]</p>
+    </div>
+    
+    <a href="[URL_SITIO]/site/[site_id]" style="display: inline-block; background: linear-gradient(135deg, #8B5CF6, #D946EF); color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+      Ver artículo en tu panel
     </a>
+    
+    <p style="color: #666; margin-top: 20px; font-size: 14px;">
+      Si tienes WordPress configurado, puedes publicar el artículo directamente desde tu panel.
+    </p>
   </main>
   
-  <footer style="background: #f5f5f5; padding: 20px; text-align: center;">
-    <a href="https://instagram.com/blooglee_">Síguenos en Instagram</a>
-    <p style="color: #999; font-size: 12px;">
-      <a href="[unsubscribe_url]">Cancelar suscripción</a>
-    </p>
+  <footer style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
+    Blooglee - Automatiza tu blog con IA
   </footer>
 </div>
 ```
@@ -314,9 +243,8 @@ ALTER TABLE newsletter_subscribers ADD COLUMN audience TEXT DEFAULT 'both';
 
 | Antes | Después |
 |-------|---------|
-| 1 formulario newsletter genérico | 2 listas segmentadas (Empresas + Agencias) |
-| No se envían newsletters | Newsletter automática diaria por audiencia |
-| Categorías mezcladas (audiencia + tema) | Filtro primario (audiencia) + secundario (tema) |
-| UI confusa | Tabs claros + filtros temáticos |
-| Mismo contenido para todos | Contenido personalizado por audiencia |
+| No hay email al usuario SaaS | Email automático cuando se genera artículo |
+| Todas las categorías = "Marketing" | 6 categorías temáticas variadas |
+| Tabs pequeños para audiencia | Tarjetas visuales grandes + tabs secundarios |
+| 5 posts (todos Marketing) | 10 posts (1 por categoría × 2 audiencias) |
 
