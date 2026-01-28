@@ -1,334 +1,76 @@
 
-# Plan: Sistema de Blog Interno para Blooglee + Newsletter + Automatización SEO
+# Plan: Corregir Fechas y Contenido a 2026
 
-## Resumen Ejecutivo
+## Problema Identificado
 
-Implementar un sistema completo de generación de contenido para el blog de Blooglee con tres componentes principales:
+Los 5 posts del blog insertados durante la migración tienen:
+1. **Fechas de publicación en enero 2025** (hace 1 año)
+2. **Títulos que mencionan "2025"** (3 de 5 posts)
 
-1. **Sistema de generación de posts** - 2 artículos diarios (1 empresas, 1 agencias)
-2. **Newsletter con Resend** - Suscripción y envío automático
-3. **Automatización SEO** - Actualización automática de sitemap.xml, llms.txt, robots.txt cuando se publique contenido nuevo
+| Slug | Fecha Actual | Año en Título |
+|------|--------------|---------------|
+| que-es-blooglee | 2025-01-15 | No |
+| blooglee-vs-nextblog | 2025-01-14 | Sí (2025) |
+| como-automatizar-blog-empresa | 2025-01-13 | Sí (2025) |
+| seo-para-pymes-guia-2025 | 2025-01-12 | Sí (2025) |
+| ia-generativa-marketing-contenidos | 2025-01-11 | No |
 
----
+## Solución
 
-## Arquitectura del Sistema
+### Parte 1: Actualizar datos existentes en la base de datos
 
-```text
-                    +------------------+
-                    |   Cron Diario    |
-                    | (9:00 AM UTC)    |
-                    +--------+---------+
-                             |
-              +-------------+-------------+
-              |                           |
-    +---------v---------+       +---------v---------+
-    | generate-blog-    |       | generate-blog-    |
-    | article-empresas  |       | article-agencias  |
-    +--------+----------+       +--------+----------+
-              |                           |
-              +-----------+---------------+
-                          |
-                +---------v----------+
-                |    blog_posts      |
-                |  (nueva tabla DB)  |
-                +--------+-----------+
-                         |
-        +---------------+---------------+
-        |               |               |
-+-------v-------+ +-----v------+ +------v------+
-| sitemap.xml   | | llms.txt   | | newsletter  |
-| (dinámico)    | | (dinámico) | | (resend)    |
-+---------------+ +------------+ +-------------+
+Ejecutar SQL para corregir:
+
+```sql
+-- Actualizar fechas de publicación a enero 2026
+UPDATE blog_posts 
+SET published_at = published_at + INTERVAL '1 year'
+WHERE published_at < '2026-01-01';
+
+-- Actualizar títulos que mencionan 2025
+UPDATE blog_posts 
+SET title = REPLACE(title, '2025', '2026'),
+    slug = REPLACE(slug, '2025', '2026')
+WHERE title LIKE '%2025%' OR slug LIKE '%2025%';
+
+-- Actualizar contenido que mencione 2025 de forma específica
+UPDATE blog_posts 
+SET content = REPLACE(content, 'en 2025', 'en 2026')
+WHERE content LIKE '%en 2025%';
 ```
 
----
+### Parte 2: Reforzar el prompt de generación
 
-## Parte 1: Base de Datos para Blog Posts
-
-### Nueva tabla: `blog_posts`
-
-| Columna | Tipo | Descripción |
-|---------|------|-------------|
-| id | uuid | PK |
-| slug | text | URL única del post |
-| title | text | Título del artículo |
-| excerpt | text | Resumen (160 caracteres) |
-| content | text | Contenido completo en Markdown |
-| image_url | text | Imagen destacada |
-| category | text | "empresas" o "agencias" |
-| author_name | text | Nombre del autor |
-| author_avatar | text | URL avatar |
-| author_role | text | Rol del autor |
-| read_time | text | "5 min", "8 min", etc. |
-| published_at | timestamp | Fecha de publicación |
-| is_published | boolean | Estado de publicación |
-| seo_keywords | text[] | Keywords para SEO |
-| created_at | timestamp | Fecha creación |
-
-**RLS:** Lectura pública (SELECT sin auth), escritura solo service_role.
-
----
-
-## Parte 2: Edge Function de Generación de Blog
-
-### Nueva función: `generate-blog-blooglee`
-
-Esta función generará artículos optimizados para:
-- SEO tradicional (meta tags, estructura H1-H6, keywords)
-- AEO (Answer Engine Optimization para LLMs)
-- AI Overviews de Google
-
-**Flujo de generación:**
-
-1. **Detectar audiencia** (empresas o agencias según parámetro)
-2. **Generar tema dinámico** basado en:
-   - Tendencias actuales (fecha real)
-   - Temas ya publicados (evitar duplicados)
-   - Keywords con alto potencial SEO
-3. **Crear contenido con IA** usando Lovable AI (google/gemini-2.5-flash):
-   - Título optimizado (max 60 chars)
-   - Meta description (max 160 chars)
-   - Contenido estructurado con FAQs
-   - Datos citables para LLMs
-4. **Seleccionar imagen** de Unsplash
-5. **Guardar en blog_posts**
-6. **Disparar actualización de SEO assets**
-
-### Estructura del prompt para SEO/AEO:
-
-```text
-Eres un experto en SEO y AEO (Answer Engine Optimization).
-Fecha REAL de hoy: [fecha actual]
-Audiencia: [empresas/agencias de marketing]
-
-Genera un artículo de blog para Blooglee que:
-1. Responda una pregunta específica que [empresas/agencias] hacen
-2. Incluya datos y estadísticas citables
-3. Tenga estructura FAQ al final
-4. Sea útil para LLMs (ChatGPT, Claude, Perplexity)
-5. Mencione Blooglee naturalmente sin ser spam
-6. Longitud: 1000-1500 palabras
-7. Incluya tabla comparativa o lista procesable
-```
-
----
-
-## Parte 3: Sistema de Newsletter con Resend
-
-### Nueva tabla: `newsletter_subscribers`
-
-| Columna | Tipo | Descripción |
-|---------|------|-------------|
-| id | uuid | PK |
-| email | text | Email del suscriptor |
-| subscribed_at | timestamp | Fecha suscripción |
-| is_active | boolean | Estado activo |
-| source | text | Origen (blog, landing, etc.) |
-| unsubscribed_at | timestamp | Fecha baja (nullable) |
-
-### Nueva función: `subscribe-newsletter`
-
-- Endpoint para suscribirse desde el blog
-- Validación de email
-- Confirmación doble opcional
-- Almacenamiento en DB
-
-### Nueva función: `send-newsletter`
-
-- Se ejecuta después de publicar nuevo post
-- Usa Resend con template HTML
-- Incluye el último artículo publicado
-- Link de unsubscribe
-
-### Componente frontend actualizado
-
-El formulario de Newsletter en BlogIndex.tsx se conectará a la nueva Edge Function.
-
----
-
-## Parte 4: Automatización de SEO Assets
-
-### Sistema de actualización dinámica
-
-Actualmente los archivos sitemap.xml, llms.txt y llms-full.txt son estáticos. Hay dos enfoques posibles:
-
-**Opción A: API Route dinámica** (Recomendado)
-- Crear endpoints que generen estos archivos dinámicamente
-- `/api/sitemap.xml` → Lee de blog_posts y genera XML
-- `/api/llms.txt` → Lee blog_posts y genera contenido
-
-**Opción B: Edge Function post-publicación**
-- Después de publicar un post, regenerar archivos estáticos
-- Menos eficiente pero mantiene archivos estáticos
-
-### Para este proyecto: Opción A - Rutas dinámicas
-
-Crear páginas React que devuelvan contenido dinámico:
-- `/sitemap` → Genera sitemap.xml dinámico con todos los posts
-- `/llms` → Genera llms.txt dinámico con artículos recientes
-
-**Nota importante:** Como Lovable usa React (SPA), necesitamos que el servidor devuelva estos archivos correctamente. La solución será:
-1. Mantener un sitemap base estático
-2. Crear una Edge Function `generate-seo-assets` que actualice los archivos después de cada publicación
-3. Almacenar el contenido generado y servirlo
-
-### Edge Function: `update-seo-assets`
-
-Después de publicar un post:
-1. Leer todos los posts de blog_posts
-2. Generar nuevo sitemap.xml
-3. Generar nuevo llms.txt con artículos recientes
-4. Actualizar llms-full.txt con sección de blog
-5. Almacenar en Supabase Storage (bucket público)
-
----
-
-## Parte 5: Integración con Cron Existente
-
-### Modificar `generate-monthly-articles`
-
-Añadir una sección nueva al final del cron existente:
+Modificar `generate-blog-blooglee/index.ts` para añadir restricción explícita sobre el año:
 
 ```typescript
-// ========== 4. GENERATE BLOOGLEE BLOG POSTS ==========
-console.log("=== Generating Blooglee Blog Posts ===");
+const prompt = `...
+FECHA REAL: ${dayOfMonth} de ${MONTH_NAMES[currentMonth - 1]} de ${currentYear}
 
-// Generate 1 post for "empresas" audience
-await generateBlogPost(supabase, lovableApiKey, "empresas");
-
-// Generate 1 post for "agencias" audience  
-await generateBlogPost(supabase, lovableApiKey, "agencias");
-
-// Update SEO assets
-await updateSeoAssets(supabase);
-
-// Send newsletter if new posts
-await sendNewsletterDigest(resend, supabase);
+IMPORTANTE:
+- El año actual es ${currentYear}, NO menciones años anteriores
+- Evita poner el año en títulos (ej: "Guía 2026") - el contenido es atemporal
+- Si mencionas fechas, usa ${currentYear}
+...`;
 ```
 
----
+### Parte 3: Verificar la función de generación futura
 
-## Parte 6: Frontend - Migración a DB
+El archivo `generate-blog-blooglee/index.ts` ya usa `new Date()` para obtener la fecha actual, lo cual es correcto. Solo necesitamos:
 
-### Actualizar BlogIndex.tsx y BlogPost.tsx
+1. Añadir instrucciones más explícitas en el prompt para evitar mencionar años pasados
+2. Añadir una restricción de "no poner año en títulos" para contenido evergreen
 
-1. Cambiar de leer `blogPosts` estático a query de Supabase
-2. Mantener compatibilidad con posts existentes (migrar a DB)
-3. Hook nuevo: `useBlogPosts()`
+## Archivos a Modificar
 
-### Nuevo hook: `useBlogPosts.ts`
+1. **SQL ejecutado manualmente**: Actualizar registros existentes
+2. **`supabase/functions/generate-blog-blooglee/index.ts`**: Reforzar prompt con restricciones temporales
 
-```typescript
-export function useBlogPosts(category?: string) {
-  return useQuery({
-    queryKey: ["blog_posts", category],
-    queryFn: async () => {
-      let query = supabase
-        .from("blog_posts")
-        .select("*")
-        .eq("is_published", true)
-        .order("published_at", { ascending: false });
-      
-      if (category && category !== "Todos") {
-        query = query.eq("category", category);
-      }
-      
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
-    },
-  });
-}
-```
+## Resultado
 
----
-
-## Parte 7: Correcciones Pendientes
-
-### Arreglar referencia al dominio viejo
-
-En `src/pages/BlogPost.tsx` línea 87:
-```typescript
-// ANTES (incorrecto)
-const fullUrl = `https://blooglee.lovable.app/blog/${post.slug}`;
-
-// DESPUÉS (correcto)
-const fullUrl = `https://blooglee.com/blog/${post.slug}`;
-```
-
-También en las líneas 113-114 del BreadcrumbSchema.
-
----
-
-## Archivos a Crear/Modificar
-
-### Nuevos archivos:
-1. `supabase/functions/generate-blog-blooglee/index.ts` - Generación de posts
-2. `supabase/functions/subscribe-newsletter/index.ts` - Suscripción newsletter
-3. `supabase/functions/update-seo-assets/index.ts` - Actualización sitemap/llms
-4. `src/hooks/useBlogPosts.ts` - Hook para leer posts de DB
-5. `src/hooks/useNewsletterSubscribe.ts` - Hook para suscribirse
-
-### Archivos a modificar:
-1. `supabase/functions/generate-monthly-articles/index.ts` - Añadir sección blog
-2. `src/pages/BlogIndex.tsx` - Usar hook de DB + form newsletter funcional
-3. `src/pages/BlogPost.tsx` - Usar hook de DB + arreglar URLs
-4. `src/data/blogPosts.ts` - Migrar posts existentes a DB
-5. `supabase/config.toml` - Añadir nuevas funciones
-
-### Migraciones SQL:
-1. Crear tabla `blog_posts`
-2. Crear tabla `newsletter_subscribers`
-3. Políticas RLS para ambas tablas
-4. Migrar posts estáticos existentes
-
----
-
-## Flujo Completo Diario
-
-```text
-09:00 AM (Cron)
-    │
-    ├── Generar artículos para farmacias/empresas/sites (existente)
-    │
-    ├── Generar 1 post "empresas" para blog Blooglee
-    │   └── Tema: "Cómo X puede ayudar a tu empresa..."
-    │
-    ├── Generar 1 post "agencias" para blog Blooglee
-    │   └── Tema: "10 formas de escalar contenido para clientes..."
-    │
-    ├── Actualizar SEO assets
-    │   ├── sitemap.xml (añadir nuevos posts)
-    │   ├── llms.txt (añadir resumen posts recientes)
-    │   └── llms-full.txt (actualizar sección blog)
-    │
-    └── Enviar newsletter digest (si hay suscriptores)
-        └── "Nuevos artículos esta semana en Blooglee"
-```
-
----
-
-## Resultado Esperado
-
-| Métrica | Antes | Después |
-|---------|-------|---------|
-| Posts/semana | 0 (manual) | 14 (2/día) |
-| Newsletter | No funcional | Automatizado |
-| Sitemap | Estático | Dinámico |
-| llms.txt | Estático | Se actualiza con posts |
-| Cobertura SEO | Limitada | Empresas + Agencias |
-| AEO/LLM visibility | Básica | Optimizada |
-
----
-
-## Consideraciones Técnicas
-
-1. **Rate limits:** Los 2 posts diarios no afectan a los límites de la plataforma (separados de los artículos de usuarios)
-
-2. **Resend:** Ya está configurado el secret `RESEND_API_KEY`, se usará el mismo
-
-3. **Contenido único:** El sistema de deduplicación evitará temas repetidos
-
-4. **Categorías ampliadas:** Se añadirán "Empresas" y "Agencias" a las categorías del blog
-
-5. **Compatibilidad:** Los 9 posts estáticos existentes se migrarán a la DB para mantener URLs
+| Antes | Después |
+|-------|---------|
+| Fechas 2025-01-11 a 2025-01-15 | Fechas 2026-01-11 a 2026-01-15 |
+| "Comparativa completa 2025" | "Comparativa completa 2026" |
+| "blog de tu empresa en 2025" | "blog de tu empresa en 2026" |
+| "SEO para PYMEs: Guía 2025" | "SEO para PYMEs: Guía 2026" |
