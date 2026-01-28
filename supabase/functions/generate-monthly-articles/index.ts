@@ -589,6 +589,7 @@ const handler = async (req: Request): Promise<Response> => {
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
     const generateArticleUrl = `${supabaseUrl}/functions/v1/generate-article`;
+    const generateArticleEmpresaUrl = `${supabaseUrl}/functions/v1/generate-article-empresa`;
     const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress`;
 
     console.log(`Processing for ${DAY_NAMES[now.getDay()]} ${now.getDate()} ${MONTH_NAMES[currentMonth - 1]} ${currentYear}`);
@@ -837,15 +838,15 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`[Empresa] Generating for ${empresa.name} (${empresa.publish_frequency}) - Topic: ${topic.tema}`);
 
         try {
-          const response = await fetch(generateArticleUrl, {
+          const response = await fetch(generateArticleEmpresaUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${supabaseServiceKey}`,
             },
             body: JSON.stringify({
-              pharmacy: {
-                id: empresa.id,
+              empresaId: empresa.id,
+              company: {
                 name: empresa.name,
                 location: empresa.location,
                 sector: empresa.sector,
@@ -853,11 +854,13 @@ const handler = async (req: Request): Promise<Response> => {
                 blog_url: empresa.blog_url,
                 instagram_url: empresa.instagram_url,
                 geographic_scope: empresa.geographic_scope || "local",
+                include_featured_image: empresa.include_featured_image !== false,
               },
-              topic: topic,
+              topic: topic.tema,
               month: currentMonth,
               year: currentYear,
-              skipImage: empresa.include_featured_image === false,
+              usedImageUrls: [],
+              autoGenerateTopic: false,
             }),
           });
 
