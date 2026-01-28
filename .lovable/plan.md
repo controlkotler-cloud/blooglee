@@ -1,274 +1,140 @@
 
-# Plan: Posts de Blog Blooglee de Clase Mundial
+# Plan: Reinicio Blog Blooglee con 5 Posts Premium
 
-## Diagnóstico del Problema Actual
+## Cambios Requeridos
 
-### ❌ Lo que tenemos ahora:
-| Aspecto | Estado Actual | Problema |
-|---------|--------------|----------|
-| **Longitud** | 1000-1500 palabras | Muy corto para SEO competitivo |
-| **Imágenes** | Unsplash genérico | Fotos de stock aburridas, sin identidad |
-| **Enlaces internos** | Solo mención al blog | No hay interlinking con /features, /pricing, /contact |
-| **Redes sociales** | Ninguno | Instagram existe pero no se enlaza |
-| **Estructura SEO** | Básica | Sin tablas comparativas elaboradas, sin datos destacados |
-| **AEO/LLM** | Limitado | FAQ básica, sin datos citables estructurados |
-| **Formato visual** | Markdown simple | Sin callouts, sin destacados, sin rich content |
+### 1. Avatar del Equipo Blooglee
+Cambiar la foto masculina de Unsplash por un avatar femenino profesional.
 
-### ✅ Lo que deberíamos tener:
-| Aspecto | Objetivo | Beneficio |
-|---------|----------|-----------|
-| **Longitud** | 2500-3500 palabras | Contenido exhaustivo que rankea |
-| **Imágenes** | AI (gemini-3-pro-image-preview) | Imágenes únicas con estética Blooglee (gradientes violet/coral) |
-| **Enlaces internos** | 5-8 enlaces por post | Mejora SEO interno y navegación |
-| **Redes sociales** | Footer con Instagram | Fidelización y comunidad |
-| **Estructura SEO** | Tablas, listas, datos, estadísticas | Featured snippets, AI Overviews |
-| **AEO/LLM** | FAQ extensa + datos citables | Aparecer en ChatGPT, Claude, Perplexity |
-| **Formato visual** | Callouts, citas, key takeaways | Experiencia premium |
+**Avatar actual** (línea 524):
+```
+https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face
+```
 
----
+**Nuevo avatar** (mujer profesional):
+```
+https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face
+```
 
-## Arquitectura de la Solución
+### 2. Reglas de Capitalización Español
+
+Añadir al prompt de generación de metadatos instrucciones explícitas:
 
 ```text
-generate-blog-blooglee/index.ts MEJORADO
-    │
-    ├─1. CONTENIDO PREMIUM
-    │   ├── 2500-3500 palabras (no 1000-1500)
-    │   ├── Datos y estadísticas inventados pero citables
-    │   ├── 5-8 enlaces internos automáticos
-    │   ├── FAQ extensa (5-7 preguntas)
-    │   └── Callouts y key takeaways
-    │
-    ├─2. IMÁGENES CON IA
-    │   ├── google/gemini-3-pro-image-preview
-    │   ├── Prompt con estética Blooglee (gradientes purple/fuchsia/coral)
-    │   ├── Upload a article-images bucket
-    │   └── Fallback a Unsplash si falla
-    │
-    ├─3. INTERLINKING
-    │   ├── /features → cuando se mencione funcionalidades
-    │   ├── /pricing → cuando se hable de costes
-    │   ├── /blog → siempre
-    │   ├── /auth → CTAs de registro
-    │   └── Instagram (https://www.instagram.com/blooglee_/)
-    │
-    └─4. OPTIMIZACIÓN AEO
-        ├── Estructura pregunta-respuesta clara
-        ├── Definiciones citables
-        ├── Datos numéricos específicos
-        └── Marcado semántico (H2, H3 bien estructurados)
+REGLAS DE CAPITALIZACIÓN (ESPAÑOL):
+- Solo la primera letra del título en mayúscula (más nombres propios)
+- NO usar capitalización tipo inglés (Title Case)
+- Ejemplo CORRECTO: "Cómo automatizar tu blog con inteligencia artificial"
+- Ejemplo INCORRECTO: "Cómo Automatizar Tu Blog Con Inteligencia Artificial"
 ```
 
----
+### 3. Estrategia de Contenido: Opción B - Eliminar y Crear 5 Nuevos
 
-## Cambios Técnicos Detallados
+Eliminar los 6 posts actuales y crear 5 nuevos posts premium:
 
-### 1. Nuevo Prompt de Generación (generate-blog-blooglee)
+| # | Categoría | Tema Específico | Audiencia |
+|---|-----------|-----------------|-----------|
+| 1 | Empresas | IA para automatizar marketing de contenidos | PYMEs |
+| 2 | Empresas | SEO local para pequeños negocios | PYMEs |
+| 3 | Agencias | Gestionar múltiples blogs WordPress a escala | Agencias |
+| 4 | Marketing | Comparativa Blooglee vs competidores | General |
+| 5 | Tutoriales | Qué es Blooglee y cómo empezar | Nuevos usuarios |
 
-El prompt actual pide 1000-1500 palabras con contenido básico. El nuevo prompt será:
-
-```text
-Eres el mejor copywriter de España especializado en SEO, AEO y marketing de contenidos.
-Tu misión: Crear EL MEJOR artículo de blog jamás escrito sobre este tema.
-
-CONTEXTO BLOOGLEE:
-- Blooglee es una plataforma SaaS española de automatización de blogs con IA
-- URL: https://blooglee.com
-- Instagram: https://www.instagram.com/blooglee_/
-- Competimos con NextBlog.ai y queremos demostrar que nuestro contenido es SUPERIOR
-
-AUDIENCIA: [empresas/agencias]
-
-REQUISITOS DEL ARTÍCULO ÉPICO:
-
-1. LONGITUD: 2500-3500 palabras OBLIGATORIO
-2. TÍTULO: Máximo 60 caracteres, keyword principal, SIN año
-3. EXCERPT: 155 caracteres, hook irresistible
-
-4. ESTRUCTURA DE CONTENIDO:
-   - Introducción gancho (150 palabras)
-   - 4-6 secciones H2 profundas
-   - Subsecciones H3 donde aplique
-   - KEY TAKEAWAYS en cada sección (formato: "💡 Clave: ...")
-   - Al menos 2 tablas comparativas
-   - Al menos 2 listas con bullets
-   - FAQ extensa (5-7 preguntas frecuentes)
-   - Conclusión con CTA
-
-5. DATOS Y ESTADÍSTICAS (inventados pero realistas):
-   - Incluir al menos 5 datos porcentuales específicos
-   - Citar "según datos de Blooglee" o "un estudio de 2026"
-   - Usar números concretos (no "muchos" sino "el 73%")
-
-6. ENLACES INTERNOS OBLIGATORIOS (usar Markdown):
-   - Mencionar [funcionalidades de Blooglee](/features) al menos 1 vez
-   - Mencionar [planes de Blooglee](/pricing) si se habla de costes
-   - Mencionar [nuestro blog](/blog) en contexto de aprendizaje
-   - CTA final a [Prueba Blooglee gratis](/auth)
-
-7. REDES SOCIALES:
-   - Incluir al final: "Síguenos en [Instagram](https://www.instagram.com/blooglee_/)"
-
-8. OPTIMIZADO PARA LLMs:
-   - Respuestas directas a preguntas comunes
-   - Definiciones claras al inicio de cada concepto
-   - Datos citables y estructurados
-   - Párrafos de 2-4 líneas máximo
-```
-
-### 2. Generación de Imágenes con IA
-
-Reemplazar Unsplash por imágenes generadas con IA que:
-- Tengan la estética de Blooglee (gradientes violet → fuchsia → coral)
-- Sean abstractas/conceptuales (no genéricos de oficina)
-- Representen el tema del artículo
-
-```typescript
-const imagePrompt = `Create a professional blog header image.
-
-STYLE REQUIREMENTS:
-- Modern, abstract, conceptual design
-- Gradient colors: purple (#8B5CF6) to fuchsia (#D946EF) to coral (#F97316)
-- NO text, NO logos, NO human faces
-- Professional, tech-forward aesthetic
-- Suitable for SaaS marketing blog
-
-TOPIC: "${topic}"
-SECTOR: ${category === 'Empresas' ? 'business/SME' : 'marketing agencies'}
-
-Create an image that represents digital transformation and content automation.`;
-```
-
-### 3. Estructura de Contenido Rica
-
-Añadir elementos HTML especiales que se rendericen en BlogPost.tsx:
-
-```html
-<!-- Key Takeaway Box -->
-<div class="blooglee-callout">
-  <span class="callout-icon">💡</span>
-  <p><strong>Clave:</strong> El 78% de las empresas que automatizan su blog ven un ROI positivo en 3 meses.</p>
-</div>
-
-<!-- Stats Highlight -->
-<div class="blooglee-stat">
-  <span class="stat-number">340%</span>
-  <span class="stat-label">incremento medio en tráfico orgánico</span>
-</div>
-```
-
-### 4. Footer Social con Instagram
-
-Cada artículo terminará con:
-
-```markdown
----
-
-**¿Te ha gustado este artículo?** 
-
-Síguenos en [Instagram](https://www.instagram.com/blooglee_/) para más consejos de marketing y contenido.
-
-[Prueba Blooglee gratis](/auth) y automatiza tu blog hoy.
-```
+El **post #3** está específicamente diseñado para agencias que gestionan muchos WordPress, con contenido sobre:
+- Workflow multi-cliente
+- White-label content
+- Reporting automatizado
+- Escalabilidad de producción
 
 ---
 
 ## Archivos a Modificar
 
 ### 1. `supabase/functions/generate-blog-blooglee/index.ts`
-- Nuevo prompt épico de 2500-3500 palabras
-- Añadir generación de imagen con IA (google/gemini-3-pro-image-preview)
-- Upload de imagen a storage bucket
-- Fallback a Unsplash
-- Incluir enlaces internos obligatorios en el prompt
-- Incluir Instagram en footer
 
-### 2. `src/pages/BlogPost.tsx`
-- Mejorar parseContent() para soportar callouts y stats boxes
-- Renderizar enlaces internos correctamente (no como externos)
-- Añadir estilos para elementos destacados
+**Cambios:**
+- Línea 524: Cambiar URL del avatar a mujer profesional
+- Prompt de metadatos (línea 204-225): Añadir reglas de capitalización español
+- Prompt de contenido (línea 278-335): Reforzar reglas de capitalización
 
-### 3. `src/pages/BlogIndex.tsx`  
-- Añadir categorías "Empresas" y "Agencias" al filtro
+### 2. Base de Datos
+
+**SQL a ejecutar:**
+```sql
+-- Eliminar todos los posts actuales
+DELETE FROM blog_posts;
+```
+
+### 3. Generación de 5 Posts Nuevos
+
+Llamar a la edge function 5 veces con parámetros específicos para cada post:
+1. Empresas (tema IA/automatización)
+2. Empresas (tema SEO local)
+3. Agencias (tema multi-WordPress) ← POST CLAVE
+4. Marketing (comparativa)
+5. Tutoriales (qué es Blooglee)
 
 ---
 
-## Prompt de Imagen Detallado
+## Prompt Específico para Post de Agencias
 
-Para que las imágenes tengan identidad Blooglee:
+El post #3 tendrá un prompt especializado:
 
 ```text
-Create a stunning, professional blog header image.
+TEMA: Cómo gestionar múltiples blogs WordPress desde una agencia
 
-VISUAL STYLE:
-- Abstract, modern, conceptual design
-- Primary colors: vibrant purple (#8B5CF6), magenta/fuchsia (#D946EF), warm coral (#F97316)
-- Gradient flow from purple to coral
-- Geometric shapes, flowing lines, or abstract patterns
-- High contrast, professional aesthetic
-- Clean, minimal, tech-forward look
+AUDIENCIA ESPECÍFICA: 
+- Agencias de marketing digital
+- Freelancers con varios clientes
+- Equipos que gestionan 5-50 WordPress diferentes
 
-COMPOSITION:
-- 16:9 aspect ratio (landscape)
-- Main visual elements centered or rule-of-thirds
-- Ample negative space for potential text overlay
-- NO text in the image itself
-- NO logos or branding
-- NO realistic human faces
+PUNTOS OBLIGATORIOS:
+- Desafíos de escalar producción de contenido
+- Cómo Blooglee permite gestionar múltiples sitios
+- Workflow de aprobación y publicación
+- White-label y branding por cliente
+- Métricas y reporting consolidado
+- ROI de automatizar vs. redactores internos
 
-TOPIC REPRESENTATION: [topic]
-MOOD: Professional, innovative, trustworthy, forward-thinking
-
-This image is for a SaaS blog about content automation and digital marketing.
-Create something that feels premium and cutting-edge.
+DATOS A INCLUIR:
+- "Una agencia media gestiona 12-15 blogs de clientes"
+- "El tiempo medio de producción por artículo es 4 horas"
+- "Con automatización IA, se reduce a 15 minutos de revisión"
 ```
 
 ---
 
-## Resultado Esperado
-
-| Antes | Después |
-|-------|---------|
-| 1000-1500 palabras | 2500-3500 palabras |
-| Imágenes Unsplash genéricas | Imágenes AI con estética Blooglee |
-| Sin enlaces internos | 5-8 enlaces a /features, /pricing, /blog, /auth |
-| Sin redes sociales | Footer con Instagram |
-| FAQ de 3-4 preguntas | FAQ de 5-7 preguntas |
-| Sin datos citables | 5+ estadísticas concretas |
-| Formato básico | Callouts, tablas, destacados |
-
----
-
-## Flujo de Ejecución
+## Flujo de Implementación
 
 ```text
-1. Generar tema único (deduplicado)
+1. Actualizar edge function
+   ├── Nuevo avatar femenino
+   └── Reglas capitalización español
          ↓
-2. Generar contenido premium (2500-3500 palabras)
-   - Incluir enlaces internos
-   - Incluir estadísticas
-   - Incluir FAQs extensas
-   - Incluir callouts
+2. Eliminar posts actuales (SQL)
          ↓
-3. Generar imagen con gemini-3-pro-image-preview
-   - Prompt con estética Blooglee
-   - Colores: purple → fuchsia → coral
+3. Generar 5 posts nuevos
+   ├── Post 1: Empresas (IA/automatización)
+   ├── Post 2: Empresas (SEO local)
+   ├── Post 3: Agencias (multi-WordPress) ← CLAVE
+   ├── Post 4: Marketing (comparativa)
+   └── Post 5: Tutoriales (qué es Blooglee)
          ↓
-4. Upload imagen a article-images bucket
-   (fallback: Unsplash si falla)
+4. Verificar en /blog
          ↓
-5. Añadir footer social (Instagram)
-         ↓
-6. Insertar en blog_posts
-         ↓
-7. Trigger update-seo-assets
+5. Actualizar SEO assets
 ```
 
 ---
 
-## Consideraciones
+## Resultado Final
 
-1. **Coste de imagen AI**: ~$0.002-0.003 por imagen (marginal)
-2. **Tiempo de generación**: Aumentará de ~15s a ~45s por la imagen AI + contenido más largo
-3. **Storage**: Las imágenes se guardan en `article-images` bucket (ya existe)
-4. **Retroactividad**: Los posts existentes seguirán con imágenes Unsplash (no se modifican)
+| Aspecto | Antes | Después |
+|---------|-------|---------|
+| Avatar | Hombre (foto) | Mujer (avatar profesional) |
+| Títulos | Title Case inglés | Capitalización española correcta |
+| Posts Empresas | 1 | 2 |
+| Posts Agencias | 0 | 1 (multi-WordPress) |
+| Total posts | 6 (calidad mixta) | 5 (todos premium) |
+| Longitud | Variable | 2500-3500 palabras todos |
+| Imágenes | Unsplash genérico | IA con estética Blooglee |
