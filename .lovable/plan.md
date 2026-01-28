@@ -1,116 +1,127 @@
 
 
-# Plan: Unificar Cabeceras de Páginas Públicas
+# Plan: Corregir Bug de Generación para Empresas
 
-## Diferencias Detectadas
+## Problema Identificado
 
-Analizando las cuatro páginas, he encontrado las siguientes inconsistencias en la sección superior:
+En `supabase/functions/generate-monthly-articles/index.ts`, las empresas están usando la Edge Function equivocada y el formato de payload incorrecto:
 
-| Página | Badge | Padding Superior | Container |
-|--------|-------|------------------|-----------|
-| **Features** (base) | `bg-white/80 backdrop-blur-sm border border-violet-200/50 shadow-lg` | `py-8 sm:py-12 lg:py-16` | `container mx-auto max-w-7xl` |
-| **Pricing** | `badge-aurora badge-aurora-glow` (diferente) | `pt-28 sm:pt-32` (excesivo) | `max-w-4xl` (más estrecho) |
-| **Blog** | Igual que Features | Igual que Features | Igual que Features |
-| **Contact** | **Sin badge** | Igual que Features | Igual que Features |
+### Bug 1: URL Incorrecta (línea 591 + 840)
 
-## Problemas Específicos
+```typescript
+// Línea 591 - Se define UNA sola URL para todos
+const generateArticleUrl = `${supabaseUrl}/functions/v1/generate-article`;
 
-1. **Pricing**: 
-   - Usa clases CSS custom (`badge-aurora`) en lugar del estilo glass
-   - Tiene `pt-28 sm:pt-32` que añade padding excesivo (la navbar ya está manejada por `PublicLayout`)
-   - El contenedor es `max-w-4xl` en lugar de centrar el header dentro de uno más amplio
+// Línea 840 - Las empresas usan esta misma URL (incorrecta)
+const response = await fetch(generateArticleUrl, { ... });
+```
 
-2. **Contact**: 
-   - No tiene badge/chip superior con icono
-   - El resto está bien
+**Debería ser**: `generate-article-empresa` para empresas
+
+### Bug 2: Payload Incorrecto (líneas 846-861)
+
+```typescript
+body: JSON.stringify({
+  pharmacy: {  // ← INCORRECTO: debería ser "company"
+    id: empresa.id,
+    name: empresa.name,
+    location: empresa.location,
+    sector: empresa.sector,
+    // ...
+  },
+```
+
+**Resultado**: La Edge Function `generate-article` (diseñada para farmacias) recibe los datos de empresa bajo la clave `pharmacy`, y su prompt incluye contexto de salud farmacéutica.
 
 ## Solución
 
-Unificar todas las páginas usando exactamente el mismo patrón que **Features**:
+### Cambio 1: Añadir URL específica para empresas
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ <section className="container mx-auto max-w-7xl            │
-│            px-4 sm:px-6 py-8 sm:py-12 lg:py-16">           │
-│                                                             │
-│   <div className="text-center max-w-4xl mx-auto mb-X">     │
-│                                                             │
-│     ┌─────────────────────────────────────┐                 │
-│     │ [Icono] Badge                       │  ← Badge glass  │
-│     └─────────────────────────────────────┘                 │
-│                                                             │
-│     <h1 className="font-display text-4xl                   │
-│         sm:text-5xl lg:text-6xl font-bold mb-X">           │
-│       Título con gradiente                                  │
-│     </h1>                                                   │
-│                                                             │
-│     <p className="text-lg sm:text-xl text-foreground/60">  │
-│       Subtítulo descriptivo                                 │
-│     </p>                                                   │
-│                                                             │
-│   </div>                                                   │
-│ </section>                                                 │
-└─────────────────────────────────────────────────────────────┘
+**Línea 592** - Añadir nueva constante:
+
+```typescript
+const generateArticleUrl = `${supabaseUrl}/functions/v1/generate-article`;
+const generateArticleEmpresaUrl = `${supabaseUrl}/functions/v1/generate-article-empresa`;  // NUEVO
+const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress`;
 ```
 
-## Cambios por Archivo
+### Cambio 2: Usar URL y payload correcto para empresas
 
-### 1. Pricing.tsx
-
-**Línea 133:** Cambiar estructura del header
+**Líneas 840-861** - Cambiar la llamada:
 
 Antes:
-```tsx
-<section className="pt-28 sm:pt-32 pb-12 sm:pb-16 px-4">
-  <div className="max-w-4xl mx-auto text-center">
-    <div className="inline-flex items-center gap-2 badge-aurora badge-aurora-glow mb-6">
+```typescript
+const response = await fetch(generateArticleUrl, {
+  method: "POST",
+  headers: { ... },
+  body: JSON.stringify({
+    pharmacy: {
+      id: empresa.id,
+      name: empresa.name,
+      ...
+    },
+    topic: topic,
+    ...
+  }),
+});
 ```
 
 Después:
-```tsx
-<section className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
-  <div className="text-center max-w-4xl mx-auto mb-12 sm:mb-16">
-    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-violet-200/50 shadow-lg mb-6">
+```typescript
+const response = await fetch(generateArticleEmpresaUrl, {  // URL correcta
+  method: "POST",
+  headers: { ... },
+  body: JSON.stringify({
+    company: {  // Clave correcta
+      id: empresa.id,
+      name: empresa.name,
+      location: empresa.location,
+      sector: empresa.sector,
+      languages: empresa.languages,
+      blog_url: empresa.blog_url,
+      instagram_url: empresa.instagram_url,
+      geographic_scope: empresa.geographic_scope || "local",
+      include_featured_image: empresa.include_featured_image !== false,
+    },
+    topic: topic.tema,  // Solo el texto del tema
+    month: currentMonth,
+    year: currentYear,
+    autoGenerateTopic: false,  // Ya generamos el tema arriba
+  }),
+});
 ```
 
-### 2. ContactPage.tsx
+## Verificación del formato esperado por generate-article-empresa
 
-**Línea 75:** Añadir badge con icono
+Revisando el hook `useArticulosEmpresas.ts`, el formato correcto es:
 
-Antes:
-```tsx
-<div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
-  <h1 className="font-display ...
+```typescript
+{
+  empresaId: string,  // Para historial de temas
+  company: {
+    name, location, sector, languages, blog_url, instagram_url, 
+    geographic_scope, include_featured_image
+  },
+  topic: string | null,
+  month: number,
+  year: number,
+  usedImageUrls: string[],
+  autoGenerateTopic: boolean
+}
 ```
-
-Después:
-```tsx
-<div className="text-center max-w-4xl mx-auto mb-12 sm:mb-16">
-  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-violet-200/50 shadow-lg mb-6">
-    <Mail className="w-4 h-4 text-violet-500" />
-    <span className="text-sm font-medium text-violet-600">Contacto</span>
-  </div>
-  
-  <h1 className="font-display ...
-```
-
-### 3. BlogIndex.tsx (ya correcto)
-
-Sin cambios necesarios - ya usa el patrón correcto.
 
 ## Resumen de Cambios
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/pages/Pricing.tsx` | Cambiar container y badge a estilo glass |
-| `src/pages/ContactPage.tsx` | Añadir badge con icono Mail, ajustar max-w a 4xl |
+| `supabase/functions/generate-monthly-articles/index.ts` | Línea 592: Añadir `generateArticleEmpresaUrl` |
+| `supabase/functions/generate-monthly-articles/index.ts` | Líneas 840-861: Usar URL y payload correctos |
 
-## Resultado Visual
+## Resultado Esperado
 
-Después de los cambios, las 4 páginas tendrán:
+Después de este fix:
 
-- Mismo contenedor: `container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16`
-- Mismo estilo de badge: fondo glass blanco con borde violeta y sombra
-- Mismo espaciado entre elementos
-- Mismo tamaño de tipografía responsive
+- **Farmacias**: Seguirán usando `generate-article` con prompt de salud/farmacia
+- **Empresas**: Usarán `generate-article-empresa` con prompt genérico que respeta el sector real
+- **mkpro**: Recibirá artículos de "Agencia de marketing" sin menciones a farmacias
 
