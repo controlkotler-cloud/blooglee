@@ -669,18 +669,37 @@ const handler = async (req: Request): Promise<Response> => {
 
             const generatedData = await response.json();
             
-            await supabase.from("articulos").insert({
-              farmacia_id: farmacia.id,
-              month: currentMonth,
-              year: currentYear,
-              topic: topic.tema,
-              content_spanish: generatedData.content?.spanish || null,
-              content_catalan: generatedData.content?.catalan || null,
-              image_url: generatedData.image?.url || null,
-              image_photographer: generatedData.image?.photographer || null,
-              image_photographer_url: generatedData.image?.photographer_url || null,
-              pexels_query: generatedData.pexels_query || topic.pexels_query,
-            });
+          // Check if article already exists for this month/year (upsert logic)
+          const { data: existingArticle } = await supabase
+            .from("articulos")
+            .select("id")
+            .eq("farmacia_id", farmacia.id)
+            .eq("month", currentMonth)
+            .eq("year", currentYear)
+            .maybeSingle();
+
+          const articleData = {
+            farmacia_id: farmacia.id,
+            month: currentMonth,
+            year: currentYear,
+            topic: topic.tema,
+            content_spanish: generatedData.content?.spanish || null,
+            content_catalan: generatedData.content?.catalan || null,
+            image_url: generatedData.image?.url || null,
+            image_photographer: generatedData.image?.photographer || null,
+            image_photographer_url: generatedData.image?.photographer_url || null,
+            pexels_query: generatedData.pexels_query || topic.pexels_query,
+          };
+
+          if (existingArticle) {
+            await supabase.from("articulos")
+              .update(articleData)
+              .eq("id", existingArticle.id);
+            console.log(`✓ Updated existing article for farmacia ${farmacia.name}`);
+          } else {
+            await supabase.from("articulos").insert(articleData);
+            console.log(`✓ Created new article for farmacia ${farmacia.name}`);
+          }
 
             articlesGenerated++;
             console.log(`✓ Generated article for farmacia ${farmacia.name}`);
@@ -871,7 +890,16 @@ const handler = async (req: Request): Promise<Response> => {
 
           const generatedData = await response.json();
           
-          await supabase.from("articulos_empresas").insert({
+          // Check if article already exists for this month/year (upsert logic)
+          const { data: existingArticle } = await supabase
+            .from("articulos_empresas")
+            .select("id")
+            .eq("empresa_id", empresa.id)
+            .eq("month", currentMonth)
+            .eq("year", currentYear)
+            .maybeSingle();
+
+          const articleData = {
             empresa_id: empresa.id,
             month: currentMonth,
             year: currentYear,
@@ -884,10 +912,19 @@ const handler = async (req: Request): Promise<Response> => {
             image_photographer: generatedData.image?.photographer || null,
             image_photographer_url: generatedData.image?.photographer_url || null,
             pexels_query: generatedData.pexels_query || topic.pexels_query,
-          });
+          };
+
+          if (existingArticle) {
+            await supabase.from("articulos_empresas")
+              .update(articleData)
+              .eq("id", existingArticle.id);
+            console.log(`✓ Updated existing article for empresa ${empresa.name}`);
+          } else {
+            await supabase.from("articulos_empresas").insert(articleData);
+            console.log(`✓ Created new article for empresa ${empresa.name}`);
+          }
 
           articlesGenerated++;
-          console.log(`✓ Generated article for empresa ${empresa.name}`);
 
           // WordPress publish
           let wpSpanish: WordPressPublishResult | undefined;
@@ -1104,7 +1141,16 @@ const handler = async (req: Request): Promise<Response> => {
 
           const generatedData = await response.json();
           
-          await supabase.from("articles").insert({
+          // Check if article already exists for this month/year (upsert logic)
+          const { data: existingArticle } = await supabase
+            .from("articles")
+            .select("id")
+            .eq("site_id", site.id)
+            .eq("month", currentMonth)
+            .eq("year", currentYear)
+            .maybeSingle();
+
+          const articleData = {
             site_id: site.id,
             user_id: site.user_id,
             month: currentMonth,
@@ -1118,10 +1164,19 @@ const handler = async (req: Request): Promise<Response> => {
             image_photographer: generatedData.image?.photographer || null,
             image_photographer_url: generatedData.image?.photographer_url || null,
             pexels_query: generatedData.pexels_query || topic.pexels_query,
-          });
+          };
+
+          if (existingArticle) {
+            await supabase.from("articles")
+              .update(articleData)
+              .eq("id", existingArticle.id);
+            console.log(`✓ Updated existing article for site ${site.name}`);
+          } else {
+            await supabase.from("articles").insert(articleData);
+            console.log(`✓ Created new article for site ${site.name}`);
+          }
 
           articlesGenerated++;
-          console.log(`✓ Generated article for site ${site.name}`);
 
           // WordPress publish for SaaS sites
           let wpSpanish: WordPressPublishResult | undefined;
