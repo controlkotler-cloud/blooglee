@@ -338,6 +338,66 @@ export type Database = {
         }
         Relationships: []
       }
+      knowledge_base: {
+        Row: {
+          category: string
+          cause: string | null
+          created_at: string | null
+          error_code: string | null
+          help_url: string | null
+          id: string
+          keywords: string[] | null
+          priority: string | null
+          related_plugins: string[] | null
+          slug: string
+          snippet_code: string | null
+          solution: string
+          solution_steps: Json | null
+          subcategory: string | null
+          symptoms: string[] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          cause?: string | null
+          created_at?: string | null
+          error_code?: string | null
+          help_url?: string | null
+          id?: string
+          keywords?: string[] | null
+          priority?: string | null
+          related_plugins?: string[] | null
+          slug: string
+          snippet_code?: string | null
+          solution: string
+          solution_steps?: Json | null
+          subcategory?: string | null
+          symptoms?: string[] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          cause?: string | null
+          created_at?: string | null
+          error_code?: string | null
+          help_url?: string | null
+          id?: string
+          keywords?: string[] | null
+          priority?: string | null
+          related_plugins?: string[] | null
+          slug?: string
+          snippet_code?: string | null
+          solution?: string
+          solution_steps?: Json | null
+          subcategory?: string | null
+          symptoms?: string[] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       newsletter_subscribers: {
         Row: {
           audience: string | null
@@ -496,6 +556,79 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      support_conversations: {
+        Row: {
+          created_at: string | null
+          error_context: Json | null
+          id: string
+          resolved_at: string | null
+          site_id: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_context?: Json | null
+          id?: string
+          resolved_at?: string | null
+          site_id?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          error_context?: Json | null
+          id?: string
+          resolved_at?: string | null
+          site_id?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_conversations_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          role: string
+          suggested_articles: string[] | null
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          role: string
+          suggested_articles?: string[] | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          role?: string
+          suggested_articles?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "support_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
