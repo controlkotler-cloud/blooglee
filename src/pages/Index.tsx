@@ -55,8 +55,20 @@ export default function Index() {
   const [deletingCompany, setDeletingCompany] = useState<Empresa | null>(null);
   const [previewCompanyArticle, setPreviewCompanyArticle] = useState<{ article: ArticuloEmpresa; companyName: string; company: Empresa } | null>(null);
   
-  // Shared state
-  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  // Shared state - Use Set to track multiple concurrent generations
+  const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
+  
+  // Helpers for managing generating IDs
+  const addGeneratingId = (id: string) => {
+    setGeneratingIds(prev => new Set(prev).add(id));
+  };
+  const removeGeneratingId = (id: string) => {
+    setGeneratingIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
   const [generatingAll, setGeneratingAll] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [currentRetry, setCurrentRetry] = useState(0);
@@ -114,7 +126,7 @@ export default function Index() {
     const topic = pharmacy.custom_topic && !pharmacy.auto_generate
       ? { tema: pharmacy.custom_topic, keywords: [], pexels_query: "pharmacy health wellness" }
       : getAssignedTopic(index, selectedMonth, pharmacy.id);
-    setGeneratingId(pharmacy.id);
+    addGeneratingId(pharmacy.id);
     setCurrentRetry(0);
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -131,7 +143,7 @@ export default function Index() {
           year: selectedYear,
           usedImageUrls,
         });
-        setGeneratingId(null);
+        removeGeneratingId(pharmacy.id);
         setCurrentRetry(0);
         return true;
       } catch (error) {
@@ -143,7 +155,7 @@ export default function Index() {
           await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
           toast.error(`Error generando artículo para ${pharmacy.name} después de ${MAX_RETRIES} reintentos`);
-          setGeneratingId(null);
+          removeGeneratingId(pharmacy.id);
           setCurrentRetry(0);
           return false;
         }
@@ -166,7 +178,7 @@ export default function Index() {
     for (let i = 0; i < pending.length; i++) {
       const pharmacy = pending[i];
       const pharmacyIndex = farmacias.findIndex((p) => p.id === pharmacy.id);
-      setGeneratingId(pharmacy.id);
+      addGeneratingId(pharmacy.id);
       setGenerationProgress(Math.round(((i + 1) / pending.length) * 100));
       const success = await handleGenerateArticle(pharmacy, pharmacyIndex, usedImageUrls);
       if (success) {
@@ -177,7 +189,7 @@ export default function Index() {
     }
 
     setGeneratingAll(false);
-    setGeneratingId(null);
+    setGeneratingIds(new Set());
     setGenerationProgress(0);
     toast.success(`🎉 Se han generado ${successCount} artículos correctamente`);
   };
@@ -198,7 +210,7 @@ export default function Index() {
   };
 
   const handleGenerateArticleEmpresa = async (company: Empresa, usedImageUrls?: string[]) => {
-    setGeneratingId(company.id);
+    addGeneratingId(company.id);
     try {
       await generateArticleEmpresa.mutateAsync({
         empresaId: company.id,
@@ -219,7 +231,7 @@ export default function Index() {
     } catch (error) {
       console.error(`Error generating article for ${company.name}:`, error);
     } finally {
-      setGeneratingId(null);
+      removeGeneratingId(company.id);
     }
   };
 
@@ -236,7 +248,7 @@ export default function Index() {
 
     for (let i = 0; i < pending.length; i++) {
       const company = pending[i];
-      setGeneratingId(company.id);
+      addGeneratingId(company.id);
       setGenerationProgress(Math.round(((i + 1) / pending.length) * 100));
       try {
         await handleGenerateArticleEmpresa(company, usedImageUrls);
@@ -249,7 +261,7 @@ export default function Index() {
     }
 
     setGeneratingAll(false);
-    setGeneratingId(null);
+    setGeneratingIds(new Set());
     setGenerationProgress(0);
     toast.success(`🎉 Se han generado ${successCount} artículos de empresas`);
   };
@@ -360,7 +372,7 @@ export default function Index() {
                       pharmacy={pharmacy} 
                       topic={getAssignedTopic(index, selectedMonth, pharmacy.id)} 
                       article={getArticleForPharmacy(pharmacy.id)} 
-                      isGenerating={generatingId === pharmacy.id}
+                      isGenerating={generatingIds.has(pharmacy.id)}
                       hasWordPress={hasWordPress(pharmacy.id)}
                       onGenerate={() => handleGenerateArticle(pharmacy, index)} 
                       onRegenerate={() => handleGenerateArticle(pharmacy, index)}
@@ -398,7 +410,7 @@ export default function Index() {
                       key={company.id} 
                       company={company} 
                       article={getArticleForCompany(company)} 
-                      isGenerating={generatingId === company.id}
+                      isGenerating={generatingIds.has(company.id)}
                       hasWordPress={hasWordPressEmpresa(company.id)}
                       onGenerate={() => handleGenerateArticleEmpresa(company)} 
                       onRegenerate={() => handleGenerateArticleEmpresa(company)}
@@ -437,7 +449,7 @@ export default function Index() {
           handleGenerateArticle(previewArticle.pharmacy, previewArticle.pharmacyIndex);
           setPreviewArticle(null);
         } : undefined}
-        isRegenerating={previewArticle ? generatingId === previewArticle.pharmacy.id : false}
+        isRegenerating={previewArticle ? generatingIds.has(previewArticle.pharmacy.id) : false}
         onRegenerateImage={previewArticle?.article ? async () => {
           if (!previewArticle?.article) return;
           setRegeneratingImageId(previewArticle.article.id);
@@ -479,7 +491,7 @@ export default function Index() {
           handleGenerateArticleEmpresa(previewCompanyArticle.company);
           setPreviewCompanyArticle(null);
         } : undefined}
-        isRegenerating={previewCompanyArticle ? generatingId === previewCompanyArticle.company.id : false}
+        isRegenerating={previewCompanyArticle ? generatingIds.has(previewCompanyArticle.company.id) : false}
         onRegenerateImage={previewCompanyArticle?.article ? async () => {
           if (!previewCompanyArticle?.article) return;
           setRegeneratingImageId(previewCompanyArticle.article.id);
