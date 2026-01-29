@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Save, Unplug, HelpCircle, ChevronDown, BookOpen } from 'lucide-react';
+import { Loader2, Save, Unplug, HelpCircle, ChevronDown, BookOpen, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { useWordPressConfig, useUpsertWordPressConfig, useDeleteWordPressConfig } from '@/hooks/useWordPressConfigSaas';
+import { useWordPressHealthCheck, HealthCheckResult } from '@/hooks/useWordPressHealthCheck';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,8 +49,16 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
   const { data: config, isLoading } = useWordPressConfig(siteId);
   const upsertMutation = useUpsertWordPressConfig();
   const deleteMutation = useDeleteWordPressConfig();
+  const { runHealthCheck, isChecking } = useWordPressHealthCheck();
+  
   const [showPassword, setShowPassword] = useState(false);
   const [helpOpen, setHelpOpen] = useState(true);
+  
+  // Estados de validación
+  const [urlStatus, setUrlStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const [urlError, setUrlError] = useState<string | null>(null);
+  const [validationState, setValidationState] = useState<'idle' | 'validating' | 'error' | 'warning' | 'success'>('idle');
+  const [validationResult, setValidationResult] = useState<HealthCheckResult | null>(null);
 
   // Colapsar ayuda cuando ya hay config guardada
   useEffect(() => {
@@ -59,6 +69,7 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
     register,
     handleSubmit,
     formState: { errors, isDirty },
+    watch,
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     values: config
@@ -70,17 +81,111 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
       : undefined,
   });
 
-  const onSubmit = (data: FormData) => {
-    upsertMutation.mutate({
-      site_id: siteId,
-      site_url: data.site_url,
-      wp_username: data.wp_username,
-      wp_app_password: data.wp_app_password,
-    });
+  const watchedUrl = watch('site_url');
+
+  // Validar URL al perder foco
+  const handleUrlBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const url = e.target.value?.trim();
+    if (!url || urlStatus === 'checking') return;
+    
+    // Validar formato básico
+    try {
+      new URL(url);
+    } catch {
+      setUrlStatus('invalid');
+      setUrlError('URL no válida');
+      return;
+    }
+    
+    setUrlStatus('checking');
+    setUrlError(null);
+    
+    const result = await runHealthCheck(url, undefined, undefined, 1);
+    
+    if (result?.overall_status === 'success' || result?.overall_status === 'warning') {
+      setUrlStatus('valid');
+      setUrlError(null);
+    } else {
+      setUrlStatus('invalid');
+      setUrlError(result?.errors?.[0] || 'No se pudo conectar con el sitio WordPress');
+    }
+  };
+
+  // Reset URL status cuando cambia la URL
+  useEffect(() => {
+    if (urlStatus !== 'idle') {
+      setUrlStatus('idle');
+      setUrlError(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedUrl]);
+
+  const onSubmit = async (data: FormData) => {
+    setValidationState('validating');
+    setValidationResult(null);
+
+    try {
+      // Ejecutar health check fase 3 (completo con credenciales)
+      const result = await runHealthCheck(
+        data.site_url,
+        data.wp_username,
+        data.wp_app_password,
+        3
+      );
+
+      setValidationResult(result);
+
+      if (!result) {
+        setValidationState('error');
+        toast.error('Error al verificar la conexión');
+        return;
+      }
+
+      if (result.overall_status === 'error') {
+        setValidationState('error');
+        toast.error('Hay problemas con la configuración. Revisa los detalles abajo.');
+        return;
+      }
+
+      if (result.overall_status === 'warning') {
+        setValidationState('warning');
+      } else {
+        setValidationState('success');
+      }
+
+      // Success o warning - guardar config
+      await upsertMutation.mutateAsync({
+        site_id: siteId,
+        site_url: data.site_url,
+        wp_username: data.wp_username,
+        wp_app_password: data.wp_app_password,
+      });
+
+      toast.success('Configuración guardada correctamente');
+      
+    } catch (error) {
+      console.error('Error:', error);
+      setValidationState('error');
+      toast.error('Error al guardar la configuración');
+    }
   };
 
   const handleDisconnect = () => {
     deleteMutation.mutate(siteId);
+    setValidationState('idle');
+    setValidationResult(null);
+    setUrlStatus('idle');
+  };
+
+  const getCheckIcon = (status: 'ok' | 'warning' | 'error') => {
+    switch (status) {
+      case 'ok':
+        return <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />;
+      case 'warning':
+        return <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0" />;
+      case 'error':
+        return <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />;
+    }
   };
 
   if (isLoading) {
@@ -92,6 +197,8 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
       </Card>
     );
   }
+
+  const isValidating = validationState === 'validating' || isChecking;
 
   return (
     <Card className="border-0 shadow-lg sm:border sm:shadow-md">
@@ -162,16 +269,39 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              {/* Indicador de estado de URL */}
+              {urlStatus === 'checking' && (
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              )}
+              {urlStatus === 'valid' && (
+                <CheckCircle className="w-4 h-4 text-green-500" />
+              )}
+              {urlStatus === 'invalid' && (
+                <XCircle className="w-4 h-4 text-red-500" />
+              )}
             </div>
             <Input
               id="site_url"
               placeholder="https://miweb.com"
               className="h-12 text-base"
               {...register('site_url')}
+              onBlur={handleUrlBlur}
             />
-            <p className="text-xs text-muted-foreground">
-              Ejemplo: https://miweb.com (sin /wp-admin)
-            </p>
+            {urlStatus === 'valid' && (
+              <p className="text-xs text-green-600 dark:text-green-400">
+                ✓ Sitio WordPress detectado correctamente
+              </p>
+            )}
+            {urlStatus === 'invalid' && urlError && (
+              <p className="text-xs text-red-600 dark:text-red-400">
+                ✗ {urlError}
+              </p>
+            )}
+            {urlStatus === 'idle' && (
+              <p className="text-xs text-muted-foreground">
+                Ejemplo: https://miweb.com (sin /wp-admin)
+              </p>
+            )}
             {errors.site_url && (
               <p className="text-sm text-destructive">{errors.site_url.message}</p>
             )}
@@ -247,19 +377,79 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
             )}
           </div>
 
+          {/* Panel de resultados de validación */}
+          {validationResult && validationState !== 'idle' && (
+            <div className={`p-4 rounded-lg border ${
+              validationState === 'success' ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900' :
+              validationState === 'warning' ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-900' :
+              'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900'
+            }`}>
+              <h4 className={`font-medium mb-3 flex items-center gap-2 ${
+                validationState === 'success' ? 'text-green-700 dark:text-green-400' :
+                validationState === 'warning' ? 'text-yellow-700 dark:text-yellow-400' :
+                'text-red-700 dark:text-red-400'
+              }`}>
+                {validationState === 'success' && <CheckCircle className="w-5 h-5" />}
+                {validationState === 'warning' && <AlertTriangle className="w-5 h-5" />}
+                {validationState === 'error' && <XCircle className="w-5 h-5" />}
+                Resultado del diagnóstico
+              </h4>
+              <div className="space-y-2">
+                {validationResult.checks.map((check) => (
+                  <div key={check.id} className="flex items-start gap-2 text-sm">
+                    {getCheckIcon(check.status)}
+                    <div>
+                      <span className="text-foreground">{check.message}</span>
+                      {check.action && (
+                        <p className="text-muted-foreground text-xs mt-0.5">{check.action}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {validationResult.detected_plugins.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-current/10">
+                  <p className="text-xs text-muted-foreground">
+                    Plugins detectados: {validationResult.detected_plugins.join(', ')}
+                  </p>
+                </div>
+              )}
+              {validationState === 'success' && (
+                <p className="mt-3 text-sm text-green-700 dark:text-green-400 font-medium">
+                  ✓ Configuración guardada correctamente
+                </p>
+              )}
+              {validationState === 'warning' && (
+                <p className="mt-3 text-sm text-yellow-700 dark:text-yellow-400">
+                  ⚠️ Configuración guardada con advertencias. Algunas funciones podrían no funcionar correctamente.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Botones */}
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <Button
               type="submit"
-              disabled={upsertMutation.isPending || (!isDirty && !!config)}
+              disabled={isValidating || upsertMutation.isPending || (!isDirty && !!config && validationState === 'success')}
               className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
             >
-              {upsertMutation.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              {isValidating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Verificando conexión...
+                </>
+              ) : upsertMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Guardando...
+                </>
               ) : (
-                <Save className="w-4 h-4 mr-2" />
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  {config ? 'Actualizar' : 'Guardar configuración'}
+                </>
               )}
-              {config ? 'Actualizar' : 'Guardar configuración'}
             </Button>
 
             {config && (
