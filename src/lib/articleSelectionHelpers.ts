@@ -29,7 +29,7 @@ export function getCompanyArticleForPeriod(
   if (filtered.length === 0) return null;
 
   // Apply frequency-specific filtering
-  if (frequency === "daily") {
+  if (frequency === "daily" || frequency === "daily_weekdays") {
     // Only articles generated today
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     filtered = filtered.filter(

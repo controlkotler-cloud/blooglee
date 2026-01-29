@@ -226,6 +226,8 @@ export function SiteSettings({ site }: SiteSettingsProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="daily">Diario (todos los días)</SelectItem>
+                  <SelectItem value="daily_weekdays">Diario (L-V)</SelectItem>
                   <SelectItem value="weekly">Semanal</SelectItem>
                   <SelectItem value="biweekly">Quincenal</SelectItem>
                   <SelectItem value="monthly">Mensual</SelectItem>
