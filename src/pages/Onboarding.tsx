@@ -41,6 +41,14 @@ const GEOGRAPHIC_SCOPES = [
   { value: 'international', label: 'Internacional', description: 'Varios países' },
 ];
 
+const PUBLISH_FREQUENCIES = [
+  { value: 'daily', label: 'Diario (todos los días)', description: 'Un artículo cada día' },
+  { value: 'daily_weekdays', label: 'Diario (L-V)', description: 'Un artículo de lunes a viernes' },
+  { value: 'weekly', label: 'Semanal', description: 'Un artículo por semana' },
+  { value: 'biweekly', label: 'Quincenal', description: 'Un artículo cada 2 semanas' },
+  { value: 'monthly', label: 'Mensual', description: 'Un artículo por mes' },
+];
+
 export default function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -56,8 +64,9 @@ export default function Onboarding() {
   const [location, setLocation] = useState('');
   const [geographicScope, setGeographicScope] = useState('local');
   
-  // Step 3: Languages
+  // Step 3: Languages & Frequency
   const [languages, setLanguages] = useState<string[]>(['spanish']);
+  const [publishFrequency, setPublishFrequency] = useState('weekly');
   
   // Step 4: WordPress (optional)
   const [configureWordPress, setConfigureWordPress] = useState(false);
@@ -102,6 +111,7 @@ export default function Onboarding() {
         location: location.trim(),
         geographic_scope: geographicScope as 'local' | 'regional' | 'national' | 'international',
         languages,
+        publish_frequency: publishFrequency,
       });
 
       if (configureWordPress && wpUrl && wpUsername && wpAppPassword) {
@@ -225,36 +235,59 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 3: Languages */}
+          {/* Step 3: Languages & Frequency */}
           {step === 3 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                <Languages className="w-5 h-5" />
-                <span>Idiomas de los artículos</span>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2 p-3 rounded-lg border bg-muted/50">
-                  <Checkbox id="spanish" checked disabled />
-                  <Label htmlFor="spanish" className="flex-1">
-                    <span className="font-medium">Español</span>
-                    <span className="text-xs text-muted-foreground ml-2">(obligatorio)</span>
-                  </Label>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                  <Languages className="w-5 h-5" />
+                  <span>Idiomas de los artículos</span>
                 </div>
-                <div 
-                  className={`flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    languages.includes('catalan') ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
-                  }`}
-                  onClick={() => handleLanguageToggle('catalan')}
-                >
-                  <Checkbox 
-                    id="catalan" 
-                    checked={languages.includes('catalan')} 
-                    onCheckedChange={() => handleLanguageToggle('catalan')}
-                  />
-                  <Label htmlFor="catalan" className="flex-1 cursor-pointer">
-                    <span className="font-medium">Catalán</span>
-                    <span className="text-xs text-muted-foreground ml-2">(opcional)</span>
-                  </Label>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2 p-3 rounded-lg border bg-muted/50">
+                    <Checkbox id="spanish" checked disabled />
+                    <Label htmlFor="spanish" className="flex-1">
+                      <span className="font-medium">Español</span>
+                      <span className="text-xs text-muted-foreground ml-2">(obligatorio)</span>
+                    </Label>
+                  </div>
+                  <div 
+                    className={`flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      languages.includes('catalan') ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
+                    }`}
+                    onClick={() => handleLanguageToggle('catalan')}
+                  >
+                    <Checkbox 
+                      id="catalan" 
+                      checked={languages.includes('catalan')} 
+                      onCheckedChange={() => handleLanguageToggle('catalan')}
+                    />
+                    <Label htmlFor="catalan" className="flex-1 cursor-pointer">
+                      <span className="font-medium">Catalán</span>
+                      <span className="text-xs text-muted-foreground ml-2">(opcional)</span>
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <Label>Frecuencia de publicación</Label>
+                <div className="space-y-2">
+                  {PUBLISH_FREQUENCIES.map(freq => (
+                    <button
+                      key={freq.value}
+                      type="button"
+                      onClick={() => setPublishFrequency(freq.value)}
+                      className={`w-full p-3 rounded-lg border text-left transition-colors ${
+                        publishFrequency === freq.value 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <div className="font-medium">{freq.label}</div>
+                      <div className="text-xs text-muted-foreground">{freq.description}</div>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>

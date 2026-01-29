@@ -90,4 +90,3 @@ if (frequency === "daily" || frequency === "daily_weekdays") {
 ### No se requieren cambios de base de datos
 
 La columna `publish_frequency` ya es de tipo `text`, por lo que acepta cualquier valor string sin necesidad de migración.
-

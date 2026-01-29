@@ -182,7 +182,15 @@ async function shouldGenerateForEntity(
   }
   
   // EMPRESAS and SITES: Based on frequency
-  if (frequency === 'daily') {
+  if (frequency === 'daily' || frequency === 'daily_weekdays') {
+    // daily_weekdays: Skip weekends
+    if (frequency === 'daily_weekdays') {
+      const dayOfWeek = now.getDay(); // 0=Sunday, 6=Saturday
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        return { shouldGenerate: false, reason: 'Fin de semana - no se genera con frecuencia L-V' };
+      }
+    }
+    
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const { data } = await supabase
       .from(table)
