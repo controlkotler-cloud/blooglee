@@ -404,30 +404,42 @@ export type Database = {
       newsletter_subscribers: {
         Row: {
           audience: string | null
+          consent_date: string | null
           created_at: string
           email: string
+          gdpr_consent: boolean | null
           id: string
           is_active: boolean
+          marketing_consent: boolean | null
+          name: string | null
           source: string | null
           subscribed_at: string
           unsubscribed_at: string | null
         }
         Insert: {
           audience?: string | null
+          consent_date?: string | null
           created_at?: string
           email: string
+          gdpr_consent?: boolean | null
           id?: string
           is_active?: boolean
+          marketing_consent?: boolean | null
+          name?: string | null
           source?: string | null
           subscribed_at?: string
           unsubscribed_at?: string | null
         }
         Update: {
           audience?: string | null
+          consent_date?: string | null
           created_at?: string
           email?: string
+          gdpr_consent?: boolean | null
           id?: string
           is_active?: boolean
+          marketing_consent?: boolean | null
+          name?: string | null
           source?: string | null
           subscribed_at?: string
           unsubscribed_at?: string | null

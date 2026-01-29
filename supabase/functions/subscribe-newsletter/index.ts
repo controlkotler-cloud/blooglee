@@ -7,6 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const BLOG_URL = "https://blooglee.lovable.app/blog";
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -19,7 +21,22 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { email, source = "blog", audience = "both" } = await req.json();
+    const { 
+      name,
+      email, 
+      audience,
+      gdprConsent,
+      marketingConsent,
+      source = "footer" 
+    } = await req.json();
+
+    // Validate name
+    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+      return new Response(
+        JSON.stringify({ success: false, error: "El nombre es requerido" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     // Validate email
     if (!email || typeof email !== 'string') {
@@ -37,11 +54,38 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Validate audience - only empresas or agencias allowed
+    if (!audience || !['empresas', 'agencias'].includes(audience)) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Selecciona si eres Empresa o Agencia" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Validate consents
+    if (!gdprConsent) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Debes aceptar la política de privacidad" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!marketingConsent) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Debes aceptar recibir comunicaciones" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanName = name.trim();
+    const consentDate = new Date().toISOString();
+
     // Check if already subscribed
     const { data: existing } = await supabase
       .from('newsletter_subscribers')
-      .select('id, is_active')
-      .eq('email', email.toLowerCase().trim())
+      .select('id, is_active, name')
+      .eq('email', cleanEmail)
       .maybeSingle();
 
     if (existing) {
@@ -51,29 +95,39 @@ const handler = async (req: Request): Promise<Response> => {
           { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       } else {
-        // Reactivate subscription
+        // Reactivate subscription with new data
         await supabase
           .from('newsletter_subscribers')
-          .update({ is_active: true, unsubscribed_at: null })
+          .update({ 
+            is_active: true, 
+            unsubscribed_at: null,
+            name: cleanName,
+            audience,
+            gdpr_consent: gdprConsent,
+            marketing_consent: marketingConsent,
+            consent_date: consentDate
+          })
           .eq('id', existing.id);
         
         return new Response(
-          JSON.stringify({ success: true, message: "¡Bienvenido de nuevo! Tu suscripción ha sido reactivada" }),
+          JSON.stringify({ success: true, message: `¡Bienvenido de nuevo, ${cleanName}! Tu suscripción ha sido reactivada` }),
           { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
     }
 
-    // Insert new subscriber with audience preference
-    const validAudience = ['empresas', 'agencias', 'both'].includes(audience) ? audience : 'both';
-    
+    // Insert new subscriber with all fields
     const { error: insertError } = await supabase
       .from('newsletter_subscribers')
       .insert({
-        email: email.toLowerCase().trim(),
+        email: cleanEmail,
+        name: cleanName,
         source,
-        audience: validAudience,
+        audience,
         is_active: true,
+        gdpr_consent: gdprConsent,
+        marketing_consent: marketingConsent,
+        consent_date: consentDate,
       });
 
     if (insertError) {
@@ -81,15 +135,20 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("No se pudo registrar la suscripción");
     }
 
-    // Send welcome email
+    // Send personalized welcome email
     if (resendApiKey) {
       try {
         const resend = new Resend(resendApiKey);
         
+        const audienceLabel = audience === 'empresas' ? 'para Empresas' : 'para Agencias';
+        const audienceContent = audience === 'empresas'
+          ? 'estrategias de marketing, SEO y crecimiento digital para tu negocio'
+          : 'escalabilidad, automatización y gestión de clientes para tu agencia';
+        
         await resend.emails.send({
           from: "Blooglee <onboarding@resend.dev>",
-          to: [email],
-          subject: "¡Bienvenido a la newsletter de Blooglee! 🎉",
+          to: [cleanEmail],
+          subject: `¡Bienvenido/a ${cleanName}! Tu newsletter de Blooglee está lista 🎉`,
           html: `
             <!DOCTYPE html>
             <html>
@@ -97,51 +156,80 @@ const handler = async (req: Request): Promise<Response> => {
               <meta charset="utf-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
             </head>
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #7c3aed; margin-bottom: 10px;">¡Bienvenido a Blooglee!</h1>
-                <p style="color: #666; font-size: 18px;">Gracias por suscribirte a nuestra newsletter</p>
-              </div>
-              
-              <div style="background: linear-gradient(135deg, #f5f3ff 0%, #fdf4ff 100%); border-radius: 12px; padding: 25px; margin-bottom: 25px;">
-                <h2 style="color: #7c3aed; margin-top: 0;">¿Qué recibirás?</h2>
-                <ul style="color: #555;">
-                  <li><strong>Artículos sobre SEO y marketing de contenidos</strong></li>
-                  <li><strong>Tips para automatizar tu blog</strong></li>
-                  <li><strong>Novedades de Blooglee</strong></li>
-                  <li><strong>Guías y tutoriales exclusivos</strong></li>
-                </ul>
-              </div>
-              
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="https://blooglee.com/blog" 
-                   style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #c026d3 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600;">
-                  Visitar el blog
-                </a>
-              </div>
-              
-              <div style="border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #999; font-size: 12px;">
-                <p>Blooglee - Automatiza tu blog con IA</p>
-                <p>
-                  <a href="https://blooglee.com" style="color: #7c3aed;">blooglee.com</a>
-                </p>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background-color: #f5f3ff; margin: 0; padding: 0;">
+              <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #F97316 100%); border-radius: 16px 16px 0 0; padding: 40px 30px; text-align: center;">
+                  <h1 style="color: white; margin: 0 0 10px 0; font-size: 28px; font-weight: 700;">
+                    ¡Bienvenido/a, ${cleanName}!
+                  </h1>
+                  <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 16px;">
+                    Newsletter de Blooglee ${audienceLabel}
+                  </p>
+                </div>
+                
+                <!-- Content -->
+                <div style="background: #ffffff; border-radius: 0 0 16px 16px; padding: 30px;">
+                  <p style="color: #555; font-size: 16px; margin-bottom: 20px;">
+                    Gracias por unirte a la newsletter de Blooglee. A partir de ahora recibirás:
+                  </p>
+                  
+                  <ul style="color: #555; font-size: 15px; padding-left: 20px; margin-bottom: 25px;">
+                    <li style="margin-bottom: 10px;">
+                      <strong>Artículos diarios</strong> adaptados a ${audienceContent}
+                    </li>
+                    <li style="margin-bottom: 10px;">
+                      <strong>Tips exclusivos</strong> para mejorar tu presencia online
+                    </li>
+                    <li style="margin-bottom: 10px;">
+                      <strong>Novedades de Blooglee</strong> antes que nadie
+                    </li>
+                  </ul>
+                  
+                  <!-- CTA Button -->
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${BLOG_URL}" 
+                       style="display: inline-block; background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                      Ver últimos artículos →
+                    </a>
+                  </div>
+                  
+                  <p style="color: #777; font-size: 14px; margin-top: 30px;">
+                    Saludos,<br>
+                    <strong>El equipo de Blooglee</strong>
+                  </p>
+                </div>
+                
+                <!-- Footer -->
+                <div style="text-align: center; padding: 25px 20px;">
+                  <p style="color: #999; font-size: 12px; margin: 0;">
+                    Blooglee - Automatiza tu blog con IA
+                    <br><br>
+                    Puedes darte de baja en cualquier momento desde el link en nuestros emails.
+                  </p>
+                </div>
+                
               </div>
             </body>
             </html>
           `,
         });
         
-        console.log(`Welcome email sent to ${email}`);
+        console.log(`Welcome email sent to ${cleanEmail}`);
       } catch (emailError) {
         console.error("Failed to send welcome email:", emailError);
         // Don't fail the subscription if email fails
       }
     }
 
-    console.log(`New subscriber: ${email} from ${source}`);
+    console.log(`New subscriber: ${cleanName} (${cleanEmail}) - ${audience} from ${source}`);
 
     return new Response(
-      JSON.stringify({ success: true, message: "¡Gracias por suscribirte! Revisa tu email para la confirmación." }),
+      JSON.stringify({ 
+        success: true, 
+        message: `¡Gracias ${cleanName}! Revisa tu email para la confirmación.` 
+      }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
 

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { Mail, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { NewsletterForm } from './NewsletterForm';
 
 const footerLinks = {
   producto: [
@@ -22,13 +23,32 @@ const footerLinks = {
 const socialLinks = [
   { icon: Twitter, href: '#', label: 'Twitter' },
   { icon: Linkedin, href: '#', label: 'LinkedIn' },
-  { icon: Instagram, href: '#', label: 'Instagram' },
+  { icon: Instagram, href: 'https://www.instagram.com/blooglee_/', label: 'Instagram' },
 ];
 
 export const PublicFooter = () => {
   return (
     <footer className="relative py-12 sm:py-16 lg:py-20 px-4 sm:px-6 z-10 bg-white/50 backdrop-blur-sm border-t border-violet-100/50">
       <div className="container mx-auto max-w-7xl">
+        
+        {/* Newsletter Section */}
+        <div className="mb-12 sm:mb-16">
+          <div className="bg-gradient-to-r from-violet-50 via-fuchsia-50 to-orange-50 rounded-2xl p-6 sm:p-8 border border-violet-100/50">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 flex items-center justify-center">
+                  <Mail className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-lg text-foreground">Newsletter</h3>
+                  <p className="text-sm text-foreground/60">Recibe el artículo del día en tu email</p>
+                </div>
+              </div>
+            </div>
+            <NewsletterForm variant="footer" source="footer" />
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 lg:gap-12 mb-12">
           {/* Brand column */}
           <div className="col-span-2 lg:col-span-2">
@@ -41,6 +61,8 @@ export const PublicFooter = () => {
                 <a 
                   key={social.label}
                   href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-10 h-10 rounded-xl bg-muted/50 hover:bg-muted flex items-center justify-center transition-colors"
                   aria-label={social.label}
                 >
