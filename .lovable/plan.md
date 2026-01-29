@@ -1,185 +1,127 @@
 
-# Plan: Corregir Bugs de Onboarding y Optimizar WordPress para Móvil
+# Plan: Corregir Boton Header Movil + Restringir Import/Export a Plan Agency
 
-## Problema 1: Redirección Inesperada al Onboarding
+## Problema 1: Boton Cortado en Header Movil
 
-### Causa Raíz
-Cuando creas un sitio en el onboarding, el flujo es:
-1. `createSite.mutateAsync()` crea el sitio en la base de datos
-2. `invalidateQueries(['sites'])` se dispara pero es asincrono
-3. `navigate('/dashboard')` ejecuta inmediatamente
-4. En el dashboard, `ProtectedRoute` lee `sites` que aun tiene el cache antiguo (vacío)
-5. `sites?.length === 0` devuelve `true` y te redirige de vuelta a `/onboarding`
+### Analisis
+En `SiteDetail.tsx` linea 95-112, el boton "Configura WP primero" tiene texto muy largo que no cabe en pantallas moviles. El header actual no gestiona bien el espacio reducido.
 
 ### Solucion
-Modificar `Onboarding.tsx` para esperar a que el cache se actualice antes de navegar:
-
-```typescript
-// En handleFinish()
-const newSite = await createSite.mutateAsync({...});
-
-// Esperar a que la invalidación se complete
-await queryClient.refetchQueries({ queryKey: ['sites'] });
-
-// Ahora sí navegar
-navigate('/dashboard');
-```
-
-### Archivo a modificar
-- `src/pages/Onboarding.tsx`
-
----
-
-## Problema 2: WordPress Form No Optimizado para Movil
-
-### Problemas Detectados
-1. Inputs demasiado pequeños para touch (altura 40px, debería ser 48-52px)
-2. Botones pegados sin espacio suficiente
-3. El enlace de ayuda se corta en pantallas pequeñas
-4. El botón "Mostrar/Ocultar" contraseña es muy pequeño
-5. Los botones de acción (Guardar/Desconectar) no apilan en móvil
-
-### Solucion
-Crear un layout mobile-first con:
-- Inputs más altos (h-12 en móvil)
-- Botones que se apilan verticalmente en móvil
-- Mejor espaciado entre elementos
-- Enlace de ayuda que fluye mejor
-
-### Cambios en WordPressConfigForm.tsx
+Hacer el boton responsive con texto corto en movil:
+- Movil: Solo icono (Lock) + texto muy corto o solo "Configurar WP"
+- Desktop: Texto completo "Configura WP primero" / "Generar articulo"
 
 ```tsx
-// Inputs más grandes
-<Input className="h-12 text-base" ... />
-
-// Botones que se apilan en móvil
-<div className="flex flex-col sm:flex-row gap-3 pt-4">
-  <Button className="w-full sm:w-auto" ...>Guardar</Button>
-  <Button className="w-full sm:w-auto" ...>Desconectar</Button>
-</div>
-
-// Enlace de ayuda mejor formateado
-<CardDescription className="space-y-1">
-  <span>Conecta tu sitio WordPress para publicar artículos.</span>
-  <a className="block sm:inline mt-1 sm:mt-0 sm:ml-1" ...>
-    ¿Cómo crear una contraseña de aplicación?
-  </a>
-</CardDescription>
+// Texto adaptativo segun tamanio
+<Button ...>
+  {isGenerating ? (
+    <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
+  ) : canGenerate ? (
+    <Sparkles className="w-4 h-4 sm:mr-2" />
+  ) : (
+    <Lock className="w-4 h-4 sm:mr-2" />
+  )}
+  <span className="hidden sm:inline">
+    {isGenerating ? 'Generando...' : canGenerate ? 'Generar articulo' : 'Configura WP primero'}
+  </span>
+  <span className="sm:hidden">
+    {isGenerating ? '...' : canGenerate ? 'Generar' : 'WP'}
+  </span>
+</Button>
 ```
 
 ### Archivo a modificar
-- `src/components/saas/WordPressConfigForm.tsx`
+- `src/pages/SiteDetail.tsx` (lineas 95-112)
 
 ---
 
-## Resumen de Archivos
+## Problema 2: Import/Export Solo para Plan Agency
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/Onboarding.tsx` | Esperar refetch de sites antes de navegar |
-| `src/components/saas/WordPressConfigForm.tsx` | Optimizar layout para móvil |
+### Analisis
+El componente `SiteImportExport` se muestra siempre en `SaasDashboard.tsx` lineas 228-235, sin importar el plan del usuario. Solo tiene sentido para el plan Agency (subidas masivas de 10+ sitios).
+
+### Solucion
+Mostrar condicionalmente solo si `plan === 'agency'`:
+
+```tsx
+{/* Import/Export section - Solo plan Agency */}
+{plan === 'agency' && (
+  <div className="mt-6">
+    <SiteImportExport
+      sites={sites}
+      articles={articles}
+      sitesLimit={sitesLimit}
+      onImportSites={(sitesToImport) => importSitesMutation.mutate(sitesToImport)}
+    />
+  </div>
+)}
+```
+
+### Archivo a modificar
+- `src/pages/SaasDashboard.tsx` (lineas 227-235)
 
 ---
+
+## Resumen de Cambios
+
+| Archivo | Lineas | Cambio |
+|---------|--------|--------|
+| `src/pages/SiteDetail.tsx` | 95-112 | Boton responsive con texto corto en movil |
+| `src/pages/SaasDashboard.tsx` | 227-235 | Mostrar import/export solo si plan === 'agency' |
 
 ## Resultado Esperado
 
-1. **Flujo de onboarding corregido**: Al terminar el wizard, llegas al dashboard sin redirecciones extrañas
-2. **Formulario WordPress responsive**: En móvil todos los elementos son fáciles de tocar y leer, con espaciado adecuado
+1. **Header movil limpio**: El boton muestra texto corto "WP" o "Generar" en movil, texto completo en desktop
+2. **Import/Export exclusivo**: Solo usuarios con plan Agency (149E/mes) ven la seccion de importacion masiva
 
 ---
 
 ## Seccion Tecnica
 
-### Cambio en Onboarding.tsx
-
-```typescript
-// Añadir al inicio del archivo
-import { useQueryClient } from '@tanstack/react-query';
-
-// Dentro del componente
-const queryClient = useQueryClient();
-
-// En handleFinish()
-const handleFinish = async () => {
-  setIsLoading(true);
-  try {
-    const finalSector = sector === 'otro' ? customSector : sector;
-    
-    await createSite.mutateAsync({
-      name: name.trim(),
-      sector: finalSector,
-      // ... resto de campos
-    });
-
-    // NUEVO: Esperar a que el cache se actualice
-    await queryClient.refetchQueries({ queryKey: ['sites'] });
-
-    // Ahora navegar (el ProtectedRoute verá sites.length > 0)
-    navigate('/dashboard');
-  } catch (error) {
-    console.error('Error creating site:', error);
-  } finally {
-    setIsLoading(false);
-  }
-};
-```
-
-### Cambios en WordPressConfigForm.tsx
+### Cambio en SiteDetail.tsx
 
 ```tsx
-// CardDescription con mejor flujo
-<CardDescription>
-  <span>Conecta tu sitio WordPress para publicar artículos directamente.</span>
-  <a
-    href="..."
-    target="_blank"
-    rel="noopener noreferrer"
-    className="flex items-center gap-1 text-primary hover:underline mt-2 sm:mt-0 sm:inline-flex sm:ml-1"
-  >
-    ¿Cómo crear una contraseña?
-    <ExternalLink className="w-3 h-3" />
-  </a>
-</CardDescription>
-
-// Inputs más grandes para touch
-<Input
-  id="site_url"
-  placeholder="https://tu-sitio.com"
-  className="h-12 text-base"
-  {...register('site_url')}
-/>
-
-// Espaciado mejorado entre campos
-<div className="space-y-4 sm:space-y-5">
-
-// Botón mostrar/ocultar más grande
-<button
-  type="button"
-  onClick={() => setShowPassword(!showPassword)}
-  className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-1 text-sm text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
+// Lineas 95-112 actuales
+<Button 
+  onClick={handleGenerateArticle} 
+  disabled={isGenerating}
+  className={canGenerate 
+    ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+    : "border-amber-500/50 text-amber-700 hover:bg-amber-50"
+  }
+  variant={canGenerate ? "default" : "outline"}
 >
-  {showPassword ? 'Ocultar' : 'Mostrar'}
-</button>
-
-// Botones que se apilan en móvil
-<div className="flex flex-col sm:flex-row gap-3 pt-4">
-  <Button
-    type="submit"
-    disabled={upsertMutation.isPending || (!isDirty && !!config)}
-    className="w-full sm:w-auto h-12 sm:h-10"
-  >
-    ...
-  </Button>
-
-  {config && (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button variant="outline" type="button" className="w-full sm:w-auto h-12 sm:h-10">
-          ...
-        </Button>
-      </AlertDialogTrigger>
-      ...
-    </AlertDialog>
+  {isGenerating ? (
+    <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
+  ) : canGenerate ? (
+    <Sparkles className="w-4 h-4 sm:mr-2" />
+  ) : (
+    <Lock className="w-4 h-4 sm:mr-2" />
   )}
-</div>
+  {/* Texto desktop */}
+  <span className="hidden sm:inline">
+    {isGenerating ? 'Generando...' : canGenerate ? 'Generar articulo' : 'Configura WP primero'}
+  </span>
+  {/* Texto movil */}
+  <span className="sm:hidden">
+    {isGenerating ? '' : canGenerate ? 'Generar' : 'WP'}
+  </span>
+</Button>
+```
+
+### Cambio en SaasDashboard.tsx
+
+```tsx
+// Lineas 227-235 actuales
+{/* Import/Export section - Solo para Agency */}
+{plan === 'agency' && (
+  <div className="mt-6">
+    <SiteImportExport
+      sites={sites}
+      articles={articles}
+      sitesLimit={sitesLimit}
+      onImportSites={(sitesToImport) => importSitesMutation.mutate(sitesToImport)}
+    />
+  </div>
+)}
 ```
