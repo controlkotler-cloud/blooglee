@@ -87,29 +87,30 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Configuración de WordPress</CardTitle>
-        <CardDescription>
-          Conecta tu sitio WordPress para publicar artículos directamente.{' '}
+    <Card className="border-0 shadow-lg sm:border sm:shadow-md">
+      <CardHeader className="pb-4 sm:pb-6">
+        <CardTitle className="text-lg sm:text-xl">Configuración de WordPress</CardTitle>
+        <CardDescription className="space-y-2">
+          <span className="block">Conecta tu sitio WordPress para publicar artículos directamente.</span>
           <a
             href="https://make.wordpress.org/core/2020/11/05/application-passwords-integration-guide/"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary hover:underline inline-flex items-center gap-1"
+            className="inline-flex items-center gap-1 text-primary hover:underline text-sm"
           >
             ¿Cómo crear una contraseña de aplicación?
-            <ExternalLink className="w-3 h-3" />
+            <ExternalLink className="w-3 h-3 flex-shrink-0" />
           </a>
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <CardContent className="pb-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="site_url">URL del sitio</Label>
+            <Label htmlFor="site_url" className="text-sm sm:text-base">URL del sitio</Label>
             <Input
               id="site_url"
               placeholder="https://tu-sitio.com"
+              className="h-12 text-base"
               {...register('site_url')}
             />
             {errors.site_url && (
@@ -118,10 +119,11 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="wp_username">Usuario de WordPress</Label>
+            <Label htmlFor="wp_username" className="text-sm sm:text-base">Usuario de WordPress</Label>
             <Input
               id="wp_username"
               placeholder="admin"
+              className="h-12 text-base"
               {...register('wp_username')}
             />
             {errors.wp_username && (
@@ -130,18 +132,19 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="wp_app_password">Contraseña de aplicación</Label>
+            <Label htmlFor="wp_app_password" className="text-sm sm:text-base">Contraseña de aplicación</Label>
             <div className="relative">
               <Input
                 id="wp_app_password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+                className="h-12 text-base pr-20"
                 {...register('wp_app_password')}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
               >
                 {showPassword ? 'Ocultar' : 'Mostrar'}
               </button>
@@ -151,39 +154,41 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
             )}
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          {/* Botones que se apilan en móvil */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <Button
               type="submit"
               disabled={upsertMutation.isPending || (!isDirty && !!config)}
+              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
             >
               {upsertMutation.isPending ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <Save className="w-4 h-4 mr-2" />
               )}
-              {config ? 'Actualizar' : 'Guardar'}
+              {config ? 'Actualizar' : 'Guardar configuración'}
             </Button>
 
             {config && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" type="button">
+                  <Button variant="outline" type="button" className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm">
                     <Unplug className="w-4 h-4 mr-2" />
                     Desconectar
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent className="mx-4 sm:mx-auto max-w-[calc(100vw-2rem)] sm:max-w-lg">
                   <AlertDialogHeader>
                     <AlertDialogTitle>¿Desconectar WordPress?</AlertDialogTitle>
                     <AlertDialogDescription>
                       Se eliminará la configuración de WordPress. Podrás volver a conectarlo cuando quieras.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+                    <AlertDialogCancel className="w-full sm:w-auto h-12 sm:h-10">Cancelar</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleDisconnect}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      className="w-full sm:w-auto h-12 sm:h-10 bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
                       Desconectar
                     </AlertDialogAction>

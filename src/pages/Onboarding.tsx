@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { useCreateSite } from '@/hooks/useSites';
+import { useAuth } from '@/hooks/useAuth';
 import { Sparkles, ArrowRight, ArrowLeft, Globe, Languages, Building2, MapPin, Calendar } from 'lucide-react';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 
@@ -50,6 +52,8 @@ const PUBLISH_FREQUENCIES = [
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -105,7 +109,11 @@ export default function Onboarding() {
         publish_frequency: publishFrequency,
       });
 
-      // Navigate to dashboard - the tour will show there
+      // IMPORTANTE: Esperar a que el cache de sites se actualice
+      // antes de navegar para evitar que ProtectedRoute redirija de vuelta
+      await queryClient.refetchQueries({ queryKey: ['sites', user?.id] });
+
+      // Ahora navegar al dashboard (ProtectedRoute verá sites.length > 0)
       navigate('/dashboard');
     } catch (error) {
       console.error('Error creating site:', error);
