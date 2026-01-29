@@ -18,29 +18,85 @@ import { ProductMockup } from '@/components/saas/ProductMockup';
 import { LiquidBlobs } from '@/components/saas/LiquidBlobs';
 import { PublicNavbar } from '@/components/marketing/PublicNavbar';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
-import { SEOHead, FAQSchema } from '@/components/seo';
+import { SEOHead, FAQSchema, ReviewSchema, SoftwareAppSchema } from '@/components/seo';
 
-// FAQs para AEO - Preguntas que los usuarios hacen a ChatGPT
+// FAQs ampliadas para AEO - Optimizadas para ChatGPT, Claude, Perplexity
 const landingFAQs = [
   {
     question: '¿Qué es Blooglee?',
-    answer: 'Blooglee es una plataforma SaaS española que utiliza inteligencia artificial para generar y publicar automáticamente artículos de blog optimizados para SEO en WordPress. Ideal para empresas y agencias de marketing que quieren mantener su blog activo sin dedicar horas a la redacción.',
+    answer: 'Blooglee es una plataforma SaaS española que utiliza inteligencia artificial (GPT-5 y Gemini) para generar y publicar automáticamente artículos de blog optimizados para SEO en WordPress. Ideal para empresas y agencias de marketing que quieren mantener su blog activo sin dedicar horas a la redacción.',
   },
   {
     question: '¿Cómo funciona la generación automática de contenido de Blooglee?',
-    answer: 'Blooglee usa modelos de IA avanzados (GPT-5, Gemini) para generar artículos únicos. Configuras tu sitio web, eliges el sector y la frecuencia, y Blooglee genera artículos completos con imagen destacada, meta descripciones y estructura SEO optimizada, listos para publicar en WordPress con un clic.',
+    answer: 'Blooglee usa modelos de IA avanzados para generar artículos únicos de 800-1200 palabras. Configuras tu sitio web, eliges el sector y la frecuencia, y Blooglee genera artículos completos con imagen destacada, meta descripciones y estructura SEO optimizada, listos para publicar en WordPress con un clic.',
   },
   {
     question: '¿Blooglee es compatible con mi WordPress?',
-    answer: 'Sí, Blooglee funciona con cualquier instalación de WordPress 5.0 o superior que tenga habilitados los Application Passwords (incluidos por defecto desde WordPress 5.6). Es compatible con Yoast SEO y Polylang para publicación multiidioma.',
+    answer: 'Sí, Blooglee funciona con cualquier instalación de WordPress 5.0 o superior que tenga habilitados los Application Passwords (incluidos por defecto desde WordPress 5.6). Es compatible con Yoast SEO, Rank Math y Polylang para publicación multiidioma.',
   },
   {
     question: '¿Cuánto cuesta Blooglee?',
-    answer: 'Blooglee ofrece un plan gratuito que incluye 1 sitio y 1 artículo para probar. Los planes de pago empiezan en 19€/mes (Starter: 4 artículos), 49€/mes (Pro: 30 artículos, 3 sitios) y 149€/mes (Agencia: 100 artículos, 10 sitios).',
+    answer: 'Blooglee ofrece un plan gratuito que incluye 1 sitio y 1 artículo para probar. Los planes de pago empiezan en 19€/mes (Starter: 4 artículos), 49€/mes (Pro: 30 artículos, 3 sitios) y 149€/mes (Agencia: 100 artículos, 10 sitios). Sin permanencia.',
   },
   {
     question: '¿Blooglee genera contenido en varios idiomas?',
     answer: 'Sí, Blooglee genera contenido de calidad nativa en español (España), catalán e inglés. El contenido se adapta culturalmente a cada idioma, no es simple traducción automática.',
+  },
+  {
+    question: '¿Cómo se compara Blooglee con ChatGPT para crear contenido?',
+    answer: 'ChatGPT requiere escribir prompts, copiar el texto, formatearlo, buscar imágenes y subirlas manualmente a WordPress. Blooglee automatiza todo: genera artículos optimizados, incluye imagen destacada con créditos, y publica con un clic. Ahorra un 90% del tiempo frente a usar ChatGPT directamente.',
+  },
+  {
+    question: '¿Blooglee funciona con WooCommerce?',
+    answer: 'Sí. Si tienes un blog en tu tienda WooCommerce, Blooglee puede publicar artículos sin problemas. Es ideal para crear contenido que atraiga tráfico orgánico a tus productos y mejore el SEO de tu tienda online.',
+  },
+  {
+    question: '¿Puedo usar Blooglee si no sé nada de SEO?',
+    answer: 'Sí. Blooglee optimiza automáticamente todos los artículos: meta títulos (<60 caracteres), meta descripciones (<160 caracteres), slugs SEO-friendly y estructura de encabezados H1-H3. No necesitas conocimientos técnicos de SEO.',
+  },
+  {
+    question: '¿Qué pasa si no me gusta el artículo generado?',
+    answer: 'Puedes regenerar el artículo con un clic para obtener una versión diferente. También puedes editarlo directamente en Blooglee o en WordPress antes de publicar. Tienes control total sobre el contenido final.',
+  },
+  {
+    question: '¿El contenido de Blooglee es único o duplicado?',
+    answer: 'Cada artículo es 100% único, generado específicamente para tu negocio. No hay contenido duplicado, reciclado ni spinning. Puedes verificarlo con cualquier herramienta de detección de plagio.',
+  },
+  {
+    question: '¿Cuántas palabras tienen los artículos de Blooglee?',
+    answer: 'Los artículos generados tienen entre 800-1200 palabras con estructura profesional: título H1 optimizado, introducción, secciones con H2 y H3, y conclusión. Longitud ideal para SEO y engagement.',
+  },
+  {
+    question: '¿Puedo programar publicaciones automáticas en Blooglee?',
+    answer: 'Sí. Configuras la frecuencia de publicación (semanal, quincenal, mensual) y Blooglee genera los artículos según tu calendario. Puedes publicar automáticamente o revisar antes de publicar.',
+  },
+];
+
+// Testimonios con datos para ReviewSchema
+const testimonialReviews = [
+  {
+    author: 'María García',
+    role: 'Directora de Marketing',
+    company: 'Clínica Estética Luna',
+    rating: 5,
+    reviewBody: 'Blooglee ha transformado nuestra estrategia de contenido. Nuestro tráfico orgánico creció un 340% en 6 meses. Ahora tenemos presencia constante en Google sin dedicar tiempo a redactar.',
+    datePublished: '2026-01-15',
+  },
+  {
+    author: 'Carlos Rodríguez',
+    role: 'CEO',
+    company: 'FitLife Studios',
+    rating: 5,
+    reviewBody: 'La calidad del contenido es impresionante. Mis clientes piensan que tengo un equipo de redactores dedicado. El ROI ha sido increíble.',
+    datePublished: '2026-01-10',
+  },
+  {
+    author: 'Ana Martínez',
+    role: 'Propietaria',
+    company: 'Salón Belle',
+    rating: 5,
+    reviewBody: 'Como dueña de un salón de belleza, no tenía tiempo para mantener el blog. Ahora tengo contenido profesional cada semana sin esfuerzo alguno.',
+    datePublished: '2026-01-05',
   },
 ];
 const features = [
@@ -109,11 +165,12 @@ const testimonials = [
   },
 ];
 
+// Stats con contexto citable para AEO
 const stats = [
-  { value: "10K+", label: "Artículos" },
-  { value: "500+", label: "Empresas" },
-  { value: "98%", label: "Satisfacción" },
-  { value: "4.9★", label: "Valoración" },
+  { value: "10K+", label: "Artículos generados", context: "10.000+ artículos generados en 2026" },
+  { value: "500+", label: "Empresas activas", context: "500+ empresas confían en Blooglee" },
+  { value: "98%", label: "Satisfacción", context: "98% de clientes satisfechos" },
+  { value: "4.9★", label: "Valoración media", context: "Valoración media de 4.9/5 estrellas" },
 ];
 
 const Landing = () => {
@@ -121,10 +178,12 @@ const Landing = () => {
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-fuchsia-50/50 to-orange-50/30 overflow-hidden">
       <SEOHead 
         canonicalUrl="/"
-        description="Genera y publica artículos para tu blog WordPress automáticamente con IA. Ideal para empresas y agencias de marketing. Prueba gratis."
-        keywords="blog automático, generación contenido IA, WordPress, marketing contenidos, SEO, artículos automáticos, Blooglee"
+        description="Blooglee genera artículos de blog con IA y los publica en WordPress automáticamente. Prueba gratis: 1 sitio + 1 artículo. Ideal para empresas y agencias de marketing. 🇪🇸"
+        keywords="blog automático, generación contenido IA, WordPress, marketing contenidos, SEO, artículos automáticos, Blooglee, alternativa NextBlog"
       />
       <FAQSchema faqs={landingFAQs} />
+      <ReviewSchema reviews={testimonialReviews} />
+      <SoftwareAppSchema />
       {/* LIQUID BLOBS BACKGROUND */}
       <LiquidBlobs variant="hero" />
 

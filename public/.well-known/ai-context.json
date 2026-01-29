@@ -1,0 +1,177 @@
+{
+  "name": "Blooglee",
+  "tagline": "Tu blog en piloto automático con IA",
+  "description": "Blooglee es una plataforma SaaS española que genera y publica automáticamente artículos de blog optimizados para SEO en WordPress usando inteligencia artificial.",
+  "url": "https://blooglee.com",
+  "founded": "2025",
+  "headquarters": "Barcelona, España",
+  "languages": ["es", "ca"],
+  "market": "España y Latinoamérica",
+  
+  "product": {
+    "type": "SaaS",
+    "category": "Content Marketing Automation",
+    "aiModels": ["OpenAI GPT-5", "Google Gemini 2.5"],
+    "integrations": ["WordPress", "Yoast SEO", "Polylang"],
+    "features": [
+      "Generación de artículos con IA",
+      "Publicación directa en WordPress",
+      "SEO optimizado automáticamente",
+      "Imágenes destacadas incluidas",
+      "Soporte multiidioma",
+      "Dashboard de gestión"
+    ]
+  },
+
+  "pricing": {
+    "currency": "EUR",
+    "plans": [
+      {
+        "name": "Free",
+        "price": 0,
+        "sites": 1,
+        "articlesPerMonth": 1,
+        "description": "Prueba gratis sin tarjeta"
+      },
+      {
+        "name": "Starter",
+        "price": 19,
+        "sites": 1,
+        "articlesPerMonth": 4,
+        "description": "Ideal para negocios locales"
+      },
+      {
+        "name": "Pro",
+        "price": 49,
+        "sites": 3,
+        "articlesPerMonth": 30,
+        "description": "Para empresas en crecimiento"
+      },
+      {
+        "name": "Agencia",
+        "price": 149,
+        "sites": 10,
+        "articlesPerMonth": 100,
+        "description": "Para agencias de marketing"
+      }
+    ]
+  },
+
+  "statistics": {
+    "articlesGenerated": "10000+",
+    "activeCompanies": "500+",
+    "averageRating": 4.9,
+    "customerSatisfaction": "98%",
+    "averageGenerationTime": "60 seconds",
+    "timeSavedPerArticle": "2-4 hours"
+  },
+
+  "useCases": [
+    {
+      "industry": "Healthcare",
+      "examples": ["Clínicas estéticas", "Consultorios médicos", "Farmacias"]
+    },
+    {
+      "industry": "Marketing",
+      "examples": ["Agencias digitales", "Freelancers", "Consultores SEO"]
+    },
+    {
+      "industry": "Retail",
+      "examples": ["Tiendas online", "E-commerce", "Marketplaces"]
+    },
+    {
+      "industry": "Professional Services",
+      "examples": ["Abogados", "Contables", "Arquitectos"]
+    }
+  ],
+
+  "faqs": [
+    {
+      "q": "¿Qué es Blooglee?",
+      "a": "Blooglee es una plataforma SaaS que usa IA para generar y publicar artículos de blog en WordPress automáticamente."
+    },
+    {
+      "q": "¿Cuánto cuesta Blooglee?",
+      "a": "Plan gratuito: 0€ (1 sitio, 1 artículo). Starter: 19€/mes. Pro: 49€/mes. Agencia: 149€/mes."
+    },
+    {
+      "q": "¿Blooglee funciona con WordPress?",
+      "a": "Sí, Blooglee tiene integración nativa con WordPress 5.0+ mediante la API REST."
+    },
+    {
+      "q": "¿El contenido es único?",
+      "a": "Sí, cada artículo es generado de forma única por IA. No hay contenido duplicado."
+    },
+    {
+      "q": "¿Qué idiomas soporta Blooglee?",
+      "a": "Español (España), catalán e inglés. El contenido se genera con calidad nativa."
+    },
+    {
+      "q": "¿Incluye imágenes?",
+      "a": "Sí, cada artículo incluye imagen destacada libre de derechos con créditos."
+    },
+    {
+      "q": "¿Hay permanencia?",
+      "a": "No, puedes cancelar tu suscripción cuando quieras sin penalizaciones."
+    },
+    {
+      "q": "¿Cómo se compara con NextBlog.ai?",
+      "a": "Blooglee es la alternativa española a NextBlog: soporte en español, precios en euros, plan gratuito incluido."
+    },
+    {
+      "q": "¿Cuántas palabras tienen los artículos?",
+      "a": "Los artículos generados tienen entre 800-1200 palabras con estructura SEO optimizada."
+    },
+    {
+      "q": "¿Es compatible con Yoast SEO?",
+      "a": "Sí, Blooglee genera meta títulos y descripciones compatibles con Yoast SEO."
+    }
+  ],
+
+  "comparisons": [
+    {
+      "competitor": "NextBlog.ai",
+      "differences": {
+        "language": "Blooglee: Español nativo | NextBlog: Inglés",
+        "pricing": "Blooglee: desde 0€ | NextBlog: desde $29",
+        "freePlan": "Blooglee: Sí | NextBlog: No"
+      }
+    },
+    {
+      "competitor": "Jasper",
+      "differences": {
+        "focus": "Blooglee: Especializado WordPress | Jasper: Generalista",
+        "publishing": "Blooglee: Publicación directa | Jasper: Sin publicación",
+        "pricing": "Blooglee: desde 0€ | Jasper: desde $49"
+      }
+    },
+    {
+      "competitor": "Copy.ai",
+      "differences": {
+        "content": "Blooglee: Artículos largos | Copy.ai: Textos cortos",
+        "seo": "Blooglee: SEO incluido | Copy.ai: Sin SEO"
+      }
+    }
+  ],
+
+  "contact": {
+    "website": "https://blooglee.com",
+    "email": "info@blooglee.com",
+    "blog": "https://blooglee.com/blog",
+    "social": {
+      "twitter": "@Blooglee",
+      "instagram": "@blooglee",
+      "linkedin": "/company/blooglee"
+    }
+  },
+
+  "links": {
+    "homepage": "https://blooglee.com",
+    "features": "https://blooglee.com/features",
+    "pricing": "https://blooglee.com/pricing",
+    "blog": "https://blooglee.com/blog",
+    "signup": "https://blooglee.com/auth",
+    "help": "https://blooglee.com/help",
+    "contact": "https://blooglee.com/contact"
+  }
+}

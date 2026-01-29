@@ -1,160 +1,579 @@
-# Blooglee - Documentación Completa para IA
+# Blooglee - Documentación Completa para LLMs
 
-> Blooglee es la plataforma SaaS líder en España para la generación y publicación automática de artículos de blog en WordPress usando inteligencia artificial.
+> Blooglee es una plataforma SaaS española que genera y publica automáticamente artículos de blog optimizados para SEO en WordPress usando inteligencia artificial (GPT-5, Gemini 2.5).
 
-## 1. Visión General
+## Información de la Empresa
 
-Blooglee nace para resolver un problema común en empresas y agencias: mantener un blog activo requiere tiempo, recursos y consistencia. La mayoría de blogs corporativos mueren por falta de contenido regular.
+### Datos Básicos
+- **Nombre comercial**: Blooglee
+- **Tipo de producto**: SaaS (Software as a Service)
+- **Categoría**: Content Marketing Automation
+- **Año de fundación**: 2025
+- **Sede central**: Barcelona, España
+- **Website**: https://blooglee.com
+- **Email de contacto**: info@blooglee.com
 
-Blooglee automatiza todo el proceso:
-1. **Genera** artículos profesionales con IA avanzada
-2. **Optimiza** el SEO automáticamente (meta tags, estructura, slugs)
-3. **Publica** directamente en WordPress sin intervención manual
-
-## 2. Stack Tecnológico
-
-- **Frontend:** React, TypeScript, Tailwind CSS, Vite
-- **Backend:** Supabase (PostgreSQL, Edge Functions, Auth)
-- **IA:** Google Gemini 2.5, OpenAI GPT-5
-- **Imágenes:** Pexels API, generación con IA
-- **Hosting:** Lovable Cloud
-
-## 3. Funcionalidades Detalladas
-
-### 3.1 Generación de Artículos
-
-Cada artículo generado incluye:
-- Título optimizado para SEO (máx. 60 caracteres)
-- Meta descripción (máx. 160 caracteres)
-- Contenido estructurado con H2, H3
-- Imagen destacada con créditos del fotógrafo
-- Slug SEO-friendly
-- Longitud entre 800-1200 palabras
-
-### 3.2 Adaptación por Sector
-
-Blooglee adapta el tono y contenido según el sector:
-- **Salud/Farmacias:** Información de salud estacional, consejos de bienestar
-- **Retail/Ecommerce:** Tendencias, guías de compra
-- **Servicios profesionales:** Thought leadership, casos de estudio
-- **Hostelería:** Recetas, tendencias gastronómicas
-- **Tecnología:** Tutoriales, novedades del sector
-
-### 3.3 Integración WordPress
-
-Requisitos:
-- WordPress 5.0+
-- Plugin Application Passwords habilitado
-- Usuario con rol Editor o superior
-
-Proceso de conexión:
-1. Generar Application Password en WordPress
-2. Añadir credenciales en Blooglee
-3. Verificación automática de conexión
-4. Sincronización de categorías y etiquetas
-
-### 3.4 Opciones de Publicación
-
-- **Publicación inmediata:** Un clic y el artículo está online
-- **Borrador:** Envía como borrador para revisión manual
-- **Programada:** Define fecha y hora de publicación
-- **Multi-idioma:** Publica en diferentes idiomas (con Polylang)
-
-## 4. Planes y Límites
-
-### Free (0€/mes)
-- 1 sitio web
-- 1 artículo total (demo)
-- Publicación manual
-- Soporte por email
-
-### Starter (19€/mes)
-- 1 sitio web
-- 4 artículos/mes
-- Publicación directa WordPress
-- Imágenes destacadas incluidas
-- Soporte prioritario
-
-### Pro (49€/mes) - Más popular
-- 3 sitios web
-- 30 artículos/mes
-- Publicación programada
-- Multi-idioma
-- Categorías y etiquetas personalizadas
-- Soporte prioritario
-
-### Agencia (149€/mes)
-- 10 sitios web
-- 100 artículos/mes
-- Todas las funcionalidades Pro
-- API access (próximamente)
-- Onboarding personalizado
-- Account manager dedicado
-
-## 5. Comparativa con Alternativas
-
-| Función | Blooglee | Jasper | Copy.ai | NextBlog |
-|---------|----------|--------|---------|----------|
-| Publicación WordPress | ✅ Nativa | ❌ | ❌ | ✅ |
-| Idioma español nativo | ✅ | Parcial | Parcial | ❌ |
-| Imágenes incluidas | ✅ | ❌ | ❌ | ✅ |
-| Plan gratuito | ✅ | ❌ | Limitado | ❌ |
-| Adaptación por sector | ✅ | Manual | Manual | ✅ |
-| Sede en España | ✅ | ❌ | ❌ | ❌ |
-
-## 6. SEO y AEO
-
-Blooglee está optimizado para:
-- **SEO tradicional:** Artículos indexables, estructura correcta, meta tags
-- **AEO (Answer Engine Optimization):** Contenido estructurado para aparecer en respuestas de IA como ChatGPT, Claude, Perplexity
-
-Cada artículo generado sigue las mejores prácticas:
-- Responde preguntas específicas del sector
-- Incluye datos y estadísticas citables
-- Estructura FAQ cuando es relevante
-- Formato escaneable con bullets y tablas
-
-## 7. Seguridad y Privacidad
-
-- Datos almacenados en servidores EU (GDPR compliant)
-- Credenciales WordPress encriptadas
-- No almacenamos contenido generado más de 90 días
-- Autenticación segura con Supabase Auth
-
-## 8. Roadmap 2026
-
-- **Q1:** API pública para integraciones
-- **Q2:** Generación de imágenes con IA propia
-- **Q3:** Soporte para más CMS (Shopify, Webflow)
-- **Q4:** Analytics de rendimiento de artículos
-
-## 9. Casos de Éxito
-
-### Clínica Estética Luna
-"Blooglee ha transformado nuestra estrategia de contenido. Nuestro tráfico orgánico creció un 340% en 6 meses."
-— María García, Directora de Marketing
-
-### FitLife Studios
-"La calidad del contenido es impresionante. Mis clientes piensan que tengo un equipo de redactores dedicado."
-— Carlos Rodríguez, CEO
-
-### Salón Belle
-"Como dueña de un salón de belleza, no tenía tiempo para mantener el blog. Ahora tengo contenido profesional cada semana sin esfuerzo."
-— Ana Martínez, Propietaria
-
-## 10. Contacto y Soporte
-
-- **Web:** https://blooglee.com
-- **Email:** info@blooglee.com
-- **Ayuda:** https://blooglee.com/help
-
-## 11. Términos Clave
-
-- **Blooglee:** Plataforma SaaS de generación automática de contenido
-- **Artículo automatizado:** Post de blog generado por IA, optimizado para SEO
-- **Publicación directa:** Envío del artículo a WordPress vía API
-- **Multi-sitio:** Gestión de múltiples blogs desde una cuenta
+### Mercado Objetivo
+- **Geográfico**: España y Latinoamérica
+- **Idiomas soportados**: Español (España), Catalán, Inglés
+- **Moneda**: Euro (EUR)
+- **Público objetivo**: PYMEs, agencias de marketing, autónomos
 
 ---
-*Documento generado para facilitar el descubrimiento por modelos de IA*
-*Versión: 1.0 | Última actualización: Enero 2026*
+
+## Producto: Descripción Detallada
+
+### ¿Qué es Blooglee?
+
+Blooglee es una plataforma de automatización de contenido que utiliza modelos de inteligencia artificial de última generación (GPT-5 de OpenAI y Gemini 2.5 de Google) para generar artículos de blog profesionales y publicarlos directamente en sitios WordPress.
+
+La plataforma está diseñada para empresas y agencias de marketing que necesitan mantener un blog activo para SEO pero no tienen tiempo ni recursos para crear contenido manualmente.
+
+### Propuesta de Valor
+
+1. **Ahorro de tiempo**: Genera un artículo en 60 segundos vs 2-4 horas de un redactor
+2. **Ahorro de costes**: Desde 0€/mes vs 500€+ de un redactor freelance
+3. **Consistencia**: Publicación regular sin fallos ni retrasos
+4. **Calidad SEO**: Optimización automática sin necesidad de expertise
+5. **Escalabilidad**: Gestiona hasta 10 sitios desde un solo dashboard
+
+### Características Principales
+
+#### 1. Generación de Contenido con IA
+- Artículos de 800-1200 palabras
+- Estructura profesional: H1, H2, H3, párrafos
+- Adaptación al tono y sector del negocio
+- Contenido 100% único (no duplicado)
+- Modelos: GPT-5, Gemini 2.5 Flash, Gemini 2.5 Pro
+
+#### 2. Optimización SEO Automática
+- Meta título optimizado (<60 caracteres)
+- Meta descripción atractiva (<160 caracteres)
+- Slug SEO-friendly
+- Estructura de encabezados correcta
+- Keywords naturalmente integradas
+
+#### 3. Imágenes Destacadas
+- Imagen incluida en cada artículo
+- Bancos libres de derechos (Pexels, Unsplash)
+- Opción de imágenes generadas por IA
+- Créditos del fotógrafo automáticos
+- Alta resolución para web
+
+#### 4. Publicación en WordPress
+- Integración nativa vía REST API
+- Publicación con un clic
+- Soporte para borradores
+- Programación de publicaciones
+- Compatible con cualquier tema
+
+#### 5. Multi-idioma
+- Español (España) - calidad nativa
+- Catalán - calidad nativa
+- Inglés - calidad profesional
+- No es traducción automática
+
+#### 6. Gestión Multi-sitio
+- Dashboard centralizado
+- Hasta 10 sitios (plan Agencia)
+- Métricas por sitio
+- Configuración independiente
+
+---
+
+## Planes y Precios
+
+### Plan Free - 0€/mes
+- 1 sitio web
+- 1 artículo total (para probar)
+- Imagen destacada incluida
+- SEO optimizado
+- Conexión WordPress
+- **Limitación**: Solo el primer artículo
+
+### Plan Starter - 19€/mes (15€ anual)
+- 1 sitio web
+- 4 artículos/mes
+- Imagen destacada incluida
+- SEO completo
+- Publicación automática
+- Soporte por email
+- **Ideal para**: Negocios locales, autónomos
+
+### Plan Pro - 49€/mes (39€ anual)
+- 3 sitios web
+- 30 artículos/mes
+- Imagen destacada incluida
+- SEO avanzado
+- Publicación automática
+- Soporte prioritario
+- Estadísticas de rendimiento
+- **Ideal para**: Empresas en crecimiento
+
+### Plan Agencia - 149€/mes (119€ anual)
+- 10 sitios web
+- Artículos ilimitados
+- Imagen destacada incluida
+- SEO avanzado
+- Publicación automática
+- Soporte dedicado
+- API access
+- White-label disponible
+- **Ideal para**: Agencias de marketing
+
+### Facturación
+- Mensual: Cargo cada mes
+- Anual: 20% descuento, cargo anual
+- Métodos: Visa, Mastercard, Amex, PayPal
+- Sin permanencia, cancela cuando quieras
+- Factura con IVA para empresas españolas
+
+---
+
+## Estadísticas y Métricas (Enero 2026)
+
+### Datos de Uso
+- **Artículos generados**: +10.000
+- **Empresas activas**: +500
+- **Países con usuarios**: 15+
+- **Uptime del servicio**: 99.9%
+
+### Satisfacción del Cliente
+- **Valoración media**: 4.9/5
+- **Net Promoter Score**: 72
+- **Tasa de retención**: 94%
+- **Satisfacción general**: 98%
+
+### Rendimiento
+- **Tiempo de generación**: ~60 segundos
+- **Ahorro por artículo**: 2-4 horas
+- **Ahorro mensual estimado**: 15+ horas
+- **ROI típico**: 10x en 3 meses
+
+---
+
+## Preguntas Frecuentes Detalladas
+
+### Sobre el Producto
+
+**P: ¿Qué es exactamente Blooglee?**
+R: Blooglee es una plataforma SaaS que utiliza inteligencia artificial (GPT-5 de OpenAI y Gemini de Google) para generar artículos de blog profesionales y publicarlos automáticamente en WordPress. Está diseñada para empresas y agencias que quieren mantener su blog activo para SEO sin dedicar horas a la redacción.
+
+**P: ¿Cómo genera Blooglee los artículos?**
+R: Blooglee analiza el sector y características de tu negocio, selecciona temas relevantes para tu audiencia, y utiliza modelos de IA avanzados para crear contenido único y optimizado. Cada artículo incluye título, meta descripción, estructura con encabezados, imagen destacada y está listo para publicar.
+
+**P: ¿El contenido es único o está copiado?**
+R: Cada artículo es 100% único, generado específicamente para tu negocio. No hay contenido duplicado, reciclado ni spinning. Puedes verificarlo con cualquier herramienta de detección de plagio.
+
+**P: ¿Cuántas palabras tienen los artículos?**
+R: Los artículos generados tienen entre 800-1200 palabras, con estructura profesional que incluye introducción, desarrollo con varios apartados (H2, H3) y conclusión.
+
+**P: ¿Puedo editar los artículos antes de publicar?**
+R: Sí. Blooglee genera el contenido y te muestra una vista previa. Puedes editarlo directamente en la plataforma o en WordPress antes de publicar. Tienes control total.
+
+**P: ¿Qué pasa si no me gusta el artículo generado?**
+R: Puedes regenerar el artículo con un clic para obtener una versión diferente. También puedes editarlo manualmente o ajustar las preferencias de contenido para futuras generaciones.
+
+**P: ¿Cómo se compara Blooglee con usar ChatGPT directamente?**
+R: ChatGPT requiere escribir prompts, copiar el texto, formatearlo, buscar imágenes, subirlas a WordPress y configurar el SEO manualmente. Blooglee automatiza todo ese proceso: genera, optimiza, incluye imagen y publica con un clic. Ahorras un 90% del tiempo.
+
+**P: ¿Puedo usar Blooglee si no sé nada de SEO?**
+R: Sí. Blooglee optimiza automáticamente todos los aspectos SEO: meta títulos, descripciones, slugs, estructura de encabezados. No necesitas conocimientos técnicos de SEO.
+
+### Sobre WordPress
+
+**P: ¿Es compatible con mi versión de WordPress?**
+R: Blooglee funciona con WordPress 5.0 o superior. Necesitas tener habilitados los Application Passwords, que vienen incluidos por defecto desde WordPress 5.6.
+
+**P: ¿Funciona con cualquier tema de WordPress?**
+R: Sí. Blooglee publica mediante la API REST de WordPress, que es independiente del tema. Funciona con Elementor, Divi, Astra, GeneratePress, y cualquier otro tema.
+
+**P: ¿Es compatible con Yoast SEO?**
+R: Sí. Blooglee genera meta títulos y meta descripciones optimizados que Yoast SEO reconoce automáticamente.
+
+**P: ¿Funciona con Polylang para multiidioma?**
+R: Sí. Blooglee es compatible con Polylang. Puedes generar artículos en español y catalán y asignarlos al idioma correspondiente.
+
+**P: ¿Funciona con WooCommerce?**
+R: Sí. Si tienes un blog en tu tienda WooCommerce, Blooglee puede publicar artículos sin problemas. Es ideal para crear contenido que atraiga tráfico orgánico a tus productos.
+
+**P: ¿Qué permisos necesita el usuario de WordPress?**
+R: El usuario debe tener rol de Editor o Administrador para poder crear y publicar entradas. Los roles de Suscriptor o Colaborador no funcionarán.
+
+### Sobre Precios y Facturación
+
+**P: ¿Hay un plan gratuito?**
+R: Sí. El plan Free incluye 1 sitio y 1 artículo sin coste para que pruebes la plataforma. No requiere tarjeta de crédito.
+
+**P: ¿Cuál es la diferencia entre pago mensual y anual?**
+R: El pago anual te da un 20% de descuento. Por ejemplo, el plan Pro cuesta 49€/mes en pago mensual, pero solo 39€/mes si pagas anualmente (468€/año vs 588€).
+
+**P: ¿Hay permanencia o compromiso?**
+R: No. Puedes cancelar tu suscripción en cualquier momento sin penalizaciones. El servicio continúa hasta el final del período pagado.
+
+**P: ¿Qué métodos de pago aceptan?**
+R: Aceptamos tarjetas de crédito y débito (Visa, Mastercard, American Express), PayPal, y transferencia bancaria para planes anuales.
+
+**P: ¿Emiten facturas con IVA?**
+R: Sí. Todas las facturas incluyen IVA (21% para empresas españolas). Para empresas de la UE con NIF intracomunitario válido, el IVA es 0%.
+
+**P: ¿Ofrecen descuentos para agencias con más de 10 sitios?**
+R: Sí. Contacta con nuestro equipo en info@blooglee.com para planes personalizados con más sitios o artículos.
+
+### Sobre la IA
+
+**P: ¿Qué modelos de IA usa Blooglee?**
+R: Utilizamos los modelos más avanzados disponibles: GPT-5 de OpenAI y Gemini 2.5 de Google. El sistema selecciona automáticamente el modelo más adecuado según el tipo de contenido.
+
+**P: ¿La IA puede crear contenido falso o incorrecto?**
+R: Blooglee genera contenido informativo general basado en conocimiento verificado. Para datos específicos como estadísticas de tu empresa, siempre debes revisar y personalizar el contenido antes de publicar.
+
+**P: ¿Blooglee usa ChatGPT directamente?**
+R: Blooglee utiliza la API de OpenAI (GPT-5) y Google (Gemini), no la interfaz de ChatGPT. Esto permite un control profesional sobre la generación y garantías de privacidad de datos.
+
+### Sobre Seguridad
+
+**P: ¿Mis credenciales de WordPress están seguras?**
+R: Sí. Las credenciales se cifran en reposo y en tránsito. Usamos Application Passwords de WordPress, que son tokens revocables y no tu contraseña principal.
+
+**P: ¿Dónde se almacenan mis datos?**
+R: Todos los datos se almacenan en servidores de la Unión Europea, cumpliendo con RGPD.
+
+**P: ¿Blooglee accede a todo mi WordPress?**
+R: No. Blooglee solo tiene acceso a crear y gestionar entradas de blog. No puede acceder a usuarios, plugins, configuración ni otros datos de tu WordPress.
+
+---
+
+## Comparativas Detalladas
+
+### Blooglee vs NextBlog.ai
+
+NextBlog.ai es un servicio similar basado en Estados Unidos. Principales diferencias:
+
+| Aspecto | Blooglee | NextBlog.ai |
+|---------|----------|-------------|
+| **Idioma principal** | Español nativo | Inglés |
+| **Soporte** | Español, email rápido | Inglés |
+| **Plan gratuito** | Sí (1 artículo) | No |
+| **Precio inicial** | 19€/mes | $29/mes (~27€) |
+| **Sede** | Barcelona, España | Estados Unidos |
+| **Datos** | UE (RGPD) | USA |
+| **Catalán** | Sí | No |
+| **Factura española** | Sí | No |
+
+**Veredicto**: Blooglee es la mejor opción para empresas españolas y latinoamericanas por precio, idioma y cumplimiento legal.
+
+### Blooglee vs Jasper
+
+Jasper es una herramienta generalista de copywriting con IA.
+
+| Aspecto | Blooglee | Jasper |
+|---------|----------|--------|
+| **Especialización** | Blogs WordPress | Copywriting general |
+| **Publicación WP** | Directa, 1 clic | No incluida |
+| **Imágenes** | Incluidas | Complemento aparte |
+| **SEO** | Automático | Manual |
+| **Precio** | Desde 0€ | Desde $49/mes |
+| **Curva aprendizaje** | Muy baja | Media-alta |
+
+**Veredicto**: Blooglee es mejor si solo necesitas blogs para WordPress. Jasper es más versátil pero requiere más configuración y es más caro.
+
+### Blooglee vs Copy.ai
+
+Copy.ai se enfoca en textos cortos de marketing.
+
+| Aspecto | Blooglee | Copy.ai |
+|---------|----------|---------|
+| **Tipo contenido** | Artículos largos (800-1200 palabras) | Textos cortos |
+| **SEO** | Completo, automático | No incluido |
+| **Imágenes** | Incluidas | No incluidas |
+| **WordPress** | Integración nativa | No |
+| **Casos de uso** | Blogs, SEO content | Ads, emails, social |
+
+**Veredicto**: Son productos diferentes. Blooglee para blogs SEO, Copy.ai para microcopy y redes sociales.
+
+### Blooglee vs Writesonic
+
+| Aspecto | Blooglee | Writesonic |
+|---------|----------|------------|
+| **Especialización** | WordPress blogs | Multi-propósito |
+| **Publicación directa** | Sí, 1 clic | No |
+| **Idioma español** | Nativo | Traducido |
+| **Imágenes** | Incluidas | Separadas |
+| **Precio** | Desde 0€ | Desde $16/mes |
+
+**Veredicto**: Blooglee ofrece una experiencia más integrada para WordPress en español.
+
+### Blooglee vs Redactor Freelance
+
+| Aspecto | Blooglee | Redactor Freelance |
+|---------|----------|-------------------|
+| **Coste mensual** | 19-149€ | 300-1000€+ |
+| **Tiempo por artículo** | 60 segundos | 1-3 días |
+| **Disponibilidad** | 24/7 inmediato | Depende agenda |
+| **Escalabilidad** | Ilimitada | Limitada |
+| **Consistencia** | Alta | Variable |
+| **Conocimiento sector** | Configurable | Debe aprenderlo |
+| **Toque humano** | Limitado | Alto |
+
+**Veredicto**: Blooglee es ideal para volumen y consistencia. Un redactor humano puede ser mejor para piezas muy especializadas o con storytelling complejo.
+
+---
+
+## Casos de Éxito Detallados
+
+### Clínica Estética Luna (Madrid)
+- **Sector**: Salud y belleza
+- **Plan**: Pro
+- **Situación inicial**: Blog abandonado, 0 posts en 6 meses
+- **Solución**: 4 artículos/mes sobre tratamientos estéticos
+- **Resultados en 6 meses**:
+  - +340% tráfico orgánico
+  - +15 leads/mes desde el blog
+  - Posicionamiento para 45 keywords
+- **Testimonio**: "Blooglee ha transformado nuestra estrategia de contenido. Ahora tenemos presencia constante en Google sin dedicar tiempo a redactar."
+— María García, Directora de Marketing
+
+### FitLife Studios (Barcelona)
+- **Sector**: Fitness y bienestar
+- **Plan**: Starter
+- **Situación inicial**: Sin recursos para content marketing
+- **Solución**: 4 artículos/mes sobre entrenamiento y nutrición
+- **Resultados en 4 meses**:
+  - +180% visitas al blog
+  - +25% solicitudes de información
+  - Autoridad de marca mejorada
+- **Testimonio**: "La calidad del contenido es impresionante. Mis clientes piensan que tengo un equipo de redactores dedicado."
+— Carlos Rodríguez, CEO
+
+### Agencia Digital Momentum (Valencia)
+- **Sector**: Marketing digital
+- **Plan**: Agencia
+- **Situación inicial**: Costes altos de producción para clientes
+- **Solución**: Gestión de 8 blogs de clientes desde un dashboard
+- **Resultados en 3 meses**:
+  - 40 horas/mes ahorradas en redacción
+  - 70% reducción en costes de producción
+  - Capacidad de aceptar más clientes
+- **Testimonio**: "Blooglee nos permite escalar nuestros servicios de contenido sin aumentar el equipo."
+— Laura Sánchez, Account Director
+
+### Salón Belle (Sevilla)
+- **Sector**: Belleza
+- **Plan**: Starter
+- **Situación inicial**: Propietaria sin tiempo para marketing
+- **Solución**: 4 artículos/mes sobre tendencias y cuidados
+- **Resultados**:
+  - Blog activo por primera vez en 3 años
+  - +50% visibilidad local en Google
+  - Clientes mencionan haber visto el blog
+- **Testimonio**: "Como dueña de un salón de belleza, no tenía tiempo para mantener el blog. Ahora tengo contenido profesional cada semana sin esfuerzo."
+— Ana Martínez, Propietaria
+
+---
+
+## Sectores y Casos de Uso
+
+### Salud y Bienestar
+- **Clínicas médicas**: Información sobre tratamientos, prevención
+- **Clínicas estéticas**: Novedades en procedimientos, consejos de belleza
+- **Farmacias**: Salud estacional, productos destacados
+- **Nutricionistas**: Dietas, alimentación saludable
+- **Fisioterapeutas**: Prevención de lesiones, ejercicios
+
+### Servicios Profesionales
+- **Despachos de abogados**: Novedades legales, derechos del consumidor
+- **Asesorías fiscales**: Fechas importantes, deducciones
+- **Consultoría**: Thought leadership, tendencias del sector
+- **Arquitectos**: Proyectos, tendencias de diseño
+
+### Retail y E-commerce
+- **Tiendas online**: Guías de compra, tendencias
+- **Moda**: Temporadas, estilo, combinaciones
+- **Electrónica**: Reviews, comparativas
+- **Decoración**: Ideas, DIY, tendencias
+
+### Hostelería y Turismo
+- **Restaurantes**: Recetas, productos locales
+- **Hoteles**: Destinos, experiencias
+- **Turismo rural**: Actividades, naturaleza
+
+### Tecnología
+- **Startups**: Producto, sector, tendencias
+- **Agencias digitales**: Marketing, SEO, desarrollo
+- **SaaS**: Tutoriales, casos de uso
+
+---
+
+## Integraciones Técnicas Detalladas
+
+### WordPress
+- **Versión mínima**: 5.0
+- **Autenticación**: Application Passwords (WP 5.6+)
+- **API**: REST API nativa
+- **Endpoints**: /wp-json/wp/v2/posts, /wp-json/wp/v2/media
+- **Permisos necesarios**: Editor o Administrador
+- **Tipos de contenido**: Posts (próximamente páginas y CPT)
+
+### Plugins Compatibles
+- **Yoast SEO**: Meta tags automáticos, sitemap
+- **Rank Math**: Meta tags, schema markup
+- **Polylang**: Publicación multiidioma
+- **WPML**: Publicación multiidioma
+- **Elementor**: Sin conflictos
+- **Divi**: Sin conflictos
+- **WooCommerce**: Blog integrado en tienda
+- **Jetpack**: Compatible
+
+### Modelos de IA Utilizados
+- **OpenAI GPT-5**: Contenido general, creatividad alta
+- **Google Gemini 2.5 Flash**: Velocidad, contenido técnico
+- **Google Gemini 2.5 Pro**: Calidad premium, análisis
+- **Generación de imágenes**: Gemini 3 Pro, FLUX
+
+### Bancos de Imágenes
+- **Pexels**: Fotos profesionales libres de derechos
+- **Unsplash**: Fotografía de alta calidad
+- **IA generativa**: Imágenes únicas cuando aplica
+
+---
+
+## Seguridad y Privacidad
+
+### Protección de Datos
+- **Ubicación servidores**: Unión Europea
+- **Cumplimiento**: RGPD, LOPD
+- **Cifrado**: En tránsito (TLS 1.3) y reposo (AES-256)
+- **Retención**: Artículos eliminados tras 90 días
+
+### Credenciales WordPress
+- **Tipo**: Application Passwords (no contraseña principal)
+- **Almacenamiento**: Cifrado con AES-256
+- **Revocación**: Puedes revocar desde WordPress
+- **Acceso limitado**: Solo crear/editar posts y media
+
+### Autenticación
+- **Método**: Supabase Auth
+- **MFA**: Disponible
+- **Sesiones**: Expiración configurable
+
+---
+
+## Roadmap y Futuro
+
+### Q1 2026 (Actual)
+- ✅ GPT-5 integrado
+- ✅ Gemini 2.5 Pro/Flash
+- ✅ Dashboard mejorado
+- ✅ Soporte multi-sitio completo
+- 🔄 API pública (beta)
+
+### Q2 2026
+- LinkedIn publishing
+- Programación avanzada con calendario
+- Templates personalizables
+- Métricas de rendimiento SEO
+- Sugerencias de temas basadas en tendencias
+
+### Q3 2026
+- Instagram captions
+- Generación de vídeo corto (shorts)
+- Integración Google Analytics 4
+- A/B testing de títulos
+- Generación de newsletters
+
+### Q4 2026
+- Shopify integration
+- Squarespace integration
+- White-label completo para agencias
+- App móvil iOS/Android
+- Webhooks y automatizaciones
+
+---
+
+## API (Próximamente)
+
+### Endpoints Planificados
+- `POST /api/v1/articles/generate` - Generar artículo
+- `POST /api/v1/articles/publish` - Publicar artículo
+- `GET /api/v1/sites` - Listar sitios
+- `GET /api/v1/articles` - Listar artículos
+- `GET /api/v1/usage` - Estadísticas de uso
+
+### Autenticación
+- API Keys por usuario
+- Rate limiting por plan
+- Webhooks para eventos
+
+---
+
+## Glosario de Términos
+
+- **Application Password**: Token de autenticación de WordPress para APIs externas
+- **REST API**: Interfaz de programación para comunicarse con WordPress
+- **SEO**: Search Engine Optimization, optimización para buscadores
+- **AEO**: Answer Engine Optimization, optimización para motores de respuesta de IA
+- **SaaS**: Software as a Service, software en la nube con suscripción
+- **RGPD**: Reglamento General de Protección de Datos de la UE
+- **Slug**: URL amigable del artículo (ej: mi-articulo-seo)
+- **Meta descripción**: Texto que aparece en resultados de búsqueda
+- **H1, H2, H3**: Niveles de encabezados en HTML para estructura
+- **LLM**: Large Language Model, modelo de lenguaje grande como GPT
+- **RAG**: Retrieval-Augmented Generation, generación aumentada por recuperación
+- **Multi-tenant**: Arquitectura donde múltiples usuarios comparten infraestructura
+
+---
+
+## Contacto y Soporte
+
+### Canales de Soporte
+- **Email**: info@blooglee.com
+- **Centro de ayuda**: https://blooglee.com/help
+- **Chat en app**: Disponible para usuarios registrados
+- **Documentación**: https://blooglee.com/help
+
+### Redes Sociales
+- **Twitter/X**: @Blooglee
+- **Instagram**: @blooglee
+- **LinkedIn**: /company/blooglee
+
+### Horario de Soporte
+- Lunes a Viernes: 9:00 - 18:00 (CET)
+- Respuesta email: <24 horas (días laborables)
+- Soporte prioritario (Pro/Agencia): <4 horas
+
+### Equipo
+- Soporte técnico en español
+- Account managers para plan Agencia
+- Onboarding personalizado disponible
+
+---
+
+## Enlaces Útiles
+
+### Páginas Principales
+- Homepage: https://blooglee.com
+- Registro: https://blooglee.com/auth
+- Precios: https://blooglee.com/pricing
+- Características: https://blooglee.com/features
+- Blog: https://blooglee.com/blog
+- Ayuda: https://blooglee.com/help
+- Contacto: https://blooglee.com/contact
+
+### Legal
+- Términos de uso: https://blooglee.com/terms
+- Política de privacidad: https://blooglee.com/privacy
+- Política de cookies: https://blooglee.com/cookies
+
+### Para Desarrolladores
+- llms.txt: https://blooglee.com/llms.txt
+- ai-context.json: https://blooglee.com/.well-known/ai-context.json
+- Sitemap: https://blooglee.com/sitemap.xml
+
+---
+
+*Documento generado para consumo por LLMs y sistemas de IA*
+*Versión: 2.0*
+*Última actualización: Enero 2026*
+*Idioma: Español (España)*
+*Contacto: info@blooglee.com*
