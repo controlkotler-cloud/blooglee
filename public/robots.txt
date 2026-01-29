@@ -1,14 +1,17 @@
 # Blooglee - Robots.txt
-# https://blooglee.lovable.app
+# https://blooglee.com
+# Optimizado para SEO y AEO (Answer Engine Optimization)
 
 # ===========================================
-# AI Crawlers - Permitir acceso para AEO
+# CRAWLERS DE IA - Acceso completo para AEO
 # ===========================================
 
+# OpenAI
 User-agent: GPTBot
 Allow: /
 Allow: /llms.txt
 Allow: /llms-full.txt
+Allow: /.well-known/ai-context.json
 Disallow: /dashboard
 Disallow: /account
 Disallow: /billing
@@ -21,29 +24,82 @@ User-agent: ChatGPT-User
 Allow: /
 Allow: /llms.txt
 Allow: /llms-full.txt
+Allow: /.well-known/ai-context.json
 
+# Anthropic (Claude)
 User-agent: Claude-Web
 Allow: /
 Allow: /llms.txt
 Allow: /llms-full.txt
+Allow: /.well-known/ai-context.json
 
 User-agent: Anthropic-AI
 Allow: /
 Allow: /llms.txt
 Allow: /llms-full.txt
+Allow: /.well-known/ai-context.json
 
+# Perplexity
 User-agent: PerplexityBot
 Allow: /
 Allow: /llms.txt
 Allow: /llms-full.txt
+Allow: /.well-known/ai-context.json
 
+# Google AI (Bard, Gemini, AI Overviews)
 User-agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /.well-known/ai-context.json
+
+# You.com
+User-agent: YouBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+# Cohere
+User-agent: Cohere-AI
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+# AI2 (Allen Institute)
+User-agent: AI2Bot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+# Meta AI
+User-agent: Meta-ExternalAgent
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+User-agent: Meta-ExternalFetcher
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+# Amazon Alexa
+User-agent: Amazonbot
+Allow: /
+Allow: /llms.txt
+
+# Apple (Siri, Spotlight)
+User-agent: Applebot
+Allow: /
+Allow: /llms.txt
+
+# Microsoft Copilot
+User-agent: bingbot
 Allow: /
 Allow: /llms.txt
 Allow: /llms-full.txt
 
 # ===========================================
-# Crawlers principales de buscadores
+# BUSCADORES TRADICIONALES
 # ===========================================
 
 User-agent: Googlebot
@@ -66,8 +122,28 @@ Disallow: /onboarding
 Disallow: /site/
 Disallow: /auth
 
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /dashboard
+Disallow: /account
+Disallow: /billing
+Disallow: /mkpro
+Disallow: /onboarding
+Disallow: /site/
+Disallow: /auth
+
+User-agent: YandexBot
+Allow: /
+Disallow: /dashboard
+Disallow: /account
+Disallow: /billing
+Disallow: /mkpro
+Disallow: /onboarding
+Disallow: /site/
+Disallow: /auth
+
 # ===========================================
-# Redes sociales
+# REDES SOCIALES
 # ===========================================
 
 User-agent: Twitterbot
@@ -79,8 +155,17 @@ Allow: /
 User-agent: LinkedInBot
 Allow: /
 
+User-agent: Slackbot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+User-agent: TelegramBot
+Allow: /
+
 # ===========================================
-# Otros crawlers
+# OTROS CRAWLERS
 # ===========================================
 
 User-agent: *
@@ -92,9 +177,25 @@ Disallow: /mkpro
 Disallow: /onboarding
 Disallow: /site/
 Disallow: /auth
+Disallow: /help/article/
+Disallow: /api/
 
 # ===========================================
-# Archivos de descubrimiento
+# ARCHIVOS DE DESCUBRIMIENTO
 # ===========================================
 
+# Sitemap principal
 Sitemap: https://blooglee.com/sitemap.xml
+
+# Archivos para LLMs
+# llms.txt: https://blooglee.com/llms.txt
+# llms-full.txt: https://blooglee.com/llms-full.txt
+# ai-context.json: https://blooglee.com/.well-known/ai-context.json
+
+# ===========================================
+# NOTAS
+# ===========================================
+# - Rutas /dashboard, /account, etc. son privadas (requieren auth)
+# - /blog y /blog/* son públicos y crawleables
+# - Archivos llms*.txt optimizados para consumo por LLMs
+# - ai-context.json en formato estructurado para IA
