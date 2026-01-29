@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,6 +27,9 @@ export default function SaasDashboard() {
   const { canAccessMKPro } = useIsMKProAdmin();
   const { data: sites = [], isLoading: loadingSites } = useSites();
   
+  // State for tracking multiple concurrent generations
+  const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
+
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
   const { data: articles = [] } = useAllArticlesSaas(currentMonth, currentYear);
@@ -45,8 +49,19 @@ export default function SaasDashboard() {
     return articles.filter(a => a.site_id === siteId).length;
   };
 
-  const handleGenerateArticle = (siteId: string) => {
-    generateMutation.mutate({ siteId });
+  const handleGenerateArticle = async (siteId: string) => {
+    // Add to generating set
+    setGeneratingIds(prev => new Set(prev).add(siteId));
+    try {
+      await generateMutation.mutateAsync({ siteId });
+    } finally {
+      // Remove from generating set when done
+      setGeneratingIds(prev => {
+        const next = new Set(prev);
+        next.delete(siteId);
+        return next;
+      });
+    }
   };
 
   const isLoading = loadingProfile || loadingSites;
@@ -162,7 +177,7 @@ export default function SaasDashboard() {
                 onConfigureWordPress={() => navigate(`/site/${site.id}?tab=wordpress`)}
                 onEdit={() => navigate(`/site/${site.id}?tab=settings`)}
                 onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
-                isGenerating={generateMutation.isPending && generateMutation.variables?.siteId === site.id}
+                isGenerating={generatingIds.has(site.id)}
               />
             ))}
           </div>
