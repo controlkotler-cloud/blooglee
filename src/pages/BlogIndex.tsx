@@ -218,7 +218,7 @@ const BlogIndex = () => {
             {/* Newsletter with audience selection */}
             <NewsletterForm 
               variant="sidebar"
-              defaultAudience={selectedAudience === 'todos' ? 'both' : selectedAudience as 'empresas' | 'agencias'}
+              source="blog"
             />
 
             {/* Popular Categories */}

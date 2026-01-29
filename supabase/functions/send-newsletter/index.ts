@@ -23,25 +23,36 @@ interface BlogPost {
 interface Subscriber {
   id: string;
   email: string;
+  name: string | null;
   audience: string | null;
 }
 
 function generateEmailHtml(
   posts: BlogPost[],
-  audienceType: 'empresas' | 'agencias' | 'both',
+  subscriberName: string | null,
+  audienceType: 'empresas' | 'agencias',
   unsubscribeUrl: string
 ): string {
-  const audienceTitle = audienceType === 'empresas' 
-    ? 'para Empresas' 
-    : audienceType === 'agencias' 
-    ? 'para Agencias' 
-    : '';
-    
-  const audienceSubtitle = audienceType === 'empresas'
-    ? 'Tips de marketing digital para hacer crecer tu negocio'
-    : audienceType === 'agencias'
-    ? 'Estrategias para escalar tu producción de contenido'
-    : 'Lo mejor en marketing digital y automatización';
+  const displayName = subscriberName || 'Hola';
+  
+  const audienceConfig = {
+    empresas: {
+      title: 'para Empresas',
+      subtitle: 'Tips de marketing digital para hacer crecer tu negocio',
+      subjectEmoji: '📈',
+      cta: '¿Quieres automatizar tu blog? Prueba Blooglee gratis.',
+      greeting: 'Aquí tienes el artículo de hoy pensado para hacer crecer tu negocio:'
+    },
+    agencias: {
+      title: 'para Agencias',
+      subtitle: 'Estrategias para escalar tu producción de contenido',
+      subjectEmoji: '🚀',
+      cta: 'Automatiza los blogs de tus clientes con Blooglee.',
+      greeting: 'El artículo de hoy te ayudará a escalar tu producción de contenido:'
+    }
+  };
+
+  const config = audienceConfig[audienceType];
 
   const postsHtml = posts.map(post => `
     <div style="margin-bottom: 30px; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
@@ -79,17 +90,19 @@ function generateEmailHtml(
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #F97316 100%); border-radius: 16px 16px 0 0; padding: 40px 30px; text-align: center;">
           <h1 style="color: white; margin: 0 0 10px 0; font-size: 28px; font-weight: 700;">
-            Blooglee ${audienceTitle}
+            Blooglee ${config.title}
           </h1>
           <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 16px;">
-            ${audienceSubtitle}
+            ${config.subtitle}
           </p>
         </div>
         
         <!-- Content -->
         <div style="background: #faf5ff; border-radius: 0 0 16px 16px; padding: 30px;">
           <p style="color: #555; font-size: 15px; margin-bottom: 25px;">
-            ¡Hola! 👋 Aquí tienes los últimos artículos que hemos publicado para ti:
+            Buenos días, <strong>${displayName}</strong> 👋
+            <br><br>
+            ${config.greeting}
           </p>
           
           ${postsHtml}
@@ -97,7 +110,7 @@ function generateEmailHtml(
           <!-- CTA -->
           <div style="text-align: center; margin-top: 30px; padding: 25px; background: white; border-radius: 12px;">
             <p style="color: #555; margin: 0 0 15px 0; font-size: 14px;">
-              ¿Quieres automatizar tu blog con IA?
+              ${config.cta}
             </p>
             <a href="https://blooglee.lovable.app/auth" 
                style="display: inline-block; background: linear-gradient(135deg, #8B5CF6, #D946EF); color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">
@@ -178,10 +191,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Posts by audience: Empresas=${empresasPosts.length}, Agencias=${agenciasPosts.length}`);
 
-    // Get active subscribers
+    // Get active subscribers with name field
     const { data: subscribers, error: subsError } = await supabase
       .from('newsletter_subscribers')
-      .select('id, email, audience')
+      .select('id, email, name, audience')
       .eq('is_active', true);
 
     if (subsError) {
@@ -198,34 +211,38 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Found ${subscribers.length} active subscribers`);
 
-    // Segment subscribers
-    const empresasSubscribers = subscribers.filter((s: Subscriber) => s.audience === 'empresas');
+    // Segment subscribers - legacy 'both' subscribers receive empresas content
+    const empresasSubscribers = subscribers.filter((s: Subscriber) => 
+      s.audience === 'empresas' || s.audience === 'both' || s.audience === null
+    );
     const agenciasSubscribers = subscribers.filter((s: Subscriber) => s.audience === 'agencias');
-    const bothSubscribers = subscribers.filter((s: Subscriber) => s.audience === 'both' || s.audience === null);
 
-    console.log(`Subscribers: Empresas=${empresasSubscribers.length}, Agencias=${agenciasSubscribers.length}, Both=${bothSubscribers.length}`);
+    console.log(`Subscribers: Empresas=${empresasSubscribers.length}, Agencias=${agenciasSubscribers.length}`);
 
     let emailsSent = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
     // Helper to send batch emails
     async function sendToSubscribers(
       subs: Subscriber[], 
       posts: BlogPost[], 
-      audienceType: 'empresas' | 'agencias' | 'both'
+      audienceType: 'empresas' | 'agencias'
     ) {
       if (subs.length === 0 || posts.length === 0) return;
+
+      const config = {
+        empresas: { emoji: '📈', prefix: 'tu artículo de hoy' },
+        agencias: { emoji: '🚀', prefix: 'contenido para tu agencia' }
+      };
 
       for (const subscriber of subs) {
         try {
           const unsubscribeUrl = `${BLOG_URL}?unsubscribe=${subscriber.id}`;
-          const html = generateEmailHtml(posts, audienceType, unsubscribeUrl);
+          const html = generateEmailHtml(posts, subscriber.name, audienceType, unsubscribeUrl);
           
-          const subject = audienceType === 'empresas'
-            ? `📈 Nuevo artículo para tu empresa: ${posts[0].title}`
-            : audienceType === 'agencias'
-            ? `🚀 Nuevo artículo para agencias: ${posts[0].title}`
-            : `✨ Nuevos artículos en Blooglee`;
+          // Personalized subject with name if available
+          const namePrefix = subscriber.name ? `${subscriber.name}, ` : '';
+          const subject = `${config[audienceType].emoji} ${namePrefix}${config[audienceType].prefix}: ${posts[0].title}`;
 
           await resend.emails.send({
             from: "Blooglee <onboarding@resend.dev>",
@@ -235,7 +252,7 @@ const handler = async (req: Request): Promise<Response> => {
           });
 
           emailsSent++;
-          console.log(`✓ Email sent to ${subscriber.email} (${audienceType})`);
+          console.log(`✓ Email sent to ${subscriber.email} (${subscriber.name || 'no name'}) - ${audienceType}`);
         } catch (error) {
           const errMsg = `Failed to send to ${subscriber.email}: ${error}`;
           console.error(errMsg);
@@ -247,7 +264,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Send to Empresas subscribers
+    // Send to Empresas subscribers (includes legacy 'both' subscribers)
     if (empresasPosts.length > 0) {
       await sendToSubscribers(empresasSubscribers, empresasPosts, 'empresas');
     }
@@ -255,11 +272,6 @@ const handler = async (req: Request): Promise<Response> => {
     // Send to Agencias subscribers
     if (agenciasPosts.length > 0) {
       await sendToSubscribers(agenciasSubscribers, agenciasPosts, 'agencias');
-    }
-
-    // Send to Both subscribers (all posts)
-    if (todaysPosts.length > 0) {
-      await sendToSubscribers(bothSubscribers, todaysPosts, 'both');
     }
 
     console.log(`=== Newsletter Complete: ${emailsSent} emails sent ===`);
