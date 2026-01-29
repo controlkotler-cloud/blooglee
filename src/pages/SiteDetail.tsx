@@ -102,13 +102,18 @@ export default function SiteDetail() {
               variant={canGenerate ? "default" : "outline"}
             >
               {isGenerating ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
               ) : canGenerate ? (
-                <Sparkles className="w-4 h-4 mr-2" />
+                <Sparkles className="w-4 h-4 sm:mr-2" />
               ) : (
-                <Lock className="w-4 h-4 mr-2" />
+                <Lock className="w-4 h-4 sm:mr-2" />
               )}
-              {isGenerating ? 'Generando...' : canGenerate ? 'Generar artículo' : 'Configura WP primero'}
+              <span className="hidden sm:inline">
+                {isGenerating ? 'Generando...' : canGenerate ? 'Generar artículo' : 'Configura WP primero'}
+              </span>
+              <span className="sm:hidden">
+                {isGenerating ? '' : canGenerate ? 'Generar' : 'WP'}
+              </span>
             </Button>
           </div>
         </div>

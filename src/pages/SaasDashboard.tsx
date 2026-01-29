@@ -224,15 +224,17 @@ export default function SaasDashboard() {
           </Card>
         )}
 
-        {/* Import/Export section */}
-        <div className="mt-6">
-          <SiteImportExport
-            sites={sites}
-            articles={articles}
-            sitesLimit={sitesLimit}
-            onImportSites={(sitesToImport) => importSitesMutation.mutate(sitesToImport)}
-          />
-        </div>
+        {/* Import/Export section - Solo para plan Agency */}
+        {plan === 'agency' && (
+          <div className="mt-6">
+            <SiteImportExport
+              sites={sites}
+              articles={articles}
+              sitesLimit={sitesLimit}
+              onImportSites={(sitesToImport) => importSitesMutation.mutate(sitesToImport)}
+            />
+          </div>
+        )}
       </main>
     </div>
   );
