@@ -1,34 +1,47 @@
 
 
-# Plan: Corregir Bug de Duplicados en Generación de Artículos
+# Plan: Corregir Lógica de Generación para Frecuencias Diaria/Semanal
 
 ## Problema Identificado
 
-El cron `generate-monthly-articles` hace `INSERT` directo sin verificar si ya existe un artículo para ese mes/año/empresa. Esto causa errores de "duplicate key" cuando:
-1. El cron genera un artículo automáticamente
-2. El usuario intenta generar manualmente el mismo mes
-3. O viceversa
+El cron `generate-monthly-articles` tiene una **inconsistencia crítica**:
+
+| Componente | Qué hace | Correcto? |
+|------------|----------|-----------|
+| `shouldGenerateForEntity()` | Verifica por día/semana/mes según frecuencia | ✅ |
+| Upsert al guardar | SIEMPRE busca por `month/year` | ❌ |
+
+### Consecuencia del Bug
+
+Para una empresa con `publish_frequency: 'daily'`:
+- Día 26: Genera artículo → INSERT (OK)
+- Día 27: `shouldGenerateForEntity` dice "no hay artículo hoy" → genera
+- Día 27: Upsert busca `month=1, year=2026` → **SOBRESCRIBE el artículo del día 26** ❌
+
+**El artículo del día anterior se pierde.**
+
+Para una empresa con `publish_frequency: 'monthly'`:
+- Funciona correctamente (un artículo por mes)
+
+---
 
 ## Solución
 
-Modificar `generate-monthly-articles/index.ts` para usar la misma lógica de "upsert" que tiene el hook del frontend:
+### Regla de negocio correcta:
 
-### Cambio en líneas ~874-887:
+| Frecuencia | Lógica de upsert |
+|------------|------------------|
+| `daily` | Buscar por `day_of_month + month + year` (o `generated_at >= hoy`) |
+| `weekly` | Buscar por `week_of_month + month + year` |
+| `monthly` | Buscar por `month + year` |
 
-**Antes:**
+### Cambios en `generate-monthly-articles/index.ts`
+
+**Para Empresas (~líneas 893-900):**
+
 ```typescript
-await supabase.from("articulos_empresas").insert({
-  empresa_id: empresa.id,
-  month: currentMonth,
-  year: currentYear,
-  // ... resto de campos
-});
-```
-
-**Después:**
-```typescript
-// Verificar si ya existe un artículo para este mes/año
-const { data: existing } = await supabase
+// ANTES (incorrecto):
+const { data: existingArticle } = await supabase
   .from("articulos_empresas")
   .select("id")
   .eq("empresa_id", empresa.id)
@@ -36,41 +49,80 @@ const { data: existing } = await supabase
   .eq("year", currentYear)
   .maybeSingle();
 
-const articleData = {
-  empresa_id: empresa.id,
-  month: currentMonth,
-  year: currentYear,
-  topic: topic.tema,
-  day_of_month: now.getDate(),
-  week_of_month: Math.ceil(now.getDate() / 7),
-  content_spanish: generatedData.content?.spanish || null,
-  content_catalan: generatedData.content?.catalan || null,
-  image_url: generatedData.image?.url || null,
-  image_photographer: generatedData.image?.photographer || null,
-  image_photographer_url: generatedData.image?.photographer_url || null,
-  pexels_query: generatedData.pexels_query || topic.pexels_query,
-};
+// DESPUÉS (correcto):
+let existingArticleQuery = supabase
+  .from("articulos_empresas")
+  .select("id")
+  .eq("empresa_id", empresa.id);
 
-if (existing) {
-  // Actualizar artículo existente
-  await supabase.from("articulos_empresas")
-    .update(articleData)
-    .eq("id", existing.id);
-  console.log(`✓ Updated existing article for empresa ${empresa.name}`);
+if (empresa.publish_frequency === 'daily') {
+  // Para diario: buscar artículo de HOY específicamente
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  existingArticleQuery = existingArticleQuery.gte("generated_at", todayStart.toISOString());
+} else if (empresa.publish_frequency === 'weekly') {
+  // Para semanal: buscar artículo de ESTA SEMANA
+  existingArticleQuery = existingArticleQuery
+    .eq("week_of_month", Math.ceil(now.getDate() / 7))
+    .eq("month", currentMonth)
+    .eq("year", currentYear);
 } else {
-  // Insertar nuevo artículo
-  await supabase.from("articulos_empresas").insert(articleData);
-  console.log(`✓ Created new article for empresa ${empresa.name}`);
+  // Para mensual: buscar artículo de ESTE MES
+  existingArticleQuery = existingArticleQuery
+    .eq("month", currentMonth)
+    .eq("year", currentYear);
 }
+
+const { data: existingArticle } = await existingArticleQuery.maybeSingle();
 ```
 
-### Mismo cambio para Farmacias (~líneas 690-705)
+**Para Sites SaaS (~líneas 1144-1151):**
 
-Aplicar la misma lógica de verificación/upsert para la sección de farmacias.
+Aplicar la misma lógica usando `site.publish_frequency`.
 
-### Mismo cambio para Sites SaaS (~líneas 990-1010)
+---
 
-Aplicar la misma lógica para los sites del SaaS.
+## También corregir: generate-article-saas (manual)
+
+El hook manual del SaaS hace INSERT directo sin verificación:
+
+```typescript
+// Línea 872-876 en generate-article-saas/index.ts
+const { data: savedArticle, error: saveError } = await supabase
+  .from('articles')
+  .insert(articleData)  // ❌ Sin upsert
+  .select()
+  .single();
+```
+
+### Corrección:
+
+```typescript
+// Verificar si ya existe artículo para hoy (o este mes según frecuencia)
+const { data: site } = await supabase
+  .from('sites')
+  .select('publish_frequency')
+  .eq('id', siteId)
+  .single();
+
+let existingQuery = supabase.from('articles').select('id').eq('site_id', siteId);
+
+if (site?.publish_frequency === 'daily') {
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  existingQuery = existingQuery.gte('generated_at', todayStart.toISOString());
+} else {
+  existingQuery = existingQuery.eq('month', month).eq('year', year);
+}
+
+const { data: existing } = await existingQuery.maybeSingle();
+
+if (existing) {
+  // Actualizar
+  await supabase.from('articles').update(articleData).eq('id', existing.id);
+} else {
+  // Insertar
+  await supabase.from('articles').insert(articleData);
+}
+```
 
 ---
 
@@ -78,14 +130,28 @@ Aplicar la misma lógica para los sites del SaaS.
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/functions/generate-monthly-articles/index.ts` | Cambiar INSERT por lógica upsert en 3 lugares (farmacias, empresas, sites) |
+| `supabase/functions/generate-monthly-articles/index.ts` | Upsert inteligente según frecuencia (empresas y sites) |
+| `supabase/functions/generate-article-saas/index.ts` | Añadir upsert según frecuencia |
 
 ---
 
 ## Resultado Esperado
 
-- Cuando generes manualmente → Funciona (actualiza si existe, crea si no)
-- Cuando el cron genera → Funciona (actualiza si existe, crea si no)
-- Sin más errores de "duplicate key"
-- El usuario siempre puede regenerar el artículo del mes actual
+| Frecuencia | Comportamiento |
+|------------|----------------|
+| `daily` | Un artículo nuevo cada día, regenerar el mismo día actualiza |
+| `weekly` | Un artículo nuevo cada semana, regenerar la misma semana actualiza |
+| `monthly` | Un artículo nuevo cada mes, regenerar el mismo mes actualiza |
+
+- **MKPro (mkpro con daily)**: Cada día genera un artículo nuevo, sin sobrescribir los anteriores
+- **Blooglee SaaS**: Mismo comportamiento según la frecuencia configurada del site
+- **Farmacias**: Mantiene comportamiento actual (primer lunes del mes)
+
+---
+
+## Resumen de la Corrección
+
+1. **Cron `generate-monthly-articles`**: Upsert inteligente según frecuencia
+2. **Manual `generate-article-saas`**: Añadir upsert para evitar duplicados al regenerar
+3. **NO tocar farmacias**: Su lógica especial del primer lunes se mantiene igual
 
