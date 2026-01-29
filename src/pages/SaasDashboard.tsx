@@ -14,10 +14,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useIsMKProAdmin } from '@/hooks/useProfile';
 import { useSites, useImportSites } from '@/hooks/useSites';
 import { useAllArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
+import { useWordPressConfigsBatch } from '@/hooks/useWordPressConfigSaas';
+import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { SiteCard } from '@/components/saas/SiteCard';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { PlanBadge, type PlanType } from '@/components/saas/PlanBadge';
 import { SiteImportExport } from '@/components/saas/SiteImportExport';
+import { OnboardingTour } from '@/components/saas/OnboardingTour';
 import { toast } from 'sonner';
 
 export default function SaasDashboard() {
@@ -27,12 +30,19 @@ export default function SaasDashboard() {
   const { canAccessMKPro } = useIsMKProAdmin();
   const { data: sites = [], isLoading: loadingSites } = useSites();
   
+  // Onboarding tour
+  const { shouldShowTour, completeTour } = useOnboardingTour();
+  
   // State for tracking multiple concurrent generations
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
   const { data: articles = [] } = useAllArticlesSaas(currentMonth, currentYear);
+
+  // Batch fetch WordPress configs for all sites
+  const siteIds = sites.map(s => s.id);
+  const { data: wpConfigsMap = {} } = useWordPressConfigsBatch(siteIds);
 
   const generateMutation = useGenerateArticleSaas();
   const importSitesMutation = useImportSites();
@@ -74,12 +84,26 @@ export default function SaasDashboard() {
     );
   }
 
+  const firstSite = sites[0];
+  const hasWordPressOnFirstSite = firstSite ? !!wpConfigsMap[firstSite.id] : false;
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Onboarding Tour */}
+      {shouldShowTour && sites.length > 0 && (
+        <OnboardingTour
+          hasWordPressConfigured={hasWordPressOnFirstSite}
+          onComplete={completeTour}
+          onConfigureWordPress={() => navigate(`/site/${firstSite?.id}?tab=wordpress`)}
+        />
+      )}
+
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <BloogleeLogo size="lg" />
+            <div data-tour="welcome">
+              <BloogleeLogo size="lg" />
+            </div>
             <div className="flex items-center gap-3">
               {canAccessMKPro && (
                 <Button 
@@ -166,18 +190,19 @@ export default function SaasDashboard() {
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {sites.map(site => (
+            {sites.map((site, index) => (
               <SiteCard
                 key={site.id}
                 site={site}
                 articleCount={getArticleCountForSite(site.id)}
-                hasWordPress={false}
+                hasWordPress={!!wpConfigsMap[site.id]}
                 onGenerateArticle={() => handleGenerateArticle(site.id)}
                 onViewArticles={() => navigate(`/site/${site.id}`)}
                 onConfigureWordPress={() => navigate(`/site/${site.id}?tab=wordpress`)}
                 onEdit={() => navigate(`/site/${site.id}?tab=settings`)}
                 onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
                 isGenerating={generatingIds.has(site.id)}
+                isFirstSite={index === 0}
               />
             ))}
           </div>

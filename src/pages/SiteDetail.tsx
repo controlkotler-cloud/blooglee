@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,7 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { ArrowLeft, Globe, MapPin, Loader2, Sparkles, Link2 } from 'lucide-react';
+import { ArrowLeft, Globe, MapPin, Loader2, Sparkles, Link2, Lock } from 'lucide-react';
 import { useSites } from '@/hooks/useSites';
 import { useArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 import { useWordPressConfig } from '@/hooks/useWordPressConfigSaas';
@@ -19,11 +19,20 @@ import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { SiteArticles } from '@/components/saas/SiteArticles';
 import { SiteSettings } from '@/components/saas/SiteSettings';
 import { WordPressConfigForm } from '@/components/saas/WordPressConfigForm';
+import { toast } from 'sonner';
 
 export default function SiteDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('articles');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'articles';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Update tab when URL changes
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
 
   const { data: sites = [], isLoading: loadingSites } = useSites();
   const site = sites.find((s) => s.id === id);
@@ -34,9 +43,16 @@ export default function SiteDetail() {
   const { data: wpConfig } = useWordPressConfig(id);
   
   const generateMutation = useGenerateArticleSaas();
+  
+  const canGenerate = !!wpConfig;
 
   const handleGenerateArticle = () => {
     if (!site) return;
+    if (!canGenerate) {
+      toast.info('Configura WordPress primero para generar artículos');
+      setActiveTab('wordpress');
+      return;
+    }
     generateMutation.mutate({ siteId: site.id });
   };
 
@@ -76,13 +92,23 @@ export default function SiteDetail() {
               <BloogleeLogo size="md" />
             </div>
 
-            <Button onClick={handleGenerateArticle} disabled={isGenerating}>
+            <Button 
+              onClick={handleGenerateArticle} 
+              disabled={isGenerating}
+              className={canGenerate 
+                ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+                : "border-amber-500/50 text-amber-700 hover:bg-amber-50"
+              }
+              variant={canGenerate ? "default" : "outline"}
+            >
               {isGenerating ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
+              ) : canGenerate ? (
                 <Sparkles className="w-4 h-4 mr-2" />
+              ) : (
+                <Lock className="w-4 h-4 mr-2" />
               )}
-              Generar artículo
+              {isGenerating ? 'Generando...' : canGenerate ? 'Generar artículo' : 'Configura WP primero'}
             </Button>
           </div>
         </div>

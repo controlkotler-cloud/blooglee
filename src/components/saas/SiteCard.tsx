@@ -8,7 +8,8 @@ import {
   Settings, 
   FileText,
   Trash2,
-  Link2
+  Link2,
+  Lock
 } from 'lucide-react';
 import type { Site } from '@/hooks/useSites';
 
@@ -22,6 +23,7 @@ interface SiteCardProps {
   onEdit: () => void;
   onDelete: () => void;
   isGenerating?: boolean;
+  isFirstSite?: boolean;
 }
 
 export function SiteCard({
@@ -34,9 +36,15 @@ export function SiteCard({
   onEdit,
   onDelete,
   isGenerating,
+  isFirstSite,
 }: SiteCardProps) {
+  const canGenerate = hasWordPress;
+
   return (
-    <Card className="group hover:shadow-md transition-shadow">
+    <Card 
+      className="group hover:shadow-md transition-shadow"
+      data-tour={isFirstSite ? "site-card" : undefined}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
@@ -72,10 +80,15 @@ export function SiteCard({
         </div>
 
         <div className="flex items-center gap-2">
-        {hasWordPress && (
-            <Badge variant="outline" className="text-xs">
+          {hasWordPress ? (
+            <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-500/30 bg-emerald-50 dark:bg-emerald-900/20">
               <Link2 className="w-3 h-3 mr-1" />
               WP Conectado
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-xs text-amber-600 border-amber-500/30 bg-amber-50 dark:bg-amber-900/20">
+              <Lock className="w-3 h-3 mr-1" />
+              Sin WordPress
             </Badge>
           )}
           <Badge variant="outline" className="text-xs">
@@ -85,29 +98,48 @@ export function SiteCard({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button 
-            size="sm" 
-            onClick={onGenerateArticle}
-            disabled={isGenerating}
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            {isGenerating ? 'Generando...' : 'Generar'}
-          </Button>
+          {canGenerate ? (
+            <Button 
+              size="sm" 
+              onClick={onGenerateArticle}
+              disabled={isGenerating}
+              data-tour={isFirstSite ? "generate-button" : undefined}
+              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              {isGenerating ? 'Generando...' : 'Generar'}
+            </Button>
+          ) : (
+            <Button 
+              size="sm" 
+              onClick={onConfigureWordPress}
+              variant="outline"
+              className="border-amber-500/50 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+              data-tour={isFirstSite ? "wordpress-config" : undefined}
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              Configura WP primero
+            </Button>
+          )}
           <Button 
             size="sm" 
             variant="outline" 
             onClick={onViewArticles}
+            data-tour={isFirstSite ? "view-articles" : undefined}
           >
             <FileText className="w-4 h-4 mr-2" />
             Ver artículos
           </Button>
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            onClick={onConfigureWordPress}
-          >
-            <Link2 className="w-4 h-4" />
-          </Button>
+          {hasWordPress && (
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={onConfigureWordPress}
+              title="Configurar WordPress"
+            >
+              <Link2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
