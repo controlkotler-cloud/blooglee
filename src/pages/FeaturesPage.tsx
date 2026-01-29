@@ -17,7 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { SEOHead, FAQSchema } from '@/components/seo';
 
-// FAQs para AEO - Preguntas sobre funcionalidades
+// FAQs ampliadas para AEO - Preguntas sobre funcionalidades
 const featuresFAQs = [
   {
     question: '¿Qué tipo de artículos genera Blooglee?',
@@ -34,6 +34,22 @@ const featuresFAQs = [
   {
     question: '¿Qué modelos de IA utiliza Blooglee?',
     answer: 'Blooglee utiliza los modelos de IA más avanzados disponibles: GPT-5 de OpenAI y Gemini 2.5 de Google. Esto garantiza contenido de alta calidad, coherente y adaptado al contexto de cada negocio.',
+  },
+  {
+    question: '¿Es compatible con Yoast SEO?',
+    answer: 'Sí, Blooglee genera meta títulos y meta descripciones optimizados que Yoast SEO reconoce automáticamente. También es compatible con Rank Math y otros plugins de SEO.',
+  },
+  {
+    question: '¿Funciona con Polylang para multiidioma?',
+    answer: 'Sí, Blooglee es compatible con Polylang y WPML. Puedes generar artículos en español, catalán o inglés y asignarlos al idioma correspondiente en tu WordPress multiidioma.',
+  },
+  {
+    question: '¿Cómo funciona la integración con WordPress?',
+    answer: 'Blooglee se conecta a WordPress mediante Application Passwords (disponibles desde WP 5.6). Configuras la conexión una vez y después publicas con un clic. No requiere instalar ningún plugin.',
+  },
+  {
+    question: '¿El contenido pasa los detectores de IA?',
+    answer: 'El contenido generado por Blooglee es único y de alta calidad. Aunque es generado por IA, está optimizado para ser natural y legible. Puedes editarlo antes de publicar para añadir tu toque personal.',
   },
 ];
 
