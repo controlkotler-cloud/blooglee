@@ -13,6 +13,7 @@ import SiteDetail from "./pages/SiteDetail";
 import AccountSettings from "./pages/AccountSettings";
 import BillingPage from "./pages/BillingPage";
 import HelpPage from "./pages/HelpPage";
+import KnowledgeArticle from "./pages/KnowledgeArticle";
 import MKPro from "./pages/MKPro";
 import Onboarding from "./pages/Onboarding";
 import Auth from "./pages/Auth";
@@ -86,6 +87,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <HelpPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/help/article/:slug"
+            element={
+              <ProtectedRoute>
+                <KnowledgeArticle />
               </ProtectedRoute>
             }
           />
