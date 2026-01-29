@@ -206,6 +206,7 @@ export default function Index() {
         companyInstagramUrl: company.instagram_url || undefined,
         companyGeographicScope: company.geographic_scope || "local",
         companyIncludeFeaturedImage: company.include_featured_image !== false,
+        companyPublishFrequency: company.publish_frequency || "monthly",
         topic: company.custom_topic || undefined, // If null/undefined, AI will generate
         month: selectedMonth,
         year: selectedYear,

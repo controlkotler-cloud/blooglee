@@ -34,6 +34,7 @@ interface GenerateArticleParams {
   companyInstagramUrl?: string;
   companyGeographicScope?: string;
   companyIncludeFeaturedImage?: boolean;
+  companyPublishFrequency?: string;  // daily, weekly, monthly
   topic?: string | null;
   month: number;
   year: number;
@@ -114,7 +115,12 @@ export function useGenerateArticleEmpresa() {
       // Use the topic from the response (which may be AI-generated)
       const finalTopic = data.topic || params.topic || "Artículo generado automáticamente";
 
-      // Save to database
+      // Calculate week_of_month and day_of_month for the unique index
+      const now = new Date();
+      const dayOfMonth = now.getDate();
+      const weekOfMonth = Math.ceil(dayOfMonth / 7);
+
+      // Save to database with frequency-aware upsert
       const articleData = {
         empresa_id: params.empresaId,
         month: params.month,
@@ -126,16 +132,35 @@ export function useGenerateArticleEmpresa() {
         image_url: data.image?.url || null,
         image_photographer: data.image?.photographer || null,
         image_photographer_url: data.image?.photographer_url || null,
+        day_of_month: dayOfMonth,
+        week_of_month: weekOfMonth,
       };
 
-      // Check if article exists
-      const { data: existing } = await supabase
+      // Build query based on publish frequency
+      const frequency = params.companyPublishFrequency || 'monthly';
+      let existingQuery = supabase
         .from("articulos_empresas")
         .select("id")
-        .eq("empresa_id", params.empresaId)
-        .eq("month", params.month)
-        .eq("year", params.year)
-        .maybeSingle();
+        .eq("empresa_id", params.empresaId);
+
+      if (frequency === 'daily') {
+        // For daily: look for article generated TODAY
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        existingQuery = existingQuery.gte("generated_at", todayStart.toISOString());
+      } else if (frequency === 'weekly') {
+        // For weekly: look for article generated THIS WEEK
+        existingQuery = existingQuery
+          .eq("week_of_month", weekOfMonth)
+          .eq("month", params.month)
+          .eq("year", params.year);
+      } else {
+        // For monthly: look for article generated THIS MONTH
+        existingQuery = existingQuery
+          .eq("month", params.month)
+          .eq("year", params.year);
+      }
+
+      const { data: existing } = await existingQuery.maybeSingle();
 
       if (existing) {
         const { error: updateError } = await supabase
