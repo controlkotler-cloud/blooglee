@@ -1,89 +1,139 @@
 
-## Objetivo (lo que está pasando ahora)
-Ya no falla la generación (bien), pero sigues viendo el artículo viejo (“cookieless”) porque la UI de MKPro está eligiendo “el primer artículo que encuentre” para esa empresa dentro del mes/año, y ahora (con frecuencias daily/weekly) puede haber varios artículos en el mismo mes. Entonces:
-- Se genera uno nuevo (gasta tokens/crédito)
-- Pero la tarjeta/preview sigue mostrando el primero (antiguo) porque usa `.find(...)` sobre un array sin ordenar.
 
-Esto afecta tanto a `/mkpro` (src/pages/MKPro.tsx) como al panel legacy de `/` (src/pages/Index.tsx), porque ambos hacen:
-```ts
-const getArticleForCompany = (empresaId) => articulosEmpresas.find(a => a.empresa_id === empresaId) || null;
+# Plan: Permitir Múltiples Generaciones Concurrentes con Indicador Visual Correcto
+
+## Problema Actual
+
+Cuando haces clic en "Regenerar" para una empresa y luego en otra:
+- El primer botón deja de mostrar "Generando..."
+- Parece que ha parado, pero sigue generando en segundo plano
+- El usuario hace clic otra vez pensando que falló → genera otro artículo innecesario
+
+**Causa técnica:**
+```typescript
+// Solo puede guardar UN id a la vez
+const [generatingId, setGeneratingId] = useState<string | null>(null);
+
+// Al generar una nueva empresa, sobrescribe el id anterior
+setGeneratingId(company.id);  // ← El anterior desaparece
 ```
 
-## Causa raíz (técnica)
-1) `useArticulosEmpresas(month, year)` trae una lista de artículos del mes/año, pero:
-- no ordena por `generated_at`
-- y la UI usa `.find(...)` (primer match)
-2) Para frecuencias `daily` y `weekly`, es normal tener múltiples filas por empresa en el mismo mes/año.
-3) Resultado: la UI muestra un artículo “viejo” aunque exista uno nuevo.
+## Solución
 
-## Solución propuesta (sin tocar componentes protegidos)
-Como `src/components/company/*` está protegido, NO cambiaremos los componentes. Arreglaremos la selección del artículo *antes* de pasarlo al `CompanyCard` / `CompanyArticlePreview`, modificando únicamente las páginas:
-- `src/pages/MKPro.tsx`
-- `src/pages/Index.tsx`
+Cambiar de un único ID a un **Set de IDs** que permita trackear múltiples generaciones simultáneas.
 
-### 1) Seleccionar SIEMPRE el artículo “correcto” para mostrar
-Crear una función helper en cada página (o una función compartida en un archivo seguro, si preferís) tipo:
+## Cambios por Archivo
 
-**Reglas de selección (por empresa, dentro del mes/año seleccionado):**
-- **monthly**: coger el más reciente del mes/año (`generated_at` DESC)
-- **weekly**: coger el más reciente de `week_of_month` actual (y mes/año)
-- **daily**: coger el más reciente “de hoy” (por `generated_at >= startOfToday`) y además que coincida con mes/año seleccionado
+### 1. `src/pages/MKPro.tsx`
 
-Luego, en vez de `.find`, usar:
-- `filter(...)`
-- ordenar por `generated_at` desc
-- devolver `[0]`
+**Estado actual:**
+```typescript
+const [generatingId, setGeneratingId] = useState<string | null>(null);
+```
 
-Esto hace que al generar un nuevo artículo, lo que ves sea el nuevo.
+**Nuevo estado:**
+```typescript
+const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
 
-### 2) Corregir el estado “✓ Generado” y el botón “Generar”
-Ahora mismo `pendingEmpresasCount` y `pending` se calculan en base a “si existe algún artículo en el mes/año”, lo cual rompe el concepto de daily/weekly:
-- En daily, si generaste el día 1, la UI creerá que “ya está generado” todo el mes.
+// Helpers para añadir/quitar
+const addGeneratingId = (id: string) => {
+  setGeneratingIds(prev => new Set(prev).add(id));
+};
+const removeGeneratingId = (id: string) => {
+  setGeneratingIds(prev => {
+    const next = new Set(prev);
+    next.delete(id);
+    return next;
+  });
+};
+```
 
-Vamos a cambiar el cálculo para que sea “existe artículo para ESTE periodo”:
-- daily: existe artículo de hoy
-- weekly: existe artículo de esta semana (week_of_month actual)
-- monthly: existe artículo del mes
+**En handleGenerateArticleEmpresa:**
+```typescript
+// Antes:
+setGeneratingId(company.id);
+// ...
+setGeneratingId(null);
 
-Así:
-- si hoy todavía no se generó, sale botón “Generar”
-- si ya se generó hoy, sale “Ver / Regenerar”
+// Después:
+addGeneratingId(company.id);
+// ...
+removeGeneratingId(company.id);
+```
 
-### 3) (Opcional pero recomendado) Mostrar “Última generación: …”
-Sin tocar componentes protegidos, podemos añadir en la página (no en la tarjeta) información de depuración simple, o ajustar el “onPreview” para que siempre abra el último.
+**En CompanyCard:**
+```typescript
+// Antes:
+isGenerating={generatingId === company.id}
 
-## Pasos de implementación (orden)
-1) Leer y confirmar en `src/pages/MKPro.tsx` y `src/pages/Index.tsx` dónde se calcula:
-   - `getArticleForCompany`
-   - `pendingEmpresasCount`
-   - `handleGenerateAllEmpresas` (lista `pending`)
-2) Implementar helper `getCompanyArticleForPeriod(company, articulosEmpresas, selectedMonth, selectedYear)` con:
-   - cálculo de `todayStart`
-   - cálculo de `weekOfMonth = Math.ceil(day/7)`
-   - filtrado por empresa + reglas arriba
-   - orden por `generated_at` desc
-3) Reemplazar usos:
-   - `getArticleForCompany(...)` => usar el helper con `company`
-   - `pendingEmpresasCount` => basado en `!getCompanyArticleForPeriod(company, ...)`
-   - `pending` en `handleGenerateAllEmpresas` idem
-4) Verificar que `onPreview` abre el artículo devuelto por el helper (el más reciente correcto).
+// Después:
+isGenerating={generatingIds.has(company.id)}
+```
 
-## Cómo validaremos que no vuelves a “quemar tokens”
-Checklist rápido:
-1) En MKPro, para la empresa “mkpro”:
-   - Generar artículo
-   - Debe verse inmediatamente el nuevo (título/tema diferente al cookieless)
-2) Volver a generar el mismo día:
-   - Debe actualizar (Regenerar) o mantener “Ver/Regenerar” pero mostrando el nuevo contenido, sin quedarse “clavado” en el viejo
-3) Si la empresa es daily:
-   - mañana debería aparecer “Generar” (si no hay artículo de mañana) y al generar, ver el de mañana.
+**Lo mismo para farmacias (handleGenerateArticle, PharmacyCard).**
 
-## Riesgos / notas
-- Esto no cambia la generación ni la BD: solo corrige qué registro se muestra.
-- No tocamos `src/components/company/*` (protegido).
-- Si queréis navegar histórico (ver los artículos antiguos del mes), eso sería una mejora adicional (lista de artículos por empresa con selector), pero primero arreglamos “mostrar el último correcto”.
+### 2. `src/pages/Index.tsx`
 
-## Resultado esperado
-- Dejas de ver el post “cookieless” cuando ya se generó uno nuevo.
-- No se vuelve a gastar crédito “a ciegas” porque lo generado se refleja en UI correctamente.
-- Daily/weekly/mensual se comportan como negocio: se genera cuando toca y lo ves cuando toca.
+Aplicar exactamente los mismos cambios (es una copia del patrón de MKPro para la ruta legacy `/`).
+
+### 3. `src/pages/SaasDashboard.tsx` (Blooglee)
+
+**Problema actual:**
+```typescript
+isGenerating={generateMutation.isPending && generateMutation.variables?.siteId === site.id}
+```
+React Query solo trackea una mutación pending por hook.
+
+**Solución:**
+```typescript
+const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
+
+const handleGenerateArticle = async (siteId: string) => {
+  setGeneratingIds(prev => new Set(prev).add(siteId));
+  try {
+    await generateMutation.mutateAsync({ siteId });
+  } finally {
+    setGeneratingIds(prev => {
+      const next = new Set(prev);
+      next.delete(siteId);
+      return next;
+    });
+  }
+};
+
+// En SiteCard:
+isGenerating={generatingIds.has(site.id)}
+```
+
+## Resumen de Cambios
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/MKPro.tsx` | `generatingId` → `generatingIds: Set<string>` + helpers |
+| `src/pages/Index.tsx` | Mismo cambio |
+| `src/pages/SaasDashboard.tsx` | Añadir estado `generatingIds` + wrapper async para handleGenerateArticle |
+
+## Resultado Esperado
+
+- Puedes hacer clic en "Regenerar" en varias empresas seguidas
+- TODOS los botones muestran "Generando..." mientras procesan
+- Cada uno se quita del Set solo cuando SU generación termina
+- No hay confusión visual ni clics duplicados accidentales
+
+---
+
+## Sección Técnica
+
+### Por qué Set en lugar de Array
+
+- `Set.has(id)` es O(1) vs `Array.includes(id)` que es O(n)
+- Evita duplicados automáticamente
+- Más semántico para "conjunto de cosas activas"
+
+### Compatibilidad con "Generar Todos"
+
+El flujo de `handleGenerateAll` / `handleGenerateAllEmpresas` seguirá funcionando porque:
+- Antes de cada generación individual, añade el ID al Set
+- Al terminar, lo quita
+- El indicador de progreso general (`generatingAll`, `generationProgress`) sigue igual
+
