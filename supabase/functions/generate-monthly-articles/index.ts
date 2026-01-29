@@ -890,14 +890,30 @@ const handler = async (req: Request): Promise<Response> => {
 
           const generatedData = await response.json();
           
-          // Check if article already exists for this month/year (upsert logic)
-          const { data: existingArticle } = await supabase
+          // Check if article already exists (frequency-aware upsert logic)
+          let existingArticleQuery = supabase
             .from("articulos_empresas")
             .select("id")
-            .eq("empresa_id", empresa.id)
-            .eq("month", currentMonth)
-            .eq("year", currentYear)
-            .maybeSingle();
+            .eq("empresa_id", empresa.id);
+
+          if (empresa.publish_frequency === 'daily') {
+            // For daily: look for article generated TODAY only
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            existingArticleQuery = existingArticleQuery.gte("generated_at", todayStart.toISOString());
+          } else if (empresa.publish_frequency === 'weekly') {
+            // For weekly: look for article generated THIS WEEK
+            existingArticleQuery = existingArticleQuery
+              .eq("week_of_month", Math.ceil(now.getDate() / 7))
+              .eq("month", currentMonth)
+              .eq("year", currentYear);
+          } else {
+            // For monthly: look for article generated THIS MONTH
+            existingArticleQuery = existingArticleQuery
+              .eq("month", currentMonth)
+              .eq("year", currentYear);
+          }
+
+          const { data: existingArticle } = await existingArticleQuery.maybeSingle();
 
           const articleData = {
             empresa_id: empresa.id,
@@ -1141,14 +1157,30 @@ const handler = async (req: Request): Promise<Response> => {
 
           const generatedData = await response.json();
           
-          // Check if article already exists for this month/year (upsert logic)
-          const { data: existingArticle } = await supabase
+          // Check if article already exists (frequency-aware upsert logic)
+          let existingArticleQuery = supabase
             .from("articles")
             .select("id")
-            .eq("site_id", site.id)
-            .eq("month", currentMonth)
-            .eq("year", currentYear)
-            .maybeSingle();
+            .eq("site_id", site.id);
+
+          if (site.publish_frequency === 'daily') {
+            // For daily: look for article generated TODAY only
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            existingArticleQuery = existingArticleQuery.gte("generated_at", todayStart.toISOString());
+          } else if (site.publish_frequency === 'weekly') {
+            // For weekly: look for article generated THIS WEEK
+            existingArticleQuery = existingArticleQuery
+              .eq("week_of_month", Math.ceil(now.getDate() / 7))
+              .eq("month", currentMonth)
+              .eq("year", currentYear);
+          } else {
+            // For monthly: look for article generated THIS MONTH
+            existingArticleQuery = existingArticleQuery
+              .eq("month", currentMonth)
+              .eq("year", currentYear);
+          }
+
+          const { data: existingArticle } = await existingArticleQuery.maybeSingle();
 
           const articleData = {
             site_id: site.id,

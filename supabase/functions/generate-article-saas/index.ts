@@ -852,7 +852,7 @@ Generate an image that a ${site.sector || "professional"} business would use for
     const dayOfMonth = new Date().getDate();
     const weekOfMonth = Math.ceil(dayOfMonth / 7);
 
-    // Save article to database
+    // Save article to database with frequency-aware upsert logic
     const articleData = {
       site_id: siteId,
       user_id: userId,
@@ -869,15 +869,62 @@ Generate an image that a ${site.sector || "professional"} business would use for
       day_of_month: dayOfMonth,
     };
 
-    const { data: savedArticle, error: saveError } = await supabase
+    // Check if article already exists based on site's publish frequency
+    let existingQuery = supabase
       .from('articles')
-      .insert(articleData)
-      .select()
-      .single();
+      .select('id')
+      .eq('site_id', siteId)
+      .eq('user_id', userId);
 
-    if (saveError) {
-      console.error("Error saving article:", saveError);
-      throw new Error("Failed to save article");
+    if (site.publish_frequency === 'daily') {
+      // For daily: look for article generated TODAY only
+      const todayStart = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+      existingQuery = existingQuery.gte('generated_at', todayStart.toISOString());
+    } else if (site.publish_frequency === 'weekly') {
+      // For weekly: look for article generated THIS WEEK
+      existingQuery = existingQuery
+        .eq('week_of_month', weekOfMonth)
+        .eq('month', month)
+        .eq('year', year);
+    } else {
+      // For monthly: look for article generated THIS MONTH
+      existingQuery = existingQuery
+        .eq('month', month)
+        .eq('year', year);
+    }
+
+    const { data: existingArticle } = await existingQuery.maybeSingle();
+
+    let savedArticle;
+    if (existingArticle) {
+      // Update existing article
+      const { data, error: updateError } = await supabase
+        .from('articles')
+        .update(articleData)
+        .eq('id', existingArticle.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error("Error updating article:", updateError);
+        throw new Error("Failed to update article");
+      }
+      savedArticle = data;
+      console.log("Updated existing article:", savedArticle.id);
+    } else {
+      // Insert new article
+      const { data, error: insertError } = await supabase
+        .from('articles')
+        .insert(articleData)
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error("Error saving article:", insertError);
+        throw new Error("Failed to save article");
+      }
+      savedArticle = data;
+      console.log("Created new article:", savedArticle.id);
     }
 
     console.log("=== ARTICLE GENERATION COMPLETE ===");
