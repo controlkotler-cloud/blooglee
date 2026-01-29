@@ -1,203 +1,312 @@
 
 
-# Plan: Corregir Contenido MKPro + Añadir Campo "Audiencia Objetivo" a Empresas
+# Plan: Potenciar Captación de Leads con Newsletter Mejorada
 
-## Resumen del Problema
+## Resumen Ejecutivo
 
-La IA genera artículos "para agencias de marketing" porque el campo `sector` de MKPro es "Agencia de marketing". Pero MKPro **ES** una agencia que quiere atraer **clientes** (B2B, autónomos, pymes, empresas), no escribir contenido para otras agencias.
-
-Falta un campo `description` o `target_audience` en la tabla `empresas` que especifique para quién escribe la empresa.
+Transformar el formulario de newsletter actual en un sistema robusto de captación de leads con:
+1. **Selector binario de perfil**: Solo Empresa o Agencia (eliminar "Me interesa todo")
+2. **Campo de nombre**: Para personalización de emails
+3. **Checkboxes de consentimiento legal**: GDPR/LOPD obligatorios
+4. **Formulario en todas las páginas públicas**: Footer unificado
+5. **Automatización de newsletter diaria**: Segmentada por perfil
+6. **Templates de email premium**: Uno para cada audiencia
 
 ---
 
-## Solución en 3 Pasos
+## Fase 1: Base de Datos
 
-### Paso 1: Añadir campo `description` a tabla `empresas`
+### 1.1 Modificar tabla `newsletter_subscribers`
 
-Igual que existe en la tabla `sites` del SaaS:
+Añadir nuevos campos para cumplimiento legal y personalización:
 
 ```sql
-ALTER TABLE empresas ADD COLUMN description TEXT;
+ALTER TABLE newsletter_subscribers 
+ADD COLUMN name TEXT,
+ADD COLUMN gdpr_consent BOOLEAN DEFAULT false,
+ADD COLUMN marketing_consent BOOLEAN DEFAULT false,
+ADD COLUMN consent_date TIMESTAMPTZ;
 
--- Actualizar MKPro con su descripción correcta
-UPDATE empresas 
-SET description = 'MKPro es una agencia de marketing digital que ayuda a autónomos, pymes y empresas B2B a crecer online. Nuestro blog busca atraer clientes potenciales ofreciéndoles consejos prácticos de marketing, SEO, redes sociales y estrategias digitales para hacer crecer sus negocios.'
-WHERE name ILIKE '%mkpro%';
+-- Eliminar 'both' como opción válida, solo 'empresas' o 'agencias'
+-- Los existentes con 'both' se mantienen pero nuevos no pueden elegirlo
 ```
 
-### Paso 2: Modificar `generate-article-empresa` para usar `description`
-
-Actualizar la Edge Function para:
-
-1. Recibir el campo `description` de la empresa
-2. Incluirlo en el prompt como contexto de audiencia objetivo
-
-**Cambios en el prompt del sistema:**
-
-Antes:
-```
-SOBRE LA EMPRESA:
-- Nombre: ${company.name}
-- Sector: ${company.sector}
-- Ámbito geográfico: ...
-```
-
-Después:
-```
-SOBRE LA EMPRESA:
-- Nombre: ${company.name}
-- Sector: ${company.sector}
-- Ámbito geográfico: ...
-- DESCRIPCIÓN Y AUDIENCIA: ${company.description || "No especificada"}
-
-IMPORTANTE: Si hay descripción, el artículo debe estar orientado a la audiencia objetivo descrita, 
-NO a otros profesionales del mismo sector.
-```
-
-### Paso 3: Borrar artículo de hoy y generar uno nuevo
-
-1. **Borrar** el artículo de hoy (29 Enero - "Metaverso y marketing: Claves para agencias")
-2. **Generar** un nuevo artículo con la descripción correcta
+**Campos añadidos:**
+| Campo | Tipo | Propósito |
+|-------|------|-----------|
+| `name` | TEXT | Nombre para personalizar emails |
+| `gdpr_consent` | BOOLEAN | Aceptación tratamiento datos |
+| `marketing_consent` | BOOLEAN | Aceptación comunicaciones comerciales |
+| `consent_date` | TIMESTAMPTZ | Fecha de los consentimientos |
 
 ---
 
-## Ejemplo de Contenido Correcto para MKPro
+## Fase 2: Componente NewsletterForm Mejorado
 
-Con la descripción: "MKPro ayuda a autónomos, pymes y empresas B2B a crecer online..."
+### 2.1 Nuevo diseño del formulario
 
-**Temas correctos que atraerían clientes:**
-- "5 errores de marketing digital que frenan el crecimiento de tu pyme"
-- "Por qué tu negocio necesita una estrategia de contenidos en 2026"
-- "Guía SEO local para autónomos: aumenta tu visibilidad"
-- "Cómo medir el ROI de tu inversión en marketing digital"
-- "Estrategias de captación de leads para empresas B2B"
+```
+Variante SIDEBAR (Blog, páginas internas):
+┌─────────────────────────────────────────────────────┐
+│  📩 Newsletter                                      │
+│  Recibe contenido exclusivo cada día en tu email   │
+│                                                     │
+│  Tu nombre                                          │
+│  [_________________________________]                │
+│                                                     │
+│  Tu email                                           │
+│  [_________________________________]                │
+│                                                     │
+│  Soy:                                               │
+│  ┌────────────────┐  ┌────────────────┐            │
+│  │ 🏢 EMPRESA     │  │ 📊 AGENCIA     │            │
+│  │ Pyme/Autónomo  │  │ de Marketing   │            │
+│  └────────────────┘  └────────────────┘            │
+│         ↑ Seleccionado                              │
+│                                                     │
+│  ☑ Acepto la política de privacidad y el           │
+│    tratamiento de mis datos *                       │
+│                                                     │
+│  ☑ Acepto recibir comunicaciones comerciales       │
+│    de Blooglee *                                    │
+│                                                     │
+│  [        Suscribirme        ]                      │
+│                                                     │
+│  🔒 Tus datos están protegidos. Puedes darte       │
+│     de baja en cualquier momento.                   │
+└─────────────────────────────────────────────────────┘
 
-**vs. Temas incorrectos (escritos para agencias):**
-- "Metaverso y marketing: Claves para agencias"
-- "Inbound Marketing en agencias"
-- "Retos para agencias en 2026"
+Variante FOOTER (Todas las páginas):
+┌─────────────────────────────────────────────────────────────────────┐
+│  📩 Newsletter · Contenido exclusivo cada día                       │
+│                                                                     │
+│  [Nombre]  [Email]  [🏢 Empresa ▾]  [Suscribirme →]                 │
+│                                                                     │
+│  ☑ Acepto la política de privacidad y recibir comunicaciones       │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 2.2 Cambios en el código
+
+**Archivo: `src/components/marketing/NewsletterForm.tsx`**
+
+- Añadir campo `name` (Input)
+- Cambiar selector de audiencia a solo 2 opciones con cards visuales:
+  - **Empresa**: Icono Building2, subtexto "Pyme / Autónomo / Empresa"
+  - **Agencia**: Icono Briefcase, subtexto "Agencia de marketing"
+- Eliminar opción "Ambos/Me interesa todo"
+- Añadir checkboxes de consentimiento con links a `/privacy`
+- Añadir validación: ambos checkboxes obligatorios
+- Añadir nueva variante `footer` para el footer global
+
+### 2.3 Iconos mejorados
+
+Cambiar los iconos actuales (Building2, Users) por:
+- **Empresa**: `Building2` con estilo card seleccionable
+- **Agencia**: `Briefcase` (más representativo que Users)
+
+Eliminar emojis (🏢, 🏬, 📚) y usar iconos Lucide consistentes.
 
 ---
 
-## Archivos a Modificar
+## Fase 3: Footer Global con Newsletter
 
-| Archivo | Cambio |
-|---------|--------|
-| Base de datos | Añadir columna `description` a `empresas` |
-| `generate-monthly-articles/index.ts` | Pasar `description` en el payload |
-| `generate-article-empresa/index.ts` | Usar `description` en el prompt |
-| UI MKPro (CompanyForm.tsx) | Añadir campo para editar descripción (opcional) |
+### 3.1 Modificar `PublicFooter.tsx`
+
+Añadir sección de newsletter antes de los links:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  FOOTER                                                                     │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  📩 NEWSLETTER                                                       │   │
+│  │                                                                      │   │
+│  │  Recibe el artículo del día en tu email                              │   │
+│  │                                                                      │   │
+│  │  [Nombre]  [Email]  [🏢 Empresa | 📊 Agencia]  [Suscribirme]          │   │
+│  │                                                                      │   │
+│  │  ☑ Acepto la política de privacidad y recibir comunicaciones        │   │
+│  │                                                                      │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  [Logo Blooglee]                                                           │
+│  Automatiza tu blog...                                                     │
+│                                                                             │
+│  Producto    Recursos    Legal       Síguenos                              │
+│  ─────────   ─────────   ─────────   ─────────                             │
+│  Características   Ayuda    Términos    Twitter                            │
+│  Precios           Contacto Privacidad  LinkedIn                           │
+│  Blog                       Cookies     Instagram                          │
+│                                                                             │
+│  © 2026 Blooglee. Todos los derechos reservados.                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Cambios en `generate-article-empresa/index.ts`
+## Fase 4: Hook y Edge Function
 
-### 1. Actualizar interface `CompanyData`:
+### 4.1 Modificar `useNewsletterSubscribe.ts`
 
+Añadir parámetros:
 ```typescript
-interface CompanyData {
-  name: string;
-  location?: string | null;
-  sector?: string | null;
-  description?: string | null;  // NUEVO
-  languages?: string[];
-  blog_url?: string | null;
-  instagram_url?: string | null;
-  geographic_scope?: string;
-  include_featured_image?: boolean;
+subscribe(
+  name: string,
+  email: string, 
+  audience: 'empresas' | 'agencias',
+  gdprConsent: boolean,
+  marketingConsent: boolean,
+  source: string
+)
+```
+
+### 4.2 Modificar `subscribe-newsletter/index.ts`
+
+- Recibir y validar nuevos campos
+- Guardar `name`, `gdpr_consent`, `marketing_consent`, `consent_date`
+- Rechazar si no hay consentimientos
+- Rechazar si `audience` es 'both' (solo empresas o agencias)
+
+**Validaciones adicionales:**
+```typescript
+if (!gdprConsent || !marketingConsent) {
+  return error("Debes aceptar los consentimientos para suscribirte");
+}
+
+if (!['empresas', 'agencias'].includes(audience)) {
+  return error("Selecciona si eres Empresa o Agencia");
 }
 ```
 
-### 2. Actualizar prompt del sistema (línea ~772):
+---
 
-```typescript
-const audienceContext = company.description 
-  ? `\n\nAUDIENCIA OBJETIVO (MUY IMPORTANTE):
-${company.description}
+## Fase 5: Email Templates Mejorados
 
-El artículo debe estar escrito PARA ATRAER a esta audiencia, no para otros profesionales del sector ${company.sector}.
-Por ejemplo, si eres una agencia de marketing, escribe para tus CLIENTES POTENCIALES, no para otras agencias.`
-  : "";
+### 5.1 Email de Bienvenida Personalizado
 
-const systemPrompt = `Eres un redactor experto en marketing de contenidos...
+**Archivo: `subscribe-newsletter/index.ts`**
 
-SOBRE LA EMPRESA:
-- Nombre: ${company.name}
-- Sector: ${company.sector || "Servicios profesionales"}
-- Ámbito geográfico: ${company.geographic_scope === "national" ? "Nacional" : company.location}
-${audienceContext}
+```html
+Asunto: ¡Bienvenido/a ${name}! Tu newsletter de Blooglee está lista 🎉
 
-TU MISIÓN:
-Generar un artículo que ATRAIGA CLIENTES para ${company.name}...`;
+Hola ${name},
+
+¡Gracias por suscribirte a la newsletter de Blooglee ${audience === 'empresas' ? 'para Empresas' : 'para Agencias'}!
+
+A partir de ahora recibirás:
+- Artículos diarios adaptados a ${audience === 'empresas' 
+  ? 'tu negocio: estrategias de marketing, SEO y crecimiento digital' 
+  : 'tu agencia: escalabilidad, automatización y gestión de clientes'}
+- Tips exclusivos para mejorar tu presencia online
+- Novedades de Blooglee
+
+[Ver últimos artículos →]
+
+Saludos,
+El equipo de Blooglee
+
+---
+Puedes darte de baja en cualquier momento haciendo clic aquí.
 ```
 
-### 3. Actualizar prompt de generación de tema (línea ~714):
+### 5.2 Newsletter Diaria Segmentada
 
-```typescript
-const audienceHint = company.description 
-  ? `\nAUDIENCIA OBJETIVO: ${company.description.substring(0, 200)}...`
-  : "";
+**Archivo: `send-newsletter/index.ts`**
 
-const topicPrompt = `Eres un experto en marketing de contenidos...
+Templates separados para cada audiencia:
 
-EMPRESA: ${company.name}
-SECTOR: ${company.sector}${audienceHint}
+**Para Empresas:**
+```
+Asunto: 📈 ${name}, tu artículo de hoy: ${post.title}
 
-Genera UN tema de blog que:
-1. Sea útil para la AUDIENCIA OBJETIVO de la empresa (sus clientes potenciales)
-2. NO sea contenido dirigido a otros profesionales del sector
-...`;
+Buenos días, ${name}
+
+Aquí tienes el artículo de hoy pensado para hacer crecer tu negocio:
+
+[Imagen del post]
+${post.title}
+${post.excerpt}
+
+[Leer artículo completo →]
+
+---
+¿Quieres automatizar tu blog? Prueba Blooglee gratis.
+```
+
+**Para Agencias:**
+```
+Asunto: 🚀 ${name}, contenido de hoy para tu agencia: ${post.title}
+
+Buenos días, ${name}
+
+El artículo de hoy te ayudará a escalar tu producción de contenido:
+
+[Imagen del post]
+${post.title}
+${post.excerpt}
+
+[Leer artículo completo →]
+
+---
+Automatiza los blogs de tus clientes con Blooglee.
 ```
 
 ---
 
-## Cambios en `generate-monthly-articles/index.ts`
+## Fase 6: Automatización Completa
 
-### En el bucle de empresas (línea ~840):
+### 6.1 Flujo actual (ya implementado)
 
-Antes:
-```typescript
-company: {
-  name: empresa.name,
-  location: empresa.location,
-  sector: empresa.sector,
-  // ... otros campos
-}
+```
+09:00 AM → generate-monthly-articles → genera blog posts
+         → send-newsletter → envía emails segmentados
 ```
 
-Después:
-```typescript
-company: {
-  name: empresa.name,
-  location: empresa.location,
-  sector: empresa.sector,
-  description: empresa.description,  // NUEVO
-  // ... otros campos
-}
-```
+### 6.2 Mejoras a implementar
+
+1. **Personalización con nombre**: Usar `name` en el saludo
+2. **Segmentación estricta**: Solo enviar el post de la audiencia correspondiente
+3. **Link de baja personalizado**: Incluir token único para cancelar
 
 ---
 
-## Acciones Inmediatas
+## Resumen de Archivos a Modificar
 
-1. Crear migración SQL para añadir `description` a `empresas`
-2. Actualizar descripción de MKPro con audiencia correcta
-3. Modificar `generate-article-empresa` para usar descripción
-4. Modificar `generate-monthly-articles` para pasar descripción
-5. Borrar artículo de hoy de MKPro
-6. Generar nuevo artículo con audiencia correcta
+| Archivo | Cambios |
+|---------|---------|
+| `newsletter_subscribers` (DB) | +name, +gdpr_consent, +marketing_consent, +consent_date |
+| `src/components/marketing/NewsletterForm.tsx` | Rediseño completo con nombre y consentimientos |
+| `src/components/marketing/PublicFooter.tsx` | Añadir sección newsletter |
+| `src/hooks/useNewsletterSubscribe.ts` | Añadir nuevos parámetros |
+| `supabase/functions/subscribe-newsletter/index.ts` | Validar y guardar consentimientos |
+| `supabase/functions/send-newsletter/index.ts` | Personalizar con nombre, templates por audiencia |
+
+---
+
+## Textos Legales para Checkboxes
+
+1. **Consentimiento GDPR (obligatorio):**
+   > "He leído y acepto la [Política de Privacidad](/privacy) y el tratamiento de mis datos personales."
+
+2. **Consentimiento Marketing (obligatorio):**
+   > "Acepto recibir comunicaciones comerciales y novedades de Blooglee por email."
+
+3. **Texto informativo (debajo del botón):**
+   > "🔒 Tus datos están seguros. Puedes darte de baja cuando quieras con un solo clic."
 
 ---
 
 ## Resultado Esperado
 
-Después de aplicar estos cambios:
+| Métrica | Antes | Después |
+|---------|-------|---------|
+| Campos requeridos | 1 (email) | 4 (nombre, email, perfil, consentimientos) |
+| Segmentación | Empresas/Agencias/Ambos | Solo Empresas o Agencias |
+| Cumplimiento GDPR | Implícito | Explícito con registro de fecha |
+| Personalización email | Genérico | Con nombre del suscriptor |
+| Presencia en web | Solo sidebar blog | Todas las páginas (footer) |
+| Tasa conversión esperada | ~2% | ~4% (formulario más corto en footer) |
 
-| Antes | Después |
-|-------|---------|
-| "Metaverso para agencias" | "Por qué tu pyme necesita presencia digital en 2026" |
-| "Retos para agencias 2026" | "5 estrategias de marketing que aumentarán tus ventas" |
-| "Inbound para agencias" | "Cómo atraer más clientes con marketing de contenidos" |
-
-El contenido estará orientado a **atraer clientes para MKPro**, no a informar a otras agencias.
+Este sistema captura leads cualificados con consentimiento explícito, permite segmentación precisa y cumple con RGPD/LOPD para comunicaciones comerciales.
 
