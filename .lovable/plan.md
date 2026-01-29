@@ -1,535 +1,203 @@
 
-# Plan Optimizado: Sistema Completo de Ayuda, Diagnóstico y Chatbot para Blooglee
 
-## Resumen Ejecutivo
+# Plan: Corregir Contenido MKPro + Añadir Campo "Audiencia Objetivo" a Empresas
 
-Combinando los dos documentos (Problemas de Integración WordPress + Flujo de Onboarding), este plan implementa un sistema integral de soporte que:
+## Resumen del Problema
 
-1. **Mejora el flujo de onboarding actual** con diagnóstico progresivo en 3 fases
-2. **Expande el Centro de Ayuda** con base de conocimiento buscable
-3. **Añade un chatbot inteligente (Bloobot)** para resolver problemas 24/7
-4. **Integra Health Check automático** en la configuración de WordPress
+La IA genera artículos "para agencias de marketing" porque el campo `sector` de MKPro es "Agencia de marketing". Pero MKPro **ES** una agencia que quiere atraer **clientes** (B2B, autónomos, pymes, empresas), no escribir contenido para otras agencias.
 
-Todo manteniendo la estética Aurora/Liquid Blobs de Blooglee y sin modificar funcionalidades existentes.
+Falta un campo `description` o `target_audience` en la tabla `empresas` que especifique para quién escribe la empresa.
 
 ---
 
-## Fase 1: Base de Datos y Edge Functions
+## Solución en 3 Pasos
 
-### 1.1 Nueva tabla: `knowledge_base`
+### Paso 1: Añadir campo `description` a tabla `empresas`
 
-Almacena los 45+ problemas de integración WordPress documentados:
-
-```sql
-CREATE TABLE knowledge_base (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  category TEXT NOT NULL, -- 'seguridad', 'multiidioma', 'permisos', etc.
-  subcategory TEXT,
-  priority TEXT CHECK (priority IN ('alta', 'media', 'baja')),
-  error_code TEXT, -- 'WP_PERMALINKS_NOT_CONFIGURED', '401', '403', etc.
-  title TEXT NOT NULL,
-  symptoms TEXT[], -- Síntomas que el usuario puede describir
-  cause TEXT,
-  solution TEXT NOT NULL, -- Markdown con la solución
-  solution_steps JSONB, -- Pasos estructurados
-  snippet_code TEXT, -- Código PHP/JS si aplica
-  related_plugins TEXT[], -- Wordfence, Polylang, etc.
-  help_url TEXT, -- Link a tutorial externo si existe
-  keywords TEXT[], -- Para búsqueda semántica
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
--- RLS: Lectura pública, escritura solo service_role
-```
-
-### 1.2 Nueva tabla: `support_conversations`
-
-Para historial del chatbot:
+Igual que existe en la tabla `sites` del SaaS:
 
 ```sql
-CREATE TABLE support_conversations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  site_id UUID REFERENCES sites(id) ON DELETE SET NULL,
-  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'resolved', 'escalated')),
-  error_context JSONB, -- { code: 403, action: 'publish', site_url: '...' }
-  created_at TIMESTAMPTZ DEFAULT now(),
-  resolved_at TIMESTAMPTZ
-);
+ALTER TABLE empresas ADD COLUMN description TEXT;
 
-CREATE TABLE support_messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  conversation_id UUID REFERENCES support_conversations(id) ON DELETE CASCADE,
-  role TEXT CHECK (role IN ('user', 'assistant')),
-  content TEXT NOT NULL,
-  suggested_articles UUID[], -- IDs de knowledge_base sugeridos
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- RLS: Usuarios solo ven sus conversaciones
+-- Actualizar MKPro con su descripción correcta
+UPDATE empresas 
+SET description = 'MKPro es una agencia de marketing digital que ayuda a autónomos, pymes y empresas B2B a crecer online. Nuestro blog busca atraer clientes potenciales ofreciéndoles consejos prácticos de marketing, SEO, redes sociales y estrategias digitales para hacer crecer sus negocios.'
+WHERE name ILIKE '%mkpro%';
 ```
 
-### 1.3 Edge Function: `wordpress-health-check`
+### Paso 2: Modificar `generate-article-empresa` para usar `description`
 
-Implementa el sistema de 3 fases del documento:
+Actualizar la Edge Function para:
 
+1. Recibir el campo `description` de la empresa
+2. Incluirlo en el prompt como contexto de audiencia objetivo
+
+**Cambios en el prompt del sistema:**
+
+Antes:
 ```
-supabase/functions/wordpress-health-check/index.ts
+SOBRE LA EMPRESA:
+- Nombre: ${company.name}
+- Sector: ${company.sector}
+- Ámbito geográfico: ...
 ```
 
-**Fase 1 (sin credenciales):**
-- GET `/wp-json/` → Verificar API REST accesible
-- Validar SSL
-- Extraer versión WordPress (X-WP-Version header)
-- Detectar estructura permalinks
+Después:
+```
+SOBRE LA EMPRESA:
+- Nombre: ${company.name}
+- Sector: ${company.sector}
+- Ámbito geográfico: ...
+- DESCRIPCIÓN Y AUDIENCIA: ${company.description || "No especificada"}
 
-**Fase 2 (con credenciales):**
-- GET `/wp-json/wp/v2/users/me` → Autenticación
-- Verificar capabilities: edit_posts, publish_posts, upload_files
-- Verificar rol: administrator, editor o author
+IMPORTANTE: Si hay descripción, el artículo debe estar orientado a la audiencia objetivo descrita, 
+NO a otros profesionales del mismo sector.
+```
 
-**Fase 3 (health check completo):**
-- POST draft de prueba → Verificar creación posts
-- POST imagen de prueba → Verificar subida medios
-- GET `/wp-json/` → Detectar plugins (Polylang, WPML, Yoast, etc.)
-- GET categorías y taxonomías existentes
-- Limpiar posts/imágenes de prueba
+### Paso 3: Borrar artículo de hoy y generar uno nuevo
 
-**Respuesta estructurada:**
+1. **Borrar** el artículo de hoy (29 Enero - "Metaverso y marketing: Claves para agencias")
+2. **Generar** un nuevo artículo con la descripción correcta
 
-```json
-{
-  "phase": 3,
-  "overall_status": "success" | "warning" | "error",
-  "checks": [
-    { "id": "api_rest", "status": "ok", "message": "API REST accesible" },
-    { "id": "ssl", "status": "ok", "message": "SSL válido" },
-    { "id": "version", "status": "ok", "value": "6.4.2" },
-    { "id": "auth", "status": "ok", "user_id": 1, "role": "administrator" },
-    { "id": "create_post", "status": "ok" },
-    { "id": "upload_media", "status": "ok" },
-    { "id": "polylang", "status": "warning", "message": "Detectado - requiere snippet" }
-  ],
-  "detected_plugins": ["polylang", "yoast-seo"],
-  "languages": [{ "code": "es", "name": "Español" }, { "code": "en", "name": "English" }],
-  "categories": [...],
-  "errors": [],
-  "recommendations": [
-    { "priority": "alta", "article_id": "...", "title": "Configurar Polylang para API" }
-  ]
+---
+
+## Ejemplo de Contenido Correcto para MKPro
+
+Con la descripción: "MKPro ayuda a autónomos, pymes y empresas B2B a crecer online..."
+
+**Temas correctos que atraerían clientes:**
+- "5 errores de marketing digital que frenan el crecimiento de tu pyme"
+- "Por qué tu negocio necesita una estrategia de contenidos en 2026"
+- "Guía SEO local para autónomos: aumenta tu visibilidad"
+- "Cómo medir el ROI de tu inversión en marketing digital"
+- "Estrategias de captación de leads para empresas B2B"
+
+**vs. Temas incorrectos (escritos para agencias):**
+- "Metaverso y marketing: Claves para agencias"
+- "Inbound Marketing en agencias"
+- "Retos para agencias en 2026"
+
+---
+
+## Archivos a Modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| Base de datos | Añadir columna `description` a `empresas` |
+| `generate-monthly-articles/index.ts` | Pasar `description` en el payload |
+| `generate-article-empresa/index.ts` | Usar `description` en el prompt |
+| UI MKPro (CompanyForm.tsx) | Añadir campo para editar descripción (opcional) |
+
+---
+
+## Cambios en `generate-article-empresa/index.ts`
+
+### 1. Actualizar interface `CompanyData`:
+
+```typescript
+interface CompanyData {
+  name: string;
+  location?: string | null;
+  sector?: string | null;
+  description?: string | null;  // NUEVO
+  languages?: string[];
+  blog_url?: string | null;
+  instagram_url?: string | null;
+  geographic_scope?: string;
+  include_featured_image?: boolean;
 }
 ```
 
-### 1.4 Edge Function: `support-chatbot`
+### 2. Actualizar prompt del sistema (línea ~772):
 
-```
-supabase/functions/support-chatbot/index.ts
-```
+```typescript
+const audienceContext = company.description 
+  ? `\n\nAUDIENCIA OBJETIVO (MUY IMPORTANTE):
+${company.description}
 
-**Funcionalidades:**
-- Búsqueda semántica en `knowledge_base` usando keywords
-- Mapeo automático de códigos de error (401, 403, 404, etc.)
-- Contexto de conversación (últimos N mensajes)
-- Streaming de respuestas con Lovable AI (Gemini 2.5 Flash)
-- Sugerencias de artículos relacionados
+El artículo debe estar escrito PARA ATRAER a esta audiencia, no para otros profesionales del sector ${company.sector}.
+Por ejemplo, si eres una agencia de marketing, escribe para tus CLIENTES POTENCIALES, no para otras agencias.`
+  : "";
 
-**System prompt personalizado:**
+const systemPrompt = `Eres un redactor experto en marketing de contenidos...
 
-```
-Eres Bloobot, el asistente de soporte de Blooglee. Tu objetivo es ayudar a los usuarios a resolver problemas de integración con WordPress.
+SOBRE LA EMPRESA:
+- Nombre: ${company.name}
+- Sector: ${company.sector || "Servicios profesionales"}
+- Ámbito geográfico: ${company.geographic_scope === "national" ? "Nacional" : company.location}
+${audienceContext}
 
-REGLAS:
-1. Sé amable y conciso
-2. Si detectas un código de error, usa la base de conocimiento para dar soluciones específicas
-3. Ofrece pasos numerados y claros
-4. Si el problema requiere cambios en WordPress, indica exactamente dónde ir
-5. Si no puedes resolver, sugiere contactar soporte@blooglee.com
-6. NUNCA inventes soluciones - usa solo la base de conocimiento
+TU MISIÓN:
+Generar un artículo que ATRAIGA CLIENTES para ${company.name}...`;
 ```
 
----
+### 3. Actualizar prompt de generación de tema (línea ~714):
 
-## Fase 2: Componentes UI
+```typescript
+const audienceHint = company.description 
+  ? `\nAUDIENCIA OBJETIVO: ${company.description.substring(0, 200)}...`
+  : "";
 
-### 2.1 Onboarding Mejorado
+const topicPrompt = `Eres un experto en marketing de contenidos...
 
-**Modificar `src/pages/Onboarding.tsx`:**
+EMPRESA: ${company.name}
+SECTOR: ${company.sector}${audienceHint}
 
-Añadir nuevo paso 4 mejorado con flujo de 3 fases:
-
-```text
-Paso 4: WordPress (Nuevo Flujo)
-┌─────────────────────────────────────────────────────┐
-│  [Logo Blooglee]                                    │
-│                                                     │
-│  Conecta tu WordPress                               │
-│  Paso 4 de 4                                        │
-│  [████████████████░░░░] 80%                         │
-│                                                     │
-│  ☐ No quiero conectar WordPress ahora               │
-│                                                     │
-│  URL de tu sitio WordPress *                        │
-│  [https://tusitio.com              ] [Verificar →]  │
-│                                                     │
-│  ─────────────────────────────────────────────────  │
-│  FASE 1: Verificando configuración...               │
-│  ✓ API REST accesible                               │
-│  ✓ SSL válido                                       │
-│  ✓ WordPress 6.4.2                                  │
-│  ─────────────────────────────────────────────────  │
-│                                                     │
-│  ✅ Tu WordPress está listo                         │
-│                                                     │
-│  ⚠ ANTES DE CONTINUAR                               │
-│  ¿Usas alguno de estos plugins?                     │
-│  [Wordfence] [iThemes] [Sucuri] [Polylang] [WPML]   │
-│     └─→ Ver guía de configuración                   │
-│                                                     │
-│  Ahora genera una clave de aplicación:              │
-│  [Ver tutorial paso a paso →]                       │
-│                                                     │
-│  Usuario *          [admin                       ]  │
-│  Clave aplicación * [••••••••••••••••           ]  │
-│                                                     │
-│  [← Atrás]                    [Conectar WordPress]  │
-└─────────────────────────────────────────────────────┘
-```
-
-**Nuevo componente: `WordPressOnboardingStep.tsx`**
-
-Maneja las 3 fases con estados visuales:
-- `idle` → Esperando URL
-- `phase1_testing` → Spinner + checks animados
-- `phase1_error` → Error + solución específica
-- `phase1_success` → Checklist pre-clave + tutorial
-- `phase2_testing` → Verificando credenciales
-- `phase2_error` → Diagnóstico firewall con selector
-- `phase3_testing` → Health check completo
-- `success` → Conexión exitosa + warnings
-
-### 2.2 Componente Health Check
-
-**Nuevo: `src/components/saas/WordPressHealthCheck.tsx`**
-
-Integrado en `WordPressConfigForm.tsx`:
-
-```text
-┌─────────────────────────────────────────────────────┐
-│  DIAGNÓSTICO DE CONEXIÓN                            │
-│                                                     │
-│  ✓ API REST accesible                               │
-│  ✓ SSL válido                                       │
-│  ✓ WordPress 6.4.2                                  │
-│  ✓ Permisos correctos                               │
-│  ⚠ Polylang detectado                               │
-│    └─ [Ver cómo configurar para API →]              │
-│  ✓ Puede crear posts                                │
-│  ✓ Puede subir imágenes                             │
-│                                                     │
-│  Estado: ✅ Listo (con advertencias)                │
-│                                                     │
-│  [Ejecutar diagnóstico completo]                    │
-└─────────────────────────────────────────────────────┘
-```
-
-### 2.3 Centro de Ayuda Expandido
-
-**Modificar `src/pages/HelpPage.tsx`:**
-
-```text
-┌─────────────────────────────────────────────────────┐
-│  [← Dashboard]  [Logo Blooglee]                     │
-│                                                     │
-│  ┌───────────────────────────────────────────────┐  │
-│  │  🔍 Buscar en la base de conocimiento...      │  │
-│  └───────────────────────────────────────────────┘  │
-│                                                     │
-│  📂 CATEGORÍAS                                      │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐            │
-│  │🔒Security│ │📝WordPress│ │🌍 Idiomas│            │
-│  │11 artículos│4 artículos │7 artículos│            │
-│  └──────────┘ └──────────┘ └──────────┘            │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐            │
-│  │🖥️ Hosting│ │⚡ Caché   │ │🔐 SSL    │            │
-│  │5 artículos│3 artículos │2 artículos│            │
-│  └──────────┘ └──────────┘ └──────────┘            │
-│                                                     │
-│  🔥 PROBLEMAS FRECUENTES                            │
-│  ├─ Wordfence bloquea claves de aplicación         │
-│  ├─ Error 403 Forbidden al conectar                │
-│  ├─ Polylang no publica en idioma correcto         │
-│  └─ [Ver todos →]                                  │
-│                                                     │
-│  ❓ PREGUNTAS FRECUENTES                            │
-│  [Accordion actual expandido + nuevas FAQs]         │
-│                                                     │
-│  📧 ¿Necesitas más ayuda?                           │
-│  [soporte@blooglee.com]  [💬 Hablar con Bloobot]   │
-└─────────────────────────────────────────────────────┘
-```
-
-**Nueva página: `src/pages/KnowledgeArticle.tsx`**
-
-Ruta: `/help/article/:slug`
-
-```text
-┌─────────────────────────────────────────────────────┐
-│  [← Centro de Ayuda]                                │
-│                                                     │
-│  [🔒 Seguridad] [Prioridad Alta]                    │
-│                                                     │
-│  # Wordfence bloquea claves de aplicación           │
-│                                                     │
-│  ## Síntomas                                        │
-│  - Error 403 al conectar WordPress                  │
-│  - Las credenciales son correctas pero falla        │
-│                                                     │
-│  ## Causa                                           │
-│  Wordfence tiene una regla que bloquea...          │
-│                                                     │
-│  ## Solución                                        │
-│  1. Ve a Wordfence → Firewall → Manage Firewall    │
-│  2. Busca "Application Passwords"                   │
-│  3. Desactiva la regla                              │
-│                                                     │
-│  [📸 Ver tutorial con capturas]                     │
-│                                                     │
-│  ## ¿Sigue sin funcionar?                           │
-│  [💬 Hablar con Bloobot]                            │
-└─────────────────────────────────────────────────────┘
-```
-
-### 2.4 Chatbot Widget (Bloobot)
-
-**Nuevo: `src/components/saas/SupportChatWidget.tsx`**
-
-Botón flotante estilo Blooglee (gradiente aurora):
-
-```text
-         ┌─────┐
-         │ 💬  │  ← Botón flotante esquina inferior derecha
-         └─────┘     Gradiente violet → fuchsia
-```
-
-**Nuevo: `src/components/saas/SupportChatDialog.tsx`**
-
-```text
-┌─────────────────────────────────────────────────────┐
-│  💬 Bloobot                              [─] [×]    │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  👋 ¡Hola! Soy Bloobot, tu asistente de soporte.    │
-│  ¿En qué puedo ayudarte?                            │
-│                                                     │
-│  ┌───────────────────────────────────────────────┐  │
-│  │ 🔌 Problemas de conexión WordPress            │  │
-│  └───────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────┐  │
-│  │ 📝 Errores al publicar artículos              │  │
-│  └───────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────┐  │
-│  │ 🌍 Configuración de idiomas                   │  │
-│  └───────────────────────────────────────────────┘  │
-│                                                     │
-│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
-│                                                     │
-│  [Usuario]: Tengo error 403 al conectar             │
-│                                                     │
-│  [Bloobot]: Entiendo que ves un error 403. Esto     │
-│  suele indicar un firewall bloqueando. ¿Usas        │
-│  alguno de estos plugins?                           │
-│  • Wordfence                                        │
-│  • iThemes Security                                 │
-│  • Sucuri                                           │
-│                                                     │
-│  📚 Artículos relacionados:                         │
-│  └─ [Wordfence bloquea claves de aplicación →]      │
-│                                                     │
-├─────────────────────────────────────────────────────┤
-│  [Escribe tu pregunta o pega el error...]    [➤]   │
-└─────────────────────────────────────────────────────┘
-```
-
-**Integración contextual:**
-
-Cuando ocurre un error en `WordPressPublishDialogSaas` o `WordPressConfigForm`:
-
-```tsx
-// Al detectar error 403
-openBloobotWithContext({
-  type: 'error',
-  code: 403,
-  action: 'wordpress_connect',
-  siteId: site.id,
-  message: 'Error al conectar con WordPress'
-});
-```
-
-### 2.5 Biblioteca de Snippets
-
-**Nuevo: `src/components/saas/CodeSnippetsLibrary.tsx`**
-
-Accesible desde Help y desde warnings del Health Check:
-
-```text
-┌─────────────────────────────────────────────────────┐
-│  📋 SNIPPETS DE CÓDIGO                              │
-│                                                     │
-│  ┌───────────────────────────────────────────────┐  │
-│  │ 🌍 Polylang - Soporte API REST                │  │
-│  │ Permite publicar en el idioma correcto vía API │  │
-│  │ [Ver código] [Copiar] [Ver tutorial]           │  │
-│  └───────────────────────────────────────────────┘  │
-│                                                     │
-│  ┌───────────────────────────────────────────────┐  │
-│  │ 🌐 WPML - Soporte API REST                    │  │
-│  │ Configura WPML para aceptar idioma en API      │  │
-│  │ [Ver código] [Copiar] [Ver tutorial]           │  │
-│  └───────────────────────────────────────────────┘  │
-│                                                     │
-│  ┌───────────────────────────────────────────────┐  │
-│  │ 🔒 Whitelist Blooglee en Firewall             │  │
-│  │ Añade excepción para IPs de Blooglee           │  │
-│  │ [Ver código] [Copiar]                          │  │
-│  └───────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────┘
+Genera UN tema de blog que:
+1. Sea útil para la AUDIENCIA OBJETIVO de la empresa (sus clientes potenciales)
+2. NO sea contenido dirigido a otros profesionales del sector
+...`;
 ```
 
 ---
 
-## Fase 3: Hooks y Lógica
+## Cambios en `generate-monthly-articles/index.ts`
 
-### Nuevos hooks a crear:
+### En el bucle de empresas (línea ~840):
 
-| Hook | Propósito |
-|------|-----------|
-| `useKnowledgeBase.ts` | Búsqueda y lectura de artículos |
-| `useSupportChat.ts` | Gestión de conversaciones con Bloobot |
-| `useWordPressHealthCheck.ts` | Ejecutar diagnóstico 3 fases |
+Antes:
+```typescript
+company: {
+  name: empresa.name,
+  location: empresa.location,
+  sector: empresa.sector,
+  // ... otros campos
+}
+```
 
----
-
-## Fase 4: Datos Iniciales
-
-### Migración con 45+ artículos de knowledge_base
-
-Basados en el documento de problemas, organizados por:
-
-**Prioridad ALTA (11):**
-1. Wordfence bloquea claves de aplicación
-2. iThemes Security deshabilita API REST
-3. Polylang no publica en idioma correcto
-4. WPML no reconoce idioma en publicación API
-5. ModSecurity bloquea peticiones POST
-6. Cloudflare Security Level alto
-7. API REST deshabilitada completamente
-8. Permalinks no configurados (Plain)
-9. Certificado SSL inválido
-10. Application Passwords deshabilitadas
-11. WordPress versión anterior a 5.6
-
-**Prioridad MEDIA (19):**
-All In One WP Security, Sucuri, Limit Login Attempts, permisos usuario, claves revocadas, WP Rocket, W3 Total Cache, rate limiting, post_max_size, Yoast SEO, templates, .htaccess, CORS, mixed content, ACF, etc.
-
-**Prioridad BAJA (15+):**
-TranslatePress, qTranslate, Divi, Elementor, WPBakery, collation, database repair, etc.
-
-### FAQs Expandidas
-
-Añadir al `HelpPage.tsx` actual:
-
-| Nueva FAQ | Categoría |
-|-----------|-----------|
-| ¿Cómo creo una contraseña de aplicación? | WordPress |
-| ¿Por qué no puedo conectar con Wordfence activo? | Seguridad |
-| ¿Cómo configuro Polylang para la API? | Multiidioma |
-| ¿Qué hago si veo error 403 Forbidden? | Errores |
-| ¿Qué hago si veo error 401 Unauthorized? | Errores |
-| ¿Por qué no aparece la imagen destacada? | Medios |
-| ¿Cómo verifico si mi API REST funciona? | WordPress |
-| ¿Mi hosting puede bloquear Blooglee? | Hosting |
-| ¿Necesito WordPress 5.6 o superior? | Requisitos |
-| ¿Qué permisos necesita mi usuario? | Permisos |
-
----
-
-## Estructura de Archivos Final
-
-```text
-src/
-├── components/
-│   └── saas/
-│       ├── SupportChatWidget.tsx         # NUEVO - Botón flotante
-│       ├── SupportChatDialog.tsx         # NUEVO - Dialog del chat
-│       ├── WordPressHealthCheck.tsx      # NUEVO - Diagnóstico visual
-│       ├── WordPressOnboardingStep.tsx   # NUEVO - Paso 4 mejorado
-│       ├── CodeSnippetsLibrary.tsx       # NUEVO - Biblioteca snippets
-│       ├── KnowledgeSearch.tsx           # NUEVO - Buscador
-│       └── WordPressConfigForm.tsx       # MODIFICAR - Integrar health check
-│
-├── pages/
-│   ├── HelpPage.tsx                      # MODIFICAR - Expandir con categorías
-│   ├── KnowledgeArticle.tsx              # NUEVO - Detalle artículo
-│   └── Onboarding.tsx                    # MODIFICAR - Nuevo paso 4
-│
-├── hooks/
-│   ├── useKnowledgeBase.ts               # NUEVO
-│   ├── useSupportChat.ts                 # NUEVO
-│   └── useWordPressHealthCheck.ts        # NUEVO
-│
-└── data/
-    └── codeSnippets.ts                   # NUEVO - Snippets predefinidos
-
-supabase/
-└── functions/
-    ├── wordpress-health-check/
-    │   └── index.ts                      # NUEVO - Diagnóstico 3 fases
-    └── support-chatbot/
-        └── index.ts                      # NUEVO - Bloobot
+Después:
+```typescript
+company: {
+  name: empresa.name,
+  location: empresa.location,
+  sector: empresa.sector,
+  description: empresa.description,  // NUEVO
+  // ... otros campos
+}
 ```
 
 ---
 
-## Orden de Implementación
+## Acciones Inmediatas
 
-| Fase | Tarea | Prioridad |
-|------|-------|-----------|
-| 1.1 | Tabla knowledge_base + migración datos | Alta |
-| 1.2 | Edge Function wordpress-health-check | Alta |
-| 2.1 | WordPressHealthCheck component | Alta |
-| 2.2 | HelpPage expandido + FAQs nuevas | Alta |
-| 2.3 | KnowledgeArticle page | Alta |
-| 1.3 | Tablas support_conversations/messages | Media |
-| 1.4 | Edge Function support-chatbot | Media |
-| 2.4 | SupportChatWidget + SupportChatDialog | Media |
-| 2.5 | WordPressOnboardingStep mejorado | Media |
-| 2.6 | CodeSnippetsLibrary | Baja |
-| 3.1 | Integración contextual de errores | Baja |
-
----
-
-## Consistencia Visual
-
-Todos los componentes nuevos usarán:
-
-- **Tipografía**: Sora para títulos, Inter para cuerpo
-- **Colores**: Gradiente aurora (violet → fuchsia → orange)
-- **Cards**: `glass-card` o Card estándar de shadcn
-- **Badges**: Estilo `badge-aurora` para categorías
-- **Botones**: `btn-aurora` para CTAs principales
-- **Estados**: ✓ verde, ⚠ amarillo/naranja, ❌ rojo
-- **Animaciones**: Suaves, respetando `prefers-reduced-motion`
+1. Crear migración SQL para añadir `description` a `empresas`
+2. Actualizar descripción de MKPro con audiencia correcta
+3. Modificar `generate-article-empresa` para usar descripción
+4. Modificar `generate-monthly-articles` para pasar descripción
+5. Borrar artículo de hoy de MKPro
+6. Generar nuevo artículo con audiencia correcta
 
 ---
 
 ## Resultado Esperado
 
-| Métrica | Mejora Estimada |
-|---------|-----------------|
-| Tasa éxito onboarding WordPress | +40% (60% → 85%) |
-| Tickets de soporte | -60% |
-| Tiempo promedio de setup | -50% (15 min → 7 min) |
-| Usuarios que resuelven solos | +80% |
+Después de aplicar estos cambios:
 
-Este sistema transforma el soporte reactivo en soporte proactivo, detectando problemas antes de que frustren al usuario y guiándolo con soluciones específicas para su configuración.
+| Antes | Después |
+|-------|---------|
+| "Metaverso para agencias" | "Por qué tu pyme necesita presencia digital en 2026" |
+| "Retos para agencias 2026" | "5 estrategias de marketing que aumentarán tus ventas" |
+| "Inbound para agencias" | "Cómo atraer más clientes con marketing de contenidos" |
+
+El contenido estará orientado a **atraer clientes para MKPro**, no a informar a otras agencias.
+
