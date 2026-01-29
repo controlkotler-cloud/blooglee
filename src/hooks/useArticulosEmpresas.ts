@@ -22,6 +22,8 @@ export interface ArticuloEmpresa {
   image_photographer: string | null;
   image_photographer_url: string | null;
   generated_at: string;
+  week_of_month: number | null;
+  day_of_month: number | null;
 }
 
 interface GenerateArticleParams {

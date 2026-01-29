@@ -13,6 +13,7 @@ import { useArticulosEmpresas, useGenerateArticleEmpresa, useRegenerateImageEmpr
 import { useWordPressSites } from "@/hooks/useWordPressSites";
 import { useWordPressSitesEmpresas } from "@/hooks/useWordPressSitesEmpresas";
 import { getAssignedTopic, MONTH_NAMES } from "@/lib/seasonalTopics";
+import { getCompanyArticleForPeriod, hasArticleForCurrentPeriod } from "@/lib/articleSelectionHelpers";
 import { Dashboard } from "@/components/pharmacy/Dashboard";
 import { PharmacyCard } from "@/components/pharmacy/PharmacyCard";
 import { PharmacyForm } from "@/components/pharmacy/PharmacyForm";
@@ -89,7 +90,10 @@ export default function Index() {
   const hasWordPressEmpresa = (empresaId: string) => wpSitesEmpresas.some(wp => wp.empresa_id === empresaId);
 
   const getArticleForPharmacy = (pharmacyId: string) => articulos.find((a) => a.farmacia_id === pharmacyId) || null;
-  const getArticleForCompany = (empresaId: string) => articulosEmpresas.find((a) => a.empresa_id === empresaId) || null;
+  
+  // Use frequency-aware helper for companies
+  const getArticleForCompany = (company: Empresa) => 
+    getCompanyArticleForPeriod(company, articulosEmpresas, selectedMonth, selectedYear);
 
   // Pharmacy handlers
   const handleCreateFarmacia = (data: { name: string; location: string; languages: string[]; blog_url?: string; instagram_url?: string; auto_generate?: boolean; custom_topic?: string | null }) => {
@@ -220,7 +224,7 @@ export default function Index() {
   };
 
   const handleGenerateAllEmpresas = async () => {
-    const pending = empresas.filter((e) => e.auto_generate && !getArticleForCompany(e.id));
+    const pending = empresas.filter((e) => e.auto_generate && !getArticleForCompany(e));
     if (pending.length === 0) {
       toast.info("Todos los artículos de empresas ya están generados");
       return;
@@ -272,7 +276,7 @@ export default function Index() {
   };
 
   const pendingCount = farmacias.filter(p => p.auto_generate && !getArticleForPharmacy(p.id)).length;
-  const pendingEmpresasCount = empresas.filter(e => e.auto_generate && !getArticleForCompany(e.id)).length;
+  const pendingEmpresasCount = empresas.filter(e => e.auto_generate && !getArticleForCompany(e)).length;
   const isLoading = loadingFarmacias || loadingArticulos || loadingEmpresas || loadingArticulosEmpresas;
 
   return (
@@ -393,15 +397,15 @@ export default function Index() {
                     <CompanyCard 
                       key={company.id} 
                       company={company} 
-                      article={getArticleForCompany(company.id)} 
+                      article={getArticleForCompany(company)} 
                       isGenerating={generatingId === company.id}
                       hasWordPress={hasWordPressEmpresa(company.id)}
                       onGenerate={() => handleGenerateArticleEmpresa(company)} 
                       onRegenerate={() => handleGenerateArticleEmpresa(company)}
                       onPreview={() => { 
-                        const article = getArticleForCompany(company.id); 
+                        const article = getArticleForCompany(company); 
                         if (article) setPreviewCompanyArticle({ article, companyName: company.name, company }); 
-                      }} 
+                      }}
                       onEdit={() => setEditingCompany(company)} 
                       onDelete={() => setDeletingCompany(company)} 
                     />
