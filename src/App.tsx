@@ -26,6 +26,22 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import CookiesPage from "./pages/CookiesPage";
 
+// Nuevas páginas SEO - Casos de uso
+import UseCaseClinicas from "./pages/usecases/Clinicas";
+import UseCaseAgencias from "./pages/usecases/Agencias";
+import UseCaseEcommerce from "./pages/usecases/Ecommerce";
+import UseCaseAutonomos from "./pages/usecases/Autonomos";
+
+// Nuevas páginas SEO - Alternativas
+import AlternativesIndex from "./pages/alternatives/Index";
+import AlternativeNextBlog from "./pages/alternatives/NextBlog";
+import AlternativeJasper from "./pages/alternatives/Jasper";
+import AlternativeCopyAi from "./pages/alternatives/CopyAi";
+
+// Nuevas páginas SEO - Educativas
+import HowItWorks from "./pages/HowItWorks";
+import Resources from "./pages/Resources";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -48,6 +64,22 @@ const App = () => (
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/cookies" element={<CookiesPage />} />
+          
+          {/* Páginas de casos de uso */}
+          <Route path="/para/clinicas" element={<UseCaseClinicas />} />
+          <Route path="/para/agencias-marketing" element={<UseCaseAgencias />} />
+          <Route path="/para/tiendas-online" element={<UseCaseEcommerce />} />
+          <Route path="/para/autonomos" element={<UseCaseAutonomos />} />
+          
+          {/* Hub de alternativas */}
+          <Route path="/alternativas" element={<AlternativesIndex />} />
+          <Route path="/alternativas/nextblog" element={<AlternativeNextBlog />} />
+          <Route path="/alternativas/jasper" element={<AlternativeJasper />} />
+          <Route path="/alternativas/copy-ai" element={<AlternativeCopyAi />} />
+          
+          {/* Páginas educativas */}
+          <Route path="/como-funciona" element={<HowItWorks />} />
+          <Route path="/recursos" element={<Resources />} />
           
           {/* Protected routes */}
           <Route

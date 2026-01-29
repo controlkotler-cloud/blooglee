@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, Sparkles, Building2, Users, Rocket, ArrowRight, X, HelpCircle } from "lucide-react";
+import { Check, Sparkles, Building2, Users, Rocket, ArrowRight, X, HelpCircle, Calculator } from "lucide-react";
 import { PublicLayout } from "@/components/marketing/PublicLayout";
-import { SEOHead, FAQSchema } from '@/components/seo';
+import { SEOHead, FAQSchema, ProductSchema } from '@/components/seo';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 // FAQ data for SEO and AI Overviews
@@ -21,16 +21,36 @@ const pricingFaqs = [
   },
   {
     question: '¿Qué incluye el plan gratuito?',
-    answer: 'El plan gratuito incluye 1 sitio web y 1 artículo publicado con imagen destacada y SEO optimizado. Es perfecto para probar Blooglee sin compromiso.',
+    answer: 'El plan gratuito incluye 1 sitio web y 1 artículo publicado con imagen destacada y SEO optimizado. Es perfecto para probar Blooglee sin compromiso. No requiere tarjeta de crédito.',
   },
   {
     question: '¿Ofrecen descuentos para agencias con más de 10 sitios?',
-    answer: 'Sí, ofrecemos planes personalizados para agencias con necesidades especiales. Contacta con nuestro equipo en hola@blooglee.com para una propuesta a medida.',
+    answer: 'Sí, ofrecemos planes personalizados para agencias con necesidades especiales. Contacta con nuestro equipo en info@blooglee.com para una propuesta a medida.',
   },
   {
     question: '¿Cómo funciona la facturación anual?',
     answer: 'Con la facturación anual ahorras un 20% respecto al pago mensual. Se cobra el importe total del año por adelantado y recibes acceso inmediato a todas las funciones de tu plan.',
   },
+  {
+    question: '¿Cuánto cuesta un redactor freelance comparado con Blooglee?',
+    answer: 'Un redactor freelance cobra entre 30-80€ por artículo de calidad. Con Blooglee Pro (49€/mes) generas 30 artículos, lo que equivale a 1,63€/artículo. Ahorro del 95%.',
+  },
+  {
+    question: '¿Emiten facturas con IVA?',
+    answer: 'Sí, todas las facturas incluyen IVA (21% para empresas españolas). Para empresas de la UE con NIF intracomunitario válido, el IVA es 0%.',
+  },
+  {
+    question: '¿Puedo probar antes de pagar?',
+    answer: 'Sí, el plan Free te permite generar 1 artículo completamente gratis para probar la calidad. No requiere tarjeta de crédito.',
+  },
+];
+
+// Datos para ProductSchema
+const pricingPlans = [
+  { name: 'Free', description: '1 sitio, 1 artículo gratis', price: 0, features: ['1 sitio', '1 artículo'] },
+  { name: 'Starter', description: '1 sitio, 4 artículos/mes', price: 19, features: ['1 sitio', '4 artículos'] },
+  { name: 'Pro', description: '3 sitios, 30 artículos/mes', price: 49, features: ['3 sitios', '30 artículos'] },
+  { name: 'Agencia', description: '10 sitios, artículos ilimitados', price: 149, features: ['10 sitios', 'Ilimitados'] },
 ];
 
 const Pricing = () => {
@@ -128,6 +148,7 @@ const Pricing = () => {
         keywords="precios Blooglee, planes blog automático, suscripción contenido IA, tarifas WordPress automático"
       />
       <FAQSchema faqs={pricingFaqs} />
+      <ProductSchema plans={pricingPlans} />
 
       {/* Header */}
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
