@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Save, Unplug, HelpCircle, ChevronDown, BookOpen, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, Save, Unplug, ChevronDown, BookOpen, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { useWordPressConfig, useUpsertWordPressConfig, useDeleteWordPressConfig } from '@/hooks/useWordPressConfigSaas';
 import { useWordPressHealthCheck, HealthCheckResult } from '@/hooks/useWordPressHealthCheck';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -228,7 +228,7 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
               <div className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500 text-white flex items-center justify-center text-sm font-bold">2</div>
               <div>
                 <p className="font-medium text-foreground">Usuario de WordPress</p>
-                <p className="text-sm text-muted-foreground">El usuario con el que accedes a tu panel de administración (wp-admin). Normalmente es "admin" o tu email.</p>
+                <p className="text-sm text-muted-foreground">Un usuario con rol de <strong>Administrador</strong> o <strong>Editor</strong> en WordPress. Necesita permisos para crear y publicar entradas.</p>
               </div>
             </div>
             
@@ -259,16 +259,6 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
             <div className="flex items-center gap-2">
               <span className="flex-shrink-0 w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 flex items-center justify-center text-xs font-bold">1</span>
               <Label htmlFor="site_url" className="text-sm sm:text-base">URL del sitio</Label>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>La dirección principal de tu WordPress</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
               {/* Indicador de estado de URL */}
               {urlStatus === 'checking' && (
                 <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
@@ -312,25 +302,15 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
             <div className="flex items-center gap-2">
               <span className="flex-shrink-0 w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 flex items-center justify-center text-xs font-bold">2</span>
               <Label htmlFor="wp_username" className="text-sm sm:text-base">Usuario de WordPress</Label>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>El usuario con el que entras a wp-admin</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             </div>
             <Input
               id="wp_username"
-              placeholder="admin o tu@email.com"
+              placeholder="tu_usuario_wordpress"
               className="h-12 text-base"
               {...register('wp_username')}
             />
             <p className="text-xs text-muted-foreground">
-              El mismo usuario con el que accedes a tu panel de WordPress
+              Debe tener rol de Administrador o Editor para poder publicar
             </p>
             {errors.wp_username && (
               <p className="text-sm text-destructive">{errors.wp_username.message}</p>
@@ -342,16 +322,6 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
             <div className="flex items-center gap-2">
               <span className="flex-shrink-0 w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 flex items-center justify-center text-xs font-bold">3</span>
               <Label htmlFor="wp_app_password" className="text-sm sm:text-base">Contraseña de aplicación</Label>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p>La clave que creaste en WordPress → Usuarios → Perfil → Contraseñas de aplicación</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             </div>
             <div className="relative">
               <Input
