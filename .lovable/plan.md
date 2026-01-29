@@ -1,363 +1,185 @@
 
-# Plan: Experiencia de Onboarding Revolucionaria con Guía Interactiva
+# Plan: Corregir Bugs de Onboarding y Optimizar WordPress para Móvil
 
-## El Problema Actual
+## Problema 1: Redirección Inesperada al Onboarding
 
-1. **Onboarding aburrido**: Un formulario de 4 pasos sin vida, sin feedback visual
-2. **WordPress es "opcional" pero no lo es**: Se puede generar artículo sin WP configurado y falla
-3. **Sin guía post-onboarding**: El usuario termina en el dashboard y no sabe qué hacer
-4. **Sin validaciones inteligentes**: El botón "Generar" está habilitado aunque falte WordPress
+### Causa Raíz
+Cuando creas un sitio en el onboarding, el flujo es:
+1. `createSite.mutateAsync()` crea el sitio en la base de datos
+2. `invalidateQueries(['sites'])` se dispara pero es asincrono
+3. `navigate('/dashboard')` ejecuta inmediatamente
+4. En el dashboard, `ProtectedRoute` lee `sites` que aun tiene el cache antiguo (vacío)
+5. `sites?.length === 0` devuelve `true` y te redirige de vuelta a `/onboarding`
 
-## La Visión Revolucionaria
-
-Una experiencia de onboarding en **2 fases**:
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                     FASE 1: WIZARD RÁPIDO                       │
-│                    (Solo lo esencial)                           │
-├─────────────────────────────────────────────────────────────────┤
-│   Paso 1: Nombre + Sector                                       │
-│   Paso 2: Ubicación + Ámbito (opcional rápido)                  │
-│   Paso 3: Frecuencia + Idiomas                                  │
-│                                                                  │
-│   → Finaliza en < 2 minutos                                     │
-│   → WordPress NO se pide aquí                                   │
-│   → El usuario llega al Dashboard con su sitio creado           │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│              FASE 2: GUÍA INTERACTIVA OVERLAY                   │
-│                (Spotlight paso a paso)                          │
-├─────────────────────────────────────────────────────────────────┤
-│   El usuario ve el Dashboard real PERO con overlay oscuro       │
-│   y spotlight/foco en elementos específicos:                    │
-│                                                                  │
-│   Paso 1: "Este es tu sitio" → resalta SiteCard                 │
-│   Paso 2: "Primero configura WordPress" → resalta botón WP      │
-│   Paso 3: (Tras configurar WP) "Ahora genera tu primer post"    │
-│   Paso 4: "Aquí verás tus artículos" → resalta Ver artículos    │
-│                                                                  │
-│   → Guía visual sobre la UI real                                │
-│   → NO puede generar hasta configurar WordPress                 │
-│   → Experiencia "wow" que el usuario recuerda                   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Implementación Técnica
-
-### Nueva Dependencia
-```bash
-npm install driver.js
-```
-
-**Por qué Driver.js:**
-- 6kb gzipped (super ligero)
-- Sin dependencias React específicas
-- Overlay con spotlight animado
-- Progreso visual entre pasos
-- Personalización completa del estilo
-
-### Nuevos Archivos
-
-| Archivo | Propósito |
-|---------|-----------|
-| `src/components/saas/OnboardingTour.tsx` | Componente de guía interactiva con Driver.js |
-| `src/hooks/useOnboardingTour.ts` | Hook para controlar estado del tour y persistencia |
-
-### Archivos a Modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/Onboarding.tsx` | Simplificar a 3 pasos (eliminar WordPress del wizard) |
-| `src/pages/SaasDashboard.tsx` | Integrar OnboardingTour para nuevos usuarios |
-| `src/pages/SiteDetail.tsx` | Bloquear generación sin WordPress + trigger tour |
-| `src/components/saas/SiteCard.tsx` | Añadir data-tour-id para spotlight + deshabilitar sin WP |
-| Base de datos | Añadir campo `onboarding_completed` a `profiles` |
-
-## Flujo Detallado
-
-### Fase 1: Nuevo Onboarding (3 pasos)
-
-**Paso 1: Tu Negocio**
-- Nombre del sitio (obligatorio)
-- Sector (selector visual con iconos)
-- Descripción breve (opcional)
-
-**Paso 2: Ubicación**
-- Ciudad/Región
-- Ámbito geográfico (tarjetas visuales clickables)
-
-**Paso 3: Preferencias**
-- Frecuencia de publicación (selector visual)
-- Idiomas (checkboxes estilizados)
-
-**Sin Paso 4 de WordPress** - Se configura después con guía.
-
-### Fase 2: Tour Interactivo en Dashboard
+### Solucion
+Modificar `Onboarding.tsx` para esperar a que el cache se actualice antes de navegar:
 
 ```typescript
-// src/components/saas/OnboardingTour.tsx
-import { driver } from "driver.js";
-import "driver.js/dist/driver.css";
+// En handleFinish()
+const newSite = await createSite.mutateAsync({...});
 
-const tourSteps = [
-  {
-    element: '[data-tour="welcome"]',
-    popover: {
-      title: "Bienvenido a Blooglee",
-      description: "Tu sitio está listo. Te guío para generar tu primer artículo.",
-      side: "bottom"
-    }
-  },
-  {
-    element: '[data-tour="site-card"]',
-    popover: {
-      title: "Este es tu sitio",
-      description: "Aquí verás el resumen de tu sitio y sus artículos.",
-      side: "bottom"
-    }
-  },
-  {
-    element: '[data-tour="wordpress-config"]',
-    popover: {
-      title: "Configura WordPress primero",
-      description: "Para publicar artículos, necesitas conectar tu WordPress. Haz clic aquí.",
-      side: "left"
-    }
-  },
-  // Paso condicional: tras configurar WP
-  {
-    element: '[data-tour="generate-button"]',
-    popover: {
-      title: "Genera tu primer artículo",
-      description: "Con WordPress conectado, ya puedes generar contenido automático.",
-      side: "bottom"
-    }
-  }
-];
+// Esperar a que la invalidación se complete
+await queryClient.refetchQueries({ queryKey: ['sites'] });
+
+// Ahora sí navegar
+navigate('/dashboard');
 ```
 
-### Bloqueo Inteligente de Generación
-
-```typescript
-// En SiteCard.tsx y SiteDetail.tsx
-const canGenerate = !!wpConfig;
-
-<Button 
-  onClick={canGenerate ? onGenerateArticle : onConfigureWordPress}
-  disabled={isGenerating}
-  data-tour="generate-button"
->
-  {!canGenerate && <Lock className="w-4 h-4 mr-2" />}
-  {isGenerating ? 'Generando...' : canGenerate ? 'Generar' : 'Configura WP primero'}
-</Button>
-```
-
-### Persistencia del Estado del Tour
-
-```sql
--- Migración: añadir columna a profiles
-ALTER TABLE profiles ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE;
-```
-
-```typescript
-// useOnboardingTour.ts
-export function useOnboardingTour() {
-  const { data: profile } = useProfile();
-  const [tourStep, setTourStep] = useState(0);
-  
-  const shouldShowTour = !profile?.onboarding_completed;
-  
-  const completeTour = async () => {
-    await supabase
-      .from('profiles')
-      .update({ onboarding_completed: true })
-      .eq('user_id', user.id);
-  };
-  
-  return { shouldShowTour, tourStep, setTourStep, completeTour };
-}
-```
-
-## Diseño Visual del Tour
-
-El overlay de Driver.js se personalizará con los colores de Blooglee:
-
-```css
-/* Estilos personalizados */
-.driver-popover {
-  background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%);
-  color: white;
-  border-radius: 16px;
-  box-shadow: 0 25px 50px -12px rgba(139, 92, 246, 0.4);
-}
-
-.driver-popover-title {
-  font-family: 'Sora', sans-serif;
-  font-size: 1.25rem;
-}
-
-.driver-popover-description {
-  font-family: 'Inter', sans-serif;
-}
-
-.driver-popover-progress-text {
-  color: rgba(255,255,255,0.7);
-}
-
-/* Spotlight con borde gradiente */
-.driver-active-element {
-  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.5),
-              0 0 0 8px rgba(217, 70, 239, 0.3);
-}
-```
-
-## Resumen de Cambios
-
-| Tipo | Archivo/Recurso | Acción |
-|------|-----------------|--------|
-| Dependencia | `driver.js` | Instalar |
-| Componente | `OnboardingTour.tsx` | Crear |
-| Hook | `useOnboardingTour.ts` | Crear |
-| Página | `Onboarding.tsx` | Simplificar a 3 pasos |
-| Página | `SaasDashboard.tsx` | Integrar tour + pasar wpConfigs |
-| Página | `SiteDetail.tsx` | Bloquear generación sin WP |
-| Componente | `SiteCard.tsx` | data-tour IDs + lógica WP |
-| CSS | `driver-custom.css` | Estilos Blooglee |
-| BD | `profiles` | Añadir `onboarding_completed` |
-
-## Resultado Esperado
-
-1. **Usuario nuevo se registra** → Va a Onboarding de 3 pasos (< 2 min)
-2. **Termina onboarding** → Llega al Dashboard con tour activo
-3. **Tour le guía visualmente** → Spotlight en cada elemento importante
-4. **Intenta generar sin WP** → El botón le lleva a configurar WP primero
-5. **Configura WordPress** → El tour avanza al siguiente paso
-6. **Genera su primer artículo** → Tour se completa, marca en BD
-7. **Futuras visitas** → No muestra tour, experiencia normal
-
-Esta experiencia es:
-- **Sencilla**: Solo 3 pasos iniciales
-- **Clara**: Guía visual sobre la UI real
-- **Limpia**: Overlay elegante con diseño Blooglee
-- **Rápida**: < 5 minutos hasta el primer artículo
-- **Inteligente**: Bloquea acciones hasta que tengan sentido
+### Archivo a modificar
+- `src/pages/Onboarding.tsx`
 
 ---
 
-## Sección Tecnica Detallada
+## Problema 2: WordPress Form No Optimizado para Movil
 
-### Estructura del OnboardingTour
+### Problemas Detectados
+1. Inputs demasiado pequeños para touch (altura 40px, debería ser 48-52px)
+2. Botones pegados sin espacio suficiente
+3. El enlace de ayuda se corta en pantallas pequeñas
+4. El botón "Mostrar/Ocultar" contraseña es muy pequeño
+5. Los botones de acción (Guardar/Desconectar) no apilan en móvil
+
+### Solucion
+Crear un layout mobile-first con:
+- Inputs más altos (h-12 en móvil)
+- Botones que se apilan verticalmente en móvil
+- Mejor espaciado entre elementos
+- Enlace de ayuda que fluye mejor
+
+### Cambios en WordPressConfigForm.tsx
+
+```tsx
+// Inputs más grandes
+<Input className="h-12 text-base" ... />
+
+// Botones que se apilan en móvil
+<div className="flex flex-col sm:flex-row gap-3 pt-4">
+  <Button className="w-full sm:w-auto" ...>Guardar</Button>
+  <Button className="w-full sm:w-auto" ...>Desconectar</Button>
+</div>
+
+// Enlace de ayuda mejor formateado
+<CardDescription className="space-y-1">
+  <span>Conecta tu sitio WordPress para publicar artículos.</span>
+  <a className="block sm:inline mt-1 sm:mt-0 sm:ml-1" ...>
+    ¿Cómo crear una contraseña de aplicación?
+  </a>
+</CardDescription>
+```
+
+### Archivo a modificar
+- `src/components/saas/WordPressConfigForm.tsx`
+
+---
+
+## Resumen de Archivos
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/Onboarding.tsx` | Esperar refetch de sites antes de navegar |
+| `src/components/saas/WordPressConfigForm.tsx` | Optimizar layout para móvil |
+
+---
+
+## Resultado Esperado
+
+1. **Flujo de onboarding corregido**: Al terminar el wizard, llegas al dashboard sin redirecciones extrañas
+2. **Formulario WordPress responsive**: En móvil todos los elementos son fáciles de tocar y leer, con espaciado adecuado
+
+---
+
+## Seccion Tecnica
+
+### Cambio en Onboarding.tsx
 
 ```typescript
-// src/components/saas/OnboardingTour.tsx
-interface OnboardingTourProps {
-  isFirstSite: boolean;
-  hasWordPressConfigured: boolean;
-  onComplete: () => void;
-}
+// Añadir al inicio del archivo
+import { useQueryClient } from '@tanstack/react-query';
 
-export function OnboardingTour({ 
-  isFirstSite, 
-  hasWordPressConfigured, 
-  onComplete 
-}: OnboardingTourProps) {
-  useEffect(() => {
-    if (!isFirstSite) return;
+// Dentro del componente
+const queryClient = useQueryClient();
+
+// En handleFinish()
+const handleFinish = async () => {
+  setIsLoading(true);
+  try {
+    const finalSector = sector === 'otro' ? customSector : sector;
     
-    const driverObj = driver({
-      showProgress: true,
-      progressText: 'Paso {{current}} de {{total}}',
-      nextBtnText: 'Siguiente',
-      prevBtnText: 'Anterior',
-      doneBtnText: 'Empezar a crear',
-      popoverClass: 'blooglee-tour-popover',
-      onDestroyStarted: () => {
-        onComplete();
-        driverObj.destroy();
-      },
-      steps: getTourSteps(hasWordPressConfigured)
+    await createSite.mutateAsync({
+      name: name.trim(),
+      sector: finalSector,
+      // ... resto de campos
     });
-    
-    driverObj.drive();
-    
-    return () => driverObj.destroy();
-  }, [isFirstSite, hasWordPressConfigured]);
-  
-  return null; // No renderiza nada, solo controla el tour
-}
+
+    // NUEVO: Esperar a que el cache se actualice
+    await queryClient.refetchQueries({ queryKey: ['sites'] });
+
+    // Ahora navegar (el ProtectedRoute verá sites.length > 0)
+    navigate('/dashboard');
+  } catch (error) {
+    console.error('Error creating site:', error);
+  } finally {
+    setIsLoading(false);
+  }
+};
 ```
 
-### Integración con SaasDashboard
+### Cambios en WordPressConfigForm.tsx
 
-```typescript
-// En SaasDashboard.tsx
-const { shouldShowTour, completeTour } = useOnboardingTour();
-const wpConfigsQuery = useWordPressConfigsBatch(sites.map(s => s.id));
+```tsx
+// CardDescription con mejor flujo
+<CardDescription>
+  <span>Conecta tu sitio WordPress para publicar artículos directamente.</span>
+  <a
+    href="..."
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex items-center gap-1 text-primary hover:underline mt-2 sm:mt-0 sm:inline-flex sm:ml-1"
+  >
+    ¿Cómo crear una contraseña?
+    <ExternalLink className="w-3 h-3" />
+  </a>
+</CardDescription>
 
-return (
-  <div>
-    {shouldShowTour && sites.length > 0 && (
-      <OnboardingTour
-        isFirstSite={true}
-        hasWordPressConfigured={!!wpConfigsQuery.data?.[sites[0]?.id]}
-        onComplete={completeTour}
-      />
-    )}
-    
-    {/* Resto del dashboard con data-tour attributes */}
-    <div data-tour="welcome">
-      <BloogleeLogo />
-    </div>
-    
-    {sites.map(site => (
-      <div data-tour={site === sites[0] ? "site-card" : undefined}>
-        <SiteCard ... />
-      </div>
-    ))}
-  </div>
-);
-```
+// Inputs más grandes para touch
+<Input
+  id="site_url"
+  placeholder="https://tu-sitio.com"
+  className="h-12 text-base"
+  {...register('site_url')}
+/>
 
-### Hook para cargar WordPress configs en batch
+// Espaciado mejorado entre campos
+<div className="space-y-4 sm:space-y-5">
 
-```typescript
-// useWordPressConfigSaas.ts - añadir
-export function useWordPressConfigsBatch(siteIds: string[]) {
-  const { user } = useAuth();
-  
-  return useQuery({
-    queryKey: ['wordpress_configs', 'batch', siteIds],
-    queryFn: async () => {
-      if (!user?.id || siteIds.length === 0) return {};
-      
-      const { data } = await supabase
-        .from('wordpress_configs')
-        .select('*')
-        .in('site_id', siteIds)
-        .eq('user_id', user.id);
-      
-      // Retornar como mapa: { siteId: config }
-      return (data || []).reduce((acc, cfg) => {
-        acc[cfg.site_id] = cfg;
-        return acc;
-      }, {} as Record<string, WordPressConfig>);
-    },
-    enabled: !!user?.id && siteIds.length > 0
-  });
-}
-```
+// Botón mostrar/ocultar más grande
+<button
+  type="button"
+  onClick={() => setShowPassword(!showPassword)}
+  className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-1 text-sm text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
+>
+  {showPassword ? 'Ocultar' : 'Mostrar'}
+</button>
 
-### Migración de Base de Datos
+// Botones que se apilan en móvil
+<div className="flex flex-col sm:flex-row gap-3 pt-4">
+  <Button
+    type="submit"
+    disabled={upsertMutation.isPending || (!isDirty && !!config)}
+    className="w-full sm:w-auto h-12 sm:h-10"
+  >
+    ...
+  </Button>
 
-```sql
--- Añadir campo para tracking del onboarding
-ALTER TABLE profiles 
-ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;
-
--- Marcar usuarios existentes como completados
-UPDATE profiles SET onboarding_completed = TRUE WHERE user_id IN (
-  SELECT DISTINCT user_id FROM sites
-);
+  {config && (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="outline" type="button" className="w-full sm:w-auto h-12 sm:h-10">
+          ...
+        </Button>
+      </AlertDialogTrigger>
+      ...
+    </AlertDialog>
+  )}
+</div>
 ```
