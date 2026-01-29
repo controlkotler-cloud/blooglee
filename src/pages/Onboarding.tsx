@@ -9,44 +9,43 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { useCreateSite } from '@/hooks/useSites';
-import { useUpsertWordPressConfig } from '@/hooks/useWordPressConfigSaas';
-import { Sparkles, ArrowRight, ArrowLeft, Globe, Languages, Link2 } from 'lucide-react';
+import { Sparkles, ArrowRight, ArrowLeft, Globe, Languages, Building2, MapPin, Calendar } from 'lucide-react';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 
 const SECTORS = [
-  { value: 'farmacia', label: 'Farmacia' },
-  { value: 'clinica_dental', label: 'Clínica Dental' },
-  { value: 'clinica_estetica', label: 'Clínica Estética' },
-  { value: 'fisioterapia', label: 'Fisioterapia' },
-  { value: 'psicologia', label: 'Psicología' },
-  { value: 'nutricion', label: 'Nutrición' },
-  { value: 'veterinaria', label: 'Veterinaria' },
-  { value: 'abogados', label: 'Abogados' },
-  { value: 'arquitectura', label: 'Arquitectura' },
-  { value: 'inmobiliaria', label: 'Inmobiliaria' },
-  { value: 'restaurante', label: 'Restaurante' },
-  { value: 'hotel', label: 'Hotel' },
-  { value: 'gimnasio', label: 'Gimnasio' },
-  { value: 'ecommerce', label: 'E-commerce' },
-  { value: 'tecnologia', label: 'Tecnología' },
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'consultoria', label: 'Consultoría' },
-  { value: 'otro', label: 'Otro' },
+  { value: 'farmacia', label: 'Farmacia', icon: '💊' },
+  { value: 'clinica_dental', label: 'Clínica Dental', icon: '🦷' },
+  { value: 'clinica_estetica', label: 'Clínica Estética', icon: '✨' },
+  { value: 'fisioterapia', label: 'Fisioterapia', icon: '🏃' },
+  { value: 'psicologia', label: 'Psicología', icon: '🧠' },
+  { value: 'nutricion', label: 'Nutrición', icon: '🥗' },
+  { value: 'veterinaria', label: 'Veterinaria', icon: '🐾' },
+  { value: 'abogados', label: 'Abogados', icon: '⚖️' },
+  { value: 'arquitectura', label: 'Arquitectura', icon: '🏛️' },
+  { value: 'inmobiliaria', label: 'Inmobiliaria', icon: '🏠' },
+  { value: 'restaurante', label: 'Restaurante', icon: '🍽️' },
+  { value: 'hotel', label: 'Hotel', icon: '🏨' },
+  { value: 'gimnasio', label: 'Gimnasio', icon: '💪' },
+  { value: 'ecommerce', label: 'E-commerce', icon: '🛒' },
+  { value: 'tecnologia', label: 'Tecnología', icon: '💻' },
+  { value: 'marketing', label: 'Marketing', icon: '📈' },
+  { value: 'consultoria', label: 'Consultoría', icon: '💼' },
+  { value: 'otro', label: 'Otro', icon: '🏢' },
 ];
 
 const GEOGRAPHIC_SCOPES = [
-  { value: 'local', label: 'Local', description: 'Ciudad o barrio' },
-  { value: 'regional', label: 'Regional', description: 'Comunidad autónoma' },
-  { value: 'national', label: 'Nacional', description: 'Todo el país' },
-  { value: 'international', label: 'Internacional', description: 'Varios países' },
+  { value: 'local', label: 'Local', description: 'Ciudad o barrio', icon: '📍' },
+  { value: 'regional', label: 'Regional', description: 'Comunidad autónoma', icon: '🗺️' },
+  { value: 'national', label: 'Nacional', description: 'Todo el país', icon: '🇪🇸' },
+  { value: 'international', label: 'Internacional', description: 'Varios países', icon: '🌍' },
 ];
 
 const PUBLISH_FREQUENCIES = [
-  { value: 'daily', label: 'Diario (todos los días)', description: 'Un artículo cada día' },
-  { value: 'daily_weekdays', label: 'Diario (L-V)', description: 'Un artículo de lunes a viernes' },
-  { value: 'weekly', label: 'Semanal', description: 'Un artículo por semana' },
-  { value: 'biweekly', label: 'Quincenal', description: 'Un artículo cada 2 semanas' },
-  { value: 'monthly', label: 'Mensual', description: 'Un artículo por mes' },
+  { value: 'daily', label: 'Diario', description: 'Un artículo cada día', icon: '🔥' },
+  { value: 'daily_weekdays', label: 'Diario (L-V)', description: 'De lunes a viernes', icon: '📅' },
+  { value: 'weekly', label: 'Semanal', description: 'Un artículo por semana', icon: '📰' },
+  { value: 'biweekly', label: 'Quincenal', description: 'Cada 2 semanas', icon: '📋' },
+  { value: 'monthly', label: 'Mensual', description: 'Un artículo por mes', icon: '📆' },
 ];
 
 export default function Onboarding() {
@@ -67,31 +66,23 @@ export default function Onboarding() {
   // Step 3: Languages & Frequency
   const [languages, setLanguages] = useState<string[]>(['spanish']);
   const [publishFrequency, setPublishFrequency] = useState('weekly');
-  
-  // Step 4: WordPress (optional)
-  const [configureWordPress, setConfigureWordPress] = useState(false);
-  const [wpUrl, setWpUrl] = useState('');
-  const [wpUsername, setWpUsername] = useState('');
-  const [wpAppPassword, setWpAppPassword] = useState('');
 
   const createSite = useCreateSite();
-  const upsertWpConfig = useUpsertWordPressConfig();
 
-  const totalSteps = 4;
+  const totalSteps = 3;
   const progress = (step / totalSteps) * 100;
 
   const canProceed = () => {
     switch (step) {
       case 1: return name.trim() !== '' && (sector !== '' || customSector.trim() !== '');
-      case 2: return location.trim() !== '';
+      case 2: return true; // Location is now optional for faster flow
       case 3: return languages.length > 0;
-      case 4: return !configureWordPress || (wpUrl.trim() !== '' && wpUsername.trim() !== '' && wpAppPassword.trim() !== '');
       default: return false;
     }
   };
 
   const handleLanguageToggle = (lang: string) => {
-    if (lang === 'spanish') return; // Spanish is always required
+    if (lang === 'spanish') return;
     setLanguages(prev => 
       prev.includes(lang) 
         ? prev.filter(l => l !== lang)
@@ -104,26 +95,18 @@ export default function Onboarding() {
     try {
       const finalSector = sector === 'otro' ? customSector : sector;
       
-      const site = await createSite.mutateAsync({
+      await createSite.mutateAsync({
         name: name.trim(),
         sector: finalSector,
         description: description.trim() || null,
-        location: location.trim(),
+        location: location.trim() || null,
         geographic_scope: geographicScope as 'local' | 'regional' | 'national' | 'international',
         languages,
         publish_frequency: publishFrequency,
       });
 
-      if (configureWordPress && wpUrl && wpUsername && wpAppPassword) {
-        await upsertWpConfig.mutateAsync({
-          site_id: site.id,
-          site_url: wpUrl.trim(),
-          wp_username: wpUsername.trim(),
-          wp_app_password: wpAppPassword.trim(),
-        });
-      }
-
-      navigate('/');
+      // Navigate to dashboard - the tour will show there
+      navigate('/dashboard');
     } catch (error) {
       console.error('Error creating site:', error);
     } finally {
@@ -131,47 +114,109 @@ export default function Onboarding() {
     }
   };
 
+  const stepTitles = [
+    { title: 'Tu negocio', icon: Building2 },
+    { title: 'Ubicación', icon: MapPin },
+    { title: 'Preferencias', icon: Calendar },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-fuchsia-50 to-orange-50 dark:from-background dark:to-muted flex items-center justify-center p-4">
+      <Card className="w-full max-w-2xl shadow-xl border-0 bg-white/80 dark:bg-card/80 backdrop-blur-sm">
+        <CardHeader className="text-center pb-2">
+          <div className="flex justify-center mb-6">
             <BloogleeLogo size="lg" showText={false} />
           </div>
-          <CardTitle className="text-2xl">Configura tu primer sitio</CardTitle>
-          <CardDescription>Paso {step} de {totalSteps}</CardDescription>
-          <Progress value={progress} className="mt-4" />
+          
+          {/* Step indicators */}
+          <div className="flex justify-center gap-2 mb-4">
+            {stepTitles.map((s, i) => {
+              const StepIcon = s.icon;
+              const isActive = step === i + 1;
+              const isCompleted = step > i + 1;
+              return (
+                <div
+                  key={i}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+                    isActive 
+                      ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg' 
+                      : isCompleted 
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  <StepIcon className="w-4 h-4" />
+                  <span className="text-sm font-medium hidden sm:inline">{s.title}</span>
+                  <span className="text-sm font-medium sm:hidden">{i + 1}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          <CardTitle className="text-2xl font-display bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
+            {stepTitles[step - 1].title}
+          </CardTitle>
+          <CardDescription>
+            {step === 1 && 'Cuéntanos sobre tu negocio para generar contenido relevante'}
+            {step === 2 && 'Opcional: ayuda a personalizar tus artículos según tu ubicación'}
+            {step === 3 && 'Configura idiomas y frecuencia de publicación'}
+          </CardDescription>
+          <Progress value={progress} className="mt-4 h-2" />
         </CardHeader>
         
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 pt-4">
           {/* Step 1: Basic Info */}
           {step === 1 && (
-            <div className="space-y-4">
+            <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="space-y-2">
-                <Label htmlFor="name">Nombre del sitio o negocio</Label>
+                <Label htmlFor="name" className="text-base">Nombre del sitio o negocio *</Label>
                 <Input
                   id="name"
-                  placeholder="Ej: Mi Farmacia, Clínica Dental García..."
+                  placeholder="Ej: Farmacia Central, Clínica Dental García..."
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  className="h-12 text-base"
+                  autoFocus
                 />
               </div>
+              
               <div className="space-y-2">
-                <Label htmlFor="sector">Sector</Label>
+                <Label className="text-base">Sector *</Label>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {SECTORS.slice(0, 8).map(s => (
+                    <button
+                      key={s.value}
+                      type="button"
+                      onClick={() => setSector(s.value)}
+                      className={`p-3 rounded-xl border-2 text-center transition-all hover:scale-105 ${
+                        sector === s.value 
+                          ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 shadow-md' 
+                          : 'border-border hover:border-violet-300'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{s.icon}</div>
+                      <div className="text-xs font-medium truncate">{s.label}</div>
+                    </button>
+                  ))}
+                </div>
                 <Select value={sector} onValueChange={setSector}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un sector" />
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Ver todos los sectores..." />
                   </SelectTrigger>
                   <SelectContent>
                     {SECTORS.map(s => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      <SelectItem key={s.value} value={s.value}>
+                        <span className="mr-2">{s.icon}</span>
+                        {s.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+              
               {sector === 'otro' && (
-                <div className="space-y-2">
-                  <Label htmlFor="customSector">Especifica el sector</Label>
+                <div className="space-y-2 animate-in fade-in duration-200">
+                  <Label htmlFor="customSector">Especifica el sector *</Label>
                   <Input
                     id="customSector"
                     placeholder="Describe tu sector"
@@ -180,17 +225,18 @@ export default function Onboarding() {
                   />
                 </div>
               )}
+              
               <div className="space-y-2">
-                <Label htmlFor="description">Breve descripción de tu negocio (opcional)</Label>
+                <Label htmlFor="description">Descripción breve (opcional)</Label>
                 <Textarea
                   id="description"
-                  placeholder="Ej: Plataforma digital de referencia para farmacias en España..."
+                  placeholder="Ej: Farmacia especializada en dermocosmética y productos naturales..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="min-h-[80px]"
+                  className="min-h-[80px] resize-none"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Una descripción ayuda a generar artículos más relevantes para tu negocio específico.
+                  Ayuda a generar artículos más relevantes para tu negocio específico
                 </p>
               </div>
             </div>
@@ -198,34 +244,42 @@ export default function Onboarding() {
 
           {/* Step 2: Location */}
           {step === 2 && (
-            <div className="space-y-4">
+            <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="flex items-center gap-2 text-muted-foreground mb-2">
                 <Globe className="w-5 h-5" />
-                <span>Ubicación y ámbito</span>
+                <span>Ubicación y ámbito geográfico</span>
               </div>
+              
               <div className="space-y-2">
-                <Label htmlFor="location">Ubicación principal</Label>
+                <Label htmlFor="location">Ciudad o región (opcional)</Label>
                 <Input
                   id="location"
-                  placeholder="Ej: Barcelona, Madrid Centro..."
+                  placeholder="Ej: Barcelona, Madrid Centro, Valencia..."
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
+                  className="h-12"
+                  autoFocus
                 />
+                <p className="text-xs text-muted-foreground">
+                  Personaliza artículos con referencias locales
+                </p>
               </div>
+              
               <div className="space-y-2">
-                <Label>Ámbito geográfico de tu negocio</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <Label>Ámbito de tu negocio</Label>
+                <div className="grid grid-cols-2 gap-3">
                   {GEOGRAPHIC_SCOPES.map(scope => (
                     <button
                       key={scope.value}
                       type="button"
                       onClick={() => setGeographicScope(scope.value)}
-                      className={`p-3 rounded-lg border text-left transition-colors ${
+                      className={`p-4 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
                         geographicScope === scope.value 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-border hover:border-primary/50'
+                          ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 shadow-md' 
+                          : 'border-border hover:border-violet-300'
                       }`}
                     >
+                      <div className="text-2xl mb-2">{scope.icon}</div>
                       <div className="font-medium">{scope.label}</div>
                       <div className="text-xs text-muted-foreground">{scope.description}</div>
                     </button>
@@ -237,23 +291,25 @@ export default function Onboarding() {
 
           {/* Step 3: Languages & Frequency */}
           {step === 3 && (
-            <div className="space-y-6">
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Languages className="w-5 h-5" />
                   <span>Idiomas de los artículos</span>
                 </div>
                 <div className="space-y-3">
-                  <div className="flex items-center space-x-2 p-3 rounded-lg border bg-muted/50">
+                  <div className="flex items-center space-x-3 p-4 rounded-xl border-2 bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800">
                     <Checkbox id="spanish" checked disabled />
                     <Label htmlFor="spanish" className="flex-1">
-                      <span className="font-medium">Español</span>
-                      <span className="text-xs text-muted-foreground ml-2">(obligatorio)</span>
+                      <span className="font-medium">🇪🇸 Español</span>
+                      <span className="text-xs text-muted-foreground ml-2">(siempre incluido)</span>
                     </Label>
                   </div>
                   <div 
-                    className={`flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      languages.includes('catalan') ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
+                    className={`flex items-center space-x-3 p-4 rounded-xl border-2 cursor-pointer transition-all hover:scale-[1.01] ${
+                      languages.includes('catalan') 
+                        ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20' 
+                        : 'border-border hover:border-violet-300'
                     }`}
                     onClick={() => handleLanguageToggle('catalan')}
                   >
@@ -263,7 +319,7 @@ export default function Onboarding() {
                       onCheckedChange={() => handleLanguageToggle('catalan')}
                     />
                     <Label htmlFor="catalan" className="flex-1 cursor-pointer">
-                      <span className="font-medium">Catalán</span>
+                      <span className="font-medium">🏴󠁥󠁳󠁣󠁴󠁿 Catalán</span>
                       <span className="text-xs text-muted-foreground ml-2">(opcional)</span>
                     </Label>
                   </div>
@@ -271,21 +327,29 @@ export default function Onboarding() {
               </div>
 
               <div className="space-y-4">
-                <Label>Frecuencia de publicación</Label>
-                <div className="space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="w-5 h-5" />
+                  <span>Frecuencia de publicación</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {PUBLISH_FREQUENCIES.map(freq => (
                     <button
                       key={freq.value}
                       type="button"
                       onClick={() => setPublishFrequency(freq.value)}
-                      className={`w-full p-3 rounded-lg border text-left transition-colors ${
+                      className={`p-4 rounded-xl border-2 text-left transition-all hover:scale-[1.02] ${
                         publishFrequency === freq.value 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-border hover:border-primary/50'
+                          ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 shadow-md' 
+                          : 'border-border hover:border-violet-300'
                       }`}
                     >
-                      <div className="font-medium">{freq.label}</div>
-                      <div className="text-xs text-muted-foreground">{freq.description}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{freq.icon}</span>
+                        <div>
+                          <div className="font-medium">{freq.label}</div>
+                          <div className="text-xs text-muted-foreground">{freq.description}</div>
+                        </div>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -293,72 +357,11 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 4: WordPress */}
-          {step === 4 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                <Link2 className="w-5 h-5" />
-                <span>Configuración de WordPress (opcional)</span>
-              </div>
-              
-              <div 
-                className={`flex items-center space-x-2 p-3 rounded-lg border cursor-pointer transition-colors ${
-                  configureWordPress ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
-                }`}
-                onClick={() => setConfigureWordPress(!configureWordPress)}
-              >
-                <Checkbox 
-                  checked={configureWordPress} 
-                  onCheckedChange={(checked) => setConfigureWordPress(checked === true)}
-                />
-                <Label className="flex-1 cursor-pointer">
-                  <span className="font-medium">Quiero publicar en WordPress</span>
-                </Label>
-              </div>
-
-              {configureWordPress && (
-                <div className="space-y-3 pl-2 border-l-2 border-primary/20">
-                  <div className="space-y-2">
-                    <Label htmlFor="wpUrl">URL del sitio WordPress</Label>
-                    <Input
-                      id="wpUrl"
-                      placeholder="https://tusitio.com"
-                      value={wpUrl}
-                      onChange={(e) => setWpUrl(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="wpUsername">Usuario de WordPress</Label>
-                    <Input
-                      id="wpUsername"
-                      placeholder="admin"
-                      value={wpUsername}
-                      onChange={(e) => setWpUsername(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="wpAppPassword">Contraseña de aplicación</Label>
-                    <Input
-                      id="wpAppPassword"
-                      type="password"
-                      placeholder="xxxx xxxx xxxx xxxx"
-                      value={wpAppPassword}
-                      onChange={(e) => setWpAppPassword(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Genera una en WordPress → Usuarios → Tu perfil → Contraseñas de aplicación
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Navigation */}
-          <div className="flex justify-between pt-4">
+          <div className="flex justify-between pt-4 border-t">
             {step > 1 ? (
-              <Button variant="outline" onClick={() => setStep(s => s - 1)}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
+              <Button variant="ghost" onClick={() => setStep(s => s - 1)} className="gap-2">
+                <ArrowLeft className="w-4 h-4" />
                 Atrás
               </Button>
             ) : (
@@ -366,17 +369,32 @@ export default function Onboarding() {
             )}
             
             {step < totalSteps ? (
-              <Button onClick={() => setStep(s => s + 1)} disabled={!canProceed()}>
+              <Button 
+                onClick={() => setStep(s => s + 1)} 
+                disabled={!canProceed()}
+                className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+              >
                 Siguiente
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <ArrowRight className="w-4 h-4" />
               </Button>
             ) : (
-              <Button onClick={handleFinish} disabled={!canProceed() || isLoading}>
-                {isLoading ? 'Creando...' : 'Finalizar'}
-                <Sparkles className="w-4 h-4 ml-2" />
+              <Button 
+                onClick={handleFinish} 
+                disabled={!canProceed() || isLoading}
+                className="gap-2 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400 hover:from-violet-600 hover:via-fuchsia-600 hover:to-orange-500"
+              >
+                {isLoading ? 'Creando...' : '¡Crear mi sitio!'}
+                <Sparkles className="w-4 h-4" />
               </Button>
             )}
           </div>
+          
+          {/* Skip hint for step 2 */}
+          {step === 2 && (
+            <p className="text-center text-xs text-muted-foreground">
+              Puedes saltar este paso y configurarlo más tarde
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

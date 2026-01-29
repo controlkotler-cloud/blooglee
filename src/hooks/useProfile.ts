@@ -8,6 +8,7 @@ export interface Profile {
   email: string;
   plan: 'free' | 'pro' | 'agency';
   sites_limit: number;
+  onboarding_completed: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -14,6 +14,46 @@ export interface WordPressConfig {
   updated_at: string;
 }
 
+// Batch query to check WordPress configs for multiple sites
+export function useWordPressConfigsBatch(siteIds: string[]) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['wordpress_configs', 'batch', siteIds.sort().join(',')],
+    queryFn: async (): Promise<Record<string, WordPressConfig>> => {
+      if (!user?.id || siteIds.length === 0) return {};
+
+      const { data, error } = await supabase
+        .from('wordpress_configs')
+        .select('*')
+        .in('site_id', siteIds)
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error fetching WordPress configs batch:', error);
+        return {};
+      }
+
+      return (data || []).reduce((acc, cfg) => {
+        acc[cfg.site_id] = cfg as WordPressConfig;
+        return acc;
+      }, {} as Record<string, WordPressConfig>);
+    },
+    enabled: !!user?.id && siteIds.length > 0,
+  });
+}
+
+export interface WordPressConfigType {
+  id: string;
+  site_id: string;
+  user_id: string;
+  site_url: string;
+  wp_username: string;
+  wp_app_password: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface WordPressConfigInput {
   site_id: string;
   site_url: string;

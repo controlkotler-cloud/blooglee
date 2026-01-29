@@ -451,6 +451,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          onboarding_completed: boolean | null
           plan: string
           posts_limit: number
           sites_limit: number
@@ -461,6 +462,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          onboarding_completed?: boolean | null
           plan?: string
           posts_limit?: number
           sites_limit?: number
@@ -471,6 +473,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          onboarding_completed?: boolean | null
           plan?: string
           posts_limit?: number
           sites_limit?: number
