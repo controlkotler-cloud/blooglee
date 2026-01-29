@@ -1,127 +1,222 @@
 
-# Plan: Corregir Boton Header Movil + Restringir Import/Export a Plan Agency
 
-## Problema 1: Boton Cortado en Header Movil
+# Plan: Ayuda Contextual Integrada para Configuracion de WordPress
 
-### Analisis
-En `SiteDetail.tsx` linea 95-112, el boton "Configura WP primero" tiene texto muy largo que no cabe en pantallas moviles. El header actual no gestiona bien el espacio reducido.
+## El Problema Actual
 
-### Solucion
-Hacer el boton responsive con texto corto en movil:
-- Movil: Solo icono (Lock) + texto muy corto o solo "Configurar WP"
-- Desktop: Texto completo "Configura WP primero" / "Generar articulo"
+El formulario de WordPress solo tiene un enlace externo (linea 95-103 en `WordPressConfigForm.tsx`) que:
+- Va a documentacion en ingles de WordPress
+- No explica que usuario usar
+- No muestra paso a paso como crear la contrasena de aplicacion
+- No tiene ningun contexto visual
 
-```tsx
-// Texto adaptativo segun tamanio
-<Button ...>
-  {isGenerating ? (
-    <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
-  ) : canGenerate ? (
-    <Sparkles className="w-4 h-4 sm:mr-2" />
-  ) : (
-    <Lock className="w-4 h-4 sm:mr-2" />
-  )}
-  <span className="hidden sm:inline">
-    {isGenerating ? 'Generando...' : canGenerate ? 'Generar articulo' : 'Configura WP primero'}
-  </span>
-  <span className="sm:hidden">
-    {isGenerating ? '...' : canGenerate ? 'Generar' : 'WP'}
-  </span>
-</Button>
+## La Solucion: Guia Integrada Paso a Paso
+
+Transformar el formulario para incluir ayuda contextual activa con:
+
+1. **Seccion de ayuda expandible** arriba del formulario con pasos visuales
+2. **Tooltips en cada campo** explicando que poner
+3. **Indicadores numerados** (1, 2, 3) junto a cada campo
+4. **Collapsible con capturas** mostrando donde encontrar cada dato en WordPress
+
+## Diseno Visual Propuesto
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  Configuracion de WordPress                                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ 📘 Como configurar WordPress (expandible)                 │   │
+│  │ ─────────────────────────────────────────────────────────│   │
+│  │                                                           │   │
+│  │  Paso 1: URL del sitio                                    │   │
+│  │  → La direccion de tu WordPress (ej: https://miweb.com)   │   │
+│  │                                                           │   │
+│  │  Paso 2: Usuario de WordPress                             │   │
+│  │  → El usuario con el que accedes a wp-admin               │   │
+│  │  → Normalmente es "admin" o tu email                      │   │
+│  │                                                           │   │
+│  │  Paso 3: Contrasena de aplicacion                         │   │
+│  │  → NO es tu contrasena normal de WordPress                │   │
+│  │  → Es una clave especial que debes crear:                 │   │
+│  │    1. Ve a tu WordPress → Usuarios → Perfil               │   │
+│  │    2. Baja hasta "Contrasenas de aplicacion"              │   │
+│  │    3. Pon un nombre (ej: "Blooglee")                      │   │
+│  │    4. Clic en "Anadir nueva contrasena"                   │   │
+│  │    5. Copia la clave que aparece (solo se ve una vez!)    │   │
+│  │                                                           │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ 1  URL del sitio                                    (i) │    │
+│  │    [https://tu-sitio.com                              ] │    │
+│  │    La direccion principal de tu WordPress               │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ 2  Usuario de WordPress                             (i) │    │
+│  │    [admin                                             ] │    │
+│  │    El usuario con el que entras a wp-admin              │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ 3  Contrasena de aplicacion                         (i) │    │
+│  │    [xxxx xxxx xxxx xxxx                    ] [Mostrar]  │    │
+│  │    La clave que creaste en Usuarios → Perfil            │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  [💾 Guardar configuracion]                                      │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Archivo a modificar
-- `src/pages/SiteDetail.tsx` (lineas 95-112)
+## Componentes a Crear/Modificar
 
----
+### Archivo Principal
+`src/components/saas/WordPressConfigForm.tsx`
 
-## Problema 2: Import/Export Solo para Plan Agency
+### Cambios Especificos
 
-### Analisis
-El componente `SiteImportExport` se muestra siempre en `SaasDashboard.tsx` lineas 228-235, sin importar el plan del usuario. Solo tiene sentido para el plan Agency (subidas masivas de 10+ sitios).
+1. **Anadir seccion de ayuda colapsable** al inicio del formulario
+2. **Reemplazar labels simples** por labels con numero + icono de ayuda
+3. **Anadir texto de ayuda debajo de cada input** (hint text)
+4. **Mejorar placeholders** para ser mas descriptivos
 
-### Solucion
-Mostrar condicionalmente solo si `plan === 'agency'`:
+## Implementacion Detallada
+
+### Nueva Estructura del Formulario
 
 ```tsx
-{/* Import/Export section - Solo plan Agency */}
-{plan === 'agency' && (
-  <div className="mt-6">
-    <SiteImportExport
-      sites={sites}
-      articles={articles}
-      sitesLimit={sitesLimit}
-      onImportSites={(sitesToImport) => importSitesMutation.mutate(sitesToImport)}
-    />
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { HelpCircle, ChevronDown, BookOpen } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+// Seccion de ayuda expandible
+<Collapsible defaultOpen={!config}>
+  <CollapsibleTrigger className="flex items-center gap-2 w-full p-4 bg-violet-50 rounded-lg hover:bg-violet-100">
+    <BookOpen className="w-5 h-5 text-violet-600" />
+    <span className="font-medium text-violet-900">Como configurar WordPress</span>
+    <ChevronDown className="w-4 h-4 ml-auto text-violet-600" />
+  </CollapsibleTrigger>
+  <CollapsibleContent className="p-4 space-y-4 bg-violet-50/50 rounded-b-lg">
+    {/* Paso 1 */}
+    <div className="flex gap-3">
+      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500 text-white flex items-center justify-center text-sm font-bold">1</div>
+      <div>
+        <p className="font-medium">URL del sitio</p>
+        <p className="text-sm text-muted-foreground">La direccion de tu WordPress (ej: https://miweb.com)</p>
+      </div>
+    </div>
+    
+    {/* Paso 2 */}
+    <div className="flex gap-3">
+      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500 text-white flex items-center justify-center text-sm font-bold">2</div>
+      <div>
+        <p className="font-medium">Usuario de WordPress</p>
+        <p className="text-sm text-muted-foreground">El usuario con el que accedes a tu panel de administracion (wp-admin). Normalmente es "admin" o tu email.</p>
+      </div>
+    </div>
+    
+    {/* Paso 3 - El mas importante */}
+    <div className="flex gap-3">
+      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500 text-white flex items-center justify-center text-sm font-bold">3</div>
+      <div>
+        <p className="font-medium">Contrasena de aplicacion</p>
+        <p className="text-sm text-muted-foreground mb-2">
+          <strong>No es tu contrasena normal</strong>. Es una clave especial que debes crear:
+        </p>
+        <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside ml-2">
+          <li>Ve a tu WordPress → <strong>Usuarios → Perfil</strong></li>
+          <li>Baja hasta la seccion "<strong>Contrasenas de aplicacion</strong>"</li>
+          <li>Escribe un nombre (ej: "Blooglee")</li>
+          <li>Clic en "<strong>Anadir nueva contrasena</strong>"</li>
+          <li>Copia la clave que aparece (solo se muestra una vez)</li>
+        </ol>
+      </div>
+    </div>
+  </CollapsibleContent>
+</Collapsible>
+
+// Campos con numeros y hints
+<div className="space-y-2">
+  <div className="flex items-center gap-2">
+    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-bold">1</span>
+    <Label htmlFor="site_url">URL del sitio</Label>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>La direccion principal de tu WordPress</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   </div>
-)}
+  <Input ... />
+  <p className="text-xs text-muted-foreground">
+    Ejemplo: https://miweb.com (sin /wp-admin)
+  </p>
+</div>
 ```
 
-### Archivo a modificar
-- `src/pages/SaasDashboard.tsx` (lineas 227-235)
+### Estados del Componente
 
----
+- **Sin configuracion**: Guia expandida por defecto, ayuda visual prominente
+- **Con configuracion**: Guia colapsada, formulario mas limpio
 
 ## Resumen de Cambios
 
-| Archivo | Lineas | Cambio |
-|---------|--------|--------|
-| `src/pages/SiteDetail.tsx` | 95-112 | Boton responsive con texto corto en movil |
-| `src/pages/SaasDashboard.tsx` | 227-235 | Mostrar import/export solo si plan === 'agency' |
+| Elemento | Cambio |
+|----------|--------|
+| Ayuda colapsable | Nueva seccion arriba del formulario con los 3 pasos explicados |
+| Labels | Numeros visuales (1, 2, 3) + iconos de ayuda |
+| Hints | Texto descriptivo debajo de cada campo |
+| Placeholders | Ejemplos mas claros |
+| Tooltips | Explicacion rapida en hover/tap |
+| Estado inicial | Guia expandida si no hay config previa |
+
+## Archivo a Modificar
+
+- `src/components/saas/WordPressConfigForm.tsx`
 
 ## Resultado Esperado
 
-1. **Header movil limpio**: El boton muestra texto corto "WP" o "Generar" en movil, texto completo en desktop
-2. **Import/Export exclusivo**: Solo usuarios con plan Agency (149E/mes) ven la seccion de importacion masiva
+1. **Usuario nuevo ve la guia expandida** con los 3 pasos claros
+2. **Cada campo tiene contexto** - sabe exactamente que poner
+3. **El paso 3 (contrasena)** tiene instrucciones detalladas paso a paso
+4. **No necesita salir de la app** para entender que hacer
+5. **Usuarios que ya configuraron** ven el formulario limpio con guia colapsada
 
 ---
 
 ## Seccion Tecnica
 
-### Cambio en SiteDetail.tsx
+### Imports a Anadir
 
-```tsx
-// Lineas 95-112 actuales
-<Button 
-  onClick={handleGenerateArticle} 
-  disabled={isGenerating}
-  className={canGenerate 
-    ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
-    : "border-amber-500/50 text-amber-700 hover:bg-amber-50"
-  }
-  variant={canGenerate ? "default" : "outline"}
->
-  {isGenerating ? (
-    <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
-  ) : canGenerate ? (
-    <Sparkles className="w-4 h-4 sm:mr-2" />
-  ) : (
-    <Lock className="w-4 h-4 sm:mr-2" />
-  )}
-  {/* Texto desktop */}
-  <span className="hidden sm:inline">
-    {isGenerating ? 'Generando...' : canGenerate ? 'Generar articulo' : 'Configura WP primero'}
-  </span>
-  {/* Texto movil */}
-  <span className="sm:hidden">
-    {isGenerating ? '' : canGenerate ? 'Generar' : 'WP'}
-  </span>
-</Button>
+```typescript
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { HelpCircle, ChevronDown, BookOpen } from 'lucide-react';
 ```
 
-### Cambio en SaasDashboard.tsx
+### Logica de Estado Inicial
 
-```tsx
-// Lineas 227-235 actuales
-{/* Import/Export section - Solo para Agency */}
-{plan === 'agency' && (
-  <div className="mt-6">
-    <SiteImportExport
-      sites={sites}
-      articles={articles}
-      sitesLimit={sitesLimit}
-      onImportSites={(sitesToImport) => importSitesMutation.mutate(sitesToImport)}
-    />
-  </div>
-)}
+```typescript
+const [helpOpen, setHelpOpen] = useState(!config);
+
+// Colapsar ayuda cuando ya hay config guardada
+useEffect(() => {
+  if (config) setHelpOpen(false);
+}, [config]);
 ```
+
+### Estructura de Componente Completa
+
+El formulario tendra esta estructura:
+1. Card con header
+2. Seccion de ayuda colapsable (Collapsible)
+3. Formulario con campos numerados y hints
+4. Botones de accion
+
