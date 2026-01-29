@@ -1,221 +1,111 @@
 
+# Plan: Mejorar Tooltips y Texto del Campo Usuario
 
-# Plan: Integrar Health Check en el Flujo de Configuracion WordPress
+## Problema 1: Tooltips inútiles
 
-## Problema Detectado
+Los iconos de interrogante (?) tienen tooltips pero con información redundante:
+- URL: "La dirección principal de tu WordPress" (ya lo dice el label)
+- Usuario: "El usuario con el que entras a wp-admin" (ya lo dice el hint)
+- Contraseña: Algo más útil pero aún básico
 
-El formulario `WordPressConfigForm.tsx` tiene toda la ayuda contextual implementada correctamente, **pero le falta la funcionalidad principal**:
+**Solución**: O quitar los iconos (ya que la guía expandible explica todo) o hacerlos realmente útiles con información diferenciada.
 
-1. **No ejecuta validacion al introducir la URL** - Deberia verificar que el WordPress es accesible (Fase 1)
-2. **No ejecuta health check al guardar** - Deberia validar credenciales antes de guardar (Fase 2-3)
-3. **El componente `WordPressHealthCheck` existe pero no esta usado** - Esta en `src/components/saas/WordPressHealthCheck.tsx`
+**Recomendación**: Quitar los iconos HelpCircle de los 3 campos. La guía colapsable ya proporciona toda la ayuda necesaria y los tooltips solo añaden ruido visual.
 
-## Flujo Propuesto
+## Problema 2: Texto incorrecto sobre el usuario
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  PASO 1: Usuario introduce URL                                  │
-│  → Al perder el foco (onBlur), ejecutar Fase 1 del health check│
-│  → Mostrar indicador: "Verificando sitio..."                    │
-│  → Si OK: icono verde + "Sitio WordPress detectado"             │
-│  → Si ERROR: mensaje de error inline                            │
-├─────────────────────────────────────────────────────────────────┤
-│  PASO 2: Usuario introduce credenciales                         │
-│  → Sin validacion hasta guardar (no queremos spam de requests) │
-├─────────────────────────────────────────────────────────────────┤
-│  PASO 3: Usuario hace clic en "Guardar"                         │
-│  → Ejecutar Fase 3 completa ANTES de guardar en DB              │
-│  → Mostrar resultados del diagnostico                           │
-│  → Si TODO OK: guardar y mostrar exito                          │
-│  → Si HAY ERRORES: mostrar errores, NO guardar                  │
-│  → Si HAY WARNINGS: mostrar warnings, preguntar si continuar    │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Texto actual** (línea 231 y 328):
+- "Normalmente es admin o tu email"
+- Placeholder: "admin o tu@email.com"
 
-## Cambios Tecnicos
+**Problema**: Lo importante no es el nombre, sino que el usuario tenga permisos de Administrador o Editor en WordPress para poder publicar posts.
+
+**Texto corregido**:
+- Guía: "El nombre de usuario de WordPress con rol de **Administrador** o **Editor** (necesario para publicar artículos)"
+- Hint: "Debe tener permisos para crear y publicar entradas"
+- Placeholder: "tu_usuario_wordpress"
+
+## Cambios Específicos
 
 ### Archivo: `src/components/saas/WordPressConfigForm.tsx`
 
-1. **Importar el hook de health check**
-```typescript
-import { useWordPressHealthCheck } from '@/hooks/useWordPressHealthCheck';
+| Líneas | Cambio |
+|--------|--------|
+| 262-271 | Eliminar TooltipProvider completo del campo URL |
+| 315-324 | Eliminar TooltipProvider completo del campo Usuario |
+| 345-354 | Eliminar TooltipProvider completo del campo Contraseña |
+| 231 | Cambiar texto a mencionar rol Admin/Editor |
+| 328 | Cambiar placeholder a "tu_usuario_wordpress" |
+| 332-334 | Cambiar hint a mencionar permisos de publicación |
+
+### Código a eliminar (3 bloques de tooltips):
+
+```tsx
+// ELIMINAR de líneas 262-271, 315-324, 345-354:
+<TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
+    </TooltipTrigger>
+    <TooltipContent>
+      <p>...</p>
+    </TooltipContent>
+  </Tooltip>
+</TooltipProvider>
 ```
 
-2. **Anadir estado para validacion de URL**
-```typescript
-const [urlStatus, setUrlStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
-const [urlError, setUrlError] = useState<string | null>(null);
-const { runHealthCheck, isChecking } = useWordPressHealthCheck();
+### Textos a actualizar:
+
+```tsx
+// Línea 230-231 (en la guía colapsable)
+<p className="text-sm text-muted-foreground">
+  Un usuario con rol de <strong>Administrador</strong> o <strong>Editor</strong> en WordPress. 
+  Necesita permisos para crear y publicar entradas.
+</p>
+
+// Línea 328 (placeholder del input)
+placeholder="tu_usuario_wordpress"
+
+// Líneas 332-334 (hint debajo del input)
+<p className="text-xs text-muted-foreground">
+  Debe tener rol de Administrador o Editor para poder publicar
+</p>
 ```
 
-3. **Validar URL al perder foco**
-```typescript
-const handleUrlBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
-  const url = e.target.value;
-  if (!url || urlStatus === 'checking') return;
-  
-  setUrlStatus('checking');
-  setUrlError(null);
-  
-  const result = await runHealthCheck(url, undefined, undefined, 1);
-  
-  if (result?.overall_status === 'success' || result?.overall_status === 'warning') {
-    setUrlStatus('valid');
-  } else {
-    setUrlStatus('invalid');
-    setUrlError(result?.errors?.[0] || 'No se pudo conectar con el sitio');
-  }
-};
+### Import a limpiar:
+
+```tsx
+// Línea 9 - Quitar HelpCircle si ya no se usa
+import { Loader2, Save, Unplug, ChevronDown, BookOpen, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+
+// Línea 13 - Quitar imports de Tooltip si ya no se usan
+// import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 ```
-
-4. **Validar credenciales completas antes de guardar**
-```typescript
-const onSubmit = async (data: FormData) => {
-  // Ejecutar health check completo (fase 3)
-  setValidationState('validating');
-  
-  const result = await runHealthCheck(
-    data.site_url,
-    data.wp_username,
-    data.wp_app_password,
-    3 // Fase completa
-  );
-  
-  if (result?.overall_status === 'error') {
-    // Mostrar errores, NO guardar
-    setValidationState('error');
-    setValidationResult(result);
-    return;
-  }
-  
-  // Todo OK o solo warnings, proceder a guardar
-  upsertMutation.mutate({
-    site_id: siteId,
-    site_url: data.site_url,
-    wp_username: data.wp_username,
-    wp_app_password: data.wp_app_password,
-  });
-  
-  setValidationState('success');
-  setValidationResult(result);
-};
-```
-
-5. **UI para mostrar estado de validacion**
-```typescript
-// Indicador junto al input de URL
-{urlStatus === 'checking' && (
-  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-)}
-{urlStatus === 'valid' && (
-  <CheckCircle className="w-4 h-4 text-green-500" />
-)}
-{urlStatus === 'invalid' && (
-  <XCircle className="w-4 h-4 text-red-500" />
-)}
-
-// Panel de resultados despues de guardar
-{validationResult && (
-  <div className="mt-4 p-4 rounded-lg bg-muted">
-    <h4 className="font-medium mb-2">Resultado del diagnostico</h4>
-    {validationResult.checks.map(check => (
-      <div key={check.id} className="flex items-center gap-2">
-        {/* Iconos segun status */}
-        <span>{check.message}</span>
-      </div>
-    ))}
-  </div>
-)}
-```
-
-## Estados de la UI
-
-| Estado | Comportamiento |
-|--------|----------------|
-| `idle` | Formulario normal, sin validacion activa |
-| `checking_url` | Spinner en campo URL mientras valida |
-| `url_valid` | Check verde junto a URL |
-| `url_invalid` | X roja + mensaje de error |
-| `validating` | Boton deshabilitado + "Verificando conexion..." |
-| `validation_error` | Panel rojo con errores, boton de reintentar |
-| `validation_warning` | Panel amarillo con warnings, opcion de continuar |
-| `success` | Panel verde, config guardada |
 
 ## Resultado Esperado
 
-1. **Al introducir URL**: El usuario ve inmediatamente si su WordPress es accesible
-2. **Al guardar**: Se validan las credenciales ANTES de guardar
-3. **Feedback claro**: Si algo falla, el usuario sabe exactamente que corregir
-4. **No se guardan configs invalidas**: Solo se persiste si la conexion funciona
+1. **Sin ruido visual**: Los iconos (?) desaparecen, dejando la interfaz más limpia
+2. **Información clara sobre rol**: El usuario sabe que necesita una cuenta con permisos de Admin/Editor
+3. **Guía suficiente**: La sección colapsable ya explica todo lo necesario
 
-## Archivos a Modificar
+## Alternativa (si prefieres mantener tooltips)
 
-- `src/components/saas/WordPressConfigForm.tsx`
+Si prefieres mantener los iconos (?), podemos hacerlos útiles con información diferenciada:
 
-## Seccion Tecnica Detallada
+- **URL tooltip**: "Introduce la URL sin /wp-admin. Verificaremos que sea un WordPress válido."
+- **Usuario tooltip**: "Necesitas rol de Administrador o Editor. Los roles de Suscriptor o Colaborador no funcionarán."
+- **Contraseña tooltip**: "Las contraseñas de aplicación tienen formato: xxxx xxxx xxxx xxxx"
 
-### Nuevos Estados
+---
 
-```typescript
-const [urlStatus, setUrlStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
-const [urlError, setUrlError] = useState<string | null>(null);
-const [validationState, setValidationState] = useState<'idle' | 'validating' | 'error' | 'warning' | 'success'>('idle');
-const [validationResult, setValidationResult] = useState<HealthCheckResult | null>(null);
+## Sección Técnica
 
-const { runHealthCheck, isChecking } = useWordPressHealthCheck();
-```
+### Líneas exactas a modificar:
 
-### Logica de Submit Actualizada
-
-```typescript
-const onSubmit = async (data: FormData) => {
-  setValidationState('validating');
-  setValidationResult(null);
-
-  try {
-    // Ejecutar health check fase 3 (completo con credenciales)
-    const result = await runHealthCheck(
-      data.site_url,
-      data.wp_username,
-      data.wp_app_password,
-      3
-    );
-
-    setValidationResult(result);
-
-    if (!result) {
-      setValidationState('error');
-      toast.error('Error al verificar la conexion');
-      return;
-    }
-
-    if (result.overall_status === 'error') {
-      setValidationState('error');
-      toast.error('Hay problemas con la configuracion');
-      return;
-    }
-
-    // Success o warning - guardar config
-    await upsertMutation.mutateAsync({
-      site_id: siteId,
-      site_url: data.site_url,
-      wp_username: data.wp_username,
-      wp_app_password: data.wp_app_password,
-    });
-
-    setValidationState('success');
-    
-  } catch (error) {
-    console.error('Error:', error);
-    setValidationState('error');
-  }
-};
-```
-
-### Imports Adicionales
-
-```typescript
-import { useWordPressHealthCheck, HealthCheckResult } from '@/hooks/useWordPressHealthCheck';
-import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
-```
-
+1. **Eliminar tooltip URL**: Líneas 262-271
+2. **Eliminar tooltip Usuario**: Líneas 315-324  
+3. **Eliminar tooltip Contraseña**: Líneas 345-354
+4. **Actualizar texto guía usuario**: Línea 231
+5. **Actualizar placeholder**: Línea 328
+6. **Actualizar hint**: Líneas 332-334
+7. **Limpiar imports**: Línea 9 (HelpCircle) y línea 13 (Tooltip components)
