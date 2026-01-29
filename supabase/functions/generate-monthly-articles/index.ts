@@ -850,6 +850,7 @@ const handler = async (req: Request): Promise<Response> => {
                 name: empresa.name,
                 location: empresa.location,
                 sector: empresa.sector,
+                description: empresa.description,  // NUEVO: Audiencia objetivo
                 languages: empresa.languages,
                 blog_url: empresa.blog_url,
                 instagram_url: empresa.instagram_url,
