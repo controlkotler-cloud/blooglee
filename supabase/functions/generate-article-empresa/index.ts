@@ -10,6 +10,7 @@ interface CompanyData {
   name: string;
   location?: string | null;
   sector?: string | null;
+  description?: string | null;  // Descripción y audiencia objetivo
   languages?: string[];
   blog_url?: string | null;
   instagram_url?: string | null;
@@ -711,27 +712,33 @@ serve(async (req) => {
         ? `\nTONO RECOMENDADO: ${sectorContext.toneDescription}` 
         : "";
       
+      // Construir contexto de audiencia si hay descripción
+      const audienceHintForTopic = company.description 
+        ? `\nAUDIENCIA OBJETIVO (MUY IMPORTANTE): ${company.description.substring(0, 300)}
+IMPORTANTE: El tema debe ser útil para ATRAER a esta audiencia (clientes potenciales), NO para otros profesionales del sector.`
+        : "";
+
       const topicPrompt = `Eres un experto en marketing de contenidos para el sector "${company.sector || "servicios profesionales"}".
 
 EMPRESA: ${company.name}
 SECTOR: ${company.sector || "Servicios profesionales"}
 ÁMBITO: ${company.geographic_scope === "national" ? "Nacional (España)" : company.location || "General"}
-MES: ${monthNameEs} ${year}${toneHint}${usedTopicsSection}
+MES: ${monthNameEs} ${year}${toneHint}${audienceHintForTopic}${usedTopicsSection}
 
 Genera UN tema de blog que:
-1. Sea MUY relevante para el sector ${company.sector || "profesional"}
+1. Sea MUY relevante para ATRAER CLIENTES de la empresa (no para otros profesionales del sector)
 2. Tenga potencial SEO para ${company.geographic_scope === "local" && company.location ? `negocios en ${company.location}` : "España"}
 3. Considere tendencias de ${monthNameEs} ${year}
 4. NO mencione el nombre de la empresa
-5. Sea útil para los clientes potenciales de este sector
-6. NO sea genérico - debe ser específico del sector
+5. Sea útil para los CLIENTES POTENCIALES de este sector
+6. NO sea genérico - debe ser específico y práctico
 7. SEA COMPLETAMENTE DIFERENTE a los temas ya usados (no variaciones del mismo tema)
+8. Si hay audiencia objetivo definida, el tema debe ATRAER a esa audiencia
 
-Ejemplos de temas VARIADOS por sector:
-- Marketing: "Email marketing automatizado: guía práctica", "SEO local para pymes", "Análisis de competencia digital"
-- Tecnología: "Automatización de procesos operativos", "Ciberseguridad para pequeñas empresas", "Cloud computing: ventajas reales"
-- Legal: "Cambios fiscales para autónomos", "Protección de datos en 2026", "Contratos digitales: validez legal"
-- Industrial: "Mantenimiento predictivo eficiente", "Eficiencia energética industrial", "Gestión de inventarios moderna"
+Ejemplos de temas que ATRAEN CLIENTES (no escritos para profesionales del sector):
+- Agencia Marketing: "5 errores de marketing que frenan tu pyme", "Cómo medir el ROI de tu inversión digital", "Guía SEO para autónomos"
+- Tecnología: "Automatización que ahorra horas a tu negocio", "Ciberseguridad básica para pymes", "Por qué tu empresa necesita estar en la nube"
+- Legal: "Cambios fiscales que afectan a autónomos", "Protección de datos: guía para pequeños negocios"
 
 Responde SOLO con el tema (máx 80 caracteres), sin explicaciones ni comillas.`;
 
@@ -769,16 +776,27 @@ Responde SOLO con el tema (máx 80 caracteres), sin explicaciones ni comillas.`;
       ? `\nTONO ESPECÍFICO DEL SECTOR: ${sectorContext.toneDescription}` 
       : "";
     
+    // Construir contexto de audiencia objetivo
+    const audienceContext = company.description 
+      ? `
+
+AUDIENCIA OBJETIVO (MUY IMPORTANTE):
+${company.description}
+
+⚠️ REGLA CRÍTICA: El artículo debe estar escrito PARA ATRAER a esta audiencia (clientes potenciales), NO para otros profesionales del sector ${company.sector}.
+Por ejemplo, si eres una agencia de marketing, escribe para tus CLIENTES POTENCIALES (pymes, autónomos, empresas B2B), NO para otras agencias de marketing.`
+      : "";
+
     const systemPrompt = `Eres un redactor experto en marketing de contenidos y SEO especializado en el sector ${company.sector || "servicios profesionales"}.
 
 SOBRE LA EMPRESA:
 - Nombre: ${company.name}
 - Sector: ${company.sector || "Servicios profesionales"}
 - Ámbito geográfico: ${company.geographic_scope === "national" ? "Nacional (toda España)" : company.location || "General"}
-${toneInstruction}
+${toneInstruction}${audienceContext}
 
 TU MISIÓN:
-Generar un artículo de blog de ~2000 palabras optimizado para SEO, relevante para el sector ${company.sector || "profesional"} y atractivo para su audiencia objetivo.
+Generar un artículo de blog de ~2000 palabras optimizado para SEO que ATRAIGA CLIENTES para ${company.name}, ofreciendo contenido valioso que resuelva problemas de su audiencia objetivo.
 
 REGLAS CRÍTICAS:
 ${geoContext}
