@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PublicLayout } from '@/components/marketing/PublicLayout';
 import { BlogCard } from '@/components/marketing/BlogCard';
 import { AudienceCards } from '@/components/marketing/AudienceCards';
+import { AudienceHeader } from '@/components/marketing/AudienceHeader';
 import { NewsletterForm } from '@/components/marketing/NewsletterForm';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
@@ -13,9 +14,21 @@ const POSTS_PER_PAGE = 4;
 const BASE_CATEGORIES = ['Todos', 'SEO', 'Marketing', 'Tutoriales', 'Comparativas', 'Producto', 'Tendencias'];
 
 const BlogIndex = () => {
-  const [selectedAudience, setSelectedAudience] = useState('todos');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const audienceParam = searchParams.get('audiencia');
+  
+  // Validate audience param - only allow 'empresas' or 'agencias'
+  const selectedAudience = audienceParam === 'empresas' || audienceParam === 'agencias' 
+    ? audienceParam 
+    : 'todos';
+
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset page when audience changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedAudience]);
 
   // Fetch posts from database with audience and category filters
   const { data: posts = [], isLoading, error } = useBlogPosts(
@@ -39,10 +52,8 @@ const BlogIndex = () => {
     return Array.from(uniqueCats);
   }, [categoryCounts]);
 
-  const handleAudienceChange = (audience: string) => {
-    setSelectedAudience(audience);
-    setCurrentPage(1);
-  };
+  // No longer needed - navigation via Links
+
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
@@ -63,31 +74,35 @@ const BlogIndex = () => {
         keywords="blog SEO, marketing contenidos, automatización blog, tutoriales WordPress, estrategia digital"
       />
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
-        {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-violet-200/50 shadow-lg mb-6">
-            <BookOpen className="w-4 h-4 text-violet-500" />
-            <span className="text-sm font-medium text-violet-600">Blog</span>
-          </div>
-          
-          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6">
-            Recursos para{' '}
-            <span className="bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
-              crecer online
-            </span>
-          </h1>
-          
-          <p className="text-lg sm:text-xl text-foreground/60">
-            Aprende sobre SEO, marketing de contenidos y cómo automatizar tu estrategia digital.
-          </p>
-        </div>
+        {/* Conditional Header based on audience */}
+        {selectedAudience === 'todos' ? (
+          <>
+            {/* Generic Header */}
+            <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background/80 backdrop-blur-sm border border-violet-200/50 shadow-lg mb-6">
+                <BookOpen className="w-4 h-4 text-violet-500" />
+                <span className="text-sm font-medium text-violet-600">Blog</span>
+              </div>
+              
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6">
+                Recursos para{' '}
+                <span className="bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
+                  crecer online
+                </span>
+              </h1>
+              
+              <p className="text-lg sm:text-xl text-foreground/60">
+                Aprende sobre SEO, marketing de contenidos y cómo automatizar tu estrategia digital.
+              </p>
+            </div>
 
-        {/* Audience Cards (large cards when "todos", compact tabs when specific) */}
-        <AudienceCards
-          selected={selectedAudience}
-          onSelect={handleAudienceChange}
-          counts={audienceCounts}
-        />
+            {/* Audience Cards - only shown on initial view */}
+            <AudienceCards counts={audienceCounts} />
+          </>
+        ) : (
+          /* Contextual Header for specific audience */
+          <AudienceHeader audience={selectedAudience} />
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12">
           {/* Main Content */}
