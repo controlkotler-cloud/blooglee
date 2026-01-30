@@ -209,7 +209,7 @@ const handler = async (req: Request): Promise<Response> => {
           : 'escalabilidad, automatización y gestión de clientes para tu agencia';
         
         await resend.emails.send({
-          from: "Blooglee <onboarding@resend.dev>",
+          from: "Blooglee <hola@blooglee.com>",
           to: [cleanEmail],
           subject: `¡Bienvenido/a ${cleanName}! Tu newsletter de Blooglee está lista 🎉`,
           html: `
