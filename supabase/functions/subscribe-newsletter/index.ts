@@ -210,6 +210,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         await resend.emails.send({
           from: "Blooglee <hola@blooglee.com>",
+          reply_to: "info@blooglee.com",
           to: [cleanEmail],
           subject: `¡Bienvenido/a ${cleanName}! Tu newsletter de Blooglee está lista 🎉`,
           html: `

@@ -246,6 +246,7 @@ const handler = async (req: Request): Promise<Response> => {
 
           await resend.emails.send({
             from: "Blooglee <hola@blooglee.com>",
+            reply_to: "info@blooglee.com",
             to: [subscriber.email],
             subject: subject,
             html: html,
