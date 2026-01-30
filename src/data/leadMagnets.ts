@@ -19,7 +19,7 @@ export const genericLeadMagnets: LeadMagnet[] = [
     icon: Calendar,
     type: 'Calendario',
     sector: 'general',
-    fileName: 'calendario-editorial-2026.pdf',
+    fileName: 'calendario-editorial-2026.html',
   },
   {
     id: 'ideas-general',
@@ -28,7 +28,7 @@ export const genericLeadMagnets: LeadMagnet[] = [
     icon: Lightbulb,
     type: 'PDF',
     sector: 'general',
-    fileName: '50-ideas-posts-blog.pdf',
+    fileName: '50-ideas-posts-blog.html',
   },
   {
     id: 'checklist-seo',
@@ -37,7 +37,7 @@ export const genericLeadMagnets: LeadMagnet[] = [
     icon: CheckSquare,
     type: 'Checklist',
     sector: 'general',
-    fileName: 'checklist-seo-on-page.pdf',
+    fileName: 'checklist-seo-on-page.html',
   },
   {
     id: 'plantilla-tareas',
@@ -46,7 +46,7 @@ export const genericLeadMagnets: LeadMagnet[] = [
     icon: FileText,
     type: 'Plantilla',
     sector: 'general',
-    fileName: 'plantilla-tareas-redactar.pdf',
+    fileName: 'plantilla-tareas-redactar.html',
   },
 ];
 
@@ -60,7 +60,7 @@ export const sectorLeadMagnets: Record<string, LeadMagnet[]> = {
       icon: Stethoscope,
       type: 'Calendario',
       sector: 'clinicas',
-      fileName: 'calendario-editorial-clinicas-2026.pdf',
+      fileName: 'calendario-editorial-clinicas-2026.html',
     },
     {
       id: 'ideas-clinicas',
@@ -69,7 +69,7 @@ export const sectorLeadMagnets: Record<string, LeadMagnet[]> = {
       icon: Lightbulb,
       type: 'PDF',
       sector: 'clinicas',
-      fileName: '50-ideas-posts-clinicas.pdf',
+      fileName: '50-ideas-posts-clinicas.html',
     },
   ],
   agencias: [
@@ -80,7 +80,7 @@ export const sectorLeadMagnets: Record<string, LeadMagnet[]> = {
       icon: Briefcase,
       type: 'Calendario',
       sector: 'agencias',
-      fileName: 'calendario-editorial-agencias-2026.pdf',
+      fileName: 'calendario-editorial-agencias-2026.html',
     },
     {
       id: 'ideas-agencias',
@@ -89,7 +89,7 @@ export const sectorLeadMagnets: Record<string, LeadMagnet[]> = {
       icon: Lightbulb,
       type: 'PDF',
       sector: 'agencias',
-      fileName: '50-ideas-posts-agencias.pdf',
+      fileName: '50-ideas-posts-agencias.html',
     },
   ],
   ecommerce: [
@@ -100,7 +100,7 @@ export const sectorLeadMagnets: Record<string, LeadMagnet[]> = {
       icon: ShoppingCart,
       type: 'Calendario',
       sector: 'ecommerce',
-      fileName: 'calendario-editorial-ecommerce-2026.pdf',
+      fileName: 'calendario-editorial-ecommerce-2026.html',
     },
     {
       id: 'ideas-ecommerce',
@@ -109,7 +109,7 @@ export const sectorLeadMagnets: Record<string, LeadMagnet[]> = {
       icon: Lightbulb,
       type: 'PDF',
       sector: 'ecommerce',
-      fileName: '50-ideas-posts-ecommerce.pdf',
+      fileName: '50-ideas-posts-ecommerce.html',
     },
   ],
   autonomos: [
@@ -129,7 +129,7 @@ export const sectorLeadMagnets: Record<string, LeadMagnet[]> = {
       icon: Lightbulb,
       type: 'PDF',
       sector: 'autonomos',
-      fileName: '50-ideas-posts-autonomos.pdf',
+      fileName: '50-ideas-posts-autonomos.html',
     },
   ],
 };

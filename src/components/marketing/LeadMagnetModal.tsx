@@ -44,11 +44,8 @@ export const LeadMagnetModal = ({ isOpen, onClose, leadMagnet }: LeadMagnetModal
   };
 
   const handleDownload = () => {
-    // Trigger download - in production this would be a real PDF URL from storage
-    const link = document.createElement('a');
-    link.href = `/resources/${leadMagnet?.fileName || 'resource.pdf'}`;
-    link.download = leadMagnet?.fileName || 'resource.pdf';
-    link.click();
+    // Open resource in new tab - user can print to PDF
+    window.open(`/resources/${leadMagnet?.fileName || 'resource.html'}`, '_blank');
     
     // Reset and close
     setTimeout(() => {

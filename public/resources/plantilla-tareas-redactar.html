@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plantilla: Tareas para Redactar un Post | Blooglee</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; color: #1a1a2e; line-height: 1.6; background: linear-gradient(135deg, #faf5ff 0%, #fff7ed 100%); min-height: 100vh; padding: 40px; }
+    .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(139, 92, 246, 0.1); overflow: hidden; }
+    .header { background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #F97316 100%); color: white; padding: 40px; text-align: center; }
+    .logo { font-family: 'Sora', sans-serif; font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    h1 { font-family: 'Sora', sans-serif; font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { font-size: 16px; opacity: 0.9; }
+    .content { padding: 40px; }
+    .intro { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 24px; margin-bottom: 32px; border-left: 4px solid #f59e0b; }
+    .intro h2 { font-family: 'Sora', sans-serif; font-size: 18px; color: #d97706; margin-bottom: 12px; }
+    .intro p { font-size: 14px; color: #4a4a6a; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
+    th { background: #1a1a2e; color: white; font-family: 'Sora', sans-serif; font-weight: 600; padding: 16px; text-align: left; font-size: 13px; }
+    th:nth-child(2), th:nth-child(3) { text-align: center; }
+    td { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; font-size: 13px; vertical-align: middle; }
+    tr:nth-child(even) { background: #faf5ff; }
+    .task-name { font-weight: 500; }
+    .time-manual { text-align: center; color: #991b1b; font-weight: 600; }
+    .time-blooglee { text-align: center; color: #166534; font-weight: 600; }
+    .savings { background: #dcfce7; }
+    .savings td { font-weight: 600; }
+    .total-row { background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%); }
+    .total-row td { color: white; font-weight: 700; font-size: 14px; }
+    .comparison-box { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
+    .comparison-card { border-radius: 12px; padding: 24px; text-align: center; }
+    .comparison-card.manual { background: #fee2e2; border: 2px solid #fecaca; }
+    .comparison-card.blooglee { background: #dcfce7; border: 2px solid #bbf7d0; }
+    .comparison-icon { font-size: 48px; margin-bottom: 12px; }
+    .comparison-title { font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .comparison-time { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
+    .comparison-card.manual .comparison-time { color: #991b1b; }
+    .comparison-card.blooglee .comparison-time { color: #166534; }
+    .comparison-label { font-size: 12px; color: #6b7280; }
+    .roi-section { background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border-radius: 12px; padding: 32px; margin-bottom: 32px; }
+    .roi-title { font-family: 'Sora', sans-serif; font-size: 20px; color: #8B5CF6; margin-bottom: 24px; text-align: center; }
+    .roi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center; }
+    .roi-item { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .roi-value { font-size: 28px; font-weight: 700; color: #8B5CF6; margin-bottom: 4px; }
+    .roi-label { font-size: 12px; color: #6b7280; }
+    .pricing-compare { background: #fff7ed; border-radius: 12px; padding: 24px; margin-bottom: 32px; border-left: 4px solid #F97316; }
+    .pricing-compare h3 { font-family: 'Sora', sans-serif; font-size: 16px; color: #d97706; margin-bottom: 16px; }
+    .pricing-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed #fed7aa; }
+    .pricing-row:last-child { border-bottom: none; }
+    .pricing-option { font-weight: 500; }
+    .pricing-cost { font-weight: 700; }
+    .pricing-cost.expensive { color: #991b1b; }
+    .pricing-cost.cheap { color: #166534; }
+    .cta-box { background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #F97316 100%); border-radius: 12px; padding: 32px; text-align: center; color: white; margin-bottom: 32px; }
+    .cta-box h3 { font-family: 'Sora', sans-serif; font-size: 24px; margin-bottom: 12px; }
+    .cta-box p { font-size: 14px; opacity: 0.9; margin-bottom: 20px; }
+    .cta-button { display: inline-block; background: white; color: #8B5CF6; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 16px; }
+    .cta-button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .footer { text-align: center; padding: 32px; background: #f9fafb; border-top: 1px solid #e5e7eb; }
+    .footer p { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+    @media print { 
+      body { background: white; padding: 20px; } 
+      .container { box-shadow: none; }
+      .cta-box, .cta-button { display: none; }
+    }
+    @media (max-width: 640px) {
+      .comparison-box { grid-template-columns: 1fr; }
+      .roi-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">✨ Blooglee</div>
+      <h1>Plantilla: Tareas para Redactar un Post</h1>
+      <p class="subtitle">Compara el tiempo manual vs automatizado y calcula tu ahorro</p>
+    </div>
+    
+    <div class="content">
+      <div class="intro">
+        <h2>⏱️ ¿Cuánto tiempo inviertes realmente en cada artículo?</h2>
+        <p>Esta plantilla desglosa todas las tareas necesarias para crear un artículo de blog optimizado para SEO. Compara el tiempo que dedicas manualmente con lo que tardarías usando Blooglee. Usa las casillas para anotar tus propios tiempos y calcular tu ahorro real.</p>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tarea</th>
+            <th>Tiempo Manual</th>
+            <th>Con Blooglee</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="task-name">1. Investigar tema y palabras clave</td>
+            <td class="time-manual">30-45 min</td>
+            <td class="time-blooglee">Automático ✓</td>
+          </tr>
+          <tr>
+            <td class="task-name">2. Analizar competencia y SERPs</td>
+            <td class="time-manual">20-30 min</td>
+            <td class="time-blooglee">Automático ✓</td>
+          </tr>
+          <tr>
+            <td class="task-name">3. Crear estructura (H1, H2, H3)</td>
+            <td class="time-manual">15-20 min</td>
+            <td class="time-blooglee">Automático ✓</td>
+          </tr>
+          <tr>
+            <td class="task-name">4. Escribir borrador (800-1500 palabras)</td>
+            <td class="time-manual">2-3 horas</td>
+            <td class="time-blooglee">60 segundos ✓</td>
+          </tr>
+          <tr>
+            <td class="task-name">5. Revisar y editar contenido</td>
+            <td class="time-manual">30-45 min</td>
+            <td class="time-blooglee">5-10 min</td>
+          </tr>
+          <tr>
+            <td class="task-name">6. Optimizar SEO (meta title, description, slug)</td>
+            <td class="time-manual">15-20 min</td>
+            <td class="time-blooglee">Automático ✓</td>
+          </tr>
+          <tr>
+            <td class="task-name">7. Buscar imagen destacada</td>
+            <td class="time-manual">15-30 min</td>
+            <td class="time-blooglee">Incluida ✓</td>
+          </tr>
+          <tr>
+            <td class="task-name">8. Optimizar y comprimir imagen</td>
+            <td class="time-manual">10-15 min</td>
+            <td class="time-blooglee">Automático ✓</td>
+          </tr>
+          <tr>
+            <td class="task-name">9. Añadir enlaces internos</td>
+            <td class="time-manual">10-15 min</td>
+            <td class="time-blooglee">5 min</td>
+          </tr>
+          <tr>
+            <td class="task-name">10. Formatear en WordPress/CMS</td>
+            <td class="time-manual">15-20 min</td>
+            <td class="time-blooglee">1 clic ✓</td>
+          </tr>
+          <tr>
+            <td class="task-name">11. Configurar categorías y etiquetas</td>
+            <td class="time-manual">5-10 min</td>
+            <td class="time-blooglee">1 clic ✓</td>
+          </tr>
+          <tr>
+            <td class="task-name">12. Revisar vista previa final</td>
+            <td class="time-manual">5-10 min</td>
+            <td class="time-blooglee">2 min</td>
+          </tr>
+          <tr class="total-row">
+            <td class="task-name">TOTAL POR ARTÍCULO</td>
+            <td style="text-align: center;">4-6 horas</td>
+            <td style="text-align: center;">~15 minutos</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="comparison-box">
+        <div class="comparison-card manual">
+          <div class="comparison-icon">⏳</div>
+          <div class="comparison-title">Redacción Manual</div>
+          <div class="comparison-time">4-6 horas</div>
+          <div class="comparison-label">por artículo</div>
+        </div>
+        <div class="comparison-card blooglee">
+          <div class="comparison-icon">⚡</div>
+          <div class="comparison-title">Con Blooglee</div>
+          <div class="comparison-time">15 min</div>
+          <div class="comparison-label">por artículo</div>
+        </div>
+      </div>
+
+      <div class="roi-section">
+        <h3 class="roi-title">💰 Calcula tu ahorro mensual (4 artículos)</h3>
+        <div class="roi-grid">
+          <div class="roi-item">
+            <div class="roi-value">16-24h</div>
+            <div class="roi-label">Tiempo ahorrado al mes</div>
+          </div>
+          <div class="roi-item">
+            <div class="roi-value">200-400€</div>
+            <div class="roi-label">Si pagaras a freelance (50-100€/post)</div>
+          </div>
+          <div class="roi-item">
+            <div class="roi-value">95%</div>
+            <div class="roi-label">Reducción de tiempo</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pricing-compare">
+        <h3>💶 Comparativa de costes reales</h3>
+        <div class="pricing-row">
+          <span class="pricing-option">Redactor freelance (4 posts/mes)</span>
+          <span class="pricing-cost expensive">200-400 €/mes</span>
+        </div>
+        <div class="pricing-row">
+          <span class="pricing-option">Agencia de contenidos (4 posts/mes)</span>
+          <span class="pricing-cost expensive">400-800 €/mes</span>
+        </div>
+        <div class="pricing-row">
+          <span class="pricing-option">Tu tiempo (4-6h × 4 = 16-24h valoradas a 30€/h)</span>
+          <span class="pricing-cost expensive">480-720 €/mes</span>
+        </div>
+        <div class="pricing-row">
+          <span class="pricing-option"><strong>Blooglee Starter</strong> (4 posts/mes)</span>
+          <span class="pricing-cost cheap"><strong>19 €/mes</strong></span>
+        </div>
+        <div class="pricing-row">
+          <span class="pricing-option"><strong>Blooglee Pro</strong> (30 posts/mes)</span>
+          <span class="pricing-cost cheap"><strong>49 €/mes</strong></span>
+        </div>
+      </div>
+
+      <div class="cta-box">
+        <h3>¿Listo para ahorrar 16+ horas al mes?</h3>
+        <p>Empieza gratis y genera tu primer artículo en menos de 60 segundos. Sin tarjeta de crédito.</p>
+        <a href="https://blooglee.com" class="cta-button">Probar Blooglee Gratis →</a>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>© 2026 Blooglee - Tu asistente de contenidos con IA</p>
+      <p>Genera artículos optimizados para SEO en segundos, no horas</p>
+    </div>
+  </div>
+</body>
+</html>
