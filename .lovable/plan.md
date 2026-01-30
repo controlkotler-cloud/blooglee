@@ -1,110 +1,167 @@
 
 
-# Plan: Generar 11 PDFs de Lead Magnets y Configurar Storage
+# Plan: Punto 2 y Punto 3 - Actualizacion de datos y tiempos
 
-## Resumen
+## Punto 2: Corregir comportamiento de descargas multiples
 
-Voy a crear el sistema completo de PDFs descargables para los lead magnets, excluyendo el "Calendario Editorial 2026 - Autonomos" como solicitaste.
+### Problema actual
 
-## PDFs a Generar (11 de 12)
+En `supabase/functions/subscribe-newsletter/index.ts` (lineas 91-96):
 
-| # | Recurso | Archivo |
-|---|---------|---------|
-| 1 | Calendario Editorial 2026 (General) | `calendario-editorial-2026.html` |
-| 2 | Calendario Editorial 2026 - Clinicas | `calendario-editorial-clinicas-2026.html` |
-| 3 | Calendario Editorial 2026 - Agencias | `calendario-editorial-agencias-2026.html` |
-| 4 | Calendario Editorial 2026 - Ecommerce | `calendario-editorial-ecommerce-2026.html` |
-| 5 | 50 Ideas de Posts (General) | `50-ideas-posts-blog.html` |
-| 6 | 50 Ideas de Posts - Clinicas | `50-ideas-posts-clinicas.html` |
-| 7 | 50 Ideas de Posts - Agencias | `50-ideas-posts-agencias.html` |
-| 8 | 50 Ideas de Posts - Ecommerce | `50-ideas-posts-ecommerce.html` |
-| 9 | 50 Ideas de Posts - Autonomos | `50-ideas-posts-autonomos.html` |
-| 10 | Checklist SEO On-Page | `checklist-seo-on-page.html` |
-| 11 | Plantilla Tareas Redactar | `plantilla-tareas-redactar.html` |
+```typescript
+if (existing) {
+  if (existing.is_active) {
+    // Solo devuelve mensaje, NO actualiza datos
+    return { success: true, message: "Ya estás suscrito..." };
+  }
+}
+```
 
-## Estrategia de Implementacion
+Si un usuario descarga un segundo recurso con datos diferentes (nuevo nombre, cambio de Empresa a Agencia), los nuevos datos se **ignoran**.
 
-Los PDFs se generaran como archivos HTML estaticos en `/public/resources/` con:
-- Estilos inline (colores Blooglee: violeta, fucsia, naranja)
-- Logo de Blooglee
-- Tipografias Sora (titulos) e Inter (cuerpo) via Google Fonts
-- Optimizados para imprimir a PDF desde el navegador
+### Solucion
 
-## Contenido Detallado por PDF
+Modificar la edge function para que **siempre actualice** el perfil cuando el usuario esta activo, manteniendo los datos mas recientes:
 
-### Calendarios Editoriales (5 archivos)
+**Cambio en `supabase/functions/subscribe-newsletter/index.ts`:**
 
-Cada calendario incluira:
-- Tabla mes a mes con fechas clave del sector
-- Temas sugeridos por temporada
-- Iconos y colores por tipo de fecha
-- Notas con tips de optimizacion
+```typescript
+if (existing) {
+  if (existing.is_active) {
+    // SIEMPRE actualizar datos aunque ya este suscrito
+    await supabase
+      .from('newsletter_subscribers')
+      .update({ 
+        name: cleanName,
+        audience,
+        source, // Actualizar ultimo source
+      })
+      .eq('id', existing.id);
+      
+    return new Response(
+      JSON.stringify({ success: true, message: `¡Hola de nuevo, ${cleanName}! Tu perfil ha sido actualizado.` }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+  // ... resto igual para reactivacion
+}
+```
 
-### Listas de 50 Ideas (5 archivos)
+### Nuevo comportamiento
 
-Cada lista incluira:
-- 50 ideas organizadas en 5 categorias de 10
-- Cada idea con titulo + descripcion breve
-- Indicador de dificultad (facil/medio/avanzado)
-- Tips de SEO para cada categoria
+| Escenario | Antes | Despues |
+|-----------|-------|---------|
+| Usuario descarga recurso 1 como "Juan" + "Empresa" | Se guarda correctamente | Se guarda correctamente |
+| Usuario descarga recurso 2 como "Juan P." + "Agencia" | Se ignora | Se actualiza name y audience |
+| Usuario ya existente descarga nuevo recurso | Solo mensaje | Actualiza source y muestra confirmacion |
 
-### Checklist SEO On-Page
+---
 
-25 puntos verificables organizados en:
-- Contenido (8 puntos)
-- Tecnico (8 puntos)
-- Imagenes (5 puntos)
-- Schema/Social (4 puntos)
+## Punto 3: Corregir tiempos en toda la web
 
-### Plantilla Tareas Redactar
+### Flujo real de Blooglee (tu especificacion)
 
-Tabla comparativa que muestra:
-- Tareas manuales vs automatizadas
-- Tiempo por tarea
-- Calculo de ahorro mensual/anual
-- CTA para probar Blooglee
+| Fase | Primer articulo | Siguientes (automatico) | Siguientes (manual) |
+|------|-----------------|------------------------|---------------------|
+| Configurar sitio | 2-3 min (una vez) | 0 | 0 |
+| Generar articulo | 60 seg | Automatico (0) | 60 seg (1 clic) |
+| Revisar | 2-3 min (opcional) | 0 | 1-2 min (opcional) |
+| Publicar | 1 clic | Automatico (0) | 1 clic |
+| **TOTAL** | ~5 min | **0 min** | **~2 min** |
+
+### Mensaje clave a comunicar
+
+> "Configura una vez, olvdate para siempre. Blooglee publica mientras tu te dedicas a tu negocio."
+
+### Archivos a modificar
+
+#### 1. `public/resources/plantilla-tareas-redactar.html`
+
+**Cambios principales:**
+
+- Anadir seccion que diferencie "Primer articulo" vs "Siguientes articulos"
+- Cambiar el total de "~15 minutos" a mostrar dos escenarios:
+  - Modo automatico: **0 min** (Blooglee publica solo)
+  - Modo manual: **~2 min** (revisar y publicar)
+- Ajustar comparativas para reflejar el ahorro real
+
+**Tabla actualizada:**
+
+| Tarea | Manual | Blooglee (1er post) | Blooglee (siguientes) |
+|-------|--------|---------------------|----------------------|
+| Investigar tema | 30-45 min | Automatico | Automatico |
+| Escribir borrador | 2-3 horas | 60 seg | 60 seg |
+| Revisar | 30-45 min | 2-3 min (opcional) | 0 min (opcional) |
+| Publicar | 15-20 min | 1 clic | Automatico |
+| **TOTAL** | 4-6 horas | ~5 min | **0 min** (auto) / ~2 min (manual) |
+
+#### 2. `src/pages/HowItWorks.tsx`
+
+**Cambios:**
+
+- Anadir nota en el paso 4 indicando que es **opcional en modo automatico**
+- Actualizar el resumen para mostrar que "Siguientes articulos: 0 minutos"
+- Modificar el badge de "Tiempo total: ~5 minutos" para aclarar que es solo la primera vez
+
+**Nuevo paso 4:**
+
+```typescript
+{
+  number: '04',
+  icon: Send,
+  title: 'Revisa y publica (o automatiza)',
+  description: 'En modo manual: revisa la vista previa y publica con un clic. En modo automatico: Blooglee publica por ti sin que tengas que hacer nada.',
+  time: 'Opcional',
+  color: 'from-orange-400 to-amber-400',
+}
+```
+
+**Nuevo resumen (4 items):**
+
+| Item | Texto | Subtexto |
+|------|-------|----------|
+| Conectas WordPress | Una sola vez | - |
+| Configuras sector | Una sola vez | - |
+| Siguientes articulos | **0 minutos** | Modo automatico |
+| O revisas antes | ~2 min | Modo manual |
+
+#### 3. `src/pages/FeaturesPage.tsx` (linea 126)
+
+**Cambio menor:**
+
+```typescript
+// De:
+{ feature: 'Tiempo por artículo', manual: '2-4 horas', blooglee: '2 minutos' },
+
+// A:
+{ feature: 'Tiempo por artículo', manual: '2-4 horas', blooglee: '0 min (auto) / 2 min' },
+```
+
+#### 4. `src/pages/usecases/Autonomos.tsx` (linea 66)
+
+Ya dice "5min a la semana" que es correcto para el tiempo total de gestion, no por articulo. Se puede mantener o ajustar a "0-2 min por post".
+
+---
 
 ## Seccion Tecnica
 
-### Paso 1: Crear carpeta de recursos
+### Archivos a modificar
 
-Crear `/public/resources/` con los 11 archivos HTML.
+| Archivo | Cambio principal |
+|---------|-----------------|
+| `supabase/functions/subscribe-newsletter/index.ts` | Actualizar datos aunque el email ya exista activo |
+| `public/resources/plantilla-tareas-redactar.html` | Nueva seccion diferenciando 1er articulo vs siguientes |
+| `src/pages/HowItWorks.tsx` | Paso 4 opcional, resumen con modo automatico |
+| `src/pages/FeaturesPage.tsx` | Actualizar comparativa de tiempos |
 
-### Paso 2: Actualizar leadMagnets.ts
+### Edge function: Despliegue automatico
 
-Cambiar `fileName` por rutas que apunten a `/resources/[archivo].html`.
+La edge function `subscribe-newsletter` se desplegara automaticamente al guardar los cambios.
 
-### Paso 3: Actualizar LeadMagnetModal
+---
 
-Modificar `handleDownload` para abrir los HTML en nueva pestana (el usuario puede imprimir a PDF).
+## Resultado esperado
 
-## Archivos a Crear
-
-| Archivo | Descripcion |
-|---------|-------------|
-| `public/resources/calendario-editorial-2026.html` | Calendario general |
-| `public/resources/calendario-editorial-clinicas-2026.html` | Calendario clinicas |
-| `public/resources/calendario-editorial-agencias-2026.html` | Calendario agencias |
-| `public/resources/calendario-editorial-ecommerce-2026.html` | Calendario ecommerce |
-| `public/resources/50-ideas-posts-blog.html` | 50 ideas general |
-| `public/resources/50-ideas-posts-clinicas.html` | 50 ideas clinicas |
-| `public/resources/50-ideas-posts-agencias.html` | 50 ideas agencias |
-| `public/resources/50-ideas-posts-ecommerce.html` | 50 ideas ecommerce |
-| `public/resources/50-ideas-posts-autonomos.html` | 50 ideas autonomos |
-| `public/resources/checklist-seo-on-page.html` | Checklist 25 puntos |
-| `public/resources/plantilla-tareas-redactar.html` | Plantilla ROI |
-
-## Archivos a Modificar
-
-| Archivo | Cambios |
-|---------|---------|
-| `src/data/leadMagnets.ts` | Actualizar fileName a rutas .html |
-| `src/components/marketing/LeadMagnetModal.tsx` | Modificar handleDownload para abrir en nueva pestana |
-
-## Resultado
-
-- 11 recursos descargables con contenido real y util
-- Identidad visual Blooglee en todos los documentos
-- Sistema de descarga funcional tras suscripcion
-- Los usuarios pueden guardar como PDF desde el navegador
+1. **Punto 2:** Los usuarios pueden cambiar de perfil (Empresa <-> Agencia) y actualizar su nombre en cualquier descarga posterior
+2. **Punto 3:** Toda la web comunica claramente que Blooglee es **0 tiempo en modo automatico** y **~2 minutos maximo en modo manual** despues de la configuracion inicial
 
