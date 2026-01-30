@@ -116,11 +116,11 @@ export const sectorLeadMagnets: Record<string, LeadMagnet[]> = {
     {
       id: 'calendario-autonomos',
       title: 'Calendario Editorial 2026 para Autónomos',
-      description: 'Fechas fiscales, eventos del sector y temas que posicionan tu marca personal.',
+      description: 'Planifica contenido que atrae clientes: temas de autoridad, casos de éxito y estrategias de marca personal por mes.',
       icon: User,
       type: 'Calendario',
       sector: 'autonomos',
-      fileName: 'calendario-editorial-autonomos-2026.pdf',
+      fileName: 'calendario-editorial-autonomos-2026.html',
     },
     {
       id: 'ideas-autonomos',
