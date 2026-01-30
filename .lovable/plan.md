@@ -1,100 +1,115 @@
 
 
-# Plan: Corregir Generacion Blog + Redisenar UI Audiencias (Estilo Acroxia)
+# Plan: Corregir generacion automatica y rotar categorias tematicas
 
-## Parte 1: Corregir Generacion de Blog
+## Problemas identificados
 
-### Problema detectado
-Hoy 30 de enero solo se genero 1 articulo (empresas), faltando el de "agencias".
+### Problema 1: Verificacion de duplicados incorrecta
 
-### Solucion
-Ejecutar manualmente la funcion `generate-blog-blooglee` con `category: "Agencias"` para generar el post faltante.
+En `generate-blog-blooglee`, la verificacion de "ya generado hoy" usa:
+```typescript
+.eq('category', category)  // 'Empresas' o 'Agencias'
+```
+
+Pero `category` en la base de datos ahora contiene la categoria tematica (SEO, Marketing, etc.), NO la audiencia. El campo correcto es `audience`.
+
+**Impacto:** La verificacion de duplicados no funciona correctamente.
+
+### Problema 2: La IA siempre elige "Marketing"
+
+No hay rotacion forzada de categorias tematicas. La IA tiene libertad total y tiende a elegir "Marketing" porque es la mas generica.
+
+**Evidencia en la base de datos:**
+| Fecha | Audiencia | Categoria |
+|-------|-----------|-----------|
+| 30 Ene | agencias | Marketing |
+| 30 Ene | empresas | Marketing |
+| 29 Ene | agencias | Marketing |
+| 29 Ene | empresas | Marketing |
+
+Solo el 28 de enero hay variedad porque se generaron manualmente con `forceThematicCategory`.
 
 ---
 
-## Parte 2: Redisenar UI del Blog (Estilo Acroxia)
+## Solucion
 
-### Comportamiento deseado
+### Cambio 1: Corregir verificacion de duplicados
 
-| Estado | Que se muestra |
-|--------|----------------|
-| `/blog` (sin filtro) | Header generico + dos cards grandes de audiencia |
-| `/blog?audiencia=empresas` | Header contextual "Para empresas" + breadcrumb + filtros categoria + articulos |
-| `/blog?audiencia=agencias` | Header contextual "Para agencias" + breadcrumb + filtros categoria + articulos |
+En `generate-blog-blooglee/index.ts`, linea 605, cambiar:
+```typescript
+// ANTES (incorrecto)
+.eq('category', category)
 
-### Cambios en archivos
-
-#### 1. BlogIndex.tsx
-
-- Sincronizar estado `selectedAudience` con query param `?audiencia=`
-- Renderizar header condicional segun audiencia seleccionada
-- Agregar breadcrumb cuando hay audiencia activa
-- Agregar enlace "Cambiar perfil" que vuelve a `/blog`
-- Ocultar AudienceCards cuando hay audiencia seleccionada
-
-#### 2. AudienceCards.tsx
-
-- Mantener las cards grandes actuales (solo se muestran en vista inicial)
-- Agregar navegacion con query params al hacer clic
-
-### Estructura del nuevo header contextual
-
-```
-BLOG - AGENCIAS                                    <-- Cambiar perfil
-
-Guias para agencias
-Escalabilidad, gestion multi-cliente, workflows...
-
-Inicio / Blog / Agencias                           <-- Breadcrumb
-
-[Todos] [SEO] [Marketing] [Tutoriales] ...         <-- Filtros categoria
-
-[Grid de articulos]
+// DESPUES (correcto)
+.eq('audience', category.toLowerCase())
 ```
 
-### Detalles tecnicos
+### Cambio 2: Implementar rotacion automatica de categorias
 
-El componente BlogIndex.tsx se modificara para:
+Modificar `generate-blog-blooglee` para:
+1. Consultar que categorias tematicas ya se han usado recientemente para esa audiencia
+2. Elegir automaticamente la categoria menos usada en los ultimos 6 dias
+3. Forzar esa categoria en la generacion
 
-1. Leer query param `audiencia` de la URL con `useSearchParams`
-2. Sincronizar con el estado local
-3. Renderizar header contextual cuando `audiencia` no es vacio
-4. El header contextual incluira:
-   - Badge "BLOG - EMPRESAS" o "BLOG - AGENCIAS"
-   - Titulo grande con gradiente
-   - Descripcion de la audiencia
-   - Breadcrumb con navegacion
-   - Enlace "Cambiar perfil" que navega a `/blog`
+**Logica de rotacion:**
+```
+SEO -> Marketing -> Tutoriales -> Comparativas -> Producto -> Tendencias -> SEO...
+```
 
-### AudienceCards.tsx
+Esto garantiza que en 6 dias se cubran todas las categorias, y luego se repite el ciclo.
 
-Se modificara para:
-- Usar Link con `to="/blog?audiencia=empresas"` en lugar de `onClick`
-- Las cards solo se renderizaran cuando no hay audiencia seleccionada
+---
 
-### Textos del header contextual
+## Archivos a modificar
 
-| Audiencia | Titulo | Descripcion |
-|-----------|--------|-------------|
-| empresas | Guias para empresas | Marketing digital, SEO, automatizacion y estrategias para hacer crecer tu negocio. |
-| agencias | Guias para agencias | Escalabilidad, gestion multi-cliente, workflows y herramientas para equipos. |
+### supabase/functions/generate-blog-blooglee/index.ts
 
-### Flujo de navegacion
+1. **Linea 605:** Corregir filtro de duplicados
+   - Cambiar `.eq('category', category)` por `.eq('audience', category.toLowerCase())`
 
-1. Usuario llega a `/blog` - ve header generico y 2 cards grandes
-2. Click en "Para empresas" - navega a `/blog?audiencia=empresas`
-3. Ve header contextual con titulo "Guias para empresas"
-4. Puede filtrar por categoria (SEO, Marketing, etc)
-5. Click en "Cambiar perfil" - vuelve a `/blog`
+2. **Nueva funcion:** `getNextThematicCategory()`
+   - Consultar ultimos 6 posts de esa audiencia
+   - Identificar categorias usadas
+   - Retornar la siguiente categoria en rotacion que no se haya usado
+
+3. **Linea 626:** Usar categoria rotada automaticamente
+   - Si no se proporciona `forceThematicCategory`, calcular automaticamente
+
+### Detalles de la rotacion
+
+La funcion `getNextThematicCategory` hara:
+
+```
+1. Obtener ultimos 6 posts de la audiencia (empresas o agencias)
+2. Extraer las categorias usadas
+3. Orden de rotacion: ['SEO', 'Marketing', 'Tutoriales', 'Comparativas', 'Producto', 'Tendencias']
+4. Encontrar la primera categoria que NO este en las usadas recientemente
+5. Si todas estan usadas, empezar de nuevo con SEO
+```
+
+---
+
+## Resultado esperado
+
+| Dia | Empresas | Agencias |
+|-----|----------|----------|
+| Lun | SEO | SEO |
+| Mar | Marketing | Marketing |
+| Mie | Tutoriales | Tutoriales |
+| Jue | Comparativas | Comparativas |
+| Vie | Producto | Producto |
+| Sab | Tendencias | Tendencias |
+| Dom | SEO (ciclo) | SEO (ciclo) |
+
+Cada audiencia tendra una categoria diferente cada dia, rotando por las 6 categorias disponibles.
 
 ---
 
 ## Orden de implementacion
 
-1. Ejecutar generacion manual del post de agencias
-2. Modificar BlogIndex.tsx para usar query params
-3. Actualizar AudienceCards.tsx para navegacion con Links
-4. Crear componente AudienceHeader.tsx para el header contextual
-5. Agregar breadcrumb al layout
-6. Probar navegacion completa
+1. Corregir el filtro de duplicados (audience en vez de category)
+2. Crear funcion `getNextThematicCategory()`
+3. Integrar rotacion en la generacion
+4. Desplegar la Edge Function
+5. Verificar con una ejecucion de prueba
 
