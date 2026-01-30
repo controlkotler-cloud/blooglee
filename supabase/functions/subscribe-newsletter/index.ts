@@ -90,8 +90,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (existing) {
       if (existing.is_active) {
+        // Always update profile data even if already subscribed
+        await supabase
+          .from('newsletter_subscribers')
+          .update({ 
+            name: cleanName,
+            audience,
+            source,
+          })
+          .eq('id', existing.id);
+        
         return new Response(
-          JSON.stringify({ success: true, message: "Ya estás suscrito a nuestra newsletter" }),
+          JSON.stringify({ success: true, message: `¡Hola de nuevo, ${cleanName}! Tu perfil ha sido actualizado.` }),
           { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       } else {

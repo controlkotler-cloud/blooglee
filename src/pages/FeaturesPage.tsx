@@ -123,7 +123,7 @@ const features = [
 ];
 
 const comparison = [
-  { feature: 'Tiempo por artículo', manual: '2-4 horas', blooglee: '2 minutos' },
+  { feature: 'Tiempo por artículo', manual: '2-4 horas', blooglee: '0 min (auto) / 2 min' },
   { feature: 'Optimización SEO', manual: 'Requiere expertise', blooglee: 'Automático' },
   { feature: 'Imágenes', manual: 'Búsqueda manual', blooglee: 'Incluidas' },
   { feature: 'Publicación WordPress', manual: 'Copiar y pegar', blooglee: '1 clic' },
