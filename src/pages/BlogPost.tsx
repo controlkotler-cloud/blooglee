@@ -1,5 +1,6 @@
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import { PublicLayout } from '@/components/marketing/PublicLayout';
 import { BlogCard } from '@/components/marketing/BlogCard';
 import { Button } from '@/components/ui/button';
@@ -135,7 +136,11 @@ const parseContent = (content: string): string => {
   html = html.replace(/<p class="[^"]*"><\/p>/g, '');
   html = html.replace(/<p class="[^"]*">\s*<\/p>/g, '');
 
-  return html;
+  // Sanitize final HTML to prevent XSS attacks
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['h2', 'h3', 'p', 'strong', 'em', 'ul', 'ol', 'li', 'a', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div', 'span', 'hr', 'nav'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'id', 'data-internal'],
+  });
 };
 
 const BlogPost = () => {

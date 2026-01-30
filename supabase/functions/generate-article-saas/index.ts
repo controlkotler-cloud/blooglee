@@ -7,6 +7,39 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Per-user rate limiting to prevent rapid successive requests
+// Note: Resets on cold starts but provides basic abuse protection
+const userRateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 5; // 5 generation requests per minute per user
+
+function checkUserRateLimit(userId: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const record = userRateLimitMap.get(userId);
+  
+  // Clean up old entries periodically
+  if (userRateLimitMap.size > 500) {
+    for (const [key, value] of userRateLimitMap.entries()) {
+      if (now > value.resetTime) {
+        userRateLimitMap.delete(key);
+      }
+    }
+  }
+  
+  if (!record || now > record.resetTime) {
+    userRateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true };
+  }
+  
+  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfter = Math.ceil((record.resetTime - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+  
+  record.count++;
+  return { allowed: true };
+}
+
 // Send email notification to user when article is generated
 async function sendArticleNotification(
   userEmail: string,
@@ -367,6 +400,23 @@ serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     console.log("=== GENERATE ARTICLE SAAS ===");
     console.log("User ID:", userId);
+
+    // Rate limit check per user
+    const rateLimitResult = checkUserRateLimit(userId);
+    if (!rateLimitResult.allowed) {
+      console.log(`Rate limit exceeded for user: ${userId}`);
+      return new Response(
+        JSON.stringify({ error: "Demasiadas peticiones. Por favor, espera un momento." }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimitResult.retryAfter || 60)
+          } 
+        }
+      );
+    }
 
     const { siteId, topic: providedTopic, month, year }: RequestBody = await req.json();
     console.log("Site ID:", siteId);
