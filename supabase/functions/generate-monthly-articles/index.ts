@@ -1085,7 +1085,8 @@ const handler = async (req: Request): Promise<Response> => {
           if (limits.userEmail) {
             try {
               await resend.emails.send({
-                from: "Blooglee <onboarding@resend.dev>",
+                from: "Blooglee <hola@blooglee.com>",
+                reply_to: "info@blooglee.com",
                 to: [limits.userEmail],
                 subject: `Límite de artículos alcanzado - ${site.name}`,
                 html: `
