@@ -1,67 +1,43 @@
 
 
-# Plan: Cambiar remitente de emails a hola@blooglee.com
+# Plan: Actualizar API Key de Resend
 
-## Problema actual
+## Resumen
 
-Ambas Edge Functions tienen hardcodeado el dominio de prueba de Resend:
+Actualizar el secret `RESEND_API_KEY` con la nueva clave de la cuenta de Resend.
 
-| Archivo | Linea | Codigo actual |
-|---------|-------|---------------|
-| `send-newsletter/index.ts` | 248 | `from: "Blooglee <onboarding@resend.dev>"` |
-| `subscribe-newsletter/index.ts` | 212 | `from: "Blooglee <onboarding@resend.dev>"` |
+## Acciones
 
-Este dominio solo permite enviar emails al propietario de la cuenta de Resend.
+| Paso | Accion |
+|------|--------|
+| 1 | Actualizar el secret `RESEND_API_KEY` con el nuevo valor `re_KCkHLD5H_3wyLqWBY73JvabzkcK4opQcg` |
+| 2 | Redesplegar las Edge Functions para que usen la nueva clave |
 
----
+## Configuracion actual (se mantiene)
 
-## Solucion
+La configuracion del remitente ya esta correcta en el codigo:
 
-Cambiar ambas lineas para usar el dominio verificado:
+- **Remitente:** `Blooglee <hola@blooglee.com>`
+- **Edge Functions afectadas:**
+  - `send-newsletter` - Newsletter diaria
+  - `subscribe-newsletter` - Email de bienvenida
 
-```typescript
-from: "Blooglee <hola@blooglee.com>"
+## Seccion Tecnica
+
+### Secret a actualizar
+
+```
+Nombre: RESEND_API_KEY
+Valor: re_KCkHLD5H_3wyLqWBY73JvabzkcK4opQcg
 ```
 
----
+### Verificacion post-actualizacion
 
-## Archivos a modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `supabase/functions/send-newsletter/index.ts` | Linea 248: cambiar `onboarding@resend.dev` por `hola@blooglee.com` |
-| `supabase/functions/subscribe-newsletter/index.ts` | Linea 212: cambiar `onboarding@resend.dev` por `hola@blooglee.com` |
-
----
-
-## Codigo
-
-### send-newsletter/index.ts (linea 248)
-
-```typescript
-// Antes
-from: "Blooglee <onboarding@resend.dev>",
-
-// Despues
-from: "Blooglee <hola@blooglee.com>",
-```
-
-### subscribe-newsletter/index.ts (linea 212)
-
-```typescript
-// Antes
-from: "Blooglee <onboarding@resend.dev>",
-
-// Despues
-from: "Blooglee <hola@blooglee.com>",
-```
-
----
+Tras actualizar el secret, se recomienda:
+1. Suscribirse a la newsletter para probar el email de bienvenida
+2. Ejecutar manualmente `send-newsletter` para verificar el envio
 
 ## Resultado esperado
 
-1. Los emails de newsletter diaria llegaran a todos los suscriptores
-2. Los emails de bienvenida al suscribirse llegaran correctamente
-3. Los emails mostraran "Blooglee" como nombre del remitente
-4. Los destinatarios veran `hola@blooglee.com` como direccion de origen
+Los emails se enviaran usando la nueva cuenta de Resend mientras mantienen la configuracion actual del remitente `hola@blooglee.com`.
 
