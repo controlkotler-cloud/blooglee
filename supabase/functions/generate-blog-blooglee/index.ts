@@ -677,7 +677,7 @@ const handler = async (req: Request): Promise<Response> => {
         audience: audienceValue,
         category: blogData.thematic_category, // Now uses thematic category (SEO, Marketing, etc.)
         author_name: "Generado por Blooglee",
-        author_avatar: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=100&h=100&fit=crop&crop=center",
+        author_avatar: "https://gqtikajhhggyoiypkbgw.supabase.co/storage/v1/object/public/article-images/blooglee-avatar.png",
         author_role: "IA de Blooglee",
         read_time: blogData.read_time,
         published_at: now.toISOString(),
