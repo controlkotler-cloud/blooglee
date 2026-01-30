@@ -1,123 +1,115 @@
 
 
-# Plan: Solucionar la Comunicacion de "Descarga" vs HTML
+# Plan: Actualizar imagen de autor en blog posts + Diagnóstico Newsletter
 
-## El Problema
+## Resumen de hallazgos
 
-Actualmente el flujo es:
-1. Usuario hace clic en "Descargar gratis"
-2. Rellena formulario
-3. Hace clic en "Descargar PDF/Calendario/etc"
-4. Se abre un HTML en nueva pestana (NO se descarga nada)
-
-Esto genera confusion porque prometemos "descargar" pero no descargamos nada.
-
----
-
-## Opciones de Solucion
-
-| Opcion | Que cambia | Pros | Contras |
-|--------|------------|------|---------|
-| **A: Cambiar la comunicacion** | Usar "Acceder" o "Ver recurso" en lugar de "Descargar" | Simple, rapido, honesto | Menos atractivo que "Descargar" |
-| **B: Forzar descarga del HTML** | Usar atributo `download` para que el navegador descargue el .html | El archivo SI se descarga | El usuario recibe un .html que puede confundir |
-| **C: Anadir instrucciones claras** | Tras abrir, mostrar un toast/aviso explicando "Guarda como PDF con Ctrl+P" | Mantiene "Descargar", educa al usuario | Requiere accion extra del usuario |
-| **D: Subir PDFs reales a Storage** | Generar PDFs y subirlos a Supabase Storage | Descarga real de PDF | Requiere generar 12 PDFs manualmente |
+| Aspecto | Estado actual | Accion requerida |
+|---------|---------------|------------------|
+| **author_name** | "Generado por Blooglee" | Ya correcto |
+| **author_role** | "IA de Blooglee" | Ya correcto |
+| **author_avatar** | Imagen de Unsplash (mujer) | Cambiar al logo de Blooglee |
+| **Newsletter** | Funciona correctamente | Se envio 1 email a nuriafrancis@gmail.com al ejecutar manualmente |
+| **Emails admin** | Configurado para control@mkpro.es, laura@mkpro.es | Funciona segun diseno |
 
 ---
 
-## Recomendacion: Opcion A + C (Hibrida)
+## 1. Actualizar imagen de perfil del autor
 
-La solucion mas honesta y practica es **cambiar el lenguaje** en la interfaz y **anadir instrucciones** cuando se abre el recurso:
-
-### Cambios en la Comunicacion
-
-| Ubicacion | Texto actual | Texto nuevo |
-|-----------|--------------|-------------|
-| `LeadMagnetCard.tsx` boton | "Descargar gratis" | "Obtener gratis" |
-| `LeadMagnetModal.tsx` titulo | "Listo para descargar!" | "Tu recurso esta listo!" |
-| `LeadMagnetModal.tsx` boton final | "Descargar {tipo}" | "Ver recurso" |
-| `LeadMagnetModal.tsx` descripcion post-submit | "Gracias... Tu descarga esta lista" | "Gracias... Pulsa para abrir tu recurso." |
-
-### Instrucciones en el Modal
-
-Anadir un pequeno texto debajo del boton final:
-
+### Problema
+Los posts usan `author_avatar` con URL de Unsplash en lugar del logo de Blooglee:
 ```
-"Se abrira en una nueva pestana. Puedes guardarlo como PDF desde el menu Imprimir (Ctrl+P / Cmd+P)."
+https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100...
 ```
 
-### Alternativa Visual (sin texto extra)
+### Solucion
 
-Cambiar el icono de `Download` a `ExternalLink` o `FileText` para que el usuario entienda visualmente que se abre algo, no que se descarga.
+**Paso 1:** Subir el logo a Supabase Storage (bucket `article-images`) para tener URL publica permanente
+
+**Paso 2:** Actualizar la Edge Function `generate-blog-blooglee/index.ts` para usar la URL del logo:
+- Buscar donde se define `author_avatar`
+- Cambiar la URL de Unsplash por la URL del logo en Storage
+
+**Paso 3:** Actualizar los posts existentes en la base de datos:
+```sql
+UPDATE blog_posts 
+SET author_avatar = 'https://gqtikajhhggyoiypkbgw.supabase.co/storage/v1/object/public/article-images/blooglee-avatar.png'
+WHERE author_avatar LIKE '%unsplash%';
+```
 
 ---
 
-## Archivos a Modificar
+## 2. Diagnostico Newsletter - Ya funciona
+
+Al ejecutar manualmente `send-newsletter`, confirmo que **SI funciona**:
+
+```json
+{
+  "emailsSent": 1,
+  "postsCount": 1,
+  "subscribersCount": 1,
+  "success": true
+}
+```
+
+### Por que no recibias emails automaticamente
+
+El flujo automatico es:
+1. `generate-monthly-articles` (cron 09:00 UTC) genera posts del blog
+2. Solo si genera posts nuevos (`blogGeneratedCount > 0`), llama a `send-newsletter`
+3. `send-newsletter` busca posts publicados **HOY** y envia a suscriptores
+
+**Hoy a las 09:00** se genero 1 post para empresas. Tu email (`nuriafrancis@gmail.com`) esta registrado como `empresas`. El newsletter deberia haberse enviado, pero al estar tu registrado despues de las 09:00 UTC (te suscribiste a las 10:39 UTC), no estabas en la lista cuando se ejecuto.
+
+### Verificacion
+
+Al ejecutar manualmente ahora, SI recibiste el email (1 email enviado).
+
+**Accion:** Revisar tu bandeja de entrada/spam para el email de "Blooglee" con el articulo de hoy.
+
+---
+
+## 3. Email de administrador
+
+Los emails de notificacion de generacion se envian a:
+- `control@mkpro.es`
+- `laura@mkpro.es`
+
+Si quieres recibir estas notificaciones, puedo anadir tu email a la lista `NOTIFICATION_EMAILS` en `generate-monthly-articles/index.ts`.
+
+---
+
+## Seccion Tecnica
+
+### Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/marketing/LeadMagnetCard.tsx` | Boton: "Obtener gratis" + cambiar icono a `Gift` o mantener `Download` |
-| `src/components/marketing/LeadMagnetModal.tsx` | Titulo, descripcion, boton final + instrucciones de guardado |
+| `src/assets/blooglee-logo.png` | Copiar a Storage (usando herramienta) |
+| `supabase/functions/generate-blog-blooglee/index.ts` | Cambiar URL de `author_avatar` al logo |
+| Base de datos `blog_posts` | Ejecutar UPDATE para posts existentes |
+| `supabase/functions/generate-monthly-articles/index.ts` (opcional) | Anadir email a NOTIFICATION_EMAILS |
 
----
+### URL del logo tras subir a Storage
 
-## Codigo Propuesto
-
-### LeadMagnetCard.tsx (linea 48-56)
-
-```tsx
-<Button 
-  onClick={() => onDownloadClick(leadMagnet)}
-  variant="outline"
-  size="sm"
-  className="group-hover:bg-violet-50 group-hover:border-violet-200"
->
-  <Gift className="w-4 h-4 mr-2" />
-  Obtener gratis
-</Button>
+```
+https://gqtikajhhggyoiypkbgw.supabase.co/storage/v1/object/public/article-images/blooglee-avatar.png
 ```
 
-### LeadMagnetModal.tsx (seccion downloadReady)
+### Migracion SQL para posts existentes
 
-```tsx
-{downloadReady ? (
-  <div className="flex flex-col items-center py-6">
-    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center mb-4">
-      <FileText className="w-8 h-8 text-white" />
-    </div>
-    <Button 
-      onClick={handleDownload}
-      className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400"
-    >
-      <ExternalLink className="w-4 h-4 mr-2" />
-      Ver recurso
-    </Button>
-    <p className="text-xs text-foreground/50 mt-3 text-center max-w-xs">
-      Se abre en nueva pestana. Guarda como PDF con Ctrl+P (Windows) o Cmd+P (Mac).
-    </p>
-  </div>
-)}
-```
-
-### Titulo y descripcion del modal
-
-```tsx
-<DialogTitle>
-  {downloadReady ? '¡Tu recurso esta listo!' : `Accede a: ${leadMagnet.title}`}
-</DialogTitle>
-<DialogDescription>
-  {downloadReady 
-    ? 'Gracias por suscribirte. Pulsa el boton para abrir tu recurso.'
-    : 'Introduce tus datos para acceder al recurso gratuito.'}
-</DialogDescription>
+```sql
+UPDATE blog_posts 
+SET author_avatar = 'https://gqtikajhhggyoiypkbgw.supabase.co/storage/v1/object/public/article-images/blooglee-avatar.png'
+WHERE author_avatar LIKE '%unsplash%';
 ```
 
 ---
 
-## Resultado Final
+## Resultado esperado
 
-1. **Honestidad:** No prometemos "descargar" cuando realmente abrimos un HTML
-2. **Claridad:** El usuario sabe exactamente que va a pasar (se abre en nueva pestana)
-3. **Utilidad:** Damos instrucciones claras de como guardar como PDF si lo desea
-4. **Conversion:** "Obtener gratis" sigue siendo atractivo para captar leads
+1. **Posts del blog** mostraran el logo de Blooglee como avatar del autor
+2. **Newsletter** ya funciona - verifica tu bandeja de entrada
+3. **Futuros posts** usaran automaticamente el logo de Blooglee
+4. **Emails admin** (opcional) pueden incluir tu email si lo deseas
 
