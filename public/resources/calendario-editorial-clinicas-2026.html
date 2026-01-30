@@ -15,9 +15,9 @@
       line-height: 1.6;
       background: linear-gradient(135deg, #faf5ff 0%, #fff7ed 100%);
       min-height: 100vh;
-      padding: 40px;
+      padding: 40px 20px;
     }
-    .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(139, 92, 246, 0.1); overflow: hidden; }
+    .container { max-width: 1100px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(139, 92, 246, 0.1); overflow: hidden; }
     .header { 
       background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #F97316 100%); 
       color: white; 
@@ -30,7 +30,7 @@
     .subtitle { font-size: 16px; opacity: 0.9; }
     .content { padding: 40px; }
     .intro { 
-      background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%); 
+      background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); 
       border-radius: 12px; 
       padding: 24px; 
       margin-bottom: 32px;
@@ -38,32 +38,63 @@
     }
     .intro h2 { font-family: 'Sora', sans-serif; font-size: 18px; color: #10b981; margin-bottom: 12px; }
     .intro p { font-size: 14px; color: #4a4a6a; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
+    .sectors { 
+      display: flex; 
+      gap: 16px; 
+      margin-top: 16px; 
+      flex-wrap: wrap;
+    }
+    .sector-badge { 
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: white; 
+      padding: 8px 16px; 
+      border-radius: 8px; 
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .sector-badge.dental { color: #8B5CF6; border: 1px solid #8B5CF6; }
+    .sector-badge.estetica { color: #D946EF; border: 1px solid #D946EF; }
+    .sector-badge.fisio { color: #F97316; border: 1px solid #F97316; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 32px; font-size: 12px; }
     th { 
       background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%); 
       color: white; 
       font-family: 'Sora', sans-serif;
       font-weight: 600;
-      padding: 16px;
+      padding: 14px 12px;
       text-align: left;
-      font-size: 14px;
+      font-size: 12px;
     }
-    td { padding: 16px; border-bottom: 1px solid #e5e7eb; font-size: 13px; vertical-align: top; }
-    tr:nth-child(even) { background: #f0fdf4; }
-    tr:hover { background: #ecfdf5; }
-    .month { font-weight: 600; color: #8B5CF6; font-size: 14px; }
-    .dates { color: #10b981; font-weight: 500; }
-    .topics { color: #4a4a6a; }
-    .tips { 
+    th:first-child { border-radius: 8px 0 0 0; }
+    th:last-child { border-radius: 0 8px 0 0; }
+    td { padding: 14px 12px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+    tr:nth-child(even) { background: #faf5ff; }
+    tr:hover { background: #f3e8ff; }
+    .month { font-weight: 600; color: #8B5CF6; font-size: 13px; white-space: nowrap; }
+    .occasion { color: #6b7280; font-size: 11px; margin-top: 4px; }
+    .topic-dental { color: #7c3aed; }
+    .topic-estetica { color: #c026d3; }
+    .topic-fisio { color: #ea580c; }
+    .tips-section { margin-top: 40px; }
+    .tips-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+    .tip-card { 
       background: #fef3c7; 
       border-radius: 12px; 
-      padding: 24px; 
-      margin-top: 32px;
+      padding: 20px;
       border-left: 4px solid #F97316;
     }
-    .tips h3 { font-family: 'Sora', sans-serif; font-size: 16px; color: #F97316; margin-bottom: 16px; }
-    .tips ul { padding-left: 20px; }
-    .tips li { margin-bottom: 8px; font-size: 13px; color: #4a4a6a; }
+    .tip-card.dental { background: #ede9fe; border-left-color: #8B5CF6; }
+    .tip-card.estetica { background: #fdf4ff; border-left-color: #D946EF; }
+    .tip-card.fisio { background: #fff7ed; border-left-color: #F97316; }
+    .tip-card h4 { font-family: 'Sora', sans-serif; font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .tip-card.dental h4 { color: #7c3aed; }
+    .tip-card.estetica h4 { color: #c026d3; }
+    .tip-card.fisio h4 { color: #ea580c; }
+    .tip-card ul { padding-left: 18px; }
+    .tip-card li { margin-bottom: 6px; font-size: 12px; color: #4a4a6a; }
     .footer { 
       text-align: center; 
       padding: 32px; 
@@ -86,6 +117,13 @@
       body { background: white; padding: 0; }
       .container { box-shadow: none; }
       .cta { display: none; }
+      table { font-size: 10px; }
+      td, th { padding: 8px 6px; }
+    }
+    @media (max-width: 768px) {
+      .content { padding: 20px; }
+      table { font-size: 11px; }
+      td, th { padding: 10px 8px; }
     }
   </style>
 </head>
@@ -93,104 +131,180 @@
   <div class="container">
     <div class="header">
       <div class="logo">✨ Blooglee</div>
-      <div class="badge">🏥 Sector Salud</div>
+      <div class="badge">💆 Bienestar & Belleza</div>
       <h1>Calendario Editorial 2026</h1>
-      <p class="subtitle">Especial para Clínicas, Consultas y Centros de Salud</p>
+      <p class="subtitle">Para Clínicas Dentales, Estéticas y de Fisioterapia</p>
     </div>
     
     <div class="content">
       <div class="intro">
-        <h2>🩺 Calendario optimizado para el sector sanitario</h2>
-        <p>Este calendario incluye los días mundiales de la salud, temporadas clave para tratamientos y fechas relevantes para clínicas de todas las especialidades: estética, dental, fisioterapia, psicología, nutrición y más. Planifica contenido educativo que atraiga pacientes durante todo el año.</p>
+        <h2>📅 Tu guía mensual de contenidos para atraer pacientes</h2>
+        <p>Este calendario está diseñado específicamente para clínicas de bienestar y belleza. Cada mes incluye temas relevantes para <strong>dental</strong>, <strong>estética</strong> y <strong>fisioterapia</strong>, alineados con las temporadas y ocasiones que motivan a tus pacientes a buscar tratamientos.</p>
+        <div class="sectors">
+          <span class="sector-badge dental">🦷 Dental</span>
+          <span class="sector-badge estetica">✨ Estética</span>
+          <span class="sector-badge fisio">💪 Fisioterapia</span>
+        </div>
       </div>
 
       <table>
         <thead>
           <tr>
-            <th>Mes</th>
-            <th>Fechas Clave Salud</th>
-            <th>Temas para Blog de Clínica</th>
+            <th style="width: 12%;">Mes</th>
+            <th style="width: 29%;">🦷 Temas Dental</th>
+            <th style="width: 29%;">✨ Temas Estética</th>
+            <th style="width: 30%;">💪 Temas Fisio</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td class="month">Enero</td>
-            <td class="dates">Propósitos saludables • Detox post-navidad</td>
-            <td class="topics">Tratamientos depurativos, dietas de inicio de año, check-up médico anual, cuidado de la piel en invierno, salud bucodental post-excesos</td>
+            <td>
+              <div class="month">Enero</div>
+              <div class="occasion">Propósitos, post-navidad</div>
+            </td>
+            <td class="topic-dental">Revisión dental de año nuevo • Blanqueamiento post-excesos navideños • Propósitos de salud bucal • Sensibilidad dental por el frío</td>
+            <td class="topic-estetica">Tratamientos detox para la piel • Propósitos de cuidado personal • Hidratación intensiva invierno • Reset facial post-fiestas</td>
+            <td class="topic-fisio">Lesiones por frío y cambios de temperatura • Vuelta al gimnasio segura • Contracturas por malas posturas navideñas • Dolor lumbar post-vacaciones</td>
           </tr>
           <tr>
-            <td class="month">Febrero</td>
-            <td class="dates">4 Día Mundial del Cáncer • 28 Enfermedades Raras</td>
-            <td class="topics">Prevención oncológica, detección precoz, concienciación, tratamientos estéticos para San Valentín, autocuidado emocional</td>
+            <td>
+              <div class="month">Febrero</div>
+              <div class="occasion">San Valentín, Carnaval</div>
+            </td>
+            <td class="topic-dental">Sonrisa perfecta para San Valentín • Tratamientos exprés pre-cita • Carillas dentales • Ortodoncia invisible para adultos</td>
+            <td class="topic-estetica">Tratamientos flash para lucir en pareja • Labios perfectos • Micropigmentación cejas • Ritual de belleza pre-evento</td>
+            <td class="topic-fisio">Preparación física para primavera • Estiramientos para runners • Prevención lesiones carnaval • Masaje deportivo</td>
           </tr>
           <tr>
-            <td class="month">Marzo</td>
-            <td class="dates">13 Día del Sueño • 24 Día de la Tuberculosis</td>
-            <td class="topics">Higiene del sueño, insomnio, trastornos respiratorios, alergias primaverales, preparación piel para primavera</td>
+            <td>
+              <div class="month">Marzo</div>
+              <div class="occasion">Primavera, Día Mujer</div>
+            </td>
+            <td class="topic-dental">Ortodoncia invisible: guía completa • Limpieza dental profesional • Salud bucal y bienestar general • Tratamientos para encías</td>
+            <td class="topic-estetica">Tratamientos anticelulíticos pre-verano • Operación bikini mes 1 • Radiofrecuencia corporal • Mesoterapia facial</td>
+            <td class="topic-fisio">Alergias y tensión muscular • Contracturas cervicales primavera • Dolor de espalda por cambio de clima • Preparación runners</td>
           </tr>
           <tr>
-            <td class="month">Abril</td>
-            <td class="dates">7 Día Mundial de la Salud • 11 Parkinson</td>
-            <td class="topics">Bienestar general, enfermedades neurodegenerativas, fisioterapia, preparación cuerpo para verano, tratamientos anticelulíticos</td>
+            <td>
+              <div class="month">Abril</div>
+              <div class="occasion">Semana Santa, Pre-verano</div>
+            </td>
+            <td class="topic-dental">Revisión pre-vacaciones • Férula de descarga para bruxismo • Implantes dentales: todo lo que debes saber • Urgencias en viaje</td>
+            <td class="topic-estetica">Mesoterapia corporal • Drenaje linfático • Preparar la piel para el sol • Tratamientos reductores intensivos</td>
+            <td class="topic-fisio">Prevención lesiones deportivas verano • Estiramientos para senderismo • Dolor de rodilla en subidas • Preparación física vacaciones</td>
           </tr>
           <tr>
-            <td class="month">Mayo</td>
-            <td class="dates">5 Higiene de Manos • Primer martes: Asma</td>
-            <td class="topics">Alergias y asma, prevención de infecciones, dermatología, tratamientos pre-verano, fotodepilación</td>
+            <td>
+              <div class="month">Mayo</div>
+              <div class="occasion">Día Madre, Bodas</div>
+            </td>
+            <td class="topic-dental">Carillas y estética dental para novias • Regalos dentales Día de la Madre • Blanqueamiento profesional vs casero • Sonrisa para fotos de boda</td>
+            <td class="topic-estetica">Tratamientos regalo para mamá • Pack novia: rostro y cuerpo • Manos perfectas para anillo • Tratamientos anti-flacidez brazos</td>
+            <td class="topic-fisio">Dolor de espalda crónico: soluciones • Fisioterapia para mayores • Preparación física para eventos • Lesiones por tacones</td>
           </tr>
           <tr>
-            <td class="month">Junio</td>
-            <td class="dates">14 Donante de Sangre • Preparación verano</td>
-            <td class="topics">Protección solar, tratamientos corporales, hidratación, cuidado del pie, prevención de lesiones deportivas veraniegas</td>
+            <td>
+              <div class="month">Junio</div>
+              <div class="occasion">Inicio verano, Graduaciones</div>
+            </td>
+            <td class="topic-dental">Blanqueamiento exprés pre-verano • Ortodoncia: última oportunidad antes de playa • Cuidado dental en verano • Sensibilidad a bebidas frías</td>
+            <td class="topic-estetica">Depilación láser última hora • Bronceado seguro • Tratamientos piernas bonitas • Hidratación pre-exposición solar</td>
+            <td class="topic-fisio">Preparación física para deportes de verano • Prevención de lesiones en piscina • Estiramientos post-natación • Calentamiento antes de deportes acuáticos</td>
           </tr>
           <tr>
-            <td class="month">Julio</td>
-            <td class="dates">28 Hepatitis • Temporada alta verano</td>
-            <td class="topics">Golpes de calor, hidratación, quemaduras solares, nutrición veraniega, salud del viajero, botiquín de vacaciones</td>
+            <td>
+              <div class="month">Julio</div>
+              <div class="occasion">Vacaciones plenas</div>
+            </td>
+            <td class="topic-dental">Urgencias dentales en vacaciones • Protección bucal para deportes acuáticos • Mantener higiene dental viajando • Kit dental de viaje</td>
+            <td class="topic-estetica">Protección solar avanzada • Hidratación intensiva verano • Cuidado labios en sol • Tratamientos post-playa</td>
+            <td class="topic-fisio">Lesiones típicas de playa y piscina • Dolor de espalda por hamaca • Ejercicios en el agua • Prevención calambres natación</td>
           </tr>
           <tr>
-            <td class="month">Agosto</td>
-            <td class="dates">Salud ocular (protección UV) • Relajación</td>
-            <td class="topics">Cuidado visual, fatiga ocular, tratamientos relajantes, preparación vuelta a la rutina, revisiones de salud</td>
+            <td>
+              <div class="month">Agosto</div>
+              <div class="occasion">Relax, Pre-vuelta</div>
+            </td>
+            <td class="topic-dental">Protectores bucales deportivos • Revisión post-vacaciones • Preparar ortodoncia para septiembre • Cuidado brackets en verano</td>
+            <td class="topic-estetica">Tratamientos reparadores post-sol • Manchas solares: prevención y tratamiento • Peeling suave reparador • Hidratación profunda</td>
+            <td class="topic-fisio">Estiramientos de vacaciones en casa • Preparación vuelta al trabajo • Prevención dolor de cuello • Ejercicios para viajes largos</td>
           </tr>
           <tr>
-            <td class="month">Septiembre</td>
-            <td class="dates">29 Día del Corazón • 21 Alzheimer</td>
-            <td class="topics">Salud cardiovascular, prevención del deterioro cognitivo, vuelta a rutinas saludables, chequeos otoñales</td>
+            <td>
+              <div class="month">Septiembre</div>
+              <div class="occasion">Vuelta rutina, Nuevos hábitos</div>
+            </td>
+            <td class="topic-dental">Revisión dental vuelta al cole • Ortodoncia infantil: mejor momento • Selladores dentales niños • Primera visita al dentista</td>
+            <td class="topic-estetica">Peeling otoñal renovador • Tratamientos reparadores intensivos • Renovación facial post-verano • Retomar rutina de cuidados</td>
+            <td class="topic-fisio">Vuelta al deporte segura • Lesiones por retomar ejercicio • Dolor de espalda por vuelta oficina • Ergonomía en el trabajo</td>
           </tr>
           <tr>
-            <td class="month">Octubre</td>
-            <td class="dates">10 Salud Mental • 19 Cáncer de Mama</td>
-            <td class="topics">Bienestar emocional, ansiedad, depresión, prevención cáncer, autoexploración mamaria, psicología</td>
+            <td>
+              <div class="month">Octubre</div>
+              <div class="occasion">Otoño, Halloween</div>
+            </td>
+            <td class="topic-dental">Higiene bucal tras Halloween (dulces) • Fluorización infantil • Efectos del azúcar en dientes • Alimentación y salud dental</td>
+            <td class="topic-estetica">Tratamientos antiaging otoño • Ácido hialurónico: guía completa • Bótox preventivo • Preparar piel para frío</td>
+            <td class="topic-fisio">Lesiones otoñales típicas • Preparación física para esquí • Dolor articular por humedad • Ejercicios indoor</td>
           </tr>
           <tr>
-            <td class="month">Noviembre</td>
-            <td class="dates">14 Diabetes • 17 EPOC • Movember</td>
-            <td class="topics">Control de glucosa, enfermedades respiratorias, salud masculina, próstata, tratamientos antiaging pre-navidad</td>
+            <td>
+              <div class="month">Noviembre</div>
+              <div class="occasion">Pre-navidad, Black Friday</div>
+            </td>
+            <td class="topic-dental">Ofertas tratamientos dentales • Financiación implantes • Últimas citas del año • Regalos de salud dental</td>
+            <td class="topic-estetica">Tratamientos pre-fiestas • Pack navidad: ofertas especiales • Luminosidad facial para eventos • Manos perfectas invierno</td>
+            <td class="topic-fisio">Preparación esquí y deportes nieve • Prevención lesiones frío • Fortalecimiento antes de temporada • Stretching pre-temporada</td>
           </tr>
           <tr>
-            <td class="month">Diciembre</td>
-            <td class="dates">1 SIDA • Temporada de gripe • Navidad</td>
-            <td class="topics">Vacunación antigripal, prevención resfriados, tratamientos estéticos para fiestas, cuidado de la piel en frío</td>
+            <td>
+              <div class="month">Diciembre</div>
+              <div class="occasion">Navidad, Fiestas</div>
+            </td>
+            <td class="topic-dental">Sonrisa perfecta para fotos navidad • Blanqueamiento exprés fiestas • Cuidar dientes en comidas copiosas • Urgencias navideñas</td>
+            <td class="topic-estetica">Tratamientos flash pre-evento • Luminosidad instantánea • Maquillaje perfecto sobre piel tratada • Regalos de belleza</td>
+            <td class="topic-fisio">Lesiones invierno y nieve • Recuperación post-esquí • Dolor lumbar por frío • Ejercicios en casa por fiestas</td>
           </tr>
         </tbody>
       </table>
 
-      <div class="tips">
-        <h3>💡 Tips para blogs de clínicas</h3>
-        <ul>
-          <li><strong>Contenido educativo:</strong> Los pacientes buscan información antes de decidir. Explica procedimientos de forma clara y accesible.</li>
-          <li><strong>Evita claims médicos:</strong> Usa frases como "puede ayudar a" en lugar de "cura" o "garantiza".</li>
-          <li><strong>Casos de éxito:</strong> Con consentimiento, muestra resultados reales (antes/después) para generar confianza.</li>
-          <li><strong>Responde preguntas frecuentes:</strong> Los posts FAQ posicionan muy bien y reducen llamadas de consulta.</li>
-          <li><strong>Actualiza contenido antiguo:</strong> Los posts de salud deben revisarse anualmente para mantener precisión médica.</li>
-        </ul>
+      <div class="tips-section">
+        <h3 style="font-family: 'Sora', sans-serif; font-size: 18px; margin-bottom: 20px; color: #1a1a2e;">💡 Tips por especialidad</h3>
+        <div class="tips-grid">
+          <div class="tip-card dental">
+            <h4>🦷 Para Clínicas Dentales</h4>
+            <ul>
+              <li><strong>Contenido educativo:</strong> Explica procedimientos de forma clara y sin tecnicismos excesivos.</li>
+              <li><strong>Antes/después:</strong> Con consentimiento, muestra resultados reales de blanqueamientos, carillas u ortodoncia.</li>
+              <li><strong>SEO local:</strong> Incluye tu ciudad en títulos: "Blanqueamiento dental en [Ciudad]".</li>
+              <li><strong>Temporadas:</strong> Aprovecha bodas, comuniones y graduaciones para promocionar estética dental.</li>
+            </ul>
+          </div>
+          <div class="tip-card estetica">
+            <h4>✨ Para Clínicas Estéticas</h4>
+            <ul>
+              <li><strong>Tendencias:</strong> Habla de tratamientos de moda pero siempre con enfoque profesional.</li>
+              <li><strong>Desmitifica:</strong> Aclara mitos sobre bótox, ácido hialurónico y otros tratamientos.</li>
+              <li><strong>Temporadas:</strong> Operación bikini (marzo-junio), pre-fiestas (nov-dic), post-verano (sept).</li>
+              <li><strong>Testimonios:</strong> Los casos de éxito con fotos reales generan mucha confianza.</li>
+            </ul>
+          </div>
+          <div class="tip-card fisio">
+            <h4>💪 Para Clínicas de Fisioterapia</h4>
+            <ul>
+              <li><strong>Ejercicios prácticos:</strong> Incluye vídeos o GIFs de estiramientos que el lector pueda hacer en casa.</li>
+              <li><strong>Prevención:</strong> El contenido preventivo posiciona muy bien y atrae pacientes recurrentes.</li>
+              <li><strong>Deportes estacionales:</strong> Esquí (invierno), running (primavera), natación (verano), indoor (otoño).</li>
+              <li><strong>Ergonomía:</strong> Consejos para oficina son evergreen y muy buscados.</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="footer">
       <p>© 2026 Blooglee - Tu asistente de contenidos con IA</p>
-      <p>Genera artículos de salud optimizados para SEO automáticamente</p>
+      <p>Genera artículos optimizados para SEO para tu clínica automáticamente</p>
       <a href="https://blooglee.com/para/clinicas" class="cta">Blooglee para Clínicas →</a>
     </div>
   </div>
