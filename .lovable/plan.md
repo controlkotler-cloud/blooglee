@@ -1,194 +1,227 @@
 
+# Plan: Mejoras de Navegacion, Autor del Blog y Lead Magnets
 
-# Plan Completo: Finalizar Plan Maestro SEO + AEO
+## Analisis del Estado Actual
 
-## Estado Actual
+He analizado el codigo y encontrado:
 
-Ya completado anteriormente:
-- Schemas SEO: ProductSchema, ReviewSchema, HowToSchema, SoftwareAppSchema
-- Archivos AEO: llms.txt (180+ lineas), llms-full.txt (400+ lineas), ai-context.json
-- robots.txt: 15+ crawlers de IA configurados
-- Landing: 12 FAQs expandidas, ReviewSchema en testimonios
+1. **Navegacion actual**: Solo 4 enlaces (Caracteristicas, Precios, Blog, Contacto) en navbar y footer basico
+2. **Autor del blog**: "Equipo Blooglee" esta definido en:
+   - `supabase/functions/generate-blog-blooglee/index.ts` (linea 679)
+   - `supabase/migrations/...` (DEFAULT para la tabla blog_posts)
+   - `src/data/blogPosts.ts` (datos estaticos)
+3. **Recursos actuales**: Pagina basica sin lead magnets descargables
 
-## Tareas Pendientes
+---
 
-### Tarea 1: Paginas de Casos de Uso (4 paginas nuevas)
+## Tarea 1: Estrategia de Enlaces para Paginas SEO
 
-Crear paginas dedicadas para SEO de cola larga:
+**Pregunta**: Las paginas creadas (/para/clinicas, /alternativas, /como-funciona...) pueden funcionar de dos formas:
 
-| Pagina | URL | Keyword Objetivo |
-|--------|-----|------------------|
-| Para Clinicas | /para/clinicas | "blog automatico clinica estetica" |
-| Para Agencias | /para/agencias-marketing | "automatizar blogs clientes agencia" |
-| Para Ecommerce | /para/tiendas-online | "blog automatico ecommerce" |
-| Para Autonomos | /para/autonomos | "blog profesional autonomo" |
+**Opcion A: Solo landings SEO (sin enlace visible)**
+- Captan trafico organico de busquedas especificas
+- No saturan la navegacion
+- El usuario llega desde Google directamente
 
-**Estructura de cada pagina:**
-- Hero con problema especifico del sector
-- 3 casos de uso reales con resultados
-- Testimonios del sector
-- 5+ FAQs especificas con FAQSchema
-- CTA con copy adaptado al sector
-- Usa PublicLayout para consistencia visual
+**Opcion B: Enlazar estrategicamente**
+- Anadir en el footer una seccion "Soluciones" o "Para ti" con los casos de uso
+- Anadir menu desplegable en la navbar con subcategorias
 
-**Archivos a crear:**
-```text
-src/pages/usecases/
-  Clinicas.tsx
-  Agencias.tsx
-  Ecommerce.tsx
-  Autonomos.tsx
-```
+**Recomendacion**: Enfoque hibrido:
+1. **Footer**: Anadir seccion "Soluciones" con enlaces a casos de uso y alternativas
+2. **Navbar**: Mantener limpia (sin sobrecarga) pero anadir dropdown en "Caracteristicas" que incluya "Como funciona"
+3. **Pagina Recursos**: Enlazar desde footer (ya existe en estructura)
 
-### Tarea 2: Hub de Alternativas y Comparativas (4 paginas)
+### Cambios propuestos
 
-Crear hub central de comparativas para captar busquedas "Blooglee vs X":
-
-| Pagina | URL | Keyword Objetivo |
-|--------|-----|------------------|
-| Index | /alternativas | "alternativas blooglee" |
-| NextBlog | /alternativas/nextblog | "blooglee vs nextblog" |
-| Jasper | /alternativas/jasper | "blooglee vs jasper" |
-| Copy.ai | /alternativas/copy-ai | "blooglee vs copy.ai" |
-
-**Estructura de cada comparativa:**
-- Tabla de caracteristicas lado a lado
-- Precios comparados
-- Pros y contras de cada herramienta
-- Veredicto con CTA
-- FAQs especificas de la comparativa
-
-**Archivos a crear:**
-```text
-src/pages/alternatives/
-  Index.tsx
-  NextBlog.tsx
-  Jasper.tsx
-  CopyAi.tsx
-```
-
-### Tarea 3: Paginas Educativas (2 paginas)
-
-**3.1 Como Funciona (/como-funciona)**
-- Paso a paso visual del proceso
-- Iconos animados para cada paso
-- Capturas de pantalla del dashboard (mockups)
-- Video explicativo (placeholder)
-- FAQs del proceso
-- HowToSchema JSON-LD
-
-**3.2 Centro de Recursos (/recursos)**
-- Guias descargables (lead magnets)
-- Plantillas de calendario editorial
-- Checklist de SEO para WordPress
-- Links a articulos del blog relacionados
-
-**Archivos a crear:**
-```text
-src/pages/
-  HowItWorks.tsx
-  Resources.tsx
-```
-
-### Tarea 4: Actualizar Rutas y Sitemap
-
-**App.tsx - Nuevas rutas:**
+**PublicFooter.tsx**:
 ```typescript
-// Casos de uso
-<Route path="/para/clinicas" element={<UseCaseClinicas />} />
-<Route path="/para/agencias-marketing" element={<UseCaseAgencias />} />
-<Route path="/para/tiendas-online" element={<UseCaseEcommerce />} />
-<Route path="/para/autonomos" element={<UseCaseAutonomos />} />
-
-// Alternativas
-<Route path="/alternativas" element={<AlternativesIndex />} />
-<Route path="/alternativas/nextblog" element={<AlternativeNextBlog />} />
-<Route path="/alternativas/jasper" element={<AlternativeJasper />} />
-<Route path="/alternativas/copy-ai" element={<AlternativeCopyAi />} />
-
-// Educativas
-<Route path="/como-funciona" element={<HowItWorks />} />
-<Route path="/recursos" element={<Resources />} />
-```
-
-**Sitemap.xml - Nuevas URLs:**
-```xml
-<!-- Casos de uso -->
-<url><loc>https://blooglee.com/para/clinicas</loc>...</url>
-<url><loc>https://blooglee.com/para/agencias-marketing</loc>...</url>
-<url><loc>https://blooglee.com/para/tiendas-online</loc>...</url>
-<url><loc>https://blooglee.com/para/autonomos</loc>...</url>
-
-<!-- Alternativas -->
-<url><loc>https://blooglee.com/alternativas</loc>...</url>
-<url><loc>https://blooglee.com/alternativas/nextblog</loc>...</url>
-<url><loc>https://blooglee.com/alternativas/jasper</loc>...</url>
-<url><loc>https://blooglee.com/alternativas/copy-ai</loc>...</url>
-
-<!-- Educativas -->
-<url><loc>https://blooglee.com/como-funciona</loc>...</url>
-<url><loc>https://blooglee.com/recursos</loc>...</url>
-```
-
-### Tarea 5: Optimizar Features y Pricing
-
-**FeaturesPage.tsx:**
-- Anadir seccion "Integraciones" con logos (WordPress, Yoast, Polylang)
-- Expandir FAQs de 4 a 8+ preguntas
-- Seccion "Como funciona la IA" para responder consultas tecnicas
-
-**Pricing.tsx:**
-- Anadir ProductSchema con PriceSpecification
-- Seccion "Calculadora de ahorro" (ROI vs redactor)
-- Comparativa de precios vs competencia
-- Mas FAQs sobre facturacion
-
----
-
-## Resumen de Archivos
-
-### Archivos Nuevos (10 paginas)
-```text
-src/pages/usecases/Clinicas.tsx
-src/pages/usecases/Agencias.tsx
-src/pages/usecases/Ecommerce.tsx
-src/pages/usecases/Autonomos.tsx
-src/pages/alternatives/Index.tsx
-src/pages/alternatives/NextBlog.tsx
-src/pages/alternatives/Jasper.tsx
-src/pages/alternatives/CopyAi.tsx
-src/pages/HowItWorks.tsx
-src/pages/Resources.tsx
-```
-
-### Archivos a Modificar
-```text
-src/App.tsx (nuevas rutas)
-src/pages/FeaturesPage.tsx (integraciones, FAQs)
-src/pages/Pricing.tsx (ProductSchema, calculadora)
-public/sitemap.xml (nuevas URLs)
+const footerLinks = {
+  producto: [
+    { label: 'Características', href: '/features' },
+    { label: 'Cómo funciona', href: '/como-funciona' },
+    { label: 'Precios', href: '/pricing' },
+  ],
+  soluciones: [
+    { label: 'Para clínicas', href: '/para/clinicas' },
+    { label: 'Para agencias', href: '/para/agencias-marketing' },
+    { label: 'Para ecommerce', href: '/para/tiendas-online' },
+    { label: 'Para autónomos', href: '/para/autonomos' },
+  ],
+  recursos: [
+    { label: 'Blog', href: '/blog' },
+    { label: 'Recursos', href: '/recursos' },
+    { label: 'Alternativas', href: '/alternativas' },
+    { label: 'Ayuda', href: '/help' },
+  ],
+  legal: [...],
+};
 ```
 
 ---
 
-## Orden de Implementacion
+## Tarea 2: Cambiar "Equipo Blooglee" por "Generado por Blooglee"
 
-1. **Paso 1**: Crear paginas de casos de uso (4 archivos)
-2. **Paso 2**: Crear hub de alternativas (4 archivos)
-3. **Paso 3**: Crear paginas educativas (2 archivos)
-4. **Paso 4**: Actualizar App.tsx con todas las rutas
-5. **Paso 5**: Optimizar FeaturesPage y Pricing
-6. **Paso 6**: Actualizar sitemap.xml
+### Archivos a modificar
+
+| Archivo | Linea | Cambio |
+|---------|-------|--------|
+| `supabase/functions/generate-blog-blooglee/index.ts` | 679 | `author_name: "Generado por Blooglee"` |
+| `supabase/functions/generate-blog-blooglee/index.ts` | 681 | `author_role: "IA de Blooglee"` |
+
+**Nota**: Los posts existentes en la base de datos mantendran "Equipo Blooglee". Los nuevos posts usaran "Generado por Blooglee".
+
+Para actualizar posts existentes, se necesitaria un UPDATE SQL:
+```sql
+UPDATE blog_posts 
+SET author_name = 'Generado por Blooglee',
+    author_role = 'IA de Blooglee'
+WHERE author_name = 'Equipo Blooglee';
+```
+
+---
+
+## Tarea 3: Sistema de Lead Magnets
+
+### 3.1 Arquitectura propuesta
+
+Crear un sistema de descarga de PDFs que capture emails antes de la descarga.
+
+**Flujo**:
+1. Usuario ve el recurso en /recursos o en pagina de sector
+2. Hace clic en "Descargar"
+3. Aparece modal pidiendo email + consentimientos (reutiliza NewsletterForm)
+4. Al suscribirse, se descarga el PDF automaticamente
+5. El PDF se almacena en Supabase Storage (bucket publico)
+
+### 3.2 Lead Magnets a crear (PDFs)
+
+| Lead Magnet | URL | Disponible en |
+|-------------|-----|---------------|
+| Calendario Editorial 2026 (Generico) | `/recursos` | /recursos, footer |
+| Calendario Editorial - Clinicas | `/recursos?sector=clinicas` | /para/clinicas |
+| Calendario Editorial - Agencias | `/recursos?sector=agencias` | /para/agencias-marketing |
+| Calendario Editorial - Ecommerce | `/recursos?sector=ecommerce` | /para/tiendas-online |
+| Calendario Editorial - Autonomos | `/recursos?sector=autonomos` | /para/autonomos |
+| 50 Ideas de Posts (Generico) | `/recursos` | /recursos |
+| 50 Ideas - Clinicas | `/recursos` | /para/clinicas |
+| 50 Ideas - Agencias | `/recursos` | /para/agencias-marketing |
+| 50 Ideas - Ecommerce | `/recursos` | /para/tiendas-online |
+| 50 Ideas - Autonomos | `/recursos` | /para/autonomos |
+| Checklist SEO On-Page | `/recursos` | /recursos, blog |
+| Plantilla Tareas Redactor | `/recursos` | /recursos |
+
+**Total**: 12 PDFs (4 calendarios + 1 generico, 4 ideas + 1 generico, 2 herramientas)
+
+### 3.3 Componentes a crear
+
+**Nuevos archivos**:
+```text
+src/components/marketing/LeadMagnetCard.tsx      # Card para mostrar cada recurso
+src/components/marketing/LeadMagnetModal.tsx     # Modal de captura de email
+src/hooks/useLeadMagnetDownload.ts               # Hook para gestionar descarga
+```
+
+**Archivos a modificar**:
+```text
+src/pages/Resources.tsx                          # Reorganizar con lead magnets
+src/pages/usecases/Clinicas.tsx                  # Anadir lead magnet especifico
+src/pages/usecases/Agencias.tsx                  # Anadir lead magnet especifico
+src/pages/usecases/Ecommerce.tsx                 # Anadir lead magnet especifico
+src/pages/usecases/Autonomos.tsx                 # Anadir lead magnet especifico
+```
+
+### 3.4 Estructura del componente LeadMagnetCard
+
+```typescript
+interface LeadMagnetCardProps {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  type: 'PDF' | 'Checklist' | 'Plantilla';
+  sector?: 'clinicas' | 'agencias' | 'ecommerce' | 'autonomos' | 'general';
+  downloadUrl: string; // URL del PDF en storage
+}
+```
+
+### 3.5 Estructura del modal de descarga
+
+El modal reutilizara la logica de NewsletterForm pero:
+- Al completar suscripcion, iniciara descarga automatica del PDF
+- Guardara en la tabla `newsletter_subscribers` el `source` indicando que lead magnet descargo
+- Mostrara mensaje de exito + descarga
+
+### 3.6 Plantilla de Tareas para Redactar (contenido especial)
+
+Este PDF es estrategico porque muestra:
+
+**Tareas manuales vs Blooglee**
+
+| Tarea | Manual | Con Blooglee |
+|-------|--------|--------------|
+| Investigar tema | 30 min | Automatico |
+| Escribir borrador | 2-3 horas | 60 segundos |
+| Revisar SEO | 20 min | Automatico |
+| Buscar imagen | 15 min | Incluida |
+| Subir a WordPress | 10 min | 1 clic |
+| **TOTAL** | **3-4 horas** | **2 minutos** |
+
+Este PDF funcionara como pieza de conversion directa a trial.
+
+---
+
+## Seccion Tecnica: Orden de Implementacion
+
+### Paso 1: Actualizar footer con nuevos enlaces
+- Modificar `PublicFooter.tsx` con secciones Soluciones y Recursos
+
+### Paso 2: Cambiar autor del blog
+- Modificar edge function `generate-blog-blooglee`
+- Ejecutar UPDATE SQL para posts existentes
+
+### Paso 3: Crear sistema de lead magnets
+- Crear bucket de storage para PDFs
+- Crear componentes LeadMagnetCard y LeadMagnetModal
+- Crear hook useLeadMagnetDownload
+- Actualizar pagina Resources.tsx
+
+### Paso 4: Generar contenido de PDFs
+- Crear PDFs con contenido de valor real
+- Subir a Supabase Storage
+- Configurar URLs en los componentes
+
+### Paso 5: Integrar lead magnets en paginas de sector
+- Anadir seccion de lead magnet especifico en cada pagina de caso de uso
+
+---
+
+## Archivos a crear
+
+| Archivo | Descripcion |
+|---------|-------------|
+| `src/components/marketing/LeadMagnetCard.tsx` | Tarjeta de recurso descargable |
+| `src/components/marketing/LeadMagnetModal.tsx` | Modal de captura de email |
+| `src/hooks/useLeadMagnetDownload.ts` | Hook para descargas |
+
+## Archivos a modificar
+
+| Archivo | Cambios |
+|---------|---------|
+| `src/components/marketing/PublicFooter.tsx` | Nuevas secciones de enlaces |
+| `supabase/functions/generate-blog-blooglee/index.ts` | Autor "Generado por Blooglee" |
+| `src/pages/Resources.tsx` | Integracion de lead magnets |
+| `src/pages/usecases/Clinicas.tsx` | Lead magnet especifico |
+| `src/pages/usecases/Agencias.tsx` | Lead magnet especifico |
+| `src/pages/usecases/Ecommerce.tsx` | Lead magnet especifico |
+| `src/pages/usecases/Autonomos.tsx` | Lead magnet especifico |
 
 ---
 
 ## Resultado Final
 
 Al completar este plan:
-- **10 nuevas paginas SEO** optimizadas para cola larga
-- **Cobertura de keywords**: clinicas, agencias, ecommerce, autonomos
-- **Comparativas**: Blooglee vs NextBlog, Jasper, Copy.ai
-- **Contenido educativo**: Como funciona, Recursos
-- **Schemas JSON-LD** en todas las paginas nuevas
-- **Sitemap actualizado** para indexacion rapida
-
+- **Footer enriquecido** con 4 secciones: Producto, Soluciones, Recursos, Legal
+- **Autor del blog** actualizado a "Generado por Blooglee" (mas transparente y diferenciador)
+- **12 Lead Magnets** descargables que capturan emails
+- **Cada pagina de sector** tendra su propio calendario + ideas
+- **Sistema de captura** integrado con newsletter existente
