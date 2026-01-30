@@ -1437,7 +1437,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Only send email if something was generated or there were errors
     if (successCount > 0 || failCount > 0) {
       await resend.emails.send({
-        from: "Blooglee <onboarding@resend.dev>",
+        from: "Blooglee <hola@blooglee.com>",
+        reply_to: "info@blooglee.com",
         to: NOTIFICATION_EMAILS,
         subject: `Blooglee ${now.getDate()}/${currentMonth}/${currentYear} - ${successCount} generados`,
         html: emailHtml,
@@ -1469,7 +1470,8 @@ const handler = async (req: Request): Promise<Response> => {
       if (resendApiKey) {
         const resend = new Resend(resendApiKey);
         await resend.emails.send({
-          from: "Blooglee <onboarding@resend.dev>",
+          from: "Blooglee <hola@blooglee.com>",
+          reply_to: "info@blooglee.com",
           to: NOTIFICATION_EMAILS,
           subject: "ERROR - Generación automática Blooglee",
           html: `
