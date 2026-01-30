@@ -61,7 +61,7 @@ const steps = [
     icon: Globe,
     title: 'Conecta tu WordPress',
     description: 'Crea un Application Password en tu WordPress (Usuarios → Perfil → Application Passwords). Copia la URL, usuario y contraseña en Blooglee.',
-    time: '2 minutos',
+    time: '2 min (una vez)',
     color: 'from-violet-500 to-fuchsia-500',
   },
   {
@@ -69,7 +69,7 @@ const steps = [
     icon: Settings,
     title: 'Configura tu sitio',
     description: 'Elige tu sector (salud, retail, tech...), idioma (español, catalán, inglés) y frecuencia de publicación (semanal, quincenal, mensual).',
-    time: '1 minuto',
+    time: '1 min (una vez)',
     color: 'from-fuchsia-500 to-pink-500',
   },
   {
@@ -83,9 +83,9 @@ const steps = [
   {
     number: '04',
     icon: Send,
-    title: 'Revisa y publica',
-    description: 'Revisa la vista previa, edita si quieres, y haz clic en "Publicar en WordPress". El artículo aparece en tu blog al instante.',
-    time: '1 minuto',
+    title: 'Revisa y publica (o automatiza)',
+    description: 'Modo manual: revisa la vista previa y publica con un clic. Modo automático: Blooglee genera y publica por ti sin que tengas que hacer nada.',
+    time: 'Opcional',
     color: 'from-orange-400 to-amber-400',
   },
 ];
@@ -130,7 +130,7 @@ export default function HowItWorks() {
 
           <div className="inline-flex items-center gap-4 px-6 py-3 rounded-full bg-emerald-50 border border-emerald-200">
             <Clock className="w-5 h-5 text-emerald-600" />
-            <span className="text-emerald-700 font-medium">Tiempo total: ~5 minutos</span>
+            <span className="text-emerald-700 font-medium">Primera vez: ~5 min · Después: 0 min (automático)</span>
           </div>
         </div>
       </section>
@@ -192,14 +192,14 @@ export default function HowItWorks() {
               <div className="text-sm text-foreground/60">Una sola vez</div>
             </div>
             <div className="text-center">
-              <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
-              <div className="font-display text-lg font-bold">Generas en 60s</div>
-              <div className="text-sm text-foreground/60">Cuando quieras</div>
+              <CheckCircle2 className="w-10 h-10 text-violet-500 mx-auto mb-3" />
+              <div className="font-display text-lg font-bold">Modo automático</div>
+              <div className="text-sm text-foreground/60">0 min, publica solo</div>
             </div>
             <div className="text-center">
-              <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
-              <div className="font-display text-lg font-bold">Publicas 1-clic</div>
-              <div className="text-sm text-foreground/60">Directo a WP</div>
+              <CheckCircle2 className="w-10 h-10 text-violet-500 mx-auto mb-3" />
+              <div className="font-display text-lg font-bold">O modo manual</div>
+              <div className="text-sm text-foreground/60">~2 min revisar</div>
             </div>
           </div>
         </div>
