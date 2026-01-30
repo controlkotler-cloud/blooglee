@@ -1,4 +1,4 @@
-import { LucideIcon, Download } from 'lucide-react';
+import { LucideIcon, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export type LeadMagnetType = 'PDF' | 'Checklist' | 'Plantilla' | 'Calendario';
@@ -51,8 +51,8 @@ export const LeadMagnetCard = ({ leadMagnet, onDownloadClick }: LeadMagnetCardPr
             size="sm"
             className="group-hover:bg-violet-50 group-hover:border-violet-200"
           >
-            <Download className="w-4 h-4 mr-2" />
-            Descargar gratis
+            <Gift className="w-4 h-4 mr-2" />
+            Obtener gratis
           </Button>
         </div>
       </div>
