@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checklist SEO On-Page | Blooglee</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; color: #1a1a2e; line-height: 1.6; background: linear-gradient(135deg, #faf5ff 0%, #fff7ed 100%); min-height: 100vh; padding: 40px; }
+    .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 4px 24px rgba(139, 92, 246, 0.1); overflow: hidden; }
+    .header { background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #F97316 100%); color: white; padding: 40px; text-align: center; }
+    .logo { font-family: 'Sora', sans-serif; font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    h1 { font-family: 'Sora', sans-serif; font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { font-size: 16px; opacity: 0.9; }
+    .content { padding: 40px; }
+    .intro { background: linear-gradient(135deg, #f5f3ff 0%, #fef3c7 100%); border-radius: 12px; padding: 24px; margin-bottom: 32px; border-left: 4px solid #8B5CF6; }
+    .intro h2 { font-family: 'Sora', sans-serif; font-size: 18px; color: #8B5CF6; margin-bottom: 12px; }
+    .intro p { font-size: 14px; color: #4a4a6a; }
+    .section { margin-bottom: 32px; }
+    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #f3e8ff; }
+    .section-icon { width: 40px; height: 40px; background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .section-title { font-family: 'Sora', sans-serif; font-size: 18px; color: #8B5CF6; }
+    .section-count { font-size: 12px; color: #6b7280; background: #f3f4f6; padding: 2px 8px; border-radius: 12px; }
+    .checklist { list-style: none; }
+    .checklist-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: 8px; margin-bottom: 8px; background: #faf5ff; border: 1px solid #e9d5ff; }
+    .checklist-item:hover { background: #f3e8ff; }
+    .checkbox { flex-shrink: 0; width: 24px; height: 24px; border: 2px solid #8B5CF6; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: white; }
+    .checkbox::before { content: ""; width: 12px; height: 12px; background: transparent; border-radius: 2px; }
+    .checkbox.checked { background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%); border-color: #8B5CF6; }
+    .checkbox.checked::before { content: "✓"; color: white; font-size: 14px; font-weight: bold; }
+    .item-content { flex: 1; }
+    .item-title { font-weight: 600; color: #1a1a2e; font-size: 14px; margin-bottom: 2px; }
+    .item-desc { font-size: 12px; color: #6b7280; }
+    .priority { flex-shrink: 0; font-size: 10px; padding: 3px 8px; border-radius: 10px; font-weight: 600; text-transform: uppercase; }
+    .priority-critical { background: #fee2e2; color: #991b1b; }
+    .priority-high { background: #fef3c7; color: #92400e; }
+    .priority-medium { background: #dbeafe; color: #1e40af; }
+    .tips { background: #ecfdf5; border-radius: 12px; padding: 24px; margin-top: 32px; border-left: 4px solid #10b981; }
+    .tips h3 { font-family: 'Sora', sans-serif; font-size: 16px; color: #10b981; margin-bottom: 16px; }
+    .tips ul { padding-left: 20px; }
+    .tips li { margin-bottom: 8px; font-size: 13px; color: #4a4a6a; }
+    .score-box { background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%); color: white; border-radius: 12px; padding: 24px; margin-top: 32px; text-align: center; }
+    .score-box h3 { font-family: 'Sora', sans-serif; font-size: 16px; margin-bottom: 12px; }
+    .score-counter { font-size: 48px; font-weight: 700; }
+    .score-label { font-size: 14px; opacity: 0.9; }
+    .footer { text-align: center; padding: 32px; background: #f9fafb; border-top: 1px solid #e5e7eb; }
+    .footer p { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+    .cta { display: inline-block; background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #F97316 100%); color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: 16px; }
+    @media print { 
+      body { background: white; padding: 20px; } 
+      .container { box-shadow: none; } 
+      .cta { display: none; }
+      .checklist-item { background: white; border: 1px solid #ccc; }
+      .checkbox { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">✨ Blooglee</div>
+      <h1>Checklist SEO On-Page</h1>
+      <p class="subtitle">25 puntos esenciales para optimizar cada artículo antes de publicar</p>
+    </div>
+    
+    <div class="content">
+      <div class="intro">
+        <h2>📋 Cómo usar este checklist</h2>
+        <p>Revisa cada punto antes de publicar un artículo. Marca las casillas a medida que completes cada tarea. Los elementos marcados como "Crítico" son imprescindibles para el posicionamiento; los demás mejoran el rendimiento pero no son bloqueantes. Imprime este documento o úsalo en pantalla para revisar cada post.</p>
+      </div>
+
+      <!-- Sección: Contenido -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">✍️</div>
+          <div class="section-title">Contenido y Estructura</div>
+          <span class="section-count">8 puntos</span>
+        </div>
+        <ul class="checklist">
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Título H1 único con keyword principal</div>
+              <div class="item-desc">El H1 debe incluir la palabra clave objetivo y ser único en la página</div>
+            </div>
+            <span class="priority priority-critical">Crítico</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Keyword en los primeros 100-150 caracteres</div>
+              <div class="item-desc">La palabra clave principal debe aparecer al inicio del contenido</div>
+            </div>
+            <span class="priority priority-high">Alto</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Estructura de encabezados correcta (H2, H3, H4)</div>
+              <div class="item-desc">Jerarquía lógica sin saltar niveles, con keywords secundarias en H2s</div>
+            </div>
+            <span class="priority priority-critical">Crítico</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Longitud mínima de 800-1000 palabras</div>
+              <div class="item-desc">Contenido suficiente para cubrir el tema en profundidad</div>
+            </div>
+            <span class="priority priority-high">Alto</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Párrafos cortos (3-4 líneas máximo)</div>
+              <div class="item-desc">Facilita la lectura en móvil y mejora la experiencia de usuario</div>
+            </div>
+            <span class="priority priority-medium">Medio</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Listas y bullet points donde corresponda</div>
+              <div class="item-desc">Facilitan el escaneo y pueden aparecer como featured snippets</div>
+            </div>
+            <span class="priority priority-medium">Medio</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Sin errores ortográficos ni gramaticales</div>
+              <div class="item-desc">Revisa con herramientas como LanguageTool o Grammarly</div>
+            </div>
+            <span class="priority priority-high">Alto</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Contenido original y de valor</div>
+              <div class="item-desc">No duplicado de otras fuentes, aporta información útil y diferenciada</div>
+            </div>
+            <span class="priority priority-critical">Crítico</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Sección: Meta Tags -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🏷️</div>
+          <div class="section-title">Meta Tags y URLs</div>
+          <span class="section-count">6 puntos</span>
+        </div>
+        <ul class="checklist">
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Meta título optimizado (máx. 60 caracteres)</div>
+              <div class="item-desc">Incluye keyword principal, es atractivo y no se corta en SERPs</div>
+            </div>
+            <span class="priority priority-critical">Crítico</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Meta descripción persuasiva (máx. 155 caracteres)</div>
+              <div class="item-desc">Resume el contenido, incluye CTA y keyword de forma natural</div>
+            </div>
+            <span class="priority priority-high">Alto</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">URL amigable (slug SEO)</div>
+              <div class="item-desc">Corta, descriptiva, con keyword, sin números ni caracteres especiales</div>
+            </div>
+            <span class="priority priority-critical">Crítico</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">URL canónica configurada</div>
+              <div class="item-desc">Evita contenido duplicado indicando la versión preferida de la URL</div>
+            </div>
+            <span class="priority priority-high">Alto</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Categoría y etiquetas asignadas</div>
+              <div class="item-desc">Organización correcta del contenido en la taxonomía del sitio</div>
+            </div>
+            <span class="priority priority-medium">Medio</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Fecha de publicación visible</div>
+              <div class="item-desc">Google valora el contenido fresco, muestra la fecha actualizada</div>
+            </div>
+            <span class="priority priority-medium">Medio</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Sección: Imágenes -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🖼️</div>
+          <div class="section-title">Imágenes y Multimedia</div>
+          <span class="section-count">5 puntos</span>
+        </div>
+        <ul class="checklist">
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Imagen destacada de calidad</div>
+              <div class="item-desc">Imagen atractiva que represente el contenido (mín. 1200x630px para OG)</div>
+            </div>
+            <span class="priority priority-high">Alto</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Alt text descriptivo en todas las imágenes</div>
+              <div class="item-desc">Describe la imagen para accesibilidad y SEO, incluye keywords si es natural</div>
+            </div>
+            <span class="priority priority-critical">Crítico</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Imágenes comprimidas y optimizadas</div>
+              <div class="item-desc">Formato WebP/AVIF preferido, máx. 200KB por imagen, lazy loading</div>
+            </div>
+            <span class="priority priority-high">Alto</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Nombres de archivo descriptivos</div>
+              <div class="item-desc">"guia-seo-2026.jpg" en lugar de "IMG_1234.jpg"</div>
+            </div>
+            <span class="priority priority-medium">Medio</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Dimensiones correctas (no escaladas por CSS)</div>
+              <div class="item-desc">Sube imágenes al tamaño que se mostrarán para evitar CLS</div>
+            </div>
+            <span class="priority priority-medium">Medio</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Sección: Enlaces y Social -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">🔗</div>
+          <div class="section-title">Enlaces y Schema</div>
+          <span class="section-count">6 puntos</span>
+        </div>
+        <ul class="checklist">
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Enlaces internos relevantes (3-5 mínimo)</div>
+              <div class="item-desc">Conecta con otros artículos relacionados de tu sitio</div>
+            </div>
+            <span class="priority priority-critical">Crítico</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Al menos 1 enlace externo de autoridad</div>
+              <div class="item-desc">Referencia a fuentes fiables (estudios, datos oficiales, expertos)</div>
+            </div>
+            <span class="priority priority-high">Alto</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Anchor texts descriptivos</div>
+              <div class="item-desc">Evita "clic aquí", usa textos que describan el destino del enlace</div>
+            </div>
+            <span class="priority priority-medium">Medio</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Open Graph configurado para redes sociales</div>
+              <div class="item-desc">og:title, og:description, og:image para compartir en RRSS</div>
+            </div>
+            <span class="priority priority-high">Alto</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">Schema markup Article implementado</div>
+              <div class="item-desc">Datos estructurados para que Google entienda mejor el contenido</div>
+            </div>
+            <span class="priority priority-high">Alto</span>
+          </li>
+          <li class="checklist-item">
+            <div class="checkbox"></div>
+            <div class="item-content">
+              <div class="item-title">CTA claro para el lector</div>
+              <div class="item-desc">Indica al usuario qué hacer después: suscribirse, comentar, compartir...</div>
+            </div>
+            <span class="priority priority-medium">Medio</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="score-box">
+        <h3>Tu puntuación SEO</h3>
+        <div class="score-counter">__ / 25</div>
+        <p class="score-label">Cuenta las casillas marcadas y escribe tu puntuación</p>
+      </div>
+
+      <div class="tips">
+        <h3>💡 Consejos adicionales</h3>
+        <ul>
+          <li><strong>21-25 puntos:</strong> Excelente. Tu artículo está listo para posicionar.</li>
+          <li><strong>16-20 puntos:</strong> Bien. Revisa los puntos críticos que faltan antes de publicar.</li>
+          <li><strong>11-15 puntos:</strong> Mejorable. Dedica más tiempo a la optimización antes de publicar.</li>
+          <li><strong>0-10 puntos:</strong> Insuficiente. El artículo necesita trabajo significativo de SEO.</li>
+          <li><strong>Tip pro:</strong> Usa Blooglee para generar artículos que ya cumplen la mayoría de estos puntos automáticamente.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>© 2026 Blooglee - Tu asistente de contenidos con IA</p>
+      <p>Genera artículos optimizados para SEO automáticamente</p>
+      <a href="https://blooglee.com" class="cta">Prueba Blooglee Gratis →</a>
+    </div>
+  </div>
+</body>
+</html>
