@@ -245,7 +245,7 @@ const handler = async (req: Request): Promise<Response> => {
           const subject = `${config[audienceType].emoji} ${namePrefix}${config[audienceType].prefix}: ${posts[0].title}`;
 
           await resend.emails.send({
-            from: "Blooglee <onboarding@resend.dev>",
+            from: "Blooglee <hola@blooglee.com>",
             to: [subscriber.email],
             subject: subject,
             html: html,
