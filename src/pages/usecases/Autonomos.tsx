@@ -14,6 +14,10 @@ import {
   Briefcase
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LeadMagnetCard } from '@/components/marketing/LeadMagnetCard';
+import { LeadMagnetModal } from '@/components/marketing/LeadMagnetModal';
+import { useLeadMagnetDownload } from '@/hooks/useLeadMagnetDownload';
+import { getLeadMagnetsForSector } from '@/data/leadMagnets';
 
 const autonomosFAQs = [
   {
@@ -92,6 +96,9 @@ const sectors = [
 ];
 
 export default function Autonomos() {
+  const { isModalOpen, selectedLeadMagnet, openDownloadModal, closeModal } = useLeadMagnetDownload();
+  const sectorLeadMagnets = getLeadMagnetsForSector('autonomos');
+
   return (
     <PublicLayout>
       <SEOHead 
@@ -257,6 +264,25 @@ export default function Autonomos() {
         </div>
       </section>
 
+      {/* Lead Magnets Section */}
+      <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-12">
+        <div className="text-center mb-12">
+          <h2 className="font-display text-2xl sm:text-3xl font-bold mb-4">
+            Recursos gratuitos para autónomos
+          </h2>
+          <p className="text-foreground/60">Descarga guías para posicionar tu negocio local</p>
+        </div>
+        <div className="grid md:grid-cols-2 gap-6">
+          {sectorLeadMagnets.map((leadMagnet) => (
+            <LeadMagnetCard
+              key={leadMagnet.id}
+              leadMagnet={leadMagnet}
+              onDownloadClick={openDownloadModal}
+            />
+          ))}
+        </div>
+      </section>
+
       {/* FAQ Section */}
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-12">
         <div className="text-center mb-12">
@@ -294,6 +320,12 @@ export default function Autonomos() {
           </div>
         </div>
       </section>
+      {/* Lead Magnet Modal */}
+      <LeadMagnetModal 
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        leadMagnet={selectedLeadMagnet}
+      />
     </PublicLayout>
   );
 }

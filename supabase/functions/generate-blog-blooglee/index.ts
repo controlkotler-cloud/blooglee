@@ -676,9 +676,9 @@ const handler = async (req: Request): Promise<Response> => {
         image_url: imageUrl,
         audience: audienceValue,
         category: blogData.thematic_category, // Now uses thematic category (SEO, Marketing, etc.)
-        author_name: "Equipo Blooglee",
-        author_avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
-        author_role: "Marketing Digital",
+        author_name: "Generado por Blooglee",
+        author_avatar: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=100&h=100&fit=crop&crop=center",
+        author_role: "IA de Blooglee",
         read_time: blogData.read_time,
         published_at: now.toISOString(),
         is_published: true,

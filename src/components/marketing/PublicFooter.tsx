@@ -6,12 +6,20 @@ import { NewsletterForm } from './NewsletterForm';
 const footerLinks = {
   producto: [
     { label: 'Características', href: '/features' },
+    { label: 'Cómo funciona', href: '/como-funciona' },
     { label: 'Precios', href: '/pricing' },
-    { label: 'Blog', href: '/blog' },
+  ],
+  soluciones: [
+    { label: 'Para clínicas', href: '/para/clinicas' },
+    { label: 'Para agencias', href: '/para/agencias-marketing' },
+    { label: 'Para ecommerce', href: '/para/tiendas-online' },
+    { label: 'Para autónomos', href: '/para/autonomos' },
   ],
   recursos: [
+    { label: 'Blog', href: '/blog' },
+    { label: 'Recursos', href: '/recursos' },
+    { label: 'Alternativas', href: '/alternativas' },
     { label: 'Ayuda', href: '/help' },
-    { label: 'Contacto', href: '/contact' },
   ],
   legal: [
     { label: 'Términos', href: '/terms' },
@@ -51,7 +59,7 @@ export const PublicFooter = () => {
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 lg:gap-12 mb-12">
           {/* Brand column */}
-          <div className="col-span-2 lg:col-span-2">
+          <div className="col-span-2 lg:col-span-1">
             <BloogleeLogo size="md" className="mb-4" />
             <p className="text-sm text-foreground/60 max-w-xs mb-6">
               Automatiza tu blog con IA. Genera contenido profesional para WordPress en piloto automático.
@@ -77,6 +85,23 @@ export const PublicFooter = () => {
             <h4 className="font-semibold text-sm mb-4 text-foreground">Producto</h4>
             <ul className="space-y-3">
               {footerLinks.producto.map((link) => (
+                <li key={link.href}>
+                  <Link 
+                    to={link.href}
+                    className="text-sm text-foreground/60 hover:text-foreground transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Soluciones */}
+          <div>
+            <h4 className="font-semibold text-sm mb-4 text-foreground">Soluciones</h4>
+            <ul className="space-y-3">
+              {footerLinks.soluciones.map((link) => (
                 <li key={link.href}>
                   <Link 
                     to={link.href}
