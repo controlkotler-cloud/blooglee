@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Building2, Briefcase, Download, Loader2 } from 'lucide-react';
+import { Building2, Briefcase, ExternalLink, FileText, Loader2 } from 'lucide-react';
 import { useNewsletterSubscribe } from '@/hooks/useNewsletterSubscribe';
 import { LeadMagnet } from './LeadMagnetCard';
 
@@ -76,27 +76,30 @@ export const LeadMagnetModal = ({ isOpen, onClose, leadMagnet }: LeadMagnetModal
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
-            {downloadReady ? '¡Listo para descargar!' : `Descarga: ${leadMagnet.title}`}
+            {downloadReady ? '¡Tu recurso está listo!' : `Accede a: ${leadMagnet.title}`}
           </DialogTitle>
           <DialogDescription>
             {downloadReady 
-              ? 'Gracias por suscribirte. Tu descarga está lista.'
-              : 'Introduce tus datos para recibir el recurso gratuito.'}
+              ? 'Gracias por suscribirte. Pulsa el botón para abrir tu recurso.'
+              : 'Introduce tus datos para acceder al recurso gratuito.'}
           </DialogDescription>
         </DialogHeader>
 
         {downloadReady ? (
           <div className="flex flex-col items-center py-6">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center mb-4">
-              <Download className="w-8 h-8 text-white" />
+              <FileText className="w-8 h-8 text-white" />
             </div>
             <Button 
               onClick={handleDownload}
               className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400"
             >
-              <Download className="w-4 h-4 mr-2" />
-              Descargar {leadMagnet.type}
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Ver recurso
             </Button>
+            <p className="text-xs text-muted-foreground mt-3 text-center max-w-xs">
+              Se abre en nueva pestaña. Guarda como PDF con Ctrl+P (Windows) o Cmd+P (Mac).
+            </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -185,7 +188,7 @@ export const LeadMagnetModal = ({ isOpen, onClose, leadMagnet }: LeadMagnetModal
                 </>
               ) : (
                 <>
-                  <Download className="w-4 h-4 mr-2" />
+                  <FileText className="w-4 h-4 mr-2" />
                   Obtener recurso gratis
                 </>
               )}
