@@ -1,79 +1,123 @@
 
 
-# Plan: Replantear los Calendarios para Clinicas y Autonomos
+# Plan: Solucionar la Comunicacion de "Descarga" vs HTML
 
-## Resumen del Problema
+## El Problema
 
-| Recurso | Estado Actual | Problema |
-|---------|---------------|----------|
-| Calendario Clinicas | Existe pero mal enfocado | Fechas de salud general (Cancer, SIDA, Diabetes, EPOC) irrelevantes para dental/estetica/fisio |
-| Calendario Autonomos | No existe (apunta a .pdf inexistente) | Nunca se creo, descripcion actual habla de "fechas fiscales" que no tiene sentido |
+Actualmente el flujo es:
+1. Usuario hace clic en "Descargar gratis"
+2. Rellena formulario
+3. Hace clic en "Descargar PDF/Calendario/etc"
+4. Se abre un HTML en nueva pestana (NO se descarga nada)
 
-## Solucion Propuesta
-
-### 1. Calendario Editorial 2026 para Clinicas (Rehacer completo)
-
-**Nuevo enfoque:** Calendario especifico para clinicas de **bienestar y belleza** (dental, estetica, fisioterapia)
-
-**Estructura por mes:**
-
-| Mes | Fechas/Temporadas Relevantes | Temas Dental | Temas Estetica | Temas Fisio |
-|-----|------------------------------|--------------|----------------|-------------|
-| Enero | Propositos, post-navidad | Revision dental anual, blanqueamiento post-excesos | Tratamientos detox, propositos de piel | Lesiones por frio, vuelta al gym |
-| Febrero | San Valentin, Carnaval | Sonrisa perfecta para San Valentin | Tratamientos express para lucir | Preparacion fisica primavera |
-| Marzo | Primavera, Dia de la Mujer | Ortodoncia invisible | Tratamientos anticelulitis pre-verano | Alergias y contracturas |
-| Abril | Semana Santa, Pre-verano | Revision pre-vacaciones | Mesoterapia, drenaje linfatico | Prevencion lesiones deportivas |
-| Mayo | Dia de la Madre, Bodas | Carillas y estetica dental | Tratamientos regalo mama, novias | Dolor de espalda cronico |
-| Junio | Inicio verano, graduaciones | Blanqueamiento express | Depilacion laser, bronceado seguro | Preparacion fisica verano |
-| Julio | Vacaciones verano | Urgencias dentales en vacaciones | Proteccion solar, hidratacion | Lesiones playa/piscina |
-| Agosto | Relax, preparacion vuelta | Protectores bucales deportivos | Tratamientos reparadores post-sol | Estiramientos vacaciones |
-| Septiembre | Vuelta rutina, nuevos habitos | Revision vuelta al cole, ortodoncia | Peeling otonal, renovacion piel | Vuelta al deporte |
-| Octubre | Otono, Halloween | Higiene bucal Halloween dulces | Tratamientos antiaging | Lesiones otono |
-| Noviembre | Pre-navidad, Black Friday | Ofertas tratamientos dentales | Tratamientos pre-fiestas | Preparacion esqui |
-| Diciembre | Navidad, fiestas | Sonrisa para fotos navidad | Tratamientos express fiestas | Lesiones invierno |
-
-**Tips actualizados:** Especificos para dental, estetica y fisio
+Esto genera confusion porque prometemos "descargar" pero no descargamos nada.
 
 ---
 
-### 2. Calendario Editorial 2026 para Autonomos (Crear desde cero)
+## Opciones de Solucion
 
-**Nuevo enfoque:** Calendario de contenidos para **cualquier profesional independiente** que quiera posicionar su marca personal y atraer clientes
+| Opcion | Que cambia | Pros | Contras |
+|--------|------------|------|---------|
+| **A: Cambiar la comunicacion** | Usar "Acceder" o "Ver recurso" en lugar de "Descargar" | Simple, rapido, honesto | Menos atractivo que "Descargar" |
+| **B: Forzar descarga del HTML** | Usar atributo `download` para que el navegador descargue el .html | El archivo SI se descarga | El usuario recibe un .html que puede confundir |
+| **C: Anadir instrucciones claras** | Tras abrir, mostrar un toast/aviso explicando "Guarda como PDF con Ctrl+P" | Mantiene "Descargar", educa al usuario | Requiere accion extra del usuario |
+| **D: Subir PDFs reales a Storage** | Generar PDFs y subirlos a Supabase Storage | Descarga real de PDF | Requiere generar 12 PDFs manualmente |
 
-**Estructura por mes:**
+---
 
-| Mes | Temas de Contenido | Enfoque SEO/Marketing |
-|-----|-------------------|----------------------|
-| Enero | Propositos profesionales, planificacion anual, tendencias del sector | Posts de predicciones y tendencias |
-| Febrero | Diferenciacion, propuesta de valor, casos de exito | Contenido de autoridad |
-| Marzo | Networking, colaboraciones, visibilidad online | Estrategias de posicionamiento |
-| Abril | Primavera = renovacion, nuevos servicios, formacion | Lanzamientos y novedades |
-| Mayo | Productividad, herramientas del oficio, metodologia | Tutoriales y how-to |
-| Junio | Preparacion verano, contenido evergreen | Posts atemporales |
-| Julio | Balance semestre, casos de exito acumulados | Retrospectiva y social proof |
-| Agosto | Contenido ligero, detras de escenas, marca personal | Humanizar la marca |
-| Septiembre | Nuevos comienzos, captacion clientes | Contenido comercial |
-| Octubre | Preparacion cierre de ano, ofertas especiales | Black Friday anticipado |
-| Noviembre | Testimonios, resumen de logros | Social proof pre-navidad |
-| Diciembre | Balance anual, agradecimientos, objetivos 2027 | Contenido emocional |
+## Recomendacion: Opcion A + C (Hibrida)
 
-**Tips:** Consejos practicos para cualquier autonomo que quiera publicar contenido que atraiga clientes
+La solucion mas honesta y practica es **cambiar el lenguaje** en la interfaz y **anadir instrucciones** cuando se abre el recurso:
+
+### Cambios en la Comunicacion
+
+| Ubicacion | Texto actual | Texto nuevo |
+|-----------|--------------|-------------|
+| `LeadMagnetCard.tsx` boton | "Descargar gratis" | "Obtener gratis" |
+| `LeadMagnetModal.tsx` titulo | "Listo para descargar!" | "Tu recurso esta listo!" |
+| `LeadMagnetModal.tsx` boton final | "Descargar {tipo}" | "Ver recurso" |
+| `LeadMagnetModal.tsx` descripcion post-submit | "Gracias... Tu descarga esta lista" | "Gracias... Pulsa para abrir tu recurso." |
+
+### Instrucciones en el Modal
+
+Anadir un pequeno texto debajo del boton final:
+
+```
+"Se abrira en una nueva pestana. Puedes guardarlo como PDF desde el menu Imprimir (Ctrl+P / Cmd+P)."
+```
+
+### Alternativa Visual (sin texto extra)
+
+Cambiar el icono de `Download` a `ExternalLink` o `FileText` para que el usuario entienda visualmente que se abre algo, no que se descarga.
 
 ---
 
 ## Archivos a Modificar
 
-| Archivo | Accion |
+| Archivo | Cambio |
 |---------|--------|
-| `public/resources/calendario-editorial-clinicas-2026.html` | **Reescribir** con nuevo enfoque dental/estetica/fisio |
-| `public/resources/calendario-editorial-autonomos-2026.html` | **Crear** (actualmente no existe, leadMagnets apunta a .pdf) |
-| `src/data/leadMagnets.ts` linea 123 | **Cambiar** extension de `.pdf` a `.html` para autonomos |
-| `src/data/leadMagnets.ts` linea 119 | **Actualizar** descripcion del calendario autonomos |
+| `src/components/marketing/LeadMagnetCard.tsx` | Boton: "Obtener gratis" + cambiar icono a `Gift` o mantener `Download` |
+| `src/components/marketing/LeadMagnetModal.tsx` | Titulo, descripcion, boton final + instrucciones de guardado |
 
 ---
 
-## Resultado Esperado
+## Codigo Propuesto
 
-1. **Calendario Clinicas:** Util para dentistas, clinicas de estetica y fisioterapeutas con fechas y temas relevantes para su practica
-2. **Calendario Autonomos:** Util para cualquier profesional independiente que quiera planificar contenido para su blog sin depender de fechas fiscales
+### LeadMagnetCard.tsx (linea 48-56)
+
+```tsx
+<Button 
+  onClick={() => onDownloadClick(leadMagnet)}
+  variant="outline"
+  size="sm"
+  className="group-hover:bg-violet-50 group-hover:border-violet-200"
+>
+  <Gift className="w-4 h-4 mr-2" />
+  Obtener gratis
+</Button>
+```
+
+### LeadMagnetModal.tsx (seccion downloadReady)
+
+```tsx
+{downloadReady ? (
+  <div className="flex flex-col items-center py-6">
+    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center mb-4">
+      <FileText className="w-8 h-8 text-white" />
+    </div>
+    <Button 
+      onClick={handleDownload}
+      className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400"
+    >
+      <ExternalLink className="w-4 h-4 mr-2" />
+      Ver recurso
+    </Button>
+    <p className="text-xs text-foreground/50 mt-3 text-center max-w-xs">
+      Se abre en nueva pestana. Guarda como PDF con Ctrl+P (Windows) o Cmd+P (Mac).
+    </p>
+  </div>
+)}
+```
+
+### Titulo y descripcion del modal
+
+```tsx
+<DialogTitle>
+  {downloadReady ? '¡Tu recurso esta listo!' : `Accede a: ${leadMagnet.title}`}
+</DialogTitle>
+<DialogDescription>
+  {downloadReady 
+    ? 'Gracias por suscribirte. Pulsa el boton para abrir tu recurso.'
+    : 'Introduce tus datos para acceder al recurso gratuito.'}
+</DialogDescription>
+```
+
+---
+
+## Resultado Final
+
+1. **Honestidad:** No prometemos "descargar" cuando realmente abrimos un HTML
+2. **Claridad:** El usuario sabe exactamente que va a pasar (se abre en nueva pestana)
+3. **Utilidad:** Damos instrucciones claras de como guardar como PDF si lo desea
+4. **Conversion:** "Obtener gratis" sigue siendo atractivo para captar leads
 
