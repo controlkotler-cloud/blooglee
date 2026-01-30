@@ -73,6 +73,34 @@ async function getUsedBlogTopics(supabase: any, audience: string): Promise<strin
   return data?.map((p: any) => p.title.toLowerCase()) || [];
 }
 
+// Get the next thematic category in rotation for the given audience
+async function getNextThematicCategory(supabase: any, audience: string): Promise<string> {
+  const CATEGORY_ROTATION = ['SEO', 'Marketing', 'Tutoriales', 'Comparativas', 'Producto', 'Tendencias'];
+  
+  // Get the last 6 posts for this audience to see which categories were used
+  const { data: recentPosts } = await supabase
+    .from('blog_posts')
+    .select('category')
+    .eq('audience', audience.toLowerCase())
+    .order('published_at', { ascending: false })
+    .limit(6);
+  
+  const recentCategories = recentPosts?.map((p: any) => p.category) || [];
+  console.log(`Recent categories for ${audience}: ${recentCategories.join(', ') || 'none'}`);
+  
+  // Find the first category in our rotation that hasn't been used recently
+  for (const cat of CATEGORY_ROTATION) {
+    if (!recentCategories.includes(cat)) {
+      console.log(`Next category for ${audience}: ${cat} (not in recent 6)`);
+      return cat;
+    }
+  }
+  
+  // If all categories were used, start fresh with SEO
+  console.log(`All categories used for ${audience}, restarting with SEO`);
+  return 'SEO';
+}
+
 // Generate AI image with Blooglee brand aesthetics
 async function generateAIImage(lovableApiKey: string, topic: string, category: string): Promise<{ url: string; isAI: boolean } | null> {
   try {
@@ -596,13 +624,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     const now = new Date();
 
-    // Check if already generated today for this category (skip if force=true)
+    // Check if already generated today for this audience (skip if force=true)
     if (!force) {
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const { data: existingToday } = await supabase
         .from('blog_posts')
         .select('id')
-        .eq('category', category)
+        .eq('audience', category.toLowerCase()) // Fixed: use 'audience' not 'category'
         .gte('published_at', todayStart.toISOString())
         .limit(1);
 
@@ -621,9 +649,16 @@ const handler = async (req: Request): Promise<Response> => {
     const usedTopics = await getUsedBlogTopics(supabase, category);
     console.log(`Found ${usedTopics.length} existing topics to avoid`);
 
+    // Determine thematic category: use forced, or calculate rotation automatically
+    let effectiveThematicCategory = forceThematicCategory;
+    if (!effectiveThematicCategory) {
+      effectiveThematicCategory = await getNextThematicCategory(supabase, category);
+      console.log(`Auto-rotated thematic category: ${effectiveThematicCategory}`);
+    }
+
     // Generate premium content (2-step process)
-    console.log(`Generating with forceThematicCategory: ${forceThematicCategory || 'auto'}`);
-    const blogData = await generateBlogContent(lovableApiKey, category, usedTopics, now, forceThematicCategory);
+    console.log(`Generating with thematicCategory: ${effectiveThematicCategory}`);
+    const blogData = await generateBlogContent(lovableApiKey, category, usedTopics, now, effectiveThematicCategory);
     
     if (!blogData) {
       throw new Error("Failed to generate blog content");
