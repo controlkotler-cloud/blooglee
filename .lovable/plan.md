@@ -1,167 +1,79 @@
 
 
-# Plan: Punto 2 y Punto 3 - Actualizacion de datos y tiempos
+# Plan: Replantear los Calendarios para Clinicas y Autonomos
 
-## Punto 2: Corregir comportamiento de descargas multiples
+## Resumen del Problema
 
-### Problema actual
+| Recurso | Estado Actual | Problema |
+|---------|---------------|----------|
+| Calendario Clinicas | Existe pero mal enfocado | Fechas de salud general (Cancer, SIDA, Diabetes, EPOC) irrelevantes para dental/estetica/fisio |
+| Calendario Autonomos | No existe (apunta a .pdf inexistente) | Nunca se creo, descripcion actual habla de "fechas fiscales" que no tiene sentido |
 
-En `supabase/functions/subscribe-newsletter/index.ts` (lineas 91-96):
+## Solucion Propuesta
 
-```typescript
-if (existing) {
-  if (existing.is_active) {
-    // Solo devuelve mensaje, NO actualiza datos
-    return { success: true, message: "Ya estás suscrito..." };
-  }
-}
-```
+### 1. Calendario Editorial 2026 para Clinicas (Rehacer completo)
 
-Si un usuario descarga un segundo recurso con datos diferentes (nuevo nombre, cambio de Empresa a Agencia), los nuevos datos se **ignoran**.
+**Nuevo enfoque:** Calendario especifico para clinicas de **bienestar y belleza** (dental, estetica, fisioterapia)
 
-### Solucion
+**Estructura por mes:**
 
-Modificar la edge function para que **siempre actualice** el perfil cuando el usuario esta activo, manteniendo los datos mas recientes:
+| Mes | Fechas/Temporadas Relevantes | Temas Dental | Temas Estetica | Temas Fisio |
+|-----|------------------------------|--------------|----------------|-------------|
+| Enero | Propositos, post-navidad | Revision dental anual, blanqueamiento post-excesos | Tratamientos detox, propositos de piel | Lesiones por frio, vuelta al gym |
+| Febrero | San Valentin, Carnaval | Sonrisa perfecta para San Valentin | Tratamientos express para lucir | Preparacion fisica primavera |
+| Marzo | Primavera, Dia de la Mujer | Ortodoncia invisible | Tratamientos anticelulitis pre-verano | Alergias y contracturas |
+| Abril | Semana Santa, Pre-verano | Revision pre-vacaciones | Mesoterapia, drenaje linfatico | Prevencion lesiones deportivas |
+| Mayo | Dia de la Madre, Bodas | Carillas y estetica dental | Tratamientos regalo mama, novias | Dolor de espalda cronico |
+| Junio | Inicio verano, graduaciones | Blanqueamiento express | Depilacion laser, bronceado seguro | Preparacion fisica verano |
+| Julio | Vacaciones verano | Urgencias dentales en vacaciones | Proteccion solar, hidratacion | Lesiones playa/piscina |
+| Agosto | Relax, preparacion vuelta | Protectores bucales deportivos | Tratamientos reparadores post-sol | Estiramientos vacaciones |
+| Septiembre | Vuelta rutina, nuevos habitos | Revision vuelta al cole, ortodoncia | Peeling otonal, renovacion piel | Vuelta al deporte |
+| Octubre | Otono, Halloween | Higiene bucal Halloween dulces | Tratamientos antiaging | Lesiones otono |
+| Noviembre | Pre-navidad, Black Friday | Ofertas tratamientos dentales | Tratamientos pre-fiestas | Preparacion esqui |
+| Diciembre | Navidad, fiestas | Sonrisa para fotos navidad | Tratamientos express fiestas | Lesiones invierno |
 
-**Cambio en `supabase/functions/subscribe-newsletter/index.ts`:**
-
-```typescript
-if (existing) {
-  if (existing.is_active) {
-    // SIEMPRE actualizar datos aunque ya este suscrito
-    await supabase
-      .from('newsletter_subscribers')
-      .update({ 
-        name: cleanName,
-        audience,
-        source, // Actualizar ultimo source
-      })
-      .eq('id', existing.id);
-      
-    return new Response(
-      JSON.stringify({ success: true, message: `¡Hola de nuevo, ${cleanName}! Tu perfil ha sido actualizado.` }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
-  }
-  // ... resto igual para reactivacion
-}
-```
-
-### Nuevo comportamiento
-
-| Escenario | Antes | Despues |
-|-----------|-------|---------|
-| Usuario descarga recurso 1 como "Juan" + "Empresa" | Se guarda correctamente | Se guarda correctamente |
-| Usuario descarga recurso 2 como "Juan P." + "Agencia" | Se ignora | Se actualiza name y audience |
-| Usuario ya existente descarga nuevo recurso | Solo mensaje | Actualiza source y muestra confirmacion |
+**Tips actualizados:** Especificos para dental, estetica y fisio
 
 ---
 
-## Punto 3: Corregir tiempos en toda la web
+### 2. Calendario Editorial 2026 para Autonomos (Crear desde cero)
 
-### Flujo real de Blooglee (tu especificacion)
+**Nuevo enfoque:** Calendario de contenidos para **cualquier profesional independiente** que quiera posicionar su marca personal y atraer clientes
 
-| Fase | Primer articulo | Siguientes (automatico) | Siguientes (manual) |
-|------|-----------------|------------------------|---------------------|
-| Configurar sitio | 2-3 min (una vez) | 0 | 0 |
-| Generar articulo | 60 seg | Automatico (0) | 60 seg (1 clic) |
-| Revisar | 2-3 min (opcional) | 0 | 1-2 min (opcional) |
-| Publicar | 1 clic | Automatico (0) | 1 clic |
-| **TOTAL** | ~5 min | **0 min** | **~2 min** |
+**Estructura por mes:**
 
-### Mensaje clave a comunicar
+| Mes | Temas de Contenido | Enfoque SEO/Marketing |
+|-----|-------------------|----------------------|
+| Enero | Propositos profesionales, planificacion anual, tendencias del sector | Posts de predicciones y tendencias |
+| Febrero | Diferenciacion, propuesta de valor, casos de exito | Contenido de autoridad |
+| Marzo | Networking, colaboraciones, visibilidad online | Estrategias de posicionamiento |
+| Abril | Primavera = renovacion, nuevos servicios, formacion | Lanzamientos y novedades |
+| Mayo | Productividad, herramientas del oficio, metodologia | Tutoriales y how-to |
+| Junio | Preparacion verano, contenido evergreen | Posts atemporales |
+| Julio | Balance semestre, casos de exito acumulados | Retrospectiva y social proof |
+| Agosto | Contenido ligero, detras de escenas, marca personal | Humanizar la marca |
+| Septiembre | Nuevos comienzos, captacion clientes | Contenido comercial |
+| Octubre | Preparacion cierre de ano, ofertas especiales | Black Friday anticipado |
+| Noviembre | Testimonios, resumen de logros | Social proof pre-navidad |
+| Diciembre | Balance anual, agradecimientos, objetivos 2027 | Contenido emocional |
 
-> "Configura una vez, olvdate para siempre. Blooglee publica mientras tu te dedicas a tu negocio."
-
-### Archivos a modificar
-
-#### 1. `public/resources/plantilla-tareas-redactar.html`
-
-**Cambios principales:**
-
-- Anadir seccion que diferencie "Primer articulo" vs "Siguientes articulos"
-- Cambiar el total de "~15 minutos" a mostrar dos escenarios:
-  - Modo automatico: **0 min** (Blooglee publica solo)
-  - Modo manual: **~2 min** (revisar y publicar)
-- Ajustar comparativas para reflejar el ahorro real
-
-**Tabla actualizada:**
-
-| Tarea | Manual | Blooglee (1er post) | Blooglee (siguientes) |
-|-------|--------|---------------------|----------------------|
-| Investigar tema | 30-45 min | Automatico | Automatico |
-| Escribir borrador | 2-3 horas | 60 seg | 60 seg |
-| Revisar | 30-45 min | 2-3 min (opcional) | 0 min (opcional) |
-| Publicar | 15-20 min | 1 clic | Automatico |
-| **TOTAL** | 4-6 horas | ~5 min | **0 min** (auto) / ~2 min (manual) |
-
-#### 2. `src/pages/HowItWorks.tsx`
-
-**Cambios:**
-
-- Anadir nota en el paso 4 indicando que es **opcional en modo automatico**
-- Actualizar el resumen para mostrar que "Siguientes articulos: 0 minutos"
-- Modificar el badge de "Tiempo total: ~5 minutos" para aclarar que es solo la primera vez
-
-**Nuevo paso 4:**
-
-```typescript
-{
-  number: '04',
-  icon: Send,
-  title: 'Revisa y publica (o automatiza)',
-  description: 'En modo manual: revisa la vista previa y publica con un clic. En modo automatico: Blooglee publica por ti sin que tengas que hacer nada.',
-  time: 'Opcional',
-  color: 'from-orange-400 to-amber-400',
-}
-```
-
-**Nuevo resumen (4 items):**
-
-| Item | Texto | Subtexto |
-|------|-------|----------|
-| Conectas WordPress | Una sola vez | - |
-| Configuras sector | Una sola vez | - |
-| Siguientes articulos | **0 minutos** | Modo automatico |
-| O revisas antes | ~2 min | Modo manual |
-
-#### 3. `src/pages/FeaturesPage.tsx` (linea 126)
-
-**Cambio menor:**
-
-```typescript
-// De:
-{ feature: 'Tiempo por artículo', manual: '2-4 horas', blooglee: '2 minutos' },
-
-// A:
-{ feature: 'Tiempo por artículo', manual: '2-4 horas', blooglee: '0 min (auto) / 2 min' },
-```
-
-#### 4. `src/pages/usecases/Autonomos.tsx` (linea 66)
-
-Ya dice "5min a la semana" que es correcto para el tiempo total de gestion, no por articulo. Se puede mantener o ajustar a "0-2 min por post".
+**Tips:** Consejos practicos para cualquier autonomo que quiera publicar contenido que atraiga clientes
 
 ---
 
-## Seccion Tecnica
+## Archivos a Modificar
 
-### Archivos a modificar
-
-| Archivo | Cambio principal |
-|---------|-----------------|
-| `supabase/functions/subscribe-newsletter/index.ts` | Actualizar datos aunque el email ya exista activo |
-| `public/resources/plantilla-tareas-redactar.html` | Nueva seccion diferenciando 1er articulo vs siguientes |
-| `src/pages/HowItWorks.tsx` | Paso 4 opcional, resumen con modo automatico |
-| `src/pages/FeaturesPage.tsx` | Actualizar comparativa de tiempos |
-
-### Edge function: Despliegue automatico
-
-La edge function `subscribe-newsletter` se desplegara automaticamente al guardar los cambios.
+| Archivo | Accion |
+|---------|--------|
+| `public/resources/calendario-editorial-clinicas-2026.html` | **Reescribir** con nuevo enfoque dental/estetica/fisio |
+| `public/resources/calendario-editorial-autonomos-2026.html` | **Crear** (actualmente no existe, leadMagnets apunta a .pdf) |
+| `src/data/leadMagnets.ts` linea 123 | **Cambiar** extension de `.pdf` a `.html` para autonomos |
+| `src/data/leadMagnets.ts` linea 119 | **Actualizar** descripcion del calendario autonomos |
 
 ---
 
-## Resultado esperado
+## Resultado Esperado
 
-1. **Punto 2:** Los usuarios pueden cambiar de perfil (Empresa <-> Agencia) y actualizar su nombre en cualquier descarga posterior
-2. **Punto 3:** Toda la web comunica claramente que Blooglee es **0 tiempo en modo automatico** y **~2 minutos maximo en modo manual** despues de la configuracion inicial
+1. **Calendario Clinicas:** Util para dentistas, clinicas de estetica y fisioterapeutas con fechas y temas relevantes para su practica
+2. **Calendario Autonomos:** Util para cualquier profesional independiente que quiera planificar contenido para su blog sin depender de fechas fiscales
 
