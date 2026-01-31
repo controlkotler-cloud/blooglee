@@ -188,6 +188,36 @@ export type Database = {
           },
         ]
       }
+      beta_invitations: {
+        Row: {
+          created_at: string
+          current_uses: number
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_uses: number
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          current_uses?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number
+          token: string
+        }
+        Update: {
+          created_at?: string
+          current_uses?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number
+          token?: string
+        }
+        Relationships: []
+      }
       blog_posts: {
         Row: {
           audience: string
@@ -446,11 +476,47 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_surveys: {
+        Row: {
+          id: string
+          survey_id: string
+          trigger_event: string | null
+          triggered_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          survey_id: string
+          trigger_event?: string | null
+          triggered_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          survey_id?: string
+          trigger_event?: string | null
+          triggered_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_surveys_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          beta_expires_at: string | null
+          beta_invitation_id: string | null
+          beta_started_at: string | null
           created_at: string
           email: string
           id: string
+          is_beta: boolean | null
           onboarding_completed: boolean | null
           plan: string
           posts_limit: number
@@ -459,9 +525,13 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          beta_expires_at?: string | null
+          beta_invitation_id?: string | null
+          beta_started_at?: string | null
           created_at?: string
           email: string
           id?: string
+          is_beta?: boolean | null
           onboarding_completed?: boolean | null
           plan?: string
           posts_limit?: number
@@ -470,9 +540,13 @@ export type Database = {
           user_id: string
         }
         Update: {
+          beta_expires_at?: string | null
+          beta_invitation_id?: string | null
+          beta_started_at?: string | null
           created_at?: string
           email?: string
           id?: string
+          is_beta?: boolean | null
           onboarding_completed?: boolean | null
           plan?: string
           posts_limit?: number
@@ -480,7 +554,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_beta_invitation_id_fkey"
+            columns: ["beta_invitation_id"]
+            isOneToOne: false
+            referencedRelation: "beta_invitations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sector_contexts: {
         Row: {
@@ -647,6 +729,71 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      survey_responses: {
+        Row: {
+          completed_at: string
+          id: string
+          responses: Json
+          survey_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          id?: string
+          responses: Json
+          survey_id: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          id?: string
+          responses?: Json
+          survey_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      surveys: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          questions: Json
+          trigger_days_offset: number
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          questions: Json
+          trigger_days_offset?: number
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          questions?: Json
+          trigger_days_offset?: number
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -887,7 +1034,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "mkpro_admin" | "user"
+      app_role: "admin" | "mkpro_admin" | "user" | "superadmin" | "beta"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1015,7 +1162,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "mkpro_admin", "user"],
+      app_role: ["admin", "mkpro_admin", "user", "superadmin", "beta"],
     },
   },
 } as const

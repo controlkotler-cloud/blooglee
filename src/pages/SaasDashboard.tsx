@@ -9,9 +9,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, ArrowLeftRight } from 'lucide-react';
+import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, ArrowLeftRight, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile, useIsMKProAdmin } from '@/hooks/useProfile';
+import { useProfile, useIsMKProAdmin, useIsSuperAdmin } from '@/hooks/useProfile';
 import { useSites, useImportSites } from '@/hooks/useSites';
 import { useAllArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 import { useWordPressConfigsBatch } from '@/hooks/useWordPressConfigSaas';
@@ -28,6 +28,7 @@ export default function SaasDashboard() {
   const { signOut } = useAuth();
   const { data: profile, isLoading: loadingProfile } = useProfile();
   const { canAccessMKPro } = useIsMKProAdmin();
+  const { isSuperAdmin } = useIsSuperAdmin();
   const { data: sites = [], isLoading: loadingSites } = useSites();
   
   // Onboarding tour
@@ -146,6 +147,15 @@ export default function SaasDashboard() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => navigate('/mkpro')}>
                         MKPro Admin
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {isSuperAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => navigate('/admin')}>
+                        <Shield className="w-4 h-4 mr-2" />
+                        Panel Admin
                       </DropdownMenuItem>
                     </>
                   )}

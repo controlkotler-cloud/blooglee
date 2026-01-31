@@ -43,6 +43,16 @@ import AlternativeCopyAi from "./pages/alternatives/CopyAi";
 import HowItWorks from "./pages/HowItWorks";
 import Resources from "./pages/Resources";
 
+// Páginas Admin
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminBetaUsers from "./pages/admin/AdminBetaUsers";
+import AdminBetaInvitations from "./pages/admin/AdminBetaInvitations";
+import AdminSurveys from "./pages/admin/AdminSurveys";
+
+// Beta Signup
+import BetaSignup from "./pages/BetaSignup";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -82,6 +92,9 @@ const App = () => (
           {/* Páginas educativas */}
           <Route path="/como-funciona" element={<HowItWorks />} />
           <Route path="/recursos" element={<Resources />} />
+          
+          {/* Beta Signup - Public route with token */}
+          <Route path="/beta/:token" element={<BetaSignup />} />
           
           {/* Protected routes */}
           <Route
@@ -148,6 +161,49 @@ const App = () => (
               </ProtectedRoute>
             }
           />
+          
+          {/* Admin routes - SuperAdmin only */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requireSuperAdmin>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute requireSuperAdmin>
+                <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/beta-users"
+            element={
+              <ProtectedRoute requireSuperAdmin>
+                <AdminBetaUsers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/invitations"
+            element={
+              <ProtectedRoute requireSuperAdmin>
+                <AdminBetaInvitations />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/surveys"
+            element={
+              <ProtectedRoute requireSuperAdmin>
+                <AdminSurveys />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -6,9 +6,14 @@ export interface Profile {
   id: string;
   user_id: string;
   email: string;
-  plan: 'free' | 'pro' | 'agency';
+  plan: 'free' | 'starter' | 'pro' | 'agency';
   sites_limit: number;
+  posts_limit: number;
   onboarding_completed: boolean;
+  is_beta: boolean;
+  beta_started_at: string | null;
+  beta_expires_at: string | null;
+  beta_invitation_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -16,7 +21,7 @@ export interface Profile {
 export interface UserRole {
   id: string;
   user_id: string;
-  role: 'admin' | 'mkpro_admin' | 'user';
+  role: 'superadmin' | 'admin' | 'mkpro_admin' | 'beta' | 'user';
   created_at: string;
 }
 
@@ -72,21 +77,48 @@ export function useUserRoles() {
 export function useIsAdmin() {
   const { data: roles = [], isLoading } = useUserRoles();
   
-  const isAdmin = roles.some(r => r.role === 'admin');
+  // Both 'admin' (legacy) and 'superadmin' have admin privileges
+  const isAdmin = roles.some(r => r.role === 'admin' || r.role === 'superadmin');
   
   return { isAdmin, isLoading };
+}
+
+export function useIsSuperAdmin() {
+  const { data: roles = [], isLoading } = useUserRoles();
+  
+  const isSuperAdmin = roles.some(r => r.role === 'superadmin');
+  
+  return { isSuperAdmin, isLoading };
 }
 
 export function useIsMKProAdmin() {
   const { data: roles = [], isLoading } = useUserRoles();
   
   const isMKProAdmin = roles.some(r => r.role === 'mkpro_admin');
-  const isAdmin = roles.some(r => r.role === 'admin');
+  const isAdmin = roles.some(r => r.role === 'admin' || r.role === 'superadmin');
+  const isSuperAdmin = roles.some(r => r.role === 'superadmin');
   
   return { 
     isMKProAdmin, 
     isAdmin,
+    isSuperAdmin,
     canAccessMKPro: isMKProAdmin || isAdmin,
+    isLoading 
+  };
+}
+
+export function useIsBeta() {
+  const { data: roles = [], isLoading } = useUserRoles();
+  const { data: profile } = useProfile();
+  
+  const hasBetaRole = roles.some(r => r.role === 'beta');
+  const isBetaActive = profile?.is_beta && profile?.beta_expires_at 
+    ? new Date(profile.beta_expires_at) > new Date() 
+    : false;
+  
+  return { 
+    isBeta: hasBetaRole && isBetaActive,
+    betaExpiresAt: profile?.beta_expires_at,
     isLoading 
   };
 }
