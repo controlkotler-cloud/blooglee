@@ -35,22 +35,14 @@ export const PublicNavbar = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Desktop/Tablet - Login link */}
-            <Link 
-              to="/auth" 
-              className="hidden md:block text-sm font-medium text-foreground/70 hover:text-foreground transition-colors"
-            >
-              Iniciar sesión
-            </Link>
-            
             {/* Desktop/Tablet CTA - hidden on mobile */}
             <Link 
-              to="/auth" 
+              to="/waitlist" 
               className="hidden md:flex relative group px-5 py-2.5 rounded-full font-semibold text-white text-sm overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400" />
               <span className="relative flex items-center gap-2">
-                Empezar gratis
+                Lista de espera
                 <ArrowRight className="w-4 h-4" />
               </span>
             </Link>
@@ -82,23 +74,15 @@ export const PublicNavbar = () => {
               ))}
               {/* Separator */}
               <div className="border-t border-border/50 my-1" />
-              {/* Login link in mobile menu */}
-              <Link 
-                to="/auth"
-                className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors py-2 px-3 rounded-xl hover:bg-muted/50 text-center"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Iniciar sesión
-              </Link>
               {/* CTA button in mobile menu */}
               <Link
-                to="/auth" 
+                to="/waitlist" 
                 className="relative group mt-1 py-3 rounded-xl font-semibold text-white text-sm text-center overflow-hidden"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400" />
                 <span className="relative flex items-center justify-center gap-2">
-                  Empezar gratis
+                  Lista de espera
                   <ArrowRight className="w-4 h-4" />
                 </span>
               </Link>

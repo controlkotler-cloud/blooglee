@@ -17,6 +17,7 @@ import KnowledgeArticle from "./pages/KnowledgeArticle";
 import MKPro from "./pages/MKPro";
 import Onboarding from "./pages/Onboarding";
 import Auth from "./pages/Auth";
+import Waitlist from "./pages/Waitlist";
 import NotFound from "./pages/NotFound";
 import ContactPage from "./pages/ContactPage";
 import FeaturesPage from "./pages/FeaturesPage";
@@ -57,6 +58,7 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/waitlist" element={<Waitlist />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/features" element={<FeaturesPage />} />
           <Route path="/blog" element={<BlogIndex />} />
