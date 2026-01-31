@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Loader2, Check, Zap, Globe, FileText, Sparkles, Mail } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ProductMockup } from '@/components/saas/ProductMockup';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
@@ -20,6 +21,8 @@ const Waitlist = () => {
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptMarketing, setAcceptMarketing] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,6 +32,15 @@ const Waitlist = () => {
       toast({
         title: 'Error',
         description: 'Por favor, introduce tu email',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!acceptTerms) {
+      toast({
+        title: 'Error',
+        description: 'Debes aceptar los términos de servicio y la política de privacidad',
         variant: 'destructive',
       });
       return;
@@ -54,8 +66,9 @@ const Waitlist = () => {
           // Update existing subscriber to also be on waitlist
           await supabase
             .from('newsletter_subscribers')
-            .update({ 
+            .update({
               source: 'waitlist',
+              marketing_consent: acceptMarketing,
               name: name || existing.source,
             })
             .eq('id', existing.id);
@@ -73,7 +86,7 @@ const Waitlist = () => {
             audience: 'empresas',
             is_active: true,
             gdpr_consent: true,
-            marketing_consent: true,
+            marketing_consent: acceptMarketing,
             consent_date: new Date().toISOString(),
           });
 
@@ -193,6 +206,45 @@ const Waitlist = () => {
                   />
                 </div>
 
+                {/* Consent checkboxes */}
+                <div className="space-y-3 pt-2">
+                  {/* Obligatorio: Términos y Privacidad */}
+                  <div className="flex items-start gap-3">
+                    <Checkbox 
+                      id="terms" 
+                      checked={acceptTerms}
+                      onCheckedChange={(checked) => setAcceptTerms(checked === true)}
+                      disabled={isLoading}
+                      className="mt-0.5"
+                    />
+                    <Label htmlFor="terms" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                      He leído y acepto los{' '}
+                      <Link to="/terms" className="text-primary hover:underline" target="_blank">
+                        términos de servicio
+                      </Link>{' '}
+                      y la{' '}
+                      <Link to="/privacy" className="text-primary hover:underline" target="_blank">
+                        política de privacidad
+                      </Link>
+                      <span className="text-destructive"> *</span>
+                    </Label>
+                  </div>
+
+                  {/* Opcional: Comunicaciones comerciales */}
+                  <div className="flex items-start gap-3">
+                    <Checkbox 
+                      id="marketing" 
+                      checked={acceptMarketing}
+                      onCheckedChange={(checked) => setAcceptMarketing(checked === true)}
+                      disabled={isLoading}
+                      className="mt-0.5"
+                    />
+                    <Label htmlFor="marketing" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                      Acepto recibir comunicaciones comerciales y novedades sobre Blooglee
+                    </Label>
+                  </div>
+                </div>
+
                 <button 
                   type="submit" 
                   className="btn-aurora w-full h-12 text-base"
@@ -234,17 +286,6 @@ const Waitlist = () => {
               ))}
             </div>
 
-            {/* Footer */}
-            <p className="text-center text-xs text-muted-foreground mt-8">
-              Al apuntarte, aceptas nuestros{' '}
-              <Link to="/terms" className="text-primary hover:underline">
-                términos de servicio
-              </Link>{' '}
-              y{' '}
-              <Link to="/privacy" className="text-primary hover:underline">
-                política de privacidad
-              </Link>
-            </p>
           </div>
         </div>
 
