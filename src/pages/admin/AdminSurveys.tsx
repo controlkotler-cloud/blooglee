@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { MobileTableCard } from '@/components/admin/MobileTableCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { useAdminSurveys, useSurveyResponses, useUpdateSurvey, type Survey, type SurveyQuestion } from '@/hooks/useAdminSurveys';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { ClipboardList, BarChart3, Star, CheckCircle, MessageSquare, ListChecks } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -16,6 +18,7 @@ export default function AdminSurveys() {
   const { data: surveys = [], isLoading: loadingSurveys } = useAdminSurveys();
   const { data: responses = [], isLoading: loadingResponses } = useSurveyResponses();
   const updateSurvey = useUpdateSurvey();
+  const isMobile = useIsMobile();
 
   const [selectedSurvey, setSelectedSurvey] = useState<string | null>(null);
 
@@ -25,25 +28,25 @@ export default function AdminSurveys() {
         id: survey.id,
         is_active: !survey.is_active,
       });
-      toast.success(survey.is_active ? 'Encuesta desactivada' : 'Encuesta activada');
+      toast.success(survey.is_active ? 'Desactivada' : 'Activada');
     } catch (error) {
-      toast.error('Error al cambiar el estado');
+      toast.error('Error');
     }
   };
 
   const getQuestionIcon = (type: string) => {
     switch (type) {
-      case 'rating': return <Star className="h-4 w-4" />;
-      case 'boolean': return <CheckCircle className="h-4 w-4" />;
-      case 'text': return <MessageSquare className="h-4 w-4" />;
-      case 'select': return <ListChecks className="h-4 w-4" />;
+      case 'rating': return <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4" />;
+      case 'boolean': return <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />;
+      case 'text': return <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4" />;
+      case 'select': return <ListChecks className="h-3.5 w-3.5 sm:h-4 sm:w-4" />;
       default: return null;
     }
   };
 
   const getTriggerLabel = (type: string) => {
     switch (type) {
-      case 'wordpress_activation': return 'Post-activación WordPress';
+      case 'wordpress_activation': return 'Post-activación WP';
       case 'beta_expiring': return 'Pre-expiración Beta';
       default: return type;
     }
@@ -83,22 +86,22 @@ export default function AdminSurveys() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Encuestas</h1>
-          <p className="text-muted-foreground mt-1">
-            Configura y visualiza las encuestas del programa beta
+          <h1 className="text-2xl sm:text-3xl font-bold">Encuestas</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Configura y visualiza encuestas beta
           </p>
         </div>
 
-        <Tabs defaultValue="config" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="config" className="gap-2">
-              <ClipboardList className="h-4 w-4" />
-              Configuración
+        <Tabs defaultValue="config" className="space-y-4 sm:space-y-6">
+          <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex">
+            <TabsTrigger value="config" className="gap-1.5 sm:gap-2 text-xs sm:text-sm">
+              <ClipboardList className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              Config
             </TabsTrigger>
-            <TabsTrigger value="responses" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
+            <TabsTrigger value="responses" className="gap-1.5 sm:gap-2 text-xs sm:text-sm">
+              <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               Respuestas
             </TabsTrigger>
           </TabsList>
@@ -111,48 +114,48 @@ export default function AdminSurveys() {
             ) : (
               surveys.map((survey) => (
                 <Card key={survey.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          {survey.name}
-                          <Badge variant={survey.is_active ? 'default' : 'outline'}>
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="flex items-start sm:items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="flex items-center gap-2 flex-wrap text-base sm:text-lg">
+                          <span className="truncate">{survey.name}</span>
+                          <Badge variant={survey.is_active ? 'default' : 'outline'} className="shrink-0">
                             {survey.is_active ? 'Activa' : 'Inactiva'}
                           </Badge>
                         </CardTitle>
-                        <CardDescription>
-                          Disparador: {getTriggerLabel(survey.trigger_type)} 
-                          ({survey.trigger_days_offset > 0 ? '+' : ''}{survey.trigger_days_offset} días)
+                        <CardDescription className="text-xs sm:text-sm mt-1">
+                          {getTriggerLabel(survey.trigger_type)} 
+                          ({survey.trigger_days_offset > 0 ? '+' : ''}{survey.trigger_days_offset}d)
                         </CardDescription>
                       </div>
                       <Switch 
                         checked={survey.is_active}
                         onCheckedChange={() => handleToggleActive(survey)}
+                        className="shrink-0"
                       />
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                     <div className="space-y-3">
-                      <h4 className="text-sm font-medium">Preguntas ({survey.questions.length})</h4>
+                      <h4 className="text-xs sm:text-sm font-medium">Preguntas ({survey.questions.length})</h4>
                       <div className="space-y-2">
                         {survey.questions.map((q, idx) => (
                           <div 
                             key={q.id} 
-                            className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
+                            className="flex items-start gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg bg-muted/50"
                           >
-                            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                            <div className="flex items-center justify-center h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-primary/10 text-primary text-[10px] sm:text-xs font-medium shrink-0">
                               {idx + 1}
                             </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 sm:gap-2">
                                 {getQuestionIcon(q.type)}
-                                <span className="text-sm font-medium">{q.question}</span>
+                                <span className="text-xs sm:text-sm font-medium line-clamp-2">{q.question}</span>
                               </div>
-                              <div className="text-xs text-muted-foreground mt-1">
-                                Tipo: {q.type}
+                              <div className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+                                {q.type}
                                 {q.scale && ` (1-${q.scale})`}
-                                {q.options && ` (${q.options.length} opciones)`}
-                                {q.conditional && ' (condicional)'}
+                                {q.options && ` (${q.options.length} opts)`}
                               </div>
                             </div>
                           </div>
@@ -166,16 +169,17 @@ export default function AdminSurveys() {
           </TabsContent>
 
           <TabsContent value="responses" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
+            {/* Survey selector cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Card 
                 className={`cursor-pointer transition-colors ${!selectedSurvey ? 'ring-2 ring-primary' : ''}`}
                 onClick={() => setSelectedSurvey(null)}
               >
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Todas las respuestas</CardTitle>
+                <CardHeader className="p-3 sm:pb-2 sm:p-6">
+                  <CardTitle className="text-sm sm:text-lg truncate">Todas</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{responses.length}</div>
+                <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                  <div className="text-xl sm:text-2xl font-bold">{responses.length}</div>
                 </CardContent>
               </Card>
               
@@ -187,11 +191,11 @@ export default function AdminSurveys() {
                     className={`cursor-pointer transition-colors ${selectedSurvey === survey.id ? 'ring-2 ring-primary' : ''}`}
                     onClick={() => setSelectedSurvey(survey.id)}
                   >
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg truncate">{survey.name}</CardTitle>
+                    <CardHeader className="p-3 sm:pb-2 sm:p-6">
+                      <CardTitle className="text-sm sm:text-lg truncate">{survey.name}</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{count}</div>
+                    <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                      <div className="text-xl sm:text-2xl font-bold">{count}</div>
                     </CardContent>
                   </Card>
                 );
@@ -201,37 +205,37 @@ export default function AdminSurveys() {
             {/* Stats for selected survey */}
             {selectedSurveyData && selectedResponses.length > 0 && (
               <Card>
-                <CardHeader>
-                  <CardTitle>Estadísticas: {selectedSurveyData.name}</CardTitle>
-                  <CardDescription>{selectedResponses.length} respuestas</CardDescription>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">Estadísticas: {selectedSurveyData.name}</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">{selectedResponses.length} respuestas</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
                   {selectedSurveyData.questions.map((q) => {
                     const stats = calculateStats(q);
                     return (
-                      <div key={q.id} className="p-4 rounded-lg bg-muted/50">
-                        <div className="flex items-center gap-2 mb-2">
+                      <div key={q.id} className="p-3 sm:p-4 rounded-lg bg-muted/50">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-2">
                           {getQuestionIcon(q.type)}
-                          <span className="font-medium">{q.question}</span>
+                          <span className="text-xs sm:text-sm font-medium line-clamp-2">{q.question}</span>
                         </div>
                         
                         {q.type === 'rating' && 'avg' in stats && (
-                          <div className="flex items-center gap-4">
-                            <div className="text-2xl font-bold text-primary">
-                              {stats.avg} <span className="text-sm text-muted-foreground">/ {q.scale}</span>
+                          <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="text-xl sm:text-2xl font-bold text-primary">
+                              {stats.avg} <span className="text-xs sm:text-sm text-muted-foreground">/ {q.scale}</span>
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                              ({stats.count} respuestas)
+                            <div className="text-xs sm:text-sm text-muted-foreground">
+                              ({stats.count} resp.)
                             </div>
                           </div>
                         )}
 
                         {q.type === 'boolean' && 'yes' in stats && (
-                          <div className="flex gap-4">
-                            <Badge variant="secondary" className="bg-green-100 text-green-700">
+                          <div className="flex gap-2 sm:gap-4 flex-wrap">
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
                               Sí: {stats.yes} ({stats.total > 0 ? Math.round((stats.yes / stats.total) * 100) : 0}%)
                             </Badge>
-                            <Badge variant="outline">
+                            <Badge variant="outline" className="text-xs">
                               No: {stats.no} ({stats.total > 0 ? Math.round((stats.no / stats.total) * 100) : 0}%)
                             </Badge>
                           </div>
@@ -247,21 +251,21 @@ export default function AdminSurveys() {
                                     style={{ width: `${stats.total > 0 ? (count / stats.total) * 100 : 0}%` }}
                                   />
                                 </div>
-                                <span className="text-sm min-w-[120px]">{option}: {count}</span>
+                                <span className="text-xs min-w-[80px] sm:min-w-[120px] truncate">{option}: {count}</span>
                               </div>
                             ))}
                           </div>
                         )}
 
                         {q.type === 'text' && 'responses' in stats && stats.responses.length > 0 && (
-                          <div className="space-y-2 max-h-40 overflow-y-auto">
+                          <div className="space-y-1.5 sm:space-y-2 max-h-32 sm:max-h-40 overflow-y-auto">
                             {stats.responses.slice(0, 5).map((r, i) => (
-                              <p key={i} className="text-sm italic text-muted-foreground">
+                              <p key={i} className="text-xs sm:text-sm italic text-muted-foreground line-clamp-2">
                                 "{r}"
                               </p>
                             ))}
                             {stats.responses.length > 5 && (
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">
                                 +{stats.responses.length - 5} más...
                               </p>
                             )}
@@ -274,20 +278,41 @@ export default function AdminSurveys() {
               </Card>
             )}
 
-            {/* Responses Table */}
+            {/* Responses List */}
             <Card>
-              <CardHeader>
-                <CardTitle>Respuestas Detalladas</CardTitle>
-                <CardDescription>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Respuestas</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   {selectedSurvey ? selectedResponses.length : responses.length} respuestas
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                 {loadingResponses ? (
                   <div className="flex justify-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                   </div>
+                ) : isMobile ? (
+                  /* Mobile: Card view */
+                  <div className="space-y-3">
+                    {(selectedSurvey ? selectedResponses : responses).slice(0, 20).map((response) => {
+                      const survey = surveys.find(s => s.id === response.survey_id);
+                      return (
+                        <MobileTableCard
+                          key={response.id}
+                          title={response.user_email}
+                          subtitle={survey?.name || 'Desconocida'}
+                          details={[
+                            { 
+                              label: 'Fecha', 
+                              value: format(new Date(response.completed_at), 'dd/MM/yy HH:mm', { locale: es }) 
+                            },
+                          ]}
+                        />
+                      );
+                    })}
+                  </div>
                 ) : (
+                  /* Desktop: Table view */
                   <Table>
                     <TableHeader>
                       <TableRow>
