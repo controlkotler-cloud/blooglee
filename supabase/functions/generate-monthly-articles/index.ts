@@ -1321,32 +1321,30 @@ const handler = async (req: Request): Promise<Response> => {
     // ========== 6. SEND SEGMENTED NEWSLETTERS ==========
     console.log("=== Sending Segmented Newsletters ===");
     
-    if (blogGeneratedCount > 0) {
-      try {
-        const newsletterResponse = await fetch(`${supabaseUrl}/functions/v1/send-newsletter`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({}),
-        });
+    // SIEMPRE llamar a send-newsletter - la función ya verifica si hay posts de hoy
+    // No depender de blogGeneratedCount que puede ser 0 si los posts ya existían
+    try {
+      const newsletterResponse = await fetch(`${supabaseUrl}/functions/v1/send-newsletter`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({}),
+      });
 
-        if (newsletterResponse.ok) {
-          const newsletterResult = await newsletterResponse.json();
-          if (newsletterResult.skipped) {
-            console.log(`Newsletter skipped: ${newsletterResult.reason}`);
-          } else {
-            console.log(`✓ Newsletters sent: ${newsletterResult.emailsSent || 0} emails`);
-          }
+      if (newsletterResponse.ok) {
+        const newsletterResult = await newsletterResponse.json();
+        if (newsletterResult.skipped) {
+          console.log(`Newsletter skipped: ${newsletterResult.reason}`);
         } else {
-          console.error(`Failed to send newsletters: ${newsletterResponse.status}`);
+          console.log(`✓ Newsletters sent: ${newsletterResult.emailsSent || 0} emails`);
         }
-      } catch (e) {
-        console.error("Error sending newsletters:", e);
+      } else {
+        console.error(`Failed to send newsletters: ${newsletterResponse.status}`);
       }
-    } else {
-      console.log("No blog posts generated today, skipping newsletters");
+    } catch (e) {
+      console.error("Error sending newsletters:", e);
     }
 
     // ========== SUMMARY ==========

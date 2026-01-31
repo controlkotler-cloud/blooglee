@@ -240,9 +240,9 @@ const handler = async (req: Request): Promise<Response> => {
           const unsubscribeUrl = `${BLOG_URL}?unsubscribe=${subscriber.id}`;
           const html = generateEmailHtml(posts, subscriber.name, audienceType, unsubscribeUrl);
           
-          // Personalized subject with name if available
+          // Personalized subject with name if available - SIN emoji al inicio para evitar spam
           const namePrefix = subscriber.name ? `${subscriber.name}, ` : '';
-          const subject = `${config[audienceType].emoji} ${namePrefix}${config[audienceType].prefix}: ${posts[0].title}`;
+          const subject = `${namePrefix}${config[audienceType].prefix} | ${posts[0].title}`;
 
           await resend.emails.send({
             from: "Blooglee <hola@blooglee.com>",
@@ -250,6 +250,10 @@ const handler = async (req: Request): Promise<Response> => {
             to: [subscriber.email],
             subject: subject,
             html: html,
+            headers: {
+              "List-Unsubscribe": `<${unsubscribeUrl}>`,
+              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
           });
 
           emailsSent++;
