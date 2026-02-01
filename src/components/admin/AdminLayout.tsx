@@ -27,6 +27,7 @@ const menuItems = [
   { path: '/admin/beta-users', icon: UserCheck, label: 'Usuarios Beta' },
   { path: '/admin/invitations', icon: TicketPlus, label: 'Invitaciones' },
   { path: '/admin/surveys', icon: ClipboardList, label: 'Encuestas' },
+  { path: '/admin/prompts', icon: Settings, label: 'Prompts' },
 ];
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {

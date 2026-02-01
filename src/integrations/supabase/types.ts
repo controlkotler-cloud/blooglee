@@ -564,6 +564,48 @@ export type Database = {
           },
         ]
       }
+      prompts: {
+        Row: {
+          category: string
+          content: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          key: string
+          name: string
+          updated_at: string | null
+          variables: Json | null
+          version: number | null
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          key: string
+          name: string
+          updated_at?: string | null
+          variables?: Json | null
+          version?: number | null
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          key?: string
+          name?: string
+          updated_at?: string | null
+          variables?: Json | null
+          version?: number | null
+        }
+        Relationships: []
+      }
       sector_contexts: {
         Row: {
           created_at: string
