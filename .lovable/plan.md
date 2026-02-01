@@ -1,213 +1,313 @@
 
 
-# Plan: Programacion Personalizada de Dia y Hora por Site
+# Plan: Gestor de Prompts del Panel Admin
 
 ## Objetivo
 
-Permitir que cada usuario seleccione de forma independiente y granular:
-1. **Frecuencia** (diaria, semanal, quincenal, mensual)
-2. **Dia especifico** (segun la frecuencia elegida)
-3. **Hora de publicacion** (personalizada por site)
-
-Esto distribuira la carga del sistema y evitara que todos los sites publiquen al mismo momento.
+Crear una seccion dedicada en el panel superadmin (`/admin/prompts`) donde puedas visualizar, editar y mejorar todos los prompts utilizados por las Edge Functions de la plataforma, sin necesidad de modificar codigo directamente.
 
 ---
 
-## Cambios en la Base de Datos
+## Prompts Identificados en el Sistema
 
-### Nuevas columnas en tabla `sites`
+Tras analizar las Edge Functions, estos son todos los prompts utilizados:
 
-| Columna | Tipo | Default | Descripcion |
-|---------|------|---------|-------------|
-| `publish_day_of_week` | integer | NULL | 0-6 (Dom-Sab) para semanal/quincenal |
-| `publish_day_of_month` | integer | NULL | 1-31 para mensual con dia fijo |
-| `publish_week_of_month` | integer | NULL | 1-4 para mensual con semana especifica |
-| `publish_hour_utc` | integer | 9 | Hora UTC (0-23) para publicacion |
-
-### Logica de combinacion
-
-- **Diario/Diario L-V**: Solo usa `publish_hour_utc`
-- **Semanal**: Usa `publish_day_of_week` + `publish_hour_utc`
-- **Quincenal**: Usa `publish_day_of_week` + semanas 1 y 3 + `publish_hour_utc`
-- **Mensual (dia fijo)**: Usa `publish_day_of_month` + `publish_hour_utc`
-- **Mensual (dia de semana)**: Usa `publish_day_of_week` + `publish_week_of_month` + `publish_hour_utc`
-
----
-
-## Cambios en el Frontend
-
-### Componente `SiteSettings.tsx`
-
-Nueva seccion "Programacion de publicacion" con:
-
-1. **Frecuencia** (select existente, sin cambios)
-
-2. **Dia de publicacion** (condicional segun frecuencia):
-   - Para `weekly` / `biweekly`: Select con dias de la semana (Lunes a Domingo)
-   - Para `monthly`: Radio para elegir entre:
-     - "Dia fijo del mes" + input numerico (1-28)
-     - "Dia de la semana" + select dia + select semana (1era, 2da, 3era, 4ta)
-
-3. **Hora de publicacion**: Select con horas (00:00 a 23:00 en bloques de 1h)
-   - Mostrar hora local del usuario con conversion a UTC
+| Funcion | Prompt | Proposito |
+|---------|--------|-----------|
+| `generate-article` | System Prompt Farmacia ES | Genera articulos para farmacias en espanol |
+| `generate-article` | User Prompt Farmacia ES | Instrucciones especificas por farmacia |
+| `generate-article` | Topic Generation | Genera temas automaticamente |
+| `generate-article-empresa` | System Prompt Empresa ES | Genera articulos para empresas en espanol |
+| `generate-article-empresa` | Sector Context AI | Genera contexto de sector con IA |
+| `generate-article-saas` | System Prompt SaaS ES | Genera articulos para sites SaaS |
+| `generate-article-saas` | Image Query Generator | Genera queries de busqueda de imagenes |
+| `generate-blog-blooglee` | Metadata Generator | Genera titulo, slug, excerpt del blog |
+| `generate-blog-blooglee` | Content Generator | Genera contenido completo del blog |
+| `generate-blog-blooglee` | Image Prompt | Genera imagenes AI para el blog |
+| `support-chatbot` | System Prompt | Instrucciones del chatbot de soporte |
 
 ---
 
-## Cambios en el Backend
+## Arquitectura Propuesta
 
-### Edge Function `generate-scheduler`
+### 1. Nueva tabla `prompts` en la base de datos
 
-Actualizar la logica de `shouldGenerateToday` para:
+Almacenara todos los prompts de forma centralizada y versionada.
 
-1. Leer las nuevas columnas de cada site
-2. Comparar con la hora actual UTC
-3. Solo disparar si coincide dia Y hora
-
-```typescript
-function shouldGenerateNow(
-  site: SiteWithSchedule,
-  now: Date
-): boolean {
-  const currentHour = now.getUTCHours();
-  const publishHour = site.publish_hour_utc ?? 9;
-  
-  // Solo generar en la hora configurada
-  if (currentHour !== publishHour) {
-    return false;
-  }
-  
-  // Logica de dia segun frecuencia...
-}
+```text
+prompts
+├── id (uuid)
+├── key (text unique) - Identificador unico ej: "generate-article.system.es"
+├── name (text) - Nombre legible ej: "Articulos Farmacia - Sistema"
+├── description (text) - Descripcion del proposito
+├── category (text) - Categoria: "farmacias", "empresas", "saas", "blog", "support"
+├── content (text) - El prompt completo
+├── variables (jsonb) - Lista de variables disponibles ej: ["{{pharmacy.name}}", "{{month}}"]
+├── is_active (boolean) - Si se usa este prompt o el hardcodeado
+├── version (integer) - Numero de version
+├── created_at, updated_at (timestamps)
 ```
 
-### Cron del Scheduler
+### 2. Nueva pagina `/admin/prompts`
 
-Cambiar de ejecutarse 1 vez al dia (09:00) a ejecutarse **cada hora**:
+Interface para gestionar los prompts con:
+- Lista de todos los prompts organizados por categoria
+- Vista previa con syntax highlighting
+- Editor con variables autocomplete
+- Historial de versiones
+- Boton de test (ejecutar prompt con datos de ejemplo)
 
-```sql
--- Ejecutar cada hora en punto
-SELECT cron.schedule(
-  'dispatch-article-generation',
-  '0 * * * *',  -- Cada hora
-  ...
-);
-```
+### 3. Modificacion de Edge Functions
 
-El scheduler verificara para cada site si coincide su `publish_hour_utc` con la hora actual.
+Las funciones leeran el prompt de la base de datos si existe y esta activo, sino usaran el hardcodeado como fallback.
 
 ---
 
-## Flujo de Usuario
+## Archivos a Crear
 
-1. Usuario va a Configuracion del Site
-2. Selecciona frecuencia (ej: "Semanal")
-3. Aparece selector de dia: "Miercoles"
-4. Selecciona hora: "10:00 (hora local)" -> se guarda como 9 UTC
-5. El scheduler ejecuta cada hora y solo dispara este site los miercoles a las 9 UTC
-
----
+| Archivo | Descripcion |
+|---------|-------------|
+| `src/pages/admin/AdminPrompts.tsx` | Pagina principal del gestor |
+| `src/components/admin/PromptEditor.tsx` | Editor de prompts con syntax highlighting |
+| `src/components/admin/PromptCard.tsx` | Tarjeta de preview de prompt |
+| `src/components/admin/PromptTestDialog.tsx` | Dialog para probar prompts |
+| `src/hooks/useAdminPrompts.ts` | Hook para CRUD de prompts |
 
 ## Archivos a Modificar
 
 | Archivo | Cambios |
 |---------|---------|
-| `src/components/saas/SiteSettings.tsx` | Anadir UI para dia y hora |
-| `src/hooks/useSites.ts` | Anadir nuevos campos al tipo Site |
-| `supabase/functions/generate-scheduler/index.ts` | Nueva logica shouldGenerateNow |
-| SQL Migration | Nuevas columnas en tabla sites |
-| SQL Cron Update | Cambiar de diario a cada hora |
+| `src/components/admin/AdminLayout.tsx` | Anadir enlace "Prompts" al menu |
+| `src/App.tsx` | Anadir ruta `/admin/prompts` |
+| Edge Functions (todas) | Leer prompt de BD si existe |
 
 ---
 
-## Consideraciones Adicionales
+## Diseno de la UI
 
-### Timezone del usuario
-- Mostrar hora en timezone local del usuario
-- Guardar siempre en UTC en la base de datos
-- Usar `Intl.DateTimeFormat` para detectar timezone
+### Vista de Lista
 
-### Valores por defecto
-- Nuevos sites: hora aleatoria entre 7:00-18:00 UTC para distribuir carga
-- Sites existentes: mantener 09:00 UTC como default
+```text
++--------------------------------------------------+
+| Prompts del Sistema                              |
+| Gestiona los prompts de IA de la plataforma      |
++--------------------------------------------------+
+| [Farmacias] [Empresas] [SaaS] [Blog] [Soporte]   |
++--------------------------------------------------+
+| +----------------------------------------------+ |
+| | Articulos Farmacia - Sistema          [Edit] | |
+| | generate-article.system.es                   | |
+| | Prompt principal para generar articulos...   | |
+| | v3 | Activo | Ultima edicion: hace 2 dias    | |
+| +----------------------------------------------+ |
+| +----------------------------------------------+ |
+| | Articulos Farmacia - Usuario          [Edit] | |
+| | generate-article.user.es                     | |
+| | Instrucciones especificas con datos de...    | |
+| | v1 | Activo | Ultima edicion: hace 5 dias    | |
+| +----------------------------------------------+ |
++--------------------------------------------------+
+```
 
-### Farmacias y Empresas (MKPro)
-- Mantener logica actual (primer lunes del mes a las 09:00)
-- No se modifican tablas protegidas
+### Vista de Editor
+
+```text
++--------------------------------------------------+
+| < Volver                                         |
+| Articulos Farmacia - Sistema                     |
++--------------------------------------------------+
+| Key: generate-article.system.es                  |
+| Categoria: [Farmacias v]                         |
++--------------------------------------------------+
+| Variables disponibles:                           |
+| {{pharmacy.name}} {{pharmacy.location}} {{month}}|
+| {{year}} {{geoContext}}                          |
++--------------------------------------------------+
+| +----------------------------------------------+ |
+| | Eres un redactor experto en contenido        | |
+| | farmaceutico y SEO. Generas articulos de     | |
+| | blog profesionales para farmacias.           | |
+| |                                              | |
+| | REGLAS IMPORTANTES:                          | |
+| | - La fecha actual es {{month}} de {{year}}   | |
+| | ...                                          | |
+| +----------------------------------------------+ |
++--------------------------------------------------+
+| Version: 3 | Caracteres: 2,456                   |
+| [Cancelar]  [Probar]  [Guardar como v4]          |
++--------------------------------------------------+
+```
+
+---
+
+## Flujo de Datos
+
+```text
+1. Usuario edita prompt en /admin/prompts
+                |
+                v
+2. Se guarda en tabla "prompts" con nueva version
+                |
+                v
+3. Edge Function se ejecuta
+                |
+                v
+4. Funcion busca prompt por key en BD
+                |
+        +-------+-------+
+        |               |
+        v               v
+   Encontrado     No encontrado
+        |               |
+        v               v
+   Usa prompt BD   Usa hardcoded
+        |               |
+        +-------+-------+
+                |
+                v
+5. Reemplaza variables {{...}} con datos reales
+                |
+                v
+6. Envia a Lovable AI Gateway
+```
+
+---
+
+## Migracion SQL
+
+```sql
+-- Tabla de prompts
+CREATE TABLE prompts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  key text UNIQUE NOT NULL,
+  name text NOT NULL,
+  description text,
+  category text NOT NULL DEFAULT 'general',
+  content text NOT NULL,
+  variables jsonb DEFAULT '[]'::jsonb,
+  is_active boolean DEFAULT true,
+  version integer DEFAULT 1,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Habilitar RLS
+ALTER TABLE prompts ENABLE ROW LEVEL SECURITY;
+
+-- Solo superadmins pueden gestionar prompts
+CREATE POLICY "Superadmins can manage prompts"
+ON prompts FOR ALL
+USING (has_role(auth.uid(), 'superadmin'));
+
+-- Las Edge Functions pueden leer prompts (sin auth)
+CREATE POLICY "Service role can read prompts"
+ON prompts FOR SELECT
+USING (auth.role() = 'service_role');
+
+-- Trigger para updated_at
+CREATE TRIGGER update_prompts_updated_at
+  BEFORE UPDATE ON prompts
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+```
+
+---
+
+## Prompts Iniciales a Migrar
+
+Se insertaran los prompts actuales como datos iniciales:
+
+| Key | Nombre | Categoria |
+|-----|--------|-----------|
+| `generate-article.system.es` | Articulos Farmacia - Sistema | farmacias |
+| `generate-article.user.es` | Articulos Farmacia - Usuario | farmacias |
+| `generate-article.topic` | Generador de Temas Farmacia | farmacias |
+| `generate-article-empresa.system.es` | Articulos Empresa - Sistema | empresas |
+| `generate-article-empresa.sector-context` | Contexto de Sector AI | empresas |
+| `generate-article-saas.system.es` | Articulos SaaS - Sistema | saas |
+| `generate-article-saas.image-query` | Generador Query Imagenes | saas |
+| `generate-blog.metadata` | Blog - Metadatos | blog |
+| `generate-blog.content` | Blog - Contenido | blog |
+| `generate-blog.image` | Blog - Prompt Imagen | blog |
+| `support-chatbot.system` | Chatbot Soporte - Sistema | soporte |
 
 ---
 
 ## Seccion Tecnica
 
-### Estructura de datos ampliada
+### Hook useAdminPrompts
 
 ```typescript
-interface SiteSchedule {
-  publish_frequency: 'daily' | 'daily_weekdays' | 'weekly' | 'biweekly' | 'monthly';
-  publish_day_of_week: number | null;    // 0-6 (Dom-Sab)
-  publish_day_of_month: number | null;   // 1-31
-  publish_week_of_month: number | null;  // 1-4
-  publish_hour_utc: number;              // 0-23
+interface Prompt {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  category: string;
+  content: string;
+  variables: string[];
+  is_active: boolean;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useAdminPrompts(category?: string);
+export function usePrompt(key: string);
+export function useUpdatePrompt();
+export function useCreatePrompt();
+```
+
+### Funcion de reemplazo de variables en Edge Functions
+
+```typescript
+async function getPrompt(key: string, fallback: string): Promise<string> {
+  const { data } = await supabase
+    .from('prompts')
+    .select('content')
+    .eq('key', key)
+    .eq('is_active', true)
+    .single();
+  
+  return data?.content || fallback;
+}
+
+function replaceVariables(prompt: string, vars: Record<string, string>): string {
+  return prompt.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_, key) => {
+    const value = key.split('.').reduce((obj, k) => obj?.[k], vars);
+    return value ?? '';
+  });
 }
 ```
 
-### Logica del Scheduler
+### Ejemplo de uso en Edge Function
 
 ```typescript
-function shouldGenerateNow(site: SiteWithSchedule, now: Date): boolean {
-  const currentHour = now.getUTCHours();
-  const currentDayOfWeek = now.getUTCDay();
-  const currentDayOfMonth = now.getUTCDate();
-  const currentWeekOfMonth = Math.ceil(currentDayOfMonth / 7);
+// En generate-article/index.ts
+const systemPromptTemplate = await getPrompt(
+  'generate-article.system.es',
+  FALLBACK_SYSTEM_PROMPT // El prompt hardcodeado actual
+);
 
-  // Verificar hora
-  if (currentHour !== (site.publish_hour_utc ?? 9)) {
-    return false;
-  }
-
-  switch (site.publish_frequency) {
-    case 'daily':
-      return true;
-
-    case 'daily_weekdays':
-      return currentDayOfWeek >= 1 && currentDayOfWeek <= 5;
-
-    case 'weekly':
-      return currentDayOfWeek === (site.publish_day_of_week ?? 1);
-
-    case 'biweekly':
-      return currentDayOfWeek === (site.publish_day_of_week ?? 1) 
-        && (currentWeekOfMonth === 1 || currentWeekOfMonth === 3);
-
-    case 'monthly':
-      if (site.publish_day_of_month) {
-        // Dia fijo del mes
-        return currentDayOfMonth === site.publish_day_of_month;
-      } else {
-        // Dia de semana especifico
-        return currentDayOfWeek === (site.publish_day_of_week ?? 1)
-          && currentWeekOfMonth === (site.publish_week_of_month ?? 1);
-      }
-
-    default:
-      return false;
-  }
-}
+const systemPrompt = replaceVariables(systemPromptTemplate, {
+  'pharmacy.name': pharmacy.name,
+  'pharmacy.location': pharmacy.location,
+  'month': monthName,
+  'year': currentYear.toString(),
+  'geoContext': geoContext,
+});
 ```
 
-### Migracion SQL
+---
 
-```sql
-ALTER TABLE sites
-ADD COLUMN publish_day_of_week integer,
-ADD COLUMN publish_day_of_month integer,
-ADD COLUMN publish_week_of_month integer,
-ADD COLUMN publish_hour_utc integer DEFAULT 9;
+## Resultado Final
 
--- Constraint para validar rangos
-ALTER TABLE sites
-ADD CONSTRAINT check_day_of_week CHECK (publish_day_of_week IS NULL OR (publish_day_of_week >= 0 AND publish_day_of_week <= 6)),
-ADD CONSTRAINT check_day_of_month CHECK (publish_day_of_month IS NULL OR (publish_day_of_month >= 1 AND publish_day_of_month <= 31)),
-ADD CONSTRAINT check_week_of_month CHECK (publish_week_of_month IS NULL OR (publish_week_of_month >= 1 AND publish_week_of_month <= 4)),
-ADD CONSTRAINT check_hour_utc CHECK (publish_hour_utc >= 0 AND publish_hour_utc <= 23);
-```
+Despues de implementar estos cambios:
+
+1. Tendras una seccion `/admin/prompts` accesible desde el menu lateral
+2. Podras ver todos los prompts organizados por categoria
+3. Podras editar cualquier prompt sin tocar codigo
+4. Los cambios se aplicaran inmediatamente a las Edge Functions
+5. Tendras historial de versiones para revertir si algo falla
+6. Podras probar prompts antes de activarlos
 
