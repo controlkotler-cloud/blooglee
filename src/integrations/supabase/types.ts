@@ -614,7 +614,11 @@ export type Database = {
           languages: string[]
           location: string | null
           name: string
+          publish_day_of_month: number | null
+          publish_day_of_week: number | null
           publish_frequency: string
+          publish_hour_utc: number | null
+          publish_week_of_month: number | null
           sector: string | null
           updated_at: string
           user_id: string
@@ -632,7 +636,11 @@ export type Database = {
           languages?: string[]
           location?: string | null
           name: string
+          publish_day_of_month?: number | null
+          publish_day_of_week?: number | null
           publish_frequency?: string
+          publish_hour_utc?: number | null
+          publish_week_of_month?: number | null
           sector?: string | null
           updated_at?: string
           user_id: string
@@ -650,7 +658,11 @@ export type Database = {
           languages?: string[]
           location?: string | null
           name?: string
+          publish_day_of_month?: number | null
+          publish_day_of_week?: number | null
           publish_frequency?: string
+          publish_hour_utc?: number | null
+          publish_week_of_month?: number | null
           sector?: string | null
           updated_at?: string
           user_id?: string

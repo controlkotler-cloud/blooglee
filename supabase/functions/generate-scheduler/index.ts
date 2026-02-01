@@ -28,17 +28,22 @@ interface SiteEntity extends EntityToProcess {
   sector: string | null;
   location: string | null;
   languages: string[];
+  publish_day_of_week: number | null;
+  publish_day_of_month: number | null;
+  publish_week_of_month: number | null;
+  publish_hour_utc: number | null;
 }
 
 /**
- * Determines if an entity should generate content today based on frequency
+ * Determines if an entity should generate content today based on frequency (for MKPro)
+ * This is the legacy logic for farmacias and empresas
  */
 function shouldGenerateToday(
   publishFrequency: string,
   now: Date
 ): boolean {
-  const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  const dayOfMonth = now.getDate();
+  const dayOfWeek = now.getUTCDay(); // 0 = Sunday, 1 = Monday, etc.
+  const dayOfMonth = now.getUTCDate();
 
   switch (publishFrequency) {
     case "daily":
@@ -60,6 +65,60 @@ function shouldGenerateToday(
     case "monthly":
       // First Monday of the month
       return dayOfWeek === 1 && dayOfMonth <= 7;
+
+    default:
+      return false;
+  }
+}
+
+/**
+ * Determines if a SaaS site should generate content NOW based on custom schedule
+ * This supports per-site day and hour configuration
+ */
+function shouldSiteGenerateNow(
+  site: SiteEntity,
+  now: Date
+): boolean {
+  const currentHour = now.getUTCHours();
+  const currentDayOfWeek = now.getUTCDay();
+  const currentDayOfMonth = now.getUTCDate();
+  const currentWeekOfMonth = Math.ceil(currentDayOfMonth / 7);
+
+  // Check hour first - must match configured hour (default 9)
+  const publishHour = site.publish_hour_utc ?? 9;
+  if (currentHour !== publishHour) {
+    return false;
+  }
+
+  const frequency = site.publish_frequency || "monthly";
+
+  switch (frequency) {
+    case "daily":
+      return true;
+
+    case "daily_weekdays":
+      return currentDayOfWeek >= 1 && currentDayOfWeek <= 5;
+
+    case "weekly":
+      // Check configured day of week (default Monday = 1)
+      return currentDayOfWeek === (site.publish_day_of_week ?? 1);
+
+    case "biweekly":
+      // Check configured day of week on weeks 1 and 3
+      return currentDayOfWeek === (site.publish_day_of_week ?? 1) &&
+        (currentWeekOfMonth === 1 || currentWeekOfMonth === 3);
+
+    case "monthly":
+      // Two modes: fixed day of month OR specific weekday of a specific week
+      if (site.publish_day_of_month !== null && site.publish_day_of_month !== undefined) {
+        // Fixed day mode (e.g., "day 15 of each month")
+        return currentDayOfMonth === site.publish_day_of_month;
+      } else {
+        // Weekday mode (e.g., "first Monday of each month")
+        const targetDayOfWeek = site.publish_day_of_week ?? 1;
+        const targetWeekOfMonth = site.publish_week_of_month ?? 1;
+        return currentDayOfWeek === targetDayOfWeek && currentWeekOfMonth === targetWeekOfMonth;
+      }
 
     default:
       return false;
@@ -282,19 +341,22 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("\n--- Processing Sites ---");
     const { data: sites, error: sitesError } = await supabase
       .from("sites")
-      .select("id, name, user_id, sector, location, languages, auto_generate, publish_frequency")
+      .select("id, name, user_id, sector, location, languages, auto_generate, publish_frequency, publish_day_of_week, publish_day_of_month, publish_week_of_month, publish_hour_utc")
       .eq("auto_generate", true);
 
     if (sitesError) {
       console.error("Error fetching sites:", sitesError);
     } else if (sites && sites.length > 0) {
       console.log(`Found ${sites.length} sites with auto_generate=true`);
+      console.log(`Current UTC time: ${now.toISOString()} (hour: ${now.getUTCHours()}, day: ${now.getUTCDay()}, date: ${now.getUTCDate()})`);
 
-      for (const site of sites) {
+      for (const site of sites as SiteEntity[]) {
         const frequency = site.publish_frequency || "monthly";
         
-        if (!shouldGenerateToday(frequency, now)) {
-          console.log(`Skipping site ${site.name} - not a generation day for ${frequency}`);
+        // Use new per-site scheduling logic
+        if (!shouldSiteGenerateNow(site, now)) {
+          const configuredHour = site.publish_hour_utc ?? 9;
+          console.log(`Skipping site ${site.name} - not scheduled now (freq: ${frequency}, hour: ${configuredHour}, day_of_week: ${site.publish_day_of_week}, day_of_month: ${site.publish_day_of_month})`);
           continue;
         }
 
@@ -312,6 +374,8 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
+        console.log(`Dispatching generation for site ${site.name} (scheduled at hour ${site.publish_hour_utc ?? 9} UTC)`);
+        
         // For SaaS, we need to pass auth context - use service role for scheduled jobs
         dispatchGeneration(supabaseUrl, supabaseServiceKey, "generate-article-saas", {
           siteId: site.id,

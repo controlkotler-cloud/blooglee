@@ -18,6 +18,10 @@ export interface Site {
   custom_topic: string | null;
   include_featured_image: boolean;
   publish_frequency: string;
+  publish_day_of_week: number | null;
+  publish_day_of_month: number | null;
+  publish_week_of_month: number | null;
+  publish_hour_utc: number;
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +39,10 @@ export interface SiteInput {
   custom_topic?: string | null;
   include_featured_image?: boolean;
   publish_frequency?: string;
+  publish_day_of_week?: number | null;
+  publish_day_of_month?: number | null;
+  publish_week_of_month?: number | null;
+  publish_hour_utc?: number;
 }
 
 export function useSites() {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Select,
   SelectContent,
@@ -27,8 +28,53 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Save, Trash2 } from 'lucide-react';
+import { Loader2, Save, Trash2, Clock, Calendar } from 'lucide-react';
 import { useUpdateSite, useDeleteSite, type Site } from '@/hooks/useSites';
+
+const DAYS_OF_WEEK = [
+  { value: 1, label: 'Lunes' },
+  { value: 2, label: 'Martes' },
+  { value: 3, label: 'Miércoles' },
+  { value: 4, label: 'Jueves' },
+  { value: 5, label: 'Viernes' },
+  { value: 6, label: 'Sábado' },
+  { value: 0, label: 'Domingo' },
+];
+
+const WEEKS_OF_MONTH = [
+  { value: 1, label: '1ª semana' },
+  { value: 2, label: '2ª semana' },
+  { value: 3, label: '3ª semana' },
+  { value: 4, label: '4ª semana' },
+];
+
+const HOURS = Array.from({ length: 24 }, (_, i) => ({
+  value: i,
+  label: `${i.toString().padStart(2, '0')}:00`,
+}));
+
+// Get user's timezone offset in hours
+function getUserTimezoneOffset(): number {
+  return -new Date().getTimezoneOffset() / 60;
+}
+
+// Convert local hour to UTC
+function localToUtc(localHour: number): number {
+  const offset = getUserTimezoneOffset();
+  let utc = localHour - offset;
+  if (utc < 0) utc += 24;
+  if (utc >= 24) utc -= 24;
+  return Math.floor(utc);
+}
+
+// Convert UTC hour to local
+function utcToLocal(utcHour: number): number {
+  const offset = getUserTimezoneOffset();
+  let local = utcHour + offset;
+  if (local < 0) local += 24;
+  if (local >= 24) local -= 24;
+  return Math.floor(local);
+}
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio').max(100),
@@ -38,6 +84,11 @@ const formSchema = z.object({
   geographic_scope: z.enum(['local', 'regional', 'national', 'international']),
   languages: z.array(z.string()).min(1, 'Selecciona al menos un idioma'),
   publish_frequency: z.string(),
+  publish_day_of_week: z.number().nullable(),
+  publish_day_of_month: z.number().nullable(),
+  publish_week_of_month: z.number().nullable(),
+  publish_hour_local: z.number(),
+  monthly_mode: z.enum(['fixed_day', 'weekday']),
   custom_topic: z.string().optional(),
   auto_generate: z.boolean(),
   include_featured_image: z.boolean(),
@@ -56,6 +107,9 @@ export function SiteSettings({ site }: SiteSettingsProps) {
   const updateMutation = useUpdateSite();
   const deleteMutation = useDeleteSite();
 
+  // Determine initial monthly mode
+  const initialMonthlyMode = site.publish_day_of_month ? 'fixed_day' : 'weekday';
+  
   const {
     register,
     handleSubmit,
@@ -72,6 +126,11 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       geographic_scope: site.geographic_scope,
       languages: site.languages,
       publish_frequency: site.publish_frequency,
+      publish_day_of_week: site.publish_day_of_week,
+      publish_day_of_month: site.publish_day_of_month,
+      publish_week_of_month: site.publish_week_of_month,
+      publish_hour_local: utcToLocal(site.publish_hour_utc ?? 9),
+      monthly_mode: initialMonthlyMode,
       custom_topic: site.custom_topic || '',
       auto_generate: site.auto_generate,
       include_featured_image: site.include_featured_image,
@@ -83,15 +142,54 @@ export function SiteSettings({ site }: SiteSettingsProps) {
   const watchedLanguages = watch('languages');
   const watchedAutoGenerate = watch('auto_generate');
   const watchedIncludeImage = watch('include_featured_image');
+  const watchedFrequency = watch('publish_frequency');
+  const watchedMonthlyMode = watch('monthly_mode');
+  const watchedHourLocal = watch('publish_hour_local');
+
+  // Get user's timezone name for display
+  const timezoneName = useMemo(() => {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }, []);
 
   const onSubmit = (data: FormData) => {
+    // Convert local hour to UTC
+    const publishHourUtc = localToUtc(data.publish_hour_local);
+    
+    // Prepare scheduling fields based on frequency
+    let publishDayOfWeek: number | null = null;
+    let publishDayOfMonth: number | null = null;
+    let publishWeekOfMonth: number | null = null;
+
+    if (data.publish_frequency === 'weekly' || data.publish_frequency === 'biweekly') {
+      publishDayOfWeek = data.publish_day_of_week ?? 1;
+    } else if (data.publish_frequency === 'monthly') {
+      if (data.monthly_mode === 'fixed_day') {
+        publishDayOfMonth = data.publish_day_of_month ?? 1;
+        publishDayOfWeek = null;
+        publishWeekOfMonth = null;
+      } else {
+        publishDayOfWeek = data.publish_day_of_week ?? 1;
+        publishWeekOfMonth = data.publish_week_of_month ?? 1;
+        publishDayOfMonth = null;
+      }
+    }
+
     updateMutation.mutate({
       id: site.id,
-      ...data,
+      name: data.name,
       sector: data.sector || null,
       description: data.description || null,
       location: data.location || null,
+      geographic_scope: data.geographic_scope,
+      languages: data.languages,
+      publish_frequency: data.publish_frequency,
+      publish_day_of_week: publishDayOfWeek,
+      publish_day_of_month: publishDayOfMonth,
+      publish_week_of_month: publishWeekOfMonth,
+      publish_hour_utc: publishHourUtc,
       custom_topic: data.custom_topic || null,
+      auto_generate: data.auto_generate,
+      include_featured_image: data.include_featured_image,
       blog_url: data.blog_url || null,
       instagram_url: data.instagram_url || null,
     });
@@ -113,6 +211,12 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       setValue('languages', [...current, lang], { shouldDirty: true });
     }
   };
+
+  // Determine which scheduling options to show
+  const showDayOfWeek = watchedFrequency === 'weekly' || watchedFrequency === 'biweekly' || 
+    (watchedFrequency === 'monthly' && watchedMonthlyMode === 'weekday');
+  const showMonthlyOptions = watchedFrequency === 'monthly';
+  const showWeekOfMonth = watchedFrequency === 'monthly' && watchedMonthlyMode === 'weekday';
 
   return (
     <div className="space-y-6">
@@ -217,25 +321,6 @@ export function SiteSettings({ site }: SiteSettingsProps) {
             </div>
 
             <div className="space-y-2">
-              <Label>Frecuencia de publicación</Label>
-              <Select
-                value={watch('publish_frequency')}
-                onValueChange={(v) => setValue('publish_frequency', v, { shouldDirty: true })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">Diario (todos los días)</SelectItem>
-                  <SelectItem value="daily_weekdays">Diario (L-V)</SelectItem>
-                  <SelectItem value="weekly">Semanal</SelectItem>
-                  <SelectItem value="biweekly">Quincenal</SelectItem>
-                  <SelectItem value="monthly">Mensual</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="custom_topic">Tema personalizado (opcional)</Label>
               <Textarea
                 id="custom_topic"
@@ -252,7 +337,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
               <div>
                 <Label>Generación automática</Label>
                 <p className="text-sm text-muted-foreground">
-                  Generar artículos automáticamente según la frecuencia
+                  Generar artículos automáticamente según la programación
                 </p>
               </div>
               <Switch
@@ -272,6 +357,165 @@ export function SiteSettings({ site }: SiteSettingsProps) {
                 checked={watchedIncludeImage}
                 onCheckedChange={(checked) => setValue('include_featured_image', checked, { shouldDirty: true })}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Scheduling settings - NEW CARD */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Programación de publicación
+            </CardTitle>
+            <CardDescription>
+              Configura cuándo se generarán automáticamente los artículos
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Frequency */}
+            <div className="space-y-2">
+              <Label>Frecuencia de publicación</Label>
+              <Select
+                value={watch('publish_frequency')}
+                onValueChange={(v) => setValue('publish_frequency', v, { shouldDirty: true })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Diario (todos los días)</SelectItem>
+                  <SelectItem value="daily_weekdays">Diario (L-V)</SelectItem>
+                  <SelectItem value="weekly">Semanal</SelectItem>
+                  <SelectItem value="biweekly">Quincenal</SelectItem>
+                  <SelectItem value="monthly">Mensual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Monthly mode selection */}
+            {showMonthlyOptions && (
+              <div className="space-y-3">
+                <Label>Tipo de programación mensual</Label>
+                <RadioGroup
+                  value={watchedMonthlyMode}
+                  onValueChange={(v) => setValue('monthly_mode', v as 'fixed_day' | 'weekday', { shouldDirty: true })}
+                  className="flex flex-col gap-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fixed_day" id="fixed_day" />
+                    <Label htmlFor="fixed_day" className="font-normal cursor-pointer">
+                      Día fijo del mes (ej: día 15)
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="weekday" id="weekday" />
+                    <Label htmlFor="weekday" className="font-normal cursor-pointer">
+                      Día de la semana específico (ej: 1er lunes)
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            )}
+
+            {/* Fixed day of month */}
+            {showMonthlyOptions && watchedMonthlyMode === 'fixed_day' && (
+              <div className="space-y-2">
+                <Label>Día del mes</Label>
+                <Select
+                  value={String(watch('publish_day_of_month') ?? 1)}
+                  onValueChange={(v) => setValue('publish_day_of_month', parseInt(v), { shouldDirty: true })}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                      <SelectItem key={day} value={String(day)}>
+                        Día {day}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Recomendamos días 1-28 para evitar problemas con meses cortos
+                </p>
+              </div>
+            )}
+
+            {/* Day of week selector */}
+            {showDayOfWeek && (
+              <div className="space-y-2">
+                <Label>Día de la semana</Label>
+                <Select
+                  value={String(watch('publish_day_of_week') ?? 1)}
+                  onValueChange={(v) => setValue('publish_day_of_week', parseInt(v), { shouldDirty: true })}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DAYS_OF_WEEK.map((day) => (
+                      <SelectItem key={day.value} value={String(day.value)}>
+                        {day.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Week of month selector */}
+            {showWeekOfMonth && (
+              <div className="space-y-2">
+                <Label>Semana del mes</Label>
+                <Select
+                  value={String(watch('publish_week_of_month') ?? 1)}
+                  onValueChange={(v) => setValue('publish_week_of_month', parseInt(v), { shouldDirty: true })}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WEEKS_OF_MONTH.map((week) => (
+                      <SelectItem key={week.value} value={String(week.value)}>
+                        {week.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Hour selector */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Hora de publicación
+              </Label>
+              <div className="flex items-center gap-3">
+                <Select
+                  value={String(watchedHourLocal)}
+                  onValueChange={(v) => setValue('publish_hour_local', parseInt(v), { shouldDirty: true })}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HOURS.map((hour) => (
+                      <SelectItem key={hour.value} value={String(hour.value)}>
+                        {hour.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">
+                  ({timezoneName})
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Se guardará como {localToUtc(watchedHourLocal).toString().padStart(2, '0')}:00 UTC
+              </p>
             </div>
           </CardContent>
         </Card>
