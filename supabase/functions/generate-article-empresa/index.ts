@@ -1,32 +1,98 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// MKPro notification email
+const NOTIFICATION_EMAIL = "controlkotler@gmail.com";
+
 interface CompanyData {
+  id?: string;
   name: string;
   location?: string | null;
   sector?: string | null;
-  description?: string | null;  // Descripción y audiencia objetivo
+  description?: string | null;
   languages?: string[];
   blog_url?: string | null;
   instagram_url?: string | null;
   geographic_scope?: string;
   include_featured_image?: boolean;
+  publish_frequency?: string;
 }
 
 interface RequestBody {
-  company: CompanyData;
-  empresaId?: string;        // Para buscar historial de temas usados
+  company?: CompanyData;
+  empresaId?: string;
   topic?: string | null;
   month: number;
   year: number;
   usedImageUrls?: string[];
-  usedTopics?: string[];     // Opcional: temas ya usados desde frontend
+  usedTopics?: string[];
   autoGenerateTopic?: boolean;
+  isScheduled?: boolean;
+}
+
+// Send notification email for MKPro
+async function sendMKProNotification(
+  companyName: string,
+  articleTitle: string,
+  articleExcerpt: string,
+  wpUrl?: string | null
+): Promise<void> {
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  if (!RESEND_API_KEY) {
+    console.log("RESEND_API_KEY not configured, skipping notification");
+    return;
+  }
+
+  try {
+    const resend = new Resend(RESEND_API_KEY);
+    
+    const wpSection = wpUrl 
+      ? `<p style="margin: 20px 0;"><a href="${wpUrl}" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ver en WordPress →</a></p>`
+      : '';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 30px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 24px;">📝 Artículo Generado</h1>
+    </div>
+    <div style="padding: 30px;">
+      <p style="color: #374151; font-size: 16px; margin-bottom: 20px;">
+        Se ha generado un nuevo artículo para <strong>${companyName}</strong>:
+      </p>
+      <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+        <h2 style="color: #1f2937; margin: 0 0 10px 0; font-size: 18px;">${articleTitle}</h2>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">${articleExcerpt || 'Artículo generado automáticamente'}</p>
+      </div>
+      ${wpSection}
+      <p style="color: #9ca3af; font-size: 12px; margin-top: 30px; text-align: center;">
+        MKPro - Generación automática de contenido
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    await resend.emails.send({
+      from: "Blooglee <hola@blooglee.com>",
+      to: [NOTIFICATION_EMAIL],
+      subject: `✅ Artículo generado: ${companyName}`,
+      html,
+    });
+
+    console.log("Notification email sent to:", NOTIFICATION_EMAIL);
+  } catch (error) {
+    console.error("Error sending notification email:", error);
+  }
 }
 
 // Helper function to get used topics for a company
@@ -668,7 +734,56 @@ serve(async (req) => {
     // Create Supabase client for dynamic sector lookup
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    const { company, empresaId, topic: providedTopic, month, year, usedImageUrls = [], usedTopics = [], autoGenerateTopic = true }: RequestBody = await req.json();
+    const requestBody: RequestBody = await req.json();
+    const { company: providedCompany, empresaId, topic: providedTopic, month, year, usedImageUrls = [], usedTopics = [], autoGenerateTopic = true, isScheduled } = requestBody;
+
+    // Get company data - either from request or lookup by ID
+    let company: CompanyData;
+    let resolvedEmpresaId: string | undefined = empresaId;
+
+    if (empresaId && !providedCompany) {
+      // Scheduler mode: lookup company by ID
+      console.log("=== SCHEDULER MODE: Looking up empresa by ID ===");
+      console.log("Empresa ID:", empresaId);
+      
+      const { data: empresaData, error: empresaError } = await supabase
+        .from("empresas")
+        .select("*")
+        .eq("id", empresaId)
+        .single();
+      
+      if (empresaError || !empresaData) {
+        console.error("Empresa not found:", empresaError);
+        return new Response(JSON.stringify({ error: "Empresa not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      company = {
+        id: empresaData.id,
+        name: empresaData.name,
+        location: empresaData.location,
+        sector: empresaData.sector,
+        description: empresaData.description,
+        languages: empresaData.languages || ["spanish"],
+        blog_url: empresaData.blog_url,
+        instagram_url: empresaData.instagram_url,
+        geographic_scope: empresaData.geographic_scope || "local",
+        include_featured_image: empresaData.include_featured_image !== false,
+        publish_frequency: empresaData.publish_frequency,
+      };
+      resolvedEmpresaId = empresaId;
+    } else if (providedCompany) {
+      // Manual mode: use provided company data
+      company = providedCompany;
+      resolvedEmpresaId = empresaId || providedCompany.id;
+    } else {
+      return new Response(JSON.stringify({ error: "Either company or empresaId is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     console.log("=== GENERATE ARTICLE EMPRESA ===");
     console.log("Company:", company.name);
@@ -677,7 +792,8 @@ serve(async (req) => {
     console.log("Location:", company.location);
     console.log("Include featured image:", company.include_featured_image);
     console.log("Provided topic:", providedTopic);
-    console.log("Empresa ID for topic history:", empresaId || "not provided");
+    console.log("Empresa ID for topic history:", resolvedEmpresaId || "not provided");
+    console.log("Is Scheduled:", isScheduled);
 
     const monthNameEs = MONTH_NAMES_ES[month - 1];
     const monthNameCa = MONTH_NAMES_CA[month - 1];
@@ -698,9 +814,9 @@ serve(async (req) => {
       
       // Fetch used topics if empresaId provided and usedTopics not already passed
       let usedTopicsList: string[] = usedTopics;
-      if (empresaId && usedTopicsList.length === 0) {
-        usedTopicsList = await getUsedTopicsForEmpresa(supabase, empresaId);
-        console.log(`Found ${usedTopicsList.length} previously used topics for empresa ${empresaId}`);
+      if (resolvedEmpresaId && usedTopicsList.length === 0) {
+        usedTopicsList = await getUsedTopicsForEmpresa(supabase, resolvedEmpresaId);
+        console.log(`Found ${usedTopicsList.length} previously used topics for empresa ${resolvedEmpresaId}`);
       }
       
       // Build used topics section for prompt
@@ -1234,6 +1350,47 @@ REGLAS:
       pexels_query: pexelsQuery,
       topic: topic,
     };
+
+    // If scheduled execution, save to DB and send notification
+    if (isScheduled && resolvedEmpresaId) {
+      console.log("Scheduled mode: Saving article to database...");
+      
+      const now = new Date();
+      const dayOfMonth = now.getDate();
+      const weekOfMonth = Math.ceil(dayOfMonth / 7);
+      
+      const { error: insertError } = await supabase
+        .from("articulos_empresas")
+        .insert({
+          empresa_id: resolvedEmpresaId,
+          topic: topic || "Artículo automático",
+          month: month,
+          year: year,
+          day_of_month: dayOfMonth,
+          week_of_month: weekOfMonth,
+          content_spanish: spanishArticle,
+          content_catalan: catalanArticle,
+          image_url: imageResult?.url,
+          image_photographer: imageResult?.photographer,
+          image_photographer_url: imageResult?.photographer_url,
+          pexels_query: pexelsQuery,
+        });
+
+      if (insertError) {
+        console.error("Error saving article to DB:", insertError);
+      } else {
+        console.log("Article saved to database successfully");
+      }
+
+      // Send notification email
+      const excerpt = spanishArticle?.meta_description || spanishArticle?.content?.substring(0, 150) || "";
+      await sendMKProNotification(
+        company.name,
+        spanishArticle?.title || "Artículo generado",
+        excerpt,
+        company.blog_url
+      );
+    }
 
     console.log("=== ARTICLE GENERATION COMPLETE ===");
 

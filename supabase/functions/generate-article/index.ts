@@ -1,10 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// MKPro notification email
+const NOTIFICATION_EMAIL = "controlkotler@gmail.com";
 
 interface TopicData {
   tema: string;
@@ -13,6 +17,7 @@ interface TopicData {
 }
 
 interface PharmacyData {
+  id?: string;
   name: string;
   location?: string | null;
   sector?: string;
@@ -23,13 +28,74 @@ interface PharmacyData {
 }
 
 interface RequestBody {
-  pharmacy: PharmacyData;
-  topic: TopicData | null;
+  pharmacy?: PharmacyData;
+  pharmacyId?: string; // For scheduler: lookup pharmacy by ID
+  topic?: TopicData | null;
   month: number;
   year: number;
   usedImageUrls?: string[];
   autoGenerateTopic?: boolean;
-  skipImage?: boolean; // New: skip image generation
+  skipImage?: boolean;
+  isScheduled?: boolean; // Flag for scheduled execution
+}
+
+// Send notification email for MKPro
+async function sendMKProNotification(
+  pharmacyName: string,
+  articleTitle: string,
+  articleExcerpt: string,
+  wpUrl?: string | null
+): Promise<void> {
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  if (!RESEND_API_KEY) {
+    console.log("RESEND_API_KEY not configured, skipping notification");
+    return;
+  }
+
+  try {
+    const resend = new Resend(RESEND_API_KEY);
+    
+    const wpSection = wpUrl 
+      ? `<p style="margin: 20px 0;"><a href="${wpUrl}" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ver en WordPress →</a></p>`
+      : '';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 30px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 24px;">📝 Artículo Generado</h1>
+    </div>
+    <div style="padding: 30px;">
+      <p style="color: #374151; font-size: 16px; margin-bottom: 20px;">
+        Se ha generado un nuevo artículo para <strong>${pharmacyName}</strong>:
+      </p>
+      <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+        <h2 style="color: #1f2937; margin: 0 0 10px 0; font-size: 18px;">${articleTitle}</h2>
+        <p style="color: #6b7280; margin: 0; font-size: 14px;">${articleExcerpt || 'Artículo generado automáticamente'}</p>
+      </div>
+      ${wpSection}
+      <p style="color: #9ca3af; font-size: 12px; margin-top: 30px; text-align: center;">
+        MKPro - Generación automática de contenido
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    await resend.emails.send({
+      from: "Blooglee <hola@blooglee.com>",
+      to: [NOTIFICATION_EMAIL],
+      subject: `✅ Artículo generado: ${pharmacyName}`,
+      html,
+    });
+
+    console.log("Notification email sent to:", NOTIFICATION_EMAIL);
+  } catch (error) {
+    console.error("Error sending notification email:", error);
+  }
 }
 
 // Fallback queries for when AI query generation fails
@@ -91,10 +157,13 @@ serve(async (req) => {
   }
 
   try {
-    const { pharmacy, topic: providedTopic, month, year, usedImageUrls = [], autoGenerateTopic, skipImage }: RequestBody = await req.json();
+    const requestBody: RequestBody = await req.json();
+    const { pharmacyId, pharmacy: providedPharmacy, topic: providedTopic, month, year, usedImageUrls = [], autoGenerateTopic, skipImage, isScheduled } = requestBody;
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -102,6 +171,58 @@ serve(async (req) => {
     if (!UNSPLASH_ACCESS_KEY && !skipImage) {
       throw new Error("UNSPLASH_ACCESS_KEY is not configured");
     }
+
+    // Create Supabase client for DB operations
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // Get pharmacy data - either from request or lookup by ID
+    let pharmacy: PharmacyData;
+    let farmaciaId: string | undefined;
+
+    if (pharmacyId) {
+      // Scheduler mode: lookup pharmacy by ID
+      console.log("=== SCHEDULER MODE: Looking up pharmacy by ID ===");
+      console.log("Pharmacy ID:", pharmacyId);
+      
+      const { data: farmaciaData, error: farmaciaError } = await supabase
+        .from("farmacias")
+        .select("*")
+        .eq("id", pharmacyId)
+        .single();
+      
+      if (farmaciaError || !farmaciaData) {
+        console.error("Farmacia not found:", farmaciaError);
+        return new Response(JSON.stringify({ error: "Farmacia not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      pharmacy = {
+        id: farmaciaData.id,
+        name: farmaciaData.name,
+        location: farmaciaData.location,
+        languages: farmaciaData.languages || ["spanish"],
+        blog_url: farmaciaData.blog_url,
+        instagram_url: farmaciaData.instagram_url,
+        sector: "farmacia",
+        geographic_scope: "local",
+      };
+      farmaciaId = pharmacyId;
+    } else if (providedPharmacy) {
+      // Manual mode: use provided pharmacy data
+      pharmacy = providedPharmacy;
+      farmaciaId = providedPharmacy.id;
+    } else {
+      return new Response(JSON.stringify({ error: "Either pharmacy or pharmacyId is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("=== GENERATE ARTICLE (FARMACIA) ===");
+    console.log("Pharmacy:", pharmacy.name);
+    console.log("Is Scheduled:", isScheduled);
 
     // Get date context
     const monthNames = [
@@ -757,6 +878,44 @@ REGLAS:
       console.log("Article generated with image:", imageData?.url?.substring(0, 60));
     } else {
       console.log("Skipping image generation as requested");
+    }
+
+    // If scheduled execution, save to DB and send notification
+    if (isScheduled && farmaciaId) {
+      console.log("Scheduled mode: Saving article to database...");
+      
+      const now = new Date();
+      const dayOfMonth = now.getDate();
+      
+      const { error: insertError } = await supabase
+        .from("articulos")
+        .insert({
+          farmacia_id: farmaciaId,
+          topic: topic?.tema || "Artículo automático",
+          month: currentMonth,
+          year: currentYear,
+          content_spanish: spanishArticle,
+          content_catalan: catalanArticle,
+          image_url: imageData?.url,
+          image_photographer: imageData?.photographer,
+          image_photographer_url: imageData?.photographer_url,
+          pexels_query: aiGeneratedQuery,
+        });
+
+      if (insertError) {
+        console.error("Error saving article to DB:", insertError);
+      } else {
+        console.log("Article saved to database successfully");
+      }
+
+      // Send notification email
+      const excerpt = spanishArticle?.meta_description || spanishArticle?.content?.substring(0, 150) || "";
+      await sendMKProNotification(
+        pharmacy.name,
+        spanishArticle?.title || "Artículo generado",
+        excerpt,
+        pharmacy.blog_url
+      );
     }
 
     return new Response(

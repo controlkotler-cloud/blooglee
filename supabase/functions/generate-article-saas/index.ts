@@ -139,6 +139,8 @@ interface RequestBody {
   topic?: string | null;
   month: number;
   year: number;
+  isScheduled?: boolean;  // Flag for scheduled execution
+  userId?: string;         // User ID passed by scheduler
 }
 
 // Check if user has admin role
@@ -365,6 +367,7 @@ serve(async (req) => {
     const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
@@ -373,50 +376,67 @@ serve(async (req) => {
       });
     }
 
-    // Validate JWT and get user
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
-        status: 401, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    // Parse request body first to check for scheduler mode
+    const requestBody: RequestBody = await req.json();
+    const { isScheduled, userId: schedulerUserId } = requestBody;
+
+    let supabase: any;
+    let userId: string;
+
+    if (isScheduled && schedulerUserId && SUPABASE_SERVICE_ROLE_KEY) {
+      // Scheduler mode: use service role and passed userId
+      console.log("=== SCHEDULER MODE ===");
+      supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+      userId = schedulerUserId;
+      console.log("Using scheduler userId:", userId);
+    } else {
+      // Normal mode: validate JWT and get user
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+          status: 401, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        });
+      }
+
+      supabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+        global: { headers: { Authorization: authHeader } }
       });
+
+      const token = authHeader.replace('Bearer ', '');
+      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+      
+      if (claimsError || !claimsData?.claims) {
+        console.error("Auth error:", claimsError);
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+          status: 401, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        });
+      }
+
+      userId = claimsData.claims.sub as string;
+
+      // Rate limit check per user (skip for scheduled jobs)
+      const rateLimitResult = checkUserRateLimit(userId);
+      if (!rateLimitResult.allowed) {
+        console.log(`Rate limit exceeded for user: ${userId}`);
+        return new Response(
+          JSON.stringify({ error: "Demasiadas peticiones. Por favor, espera un momento." }),
+          { 
+            status: 429, 
+            headers: { 
+              ...corsHeaders, 
+              "Content-Type": "application/json",
+              "Retry-After": String(rateLimitResult.retryAfter || 60)
+            } 
+          }
+        );
+      }
     }
 
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    
-    if (claimsError || !claimsData?.claims) {
-      console.error("Auth error:", claimsError);
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
-        status: 401, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      });
-    }
-
-    const userId = claimsData.claims.sub as string;
     console.log("=== GENERATE ARTICLE SAAS ===");
     console.log("User ID:", userId);
-
-    // Rate limit check per user
-    const rateLimitResult = checkUserRateLimit(userId);
-    if (!rateLimitResult.allowed) {
-      console.log(`Rate limit exceeded for user: ${userId}`);
-      return new Response(
-        JSON.stringify({ error: "Demasiadas peticiones. Por favor, espera un momento." }),
-        { 
-          status: 429, 
-          headers: { 
-            ...corsHeaders, 
-            "Content-Type": "application/json",
-            "Retry-After": String(rateLimitResult.retryAfter || 60)
-          } 
-        }
-      );
-    }
+    console.log("Is Scheduled:", isScheduled);
 
     const { siteId, topic: providedTopic, month, year }: RequestBody = await req.json();
     console.log("Site ID:", siteId);
