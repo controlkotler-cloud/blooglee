@@ -1,291 +1,213 @@
 
 
-# Plan: Arquitectura de Crons Individuales por Entidad
+# Plan: Programacion Personalizada de Dia y Hora por Site
 
-## Resumen Ejecutivo
+## Objetivo
 
-Vamos a cambiar de un cron monolitico que procesa todo junto a una arquitectura donde cada entidad (farmacia, empresa, site) tiene su propia ejecucion independiente. Esto resuelve los timeouts y permite que cada cliente reciba su email de notificacion individual.
+Permitir que cada usuario seleccione de forma independiente y granular:
+1. **Frecuencia** (diaria, semanal, quincenal, mensual)
+2. **Dia especifico** (segun la frecuencia elegida)
+3. **Hora de publicacion** (personalizada por site)
 
----
-
-## Problema Actual
-
-1. **Un solo cron** llama a `generate-monthly-articles` que intenta procesar 31 entidades secuencialmente
-2. **Timeout de 5 segundos** del `pg_net` corta la conexion antes de que termine
-3. **Todo o nada**: si falla una entidad, puede afectar a las siguientes
-4. **Emails mezclados**: MKPro recibe un resumen de todo, pero los usuarios SaaS no reciben nada
+Esto distribuira la carga del sistema y evitara que todos los sites publiquen al mismo momento.
 
 ---
 
-## Solucion: Cron Dispatcher + Edge Functions Independientes
+## Cambios en la Base de Datos
 
-### Nueva Arquitectura
+### Nuevas columnas en tabla `sites`
 
-```text
-09:00 UTC - Cron unico (5 segundos)
-    |
-    v
-generate-scheduler (nueva funcion)
-    |
-    +-- Consulta farmacias con auto_generate=true
-    +-- Consulta empresas con auto_generate=true  
-    +-- Consulta sites con auto_generate=true
-    |
-    v
-Para CADA entidad que toca hoy:
-    - Dispara HTTP async (fire-and-forget)
-    - No espera respuesta
-    |
-    +---> generate-article (farmacia X) --> Email a control@mkpro.es
-    +---> generate-article (farmacia Y) --> Email a control@mkpro.es
-    +---> generate-article-empresa (empresa Z) --> Email a control@mkpro.es
-    +---> generate-article-saas (site A) --> Email a usuario@email.com
-    +---> generate-article-saas (site B) --> Email a otro@email.com
-    
-09:15 UTC - Cron blog Blooglee
-    +---> generate-blog-blooglee (empresas)
-    +---> generate-blog-blooglee (agencias)
-    
-09:25 UTC - Cron newsletter
-    +---> send-newsletter (a suscriptores del blog)
-```
+| Columna | Tipo | Default | Descripcion |
+|---------|------|---------|-------------|
+| `publish_day_of_week` | integer | NULL | 0-6 (Dom-Sab) para semanal/quincenal |
+| `publish_day_of_month` | integer | NULL | 1-31 para mensual con dia fijo |
+| `publish_week_of_month` | integer | NULL | 1-4 para mensual con semana especifica |
+| `publish_hour_utc` | integer | 9 | Hora UTC (0-23) para publicacion |
 
-### Ventajas
+### Logica de combinacion
 
-| Aspecto | Antes | Despues |
-|---------|-------|---------|
-| Timeout | 5s mata todo | Dispatcher < 5s, cada funcion corre independiente |
-| Paralelismo | Secuencial (1 a 1) | Todas las entidades en paralelo |
-| Emails | Resumen MKPro unico | Email individual por cliente |
-| Fallos | Si falla 1, puede afectar resto | Cada entidad aislada |
-| Debugging | Logs mezclados | Logs por entidad |
+- **Diario/Diario L-V**: Solo usa `publish_hour_utc`
+- **Semanal**: Usa `publish_day_of_week` + `publish_hour_utc`
+- **Quincenal**: Usa `publish_day_of_week` + semanas 1 y 3 + `publish_hour_utc`
+- **Mensual (dia fijo)**: Usa `publish_day_of_month` + `publish_hour_utc`
+- **Mensual (dia de semana)**: Usa `publish_day_of_week` + `publish_week_of_month` + `publish_hour_utc`
 
 ---
 
-## Cambios a Realizar
+## Cambios en el Frontend
 
-### 1. Nueva Edge Function: `generate-scheduler`
+### Componente `SiteSettings.tsx`
 
-Esta funcion ligera se ejecuta en menos de 5 segundos:
+Nueva seccion "Programacion de publicacion" con:
+
+1. **Frecuencia** (select existente, sin cambios)
+
+2. **Dia de publicacion** (condicional segun frecuencia):
+   - Para `weekly` / `biweekly`: Select con dias de la semana (Lunes a Domingo)
+   - Para `monthly`: Radio para elegir entre:
+     - "Dia fijo del mes" + input numerico (1-28)
+     - "Dia de la semana" + select dia + select semana (1era, 2da, 3era, 4ta)
+
+3. **Hora de publicacion**: Select con horas (00:00 a 23:00 en bloques de 1h)
+   - Mostrar hora local del usuario con conversion a UTC
+
+---
+
+## Cambios en el Backend
+
+### Edge Function `generate-scheduler`
+
+Actualizar la logica de `shouldGenerateToday` para:
+
+1. Leer las nuevas columnas de cada site
+2. Comparar con la hora actual UTC
+3. Solo disparar si coincide dia Y hora
 
 ```typescript
-// Pseudocodigo
-async function handler(req) {
-  const supabase = createClient(...);
-  const now = new Date();
+function shouldGenerateNow(
+  site: SiteWithSchedule,
+  now: Date
+): boolean {
+  const currentHour = now.getUTCHours();
+  const publishHour = site.publish_hour_utc ?? 9;
   
-  // 1. Obtener todas las entidades con auto_generate
-  const farmacias = await getFarmaciasToGenerate(now);
-  const empresas = await getEmpresasToGenerate(now);
-  const sites = await getSitesToGenerate(now);
-  
-  // 2. Disparar cada una SIN esperar respuesta (fire-and-forget)
-  for (const farmacia of farmacias) {
-    fetch(generateArticleUrl, {
-      method: "POST",
-      body: JSON.stringify({ pharmacyId: farmacia.id }),
-    }); // No await - fire and forget
+  // Solo generar en la hora configurada
+  if (currentHour !== publishHour) {
+    return false;
   }
   
-  for (const empresa of empresas) {
-    fetch(generateArticleEmpresaUrl, {
-      method: "POST", 
-      body: JSON.stringify({ empresaId: empresa.id }),
-    }); // No await
-  }
-  
-  for (const site of sites) {
-    fetch(generateArticleSaasUrl, {
-      method: "POST",
-      body: JSON.stringify({ siteId: site.id }),
-    }); // No await
-  }
-  
-  // 3. Devolver inmediatamente
-  return Response.json({ 
-    dispatched: {
-      farmacias: farmacias.length,
-      empresas: empresas.length,
-      sites: sites.length
-    }
-  });
+  // Logica de dia segun frecuencia...
 }
 ```
 
-### 2. Modificar `generate-article` (Farmacias)
+### Cron del Scheduler
 
-Cambios necesarios:
-- Aceptar `pharmacyId` como parametro para generar UNA sola farmacia
-- Enviar email individual al terminar (a `controlkotler@gmail.com` para MKPro)
-- Mantener compatibilidad con llamadas manuales desde el panel
-
-### 3. Modificar `generate-article-empresa` (Empresas MKPro)
-
-Cambios necesarios:
-- Aceptar `empresaId` como parametro para generar UNA sola empresa
-- Enviar email individual al terminar (a `controlkotler@gmail.com` para MKPro)
-
-### 4. Modificar `generate-article-saas` (Sites Blooglee)
-
-Ya tiene la logica correcta:
-- Acepta `siteId`
-- Ya envia email al usuario propietario del site
-- Solo verificar que funciona bien con el dispatcher
-
-### 5. Modificar SQL de Crons
+Cambiar de ejecutarse 1 vez al dia (09:00) a ejecutarse **cada hora**:
 
 ```sql
--- Eliminar cron actual
-SELECT cron.unschedule('generate-articles-daily');
-
--- Nuevo cron 1: Dispatcher a las 09:00
+-- Ejecutar cada hora en punto
 SELECT cron.schedule(
   'dispatch-article-generation',
-  '0 9 * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://gqtikajhhggyoiypkbgw.supabase.co/functions/v1/generate-scheduler',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer ANON_KEY"}'::jsonb,
-    body := '{}'::jsonb,
-    timeout_milliseconds := 10000
-  );
-  $$
-);
-
--- Nuevo cron 2: Blog Empresas a las 09:15
-SELECT cron.schedule(
-  'generate-blog-empresas',
-  '15 9 * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://gqtikajhhggyoiypkbgw.supabase.co/functions/v1/generate-blog-blooglee',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer ANON_KEY"}'::jsonb,
-    body := '{"audience": "empresas"}'::jsonb,
-    timeout_milliseconds := 180000
-  );
-  $$
-);
-
--- Nuevo cron 3: Blog Agencias a las 09:17
-SELECT cron.schedule(
-  'generate-blog-agencias',
-  '17 9 * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://gqtikajhhggyoiypkbgw.supabase.co/functions/v1/generate-blog-blooglee',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer ANON_KEY"}'::jsonb,
-    body := '{"audience": "agencias"}'::jsonb,
-    timeout_milliseconds := 180000
-  );
-  $$
-);
-
--- Nuevo cron 4: Newsletter a las 09:25
-SELECT cron.schedule(
-  'send-daily-newsletter',
-  '25 9 * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://gqtikajhhggyoiypkbgw.supabase.co/functions/v1/send-newsletter',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer ANON_KEY"}'::jsonb,
-    body := '{}'::jsonb,
-    timeout_milliseconds := 120000
-  );
-  $$
+  '0 * * * *',  -- Cada hora
+  ...
 );
 ```
 
----
-
-## Flujo de Emails Resultante
-
-### MKPro (Farmacias y Empresas)
-
-Cada vez que se genera un articulo para una farmacia o empresa MKPro:
-- Email a: `controlkotler@gmail.com`
-- Asunto: "Articulo generado para [Nombre Farmacia/Empresa]"
-- Contenido: Titulo, resumen, link a WordPress si se publico
-
-### Blooglee SaaS (Sites)
-
-Cada vez que se genera un articulo para un site SaaS:
-- Email a: email del usuario propietario del site
-- Asunto: "Tu articulo esta listo - [Nombre Site]"
-- Contenido: Titulo, resumen, link al panel
-
-### Newsletter Suscriptores (Blog Blooglee)
-
-A las 09:25 UTC cada dia:
-- Email a: todos los suscriptores activos
-- Segmentado por audiencia (Empresas o Agencias)
-- Contenido: Posts del blog publicados hoy
+El scheduler verificara para cada site si coincide su `publish_hour_utc` con la hora actual.
 
 ---
 
-## Archivos a Crear/Modificar
+## Flujo de Usuario
 
-| Archivo | Accion | Descripcion |
-|---------|--------|-------------|
-| `supabase/functions/generate-scheduler/index.ts` | CREAR | Nueva funcion dispatcher |
-| `supabase/functions/generate-article/index.ts` | MODIFICAR | Aceptar pharmacyId, enviar email individual |
-| `supabase/functions/generate-article-empresa/index.ts` | MODIFICAR | Aceptar empresaId, enviar email individual |
-| `supabase/functions/generate-article-saas/index.ts` | VERIFICAR | Ya tiene logica correcta |
-| `supabase/functions/generate-blog-blooglee/index.ts` | VERIFICAR | Aceptar parametro audience |
-| SQL Crons | EJECUTAR | Reemplazar cron unico por 4 crons especializados |
-| `supabase/functions/generate-monthly-articles/index.ts` | DEPRECAR | Ya no se usara para automatizacion |
+1. Usuario va a Configuracion del Site
+2. Selecciona frecuencia (ej: "Semanal")
+3. Aparece selector de dia: "Miercoles"
+4. Selecciona hora: "10:00 (hora local)" -> se guarda como 9 UTC
+5. El scheduler ejecuta cada hora y solo dispara este site los miercoles a las 9 UTC
 
 ---
 
-## Seccion Tecnica: Logica de shouldGenerate
+## Archivos a Modificar
 
-La funcion `generate-scheduler` debe incluir la misma logica de verificacion de frecuencia que ya existe:
+| Archivo | Cambios |
+|---------|---------|
+| `src/components/saas/SiteSettings.tsx` | Anadir UI para dia y hora |
+| `src/hooks/useSites.ts` | Anadir nuevos campos al tipo Site |
+| `supabase/functions/generate-scheduler/index.ts` | Nueva logica shouldGenerateNow |
+| SQL Migration | Nuevas columnas en tabla sites |
+| SQL Cron Update | Cambiar de diario a cada hora |
+
+---
+
+## Consideraciones Adicionales
+
+### Timezone del usuario
+- Mostrar hora en timezone local del usuario
+- Guardar siempre en UTC en la base de datos
+- Usar `Intl.DateTimeFormat` para detectar timezone
+
+### Valores por defecto
+- Nuevos sites: hora aleatoria entre 7:00-18:00 UTC para distribuir carga
+- Sites existentes: mantener 09:00 UTC como default
+
+### Farmacias y Empresas (MKPro)
+- Mantener logica actual (primer lunes del mes a las 09:00)
+- No se modifican tablas protegidas
+
+---
+
+## Seccion Tecnica
+
+### Estructura de datos ampliada
 
 ```typescript
-async function shouldGenerateToday(
-  entity: { id: string; publish_frequency: string },
-  entityType: 'farmacia' | 'empresa' | 'site',
-  now: Date
-): Promise<boolean> {
-  const dayOfWeek = now.getDay();
-  const dayOfMonth = now.getDate();
-  
-  switch (entity.publish_frequency) {
+interface SiteSchedule {
+  publish_frequency: 'daily' | 'daily_weekdays' | 'weekly' | 'biweekly' | 'monthly';
+  publish_day_of_week: number | null;    // 0-6 (Dom-Sab)
+  publish_day_of_month: number | null;   // 1-31
+  publish_week_of_month: number | null;  // 1-4
+  publish_hour_utc: number;              // 0-23
+}
+```
+
+### Logica del Scheduler
+
+```typescript
+function shouldGenerateNow(site: SiteWithSchedule, now: Date): boolean {
+  const currentHour = now.getUTCHours();
+  const currentDayOfWeek = now.getUTCDay();
+  const currentDayOfMonth = now.getUTCDate();
+  const currentWeekOfMonth = Math.ceil(currentDayOfMonth / 7);
+
+  // Verificar hora
+  if (currentHour !== (site.publish_hour_utc ?? 9)) {
+    return false;
+  }
+
+  switch (site.publish_frequency) {
     case 'daily':
       return true;
-      
+
     case 'daily_weekdays':
-      return dayOfWeek >= 1 && dayOfWeek <= 5;
-      
+      return currentDayOfWeek >= 1 && currentDayOfWeek <= 5;
+
     case 'weekly':
-      return dayOfWeek === 1; // Lunes
-      
+      return currentDayOfWeek === (site.publish_day_of_week ?? 1);
+
     case 'biweekly':
-      const weekNumber = Math.ceil(dayOfMonth / 7);
-      return dayOfWeek === 1 && (weekNumber === 1 || weekNumber === 3);
-      
+      return currentDayOfWeek === (site.publish_day_of_week ?? 1) 
+        && (currentWeekOfMonth === 1 || currentWeekOfMonth === 3);
+
     case 'monthly':
-      // Primer lunes del mes
-      return dayOfWeek === 1 && dayOfMonth <= 7;
-      
+      if (site.publish_day_of_month) {
+        // Dia fijo del mes
+        return currentDayOfMonth === site.publish_day_of_month;
+      } else {
+        // Dia de semana especifico
+        return currentDayOfWeek === (site.publish_day_of_week ?? 1)
+          && currentWeekOfMonth === (site.publish_week_of_month ?? 1);
+      }
+
     default:
       return false;
   }
 }
 ```
 
-Ademas, debe verificar que no exista ya un articulo generado hoy para esa entidad.
+### Migracion SQL
 
----
+```sql
+ALTER TABLE sites
+ADD COLUMN publish_day_of_week integer,
+ADD COLUMN publish_day_of_month integer,
+ADD COLUMN publish_week_of_month integer,
+ADD COLUMN publish_hour_utc integer DEFAULT 9;
 
-## Resultado Esperado
-
-Despues de implementar estos cambios:
-
-1. **09:00 UTC** - El dispatcher se ejecuta en menos de 5 segundos
-2. **09:00-09:15 UTC** - Todas las entidades se generan en paralelo
-3. **Cada entidad** recibe su email individual al completarse
-4. **09:15-09:20 UTC** - Se generan los posts del blog Blooglee
-5. **09:25 UTC** - Se envian las newsletters a suscriptores
-6. **Sin timeouts** - Cada funcion corre independiente
-7. **Facil debugging** - Logs separados por entidad
+-- Constraint para validar rangos
+ALTER TABLE sites
+ADD CONSTRAINT check_day_of_week CHECK (publish_day_of_week IS NULL OR (publish_day_of_week >= 0 AND publish_day_of_week <= 6)),
+ADD CONSTRAINT check_day_of_month CHECK (publish_day_of_month IS NULL OR (publish_day_of_month >= 1 AND publish_day_of_month <= 31)),
+ADD CONSTRAINT check_week_of_month CHECK (publish_week_of_month IS NULL OR (publish_week_of_month >= 1 AND publish_week_of_month <= 4)),
+ADD CONSTRAINT check_hour_utc CHECK (publish_hour_utc >= 0 AND publish_hour_utc <= 23);
+```
 
