@@ -1,92 +1,171 @@
 
 
-# Plan: Insertar Prompts Iniciales en la Base de Datos
+# Plan: Añadir Publicación Automática a WordPress en Edge Functions
 
-## Problema
+## Problema Detectado
 
-La tabla `prompts` está vacía. Creamos la estructura pero no insertamos los prompts que actualmente están hardcodeados en las Edge Functions. Por eso la página `/admin/prompts` muestra "No hay prompts".
+La prueba de hoy reveló que:
+- Los articulos se generaron correctamente
+- Los emails de notificacion llegaron
+- PERO los posts NO se publicaron en WordPress
 
-## Solución
+**Causa raiz**: Las funciones `generate-article` y `generate-article-empresa` que usa el `generate-scheduler` NO incluyen la logica de publicacion a WordPress. Solo:
+1. Generan el articulo con IA
+2. Lo guardan en la base de datos
+3. Envian email de notificacion
 
-Ejecutar una migración SQL que inserte todos los prompts identificados en las Edge Functions como datos iniciales.
+La funcion `generate-monthly-articles` SI tiene la logica de publicacion, pero el scheduler moderno usa las funciones individuales por separado.
 
----
+## Solucion Propuesta
 
-## Prompts a Insertar
-
-Basándome en el análisis de las Edge Functions, estos son los prompts que debemos insertar:
-
-| Key | Nombre | Categoría | Variables |
-|-----|--------|-----------|-----------|
-| `generate-article.system.es` | Sistema Farmacia ES | farmacias | `{{dateContext}}`, `{{geoContext}}` |
-| `generate-article.user.es` | Usuario Farmacia ES | farmacias | `{{pharmacy.name}}`, `{{pharmacy.location}}`, `{{topic}}`, `{{keywords}}`, `{{dateContext}}`, `{{geoContext}}` |
-| `generate-article.topic` | Generador Temas Farmacia | farmacias | `{{pharmacy.name}}`, `{{sector}}`, `{{location}}`, `{{month}}`, `{{year}}` |
-| `generate-article-empresa.system.es` | Sistema Empresa ES | empresas | `{{dateContext}}`, `{{geoContext}}`, `{{sectorContext}}` |
-| `generate-article-empresa.topic` | Generador Temas Empresa | empresas | `{{company.name}}`, `{{sector}}`, `{{location}}`, `{{month}}`, `{{year}}`, `{{usedTopics}}` |
-| `generate-article-saas.system.es` | Sistema SaaS ES | saas | `{{dateContext}}`, `{{geoContext}}`, `{{sectorContext}}` |
-| `generate-article-saas.topic` | Generador Temas SaaS | saas | `{{site.name}}`, `{{sector}}`, `{{description}}`, `{{month}}`, `{{year}}`, `{{usedTopics}}` |
-| `generate-blog.metadata` | Blog Metadatos | blog | `{{category}}`, `{{usedTopics}}`, `{{year}}`, `{{forceCategory}}` |
-| `generate-blog.content` | Blog Contenido | blog | `{{title}}`, `{{topic}}`, `{{category}}`, `{{year}}`, `{{monthName}}` |
-| `generate-blog.image` | Blog Imagen AI | blog | `{{topic}}`, `{{category}}` |
-| `support-chatbot.system` | Chatbot Soporte | soporte | `{{articlesContext}}`, `{{errorContext}}` |
+Añadir la logica de publicacion automatica a WordPress en las funciones `generate-article` y `generate-article-empresa` cuando se ejecutan en modo programado (`isScheduled: true`).
 
 ---
 
-## Migración SQL
+## Cambios Necesarios
 
-Se ejecutará una migración que inserta cada prompt con su contenido completo extraído de las Edge Functions. Cada prompt tendrá:
+### 1. Modificar `generate-article/index.ts`
 
-- `key`: Identificador único para referenciarlo desde las Edge Functions
-- `name`: Nombre legible para el panel de admin
-- `description`: Descripción del propósito del prompt
-- `category`: Categoría para filtrar (farmacias, empresas, saas, blog, soporte)
-- `content`: El texto completo del prompt
-- `variables`: Array JSON con las variables disponibles
-- `is_active`: true para que se usen por defecto
-- `version`: 1 para la versión inicial
+Añadir despues de guardar el articulo en la BD (linea ~919):
+
+```typescript
+// Si tiene WordPress configurado, publicar automaticamente
+if (isScheduled && farmaciaId && spanishArticle) {
+  const { data: wpSite } = await supabase
+    .from("wordpress_sites")
+    .select("*")
+    .eq("farmacia_id", farmaciaId)
+    .maybeSingle();
+
+  if (wpSite) {
+    // Obtener taxonomias
+    const { categoryIds, tagIds } = await getTaxonomiesForPublish(...);
+    
+    // Publicar en español
+    await fetch(`${SUPABASE_URL}/functions/v1/publish-to-wordpress`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+      body: JSON.stringify({
+        farmacia_id: farmaciaId,
+        title: spanishArticle.title,
+        content: spanishArticle.content,
+        slug: spanishArticle.slug,
+        status: "publish",
+        image_url: imageData?.url,
+        image_alt: spanishArticle.title,
+        meta_description: spanishArticle.meta_description,
+        lang: "es",
+        category_ids: categoryIds,
+        tag_ids: tagIds,
+      }),
+    });
+
+    // Si hay catalan, publicar tambien
+    if (catalanArticle) {
+      await fetch(publishUrl, {
+        // ... datos en catalan con slug-ca
+      });
+    }
+  }
+}
+```
+
+### 2. Modificar `generate-article-empresa/index.ts`
+
+Mismo patron: buscar `wordpress_sites` por `empresa_id` y publicar automaticamente.
 
 ---
 
-## Ejemplo de Inserción
+## Flujo Corregido
 
-```sql
-INSERT INTO prompts (key, name, description, category, content, variables, is_active, version) VALUES
-(
-  'support-chatbot.system',
-  'Chatbot Soporte - Sistema',
-  'Prompt del sistema para el chatbot de soporte de Blooglee',
-  'soporte',
-  'Eres Bloobot, el asistente de soporte de Blooglee...', -- contenido completo
-  '["{{articlesContext}}", "{{errorContext}}"]'::jsonb,
-  true,
-  1
-);
+```text
+generate-scheduler (cron cada hora)
+         |
+         v
+    +----+----+
+    |         |
+    v         v
+generate-article    generate-article-empresa
+    |                       |
+    v                       v
+1. Generar con IA    1. Generar con IA
+2. Guardar en BD     2. Guardar en BD
+3. Enviar email      3. Enviar email
+4. [NUEVO] Publicar WP   4. [NUEVO] Publicar WP
 ```
 
 ---
 
 ## Archivos a Modificar
 
-| Archivo | Acción | Descripción |
-|---------|--------|-------------|
-| Nueva migración SQL | CREAR | Insertar todos los prompts iniciales |
+| Archivo | Cambios |
+|---------|---------|
+| `supabase/functions/generate-article/index.ts` | Añadir logica de publicacion a WordPress |
+| `supabase/functions/generate-article-empresa/index.ts` | Añadir logica de publicacion a WordPress |
+
+---
+
+## Publicacion Manual de los Articulos de Hoy
+
+Ademas de corregir el codigo, puedo ejecutar la publicacion manual de los articulos generados hoy que no se publicaron:
+
+1. Obtener todos los articulos de febrero 2026 de farmacias
+2. Para cada uno que tenga WordPress configurado, llamar a `publish-to-wordpress`
+3. Hacer lo mismo para empresas
+
+---
+
+## Seccion Tecnica
+
+### Logica de Taxonomias
+
+Necesitamos añadir una funcion helper para seleccionar categorias/tags:
+
+```typescript
+async function getTaxonomiesForPublish(
+  supabase: any,
+  wpSiteId: string,
+  articleTitle: string,
+  articleContent: string
+): Promise<{ categoryIds: number[]; tagIds: number[] }> {
+  const { data: taxonomies } = await supabase
+    .from("wordpress_taxonomies")
+    .select("wp_id, name, taxonomy_type")
+    .eq("wordpress_site_id", wpSiteId);
+
+  if (!taxonomies?.length) return { categoryIds: [], tagIds: [] };
+
+  const categories = taxonomies.filter(t => t.taxonomy_type === "category");
+  const tags = taxonomies.filter(t => t.taxonomy_type === "tag");
+
+  // Usar primera categoria disponible o seleccion por IA
+  const categoryIds = categories.length > 0 ? [categories[0].wp_id] : [];
+  const tagIds = tags.length > 0 ? [tags[0].wp_id] : [];
+
+  return { categoryIds, tagIds };
+}
+```
+
+### Notificacion Mejorada con URL de WordPress
+
+El email de notificacion ya tiene placeholder para `wpUrl`, lo usaremos para incluir el link al post publicado:
+
+```typescript
+await sendMKProNotification(
+  pharmacy.name,
+  spanishArticle.title,
+  excerpt,
+  wpResult?.post_url || pharmacy.blog_url  // URL del post publicado
+);
+```
 
 ---
 
 ## Resultado Esperado
 
-Después de ejecutar la migración:
+Despues de implementar estos cambios:
 
-1. La página `/admin/prompts` mostrará todos los prompts organizados por categoría
-2. Podrás ver, editar y mejorar cada prompt sin tocar código
-3. Las Edge Functions seguirán funcionando con los prompts hardcodeados (fallback)
-4. Cuando actives la lectura desde BD en las Edge Functions, usarán estos prompts editables
-
----
-
-## Sección Técnica
-
-La migración insertará aproximadamente 11 prompts iniciales. Debido al tamaño de algunos prompts (el de chatbot tiene ~1500 caracteres, los de generación de artículos tienen ~2000+ caracteres), la migración será extensa pero contendrá todo el contenido necesario.
-
-Para mantener la compatibilidad hacia atrás, las Edge Functions NO se modificarán en este paso. Primero poblaremos la tabla y luego, en un paso posterior, actualizaremos las funciones para leer de la BD con fallback al hardcodeado.
+1. El proximo primer lunes del mes, los articulos se generaran Y publicaran automaticamente
+2. Los emails incluiran el link directo al post en WordPress
+3. Los articulos de hoy se pueden publicar manualmente ejecutando un script
 
