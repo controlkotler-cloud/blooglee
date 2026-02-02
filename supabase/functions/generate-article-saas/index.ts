@@ -438,7 +438,8 @@ serve(async (req) => {
     console.log("User ID:", userId);
     console.log("Is Scheduled:", isScheduled);
 
-    const { siteId, topic: providedTopic, month, year }: RequestBody = await req.json();
+    // Use data from already-parsed requestBody (avoid calling req.json() twice)
+    const { siteId, topic: providedTopic, month, year } = requestBody;
     console.log("Site ID:", siteId);
     console.log("Month/Year:", month, year);
 
@@ -743,7 +744,7 @@ RESPONDE EN JSON:
       seoLinksEs.push(`<a href="${site.blog_url}" target="_blank" rel="noopener">nuestro blog</a>`);
     }
     if (site.instagram_url) {
-      seoLinksEs.push(`<a href="${site.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
+      seoLinksEs.push(`<a href="${site.instagram_url}" target="_blank" rel="noopener">nuestras redes sociales</a>`);
     }
     
     if (seoLinksEs.length > 0) {
@@ -760,7 +761,7 @@ RESPONDE EN JSON:
         seoLinksCa.push(`<a href="${site.blog_url}" target="_blank" rel="noopener">el nostre blog</a>`);
       }
       if (site.instagram_url) {
-        seoLinksCa.push(`<a href="${site.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
+        seoLinksCa.push(`<a href="${site.instagram_url}" target="_blank" rel="noopener">les nostres xarxes socials</a>`);
       }
       
       if (seoLinksCa.length > 0) {

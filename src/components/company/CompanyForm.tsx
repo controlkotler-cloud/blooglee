@@ -388,12 +388,12 @@ export function CompanyForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="instagramUrl">URL de Instagram</Label>
+              <Label htmlFor="instagramUrl">Enlace a tu mejor red social</Label>
               <Input
                 id="instagramUrl"
                 value={instagramUrl}
                 onChange={(e) => setInstagramUrl(e.target.value)}
-                placeholder="https://instagram.com/clinicasonrie"
+                placeholder="https://instagram.com/tuempresa o tu red social preferida"
                 type="url"
               />
             </div>
