@@ -19,6 +19,7 @@ import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { SiteArticles } from '@/components/saas/SiteArticles';
 import { SiteSettings } from '@/components/saas/SiteSettings';
 import { WordPressConfigForm } from '@/components/saas/WordPressConfigForm';
+import { SupportChatProvider } from '@/components/saas/SupportChatWidget';
 import { toast } from 'sonner';
 
 export default function SiteDetail() {
@@ -76,120 +77,122 @@ export default function SiteDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/dashboard')}
+    <SupportChatProvider>
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <header className="border-b bg-card">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate('/dashboard')}
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+                <BloogleeLogo size="md" />
+              </div>
+
+              <Button 
+                onClick={handleGenerateArticle} 
+                disabled={isGenerating}
+                className={canGenerate 
+                  ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+                  : "border-amber-500/50 text-amber-700 hover:bg-amber-50"
+                }
+                variant={canGenerate ? "default" : "outline"}
               >
-                <ArrowLeft className="w-4 h-4" />
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
+                ) : canGenerate ? (
+                  <Sparkles className="w-4 h-4 sm:mr-2" />
+                ) : (
+                  <Lock className="w-4 h-4 sm:mr-2" />
+                )}
+                <span className="hidden sm:inline">
+                  {isGenerating ? 'Generando...' : canGenerate ? 'Generar artículo' : 'Configura WP primero'}
+                </span>
+                <span className="sm:hidden">
+                  {isGenerating ? '' : canGenerate ? 'Generar' : 'WP'}
+                </span>
               </Button>
-              <BloogleeLogo size="md" />
-            </div>
-
-            <Button 
-              onClick={handleGenerateArticle} 
-              disabled={isGenerating}
-              className={canGenerate 
-                ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
-                : "border-amber-500/50 text-amber-700 hover:bg-amber-50"
-              }
-              variant={canGenerate ? "default" : "outline"}
-            >
-              {isGenerating ? (
-                <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
-              ) : canGenerate ? (
-                <Sparkles className="w-4 h-4 sm:mr-2" />
-              ) : (
-                <Lock className="w-4 h-4 sm:mr-2" />
-              )}
-              <span className="hidden sm:inline">
-                {isGenerating ? 'Generando...' : canGenerate ? 'Generar artículo' : 'Configura WP primero'}
-              </span>
-              <span className="sm:hidden">
-                {isGenerating ? '' : canGenerate ? 'Generar' : 'WP'}
-              </span>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-6">
-        {/* Breadcrumb */}
-        <Breadcrumb className="mb-4">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{site.name}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        {/* Site header */}
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
-            <h1 className="text-2xl font-bold">{site.name}</h1>
-            <div className="flex items-center gap-2 flex-wrap">
-              {site.sector && (
-                <Badge variant="secondary">
-                  <Globe className="w-3 h-3 mr-1" />
-                  {site.sector}
-                </Badge>
-              )}
-              {site.location && (
-                <Badge variant="outline">
-                  <MapPin className="w-3 h-3 mr-1" />
-                  {site.location}
-                </Badge>
-              )}
-              {wpConfig && (
-                <Badge variant="outline" className="text-emerald-600 border-emerald-500/30">
-                  <Link2 className="w-3 h-3 mr-1" />
-                  WordPress
-                </Badge>
-              )}
             </div>
           </div>
-          <p className="text-muted-foreground">
-            {articles.length} artículos generados este mes
-          </p>
-        </div>
+        </header>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="articles">Artículos</TabsTrigger>
-            <TabsTrigger value="settings">Configuración</TabsTrigger>
-            <TabsTrigger value="wordpress">WordPress</TabsTrigger>
-          </TabsList>
+        <main className="container mx-auto px-4 py-6">
+          {/* Breadcrumb */}
+          <Breadcrumb className="mb-4">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{site.name}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
 
-          <TabsContent value="articles">
-            <SiteArticles
-              siteId={site.id}
-              siteName={site.name}
-              siteSector={site.sector || undefined}
-              onGenerateArticle={handleGenerateArticle}
-              isGenerating={isGenerating}
-            />
-          </TabsContent>
+          {/* Site header */}
+          <div className="mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
+              <h1 className="text-2xl font-bold">{site.name}</h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                {site.sector && (
+                  <Badge variant="secondary">
+                    <Globe className="w-3 h-3 mr-1" />
+                    {site.sector}
+                  </Badge>
+                )}
+                {site.location && (
+                  <Badge variant="outline">
+                    <MapPin className="w-3 h-3 mr-1" />
+                    {site.location}
+                  </Badge>
+                )}
+                {wpConfig && (
+                  <Badge variant="outline" className="text-emerald-600 border-emerald-500/30">
+                    <Link2 className="w-3 h-3 mr-1" />
+                    WordPress
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <p className="text-muted-foreground">
+              {articles.length} artículos generados este mes
+            </p>
+          </div>
 
-          <TabsContent value="settings">
-            <SiteSettings site={site} />
-          </TabsContent>
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="mb-6">
+              <TabsTrigger value="articles">Artículos</TabsTrigger>
+              <TabsTrigger value="settings">Configuración</TabsTrigger>
+              <TabsTrigger value="wordpress">WordPress</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="wordpress">
-            <WordPressConfigForm siteId={site.id} />
-          </TabsContent>
-        </Tabs>
-      </main>
-    </div>
+            <TabsContent value="articles">
+              <SiteArticles
+                siteId={site.id}
+                siteName={site.name}
+                siteSector={site.sector || undefined}
+                onGenerateArticle={handleGenerateArticle}
+                isGenerating={isGenerating}
+              />
+            </TabsContent>
+
+            <TabsContent value="settings">
+              <SiteSettings site={site} />
+            </TabsContent>
+
+            <TabsContent value="wordpress">
+              <WordPressConfigForm siteId={site.id} />
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
+    </SupportChatProvider>
   );
 }

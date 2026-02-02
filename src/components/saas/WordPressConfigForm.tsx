@@ -10,7 +10,7 @@ import { Loader2, Save, Unplug, ChevronDown, BookOpen, CheckCircle, XCircle, Ale
 import { useWordPressConfig, useUpsertWordPressConfig, useDeleteWordPressConfig } from '@/hooks/useWordPressConfigSaas';
 import { useWordPressHealthCheck, HealthCheckResult } from '@/hooks/useWordPressHealthCheck';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-
+import { WordPressTroubleshootPanel } from './WordPressTroubleshootPanel';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -451,6 +451,9 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
             )}
           </div>
         </form>
+
+        {/* Panel de ayuda para problemas */}
+        <WordPressTroubleshootPanel />
       </CardContent>
     </Card>
   );

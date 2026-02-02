@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
-import { useCreateSite } from '@/hooks/useSites';
+import { useCreateSite, useSites } from '@/hooks/useSites';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { Sparkles, ArrowRight, ArrowLeft, Globe, Languages, Building2, MapPin, Calendar } from 'lucide-react';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
-
+import { toast } from 'sonner';
 const SECTORS = [
   { value: 'farmacia', label: 'Farmacia', icon: '💊' },
   { value: 'clinica_dental', label: 'Clínica Dental', icon: '🦷' },
@@ -56,6 +57,18 @@ export default function Onboarding() {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Datos de perfil y sitios existentes para validación de límites
+  const { data: profile } = useProfile();
+  const { data: existingSites = [] } = useSites();
+  
+  // Validar límite de sitios al montar
+  useEffect(() => {
+    if (profile && existingSites.length >= profile.sites_limit) {
+      toast.error(`Has alcanzado el límite de ${profile.sites_limit} sitio(s) de tu plan`);
+      navigate('/dashboard');
+    }
+  }, [profile, existingSites, navigate]);
   
   // Step 1: Basic info
   const [name, setName] = useState('');
