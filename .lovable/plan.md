@@ -1,129 +1,165 @@
 
 
-# Plan: Corregir manualmente los posts con afirmaciones falsas de Blooglee
+# Plan: Actualizar precios y planes para el lanzamiento de Blooglee
 
-## Diagnóstico del problema
+## Resumen de cambios
 
-La Edge Function `fix-blog-false-claims` **no funcionó correctamente**. Al revisar los posts actuales, encontré que siguen conteniendo afirmaciones falsas como:
+| Plan | Antes | Después |
+|------|-------|---------|
+| **Free** | 1 artículo total | 1 mes gratis, hasta 4 artículos/mes |
+| **Starter** | SEO completo | SEO avanzado + Soporte por email |
+| **Pro** | 49€/39€ | Oferta lanzamiento: 29€ mensual / 39€ anual + Todo lo de Starter |
+| **Agencia** | API access, White-label disponible | White-label (sin "disponible"), Soporte prioritario, sin API |
 
-| Post | Afirmación Falsa | Por qué es Falso |
-|------|-----------------|------------------|
-| SEO Local | "Análisis predictivo - Anticipar demanda local" | Blooglee NO hace análisis predictivo |
-| SEO Local | "Monitorización de NAP" | Blooglee NO monitoriza datos de negocio local |
-| SEO Local | "Auditoría de citas NAP" | Blooglee NO hace auditorías SEO |
-| SEO Local | "Optimizar para fragmentos destacados" | Blooglee NO tiene optimización especial para snippets |
-| Reporting | "proponer ideas basadas en datos del informe" | Blooglee NO analiza datos ni métricas |
-| Reporting | "Sugerir los próximos pasos basándose en datos" | Blooglee NO hace recomendaciones basadas en analytics |
+## Cambios detallados por archivo
 
-## Causa raíz
+### 1. `src/pages/Pricing.tsx` - Página de precios pública
 
-El modelo de IA (Gemini 2.5 Flash) devuelve el contenido casi idéntico sin realizar las correcciones, y la función lo marca como "skipped" al comparar strings.
-
-## Solución propuesta
-
-### Parte 1: Mejorar la Edge Function de corrección
-
-Cambiar el modelo y reforzar el prompt para que sea más agresivo:
-
-1. **Usar GPT-5 en lugar de Gemini Flash** para correcciones (mejor seguimiento de instrucciones complejas)
-2. **Añadir ejemplos concretos de corrección** en el prompt
-3. **Forzar la actualización** incluso si el contenido parece similar (eliminar la comparación exacta)
-4. **Procesar post por post** para evitar timeouts y mejorar la precisión
-
-### Parte 2: Correcciones específicas a aplicar
-
-El prompt incluirá ejemplos concretos de cómo corregir:
-
+**Plan Free (líneas 59-78)**
 ```
-EJEMPLO DE CORRECCIÓN:
+Antes:
+- "1 artículo publicado"
+- Limitación: "Solo primer artículo"
 
-ORIGINAL (INCORRECTO):
-"Con Blooglee puedes monitorizar tus citas NAP y obtener alertas 
-cuando haya inconsistencias"
-
-CORREGIDO:
-"Existen herramientas especializadas que permiten monitorizar 
-citas NAP. Por otro lado, Blooglee puede ayudarte a generar 
-artículos de blog que refuercen tu presencia local con contenido 
-optimizado para tu zona geográfica."
-
-ORIGINAL (INCORRECTO):
-"Blooglee ofrece análisis predictivo para anticipar la demanda local"
-
-CORREGIDO:
-"Para análisis predictivo de demanda local, existen herramientas 
-especializadas de SEO. Blooglee complementa estas estrategias 
-permitiéndote generar artículos de blog localizados que posicionan 
-tu negocio en búsquedas geográficas."
+Después:
+- "1 mes gratis de prueba"
+- "Hasta 4 artículos/mes"
+- Sin limitación visible
+- CTA: "Empezar gratis"
 ```
 
-### Parte 3: Lista de términos prohibidos
+**Plan Starter (líneas 80-98)**
+```
+Después:
+- "SEO avanzado" (antes: "SEO completo")
+- "Soporte por email" (ya lo tiene, mantener)
+```
 
-Añadir validación post-corrección que detecte términos que NUNCA deben aparecer junto a "Blooglee":
+**Plan Pro (líneas 99-118)**
+```
+Después:
+- Añadir badge "Oferta lanzamiento"
+- Precio mensual: 29€ (antes 49€) - mostrar 49€ tachado
+- Precio anual: 39€/mes (antes también 39€, mantener)
+- Añadir "Todo lo incluido en Starter"
+- "Hasta 3 sitios web"
+- "Hasta 30 artículos/mes"
+- Mantener popular: true
+```
 
-- "newsletter"
-- "email marketing"
-- "redes sociales" / "social media"
-- "analytics" / "métricas"
-- "informes" / "reports" / "reporting"
-- "NAP" / "citas"
-- "auditoría"
-- "predictivo"
-- "landing page"
-- "CRM"
-- "A/B testing"
+**Plan Agencia (líneas 119-139)**
+```
+Después:
+- "Soporte prioritario" (antes: "Soporte dedicado")
+- "White-label" (antes: "White-label disponible")
+- ELIMINAR: "API access"
+- Añadir nota: "¿Más de 10 sitios? Contacta ventas"
+```
 
-## Cambios técnicos
+**FAQs (líneas 9-46)**
+```
+Actualizar respuestas:
+- "¿Qué incluye el plan gratuito?": 1 mes gratis, hasta 4 artículos
+- "¿Puedo probar antes de pagar?": 1 mes gratis con funcionalidades completas
+- Añadir nueva FAQ: "¿Cómo funciona el período de prueba?"
+- Añadir nueva FAQ: "¿Qué pasa después del mes gratis?"
+```
 
-### Archivo: `supabase/functions/fix-blog-false-claims/index.ts`
+**pricingPlans para SEO (líneas 49-54)**
+```
+Actualizar datos para schema:
+- Free: "1 mes gratis, 4 artículos/mes"
+- Pro: precio 29 (oferta)
+```
 
-**Cambios principales:**
+### 2. `src/pages/BillingPage.tsx` - Página de facturación del dashboard
 
-1. **Línea 111**: Cambiar modelo de `google/gemini-2.5-flash` a `openai/gpt-5`
-2. **Línea 58-101**: Expandir el prompt con ejemplos concretos de corrección
-3. **Línea 212-217**: Eliminar la comparación exacta de strings - siempre guardar
-4. **Nueva función**: Añadir validación post-corrección para detectar términos prohibidos junto a "Blooglee"
-5. **Nuevo parámetro**: Añadir `forceUpdate=true` para forzar actualización incluso en posts ya procesados
+**Actualizar array plans (líneas 12-53)**
+```
+- Free: "1 mes gratis", "Hasta 4 artículos/mes"
+- Starter: añadir "SEO avanzado", "Soporte por email"
+- Pro: mostrar oferta, "Todo lo de Starter"
+- Agency: cambiar "Soporte prioritario", "White-label", quitar "API access"
+```
 
-### Archivo: `supabase/functions/generate-blog-blooglee/index.ts`
+### 3. `supabase/functions/support-chatbot/index.ts` - Bloobot
 
-Reforzar aún más el `BLOOGLEE_DEFINITION` con ejemplos concretos de lo que NO decir:
+**Actualizar SYSTEM_PROMPT (líneas 43-64)**
+```
+Añadir sección de PLANES Y PRECIOS:
+
+PLANES DE BLOOGLEE:
+- Free: 1 mes gratis de prueba con hasta 4 artículos/mes. Sin tarjeta de crédito.
+- Starter (19€/mes o 15€/mes anual): 1 sitio, 4 artículos/mes, SEO avanzado, soporte por email
+- Pro (29€/mes oferta o 39€/mes anual): Hasta 3 sitios, 30 artículos/mes, todo lo de Starter, soporte prioritario
+- Agencia (149€/mes o 119€/mes anual): Hasta 10 sitios, artículos ilimitados, white-label, soporte prioritario
+
+REGLAS SOBRE PLANES:
+- Todos los usuarios empiezan con el plan Free de 1 mes
+- Después del mes gratuito, deben actualizar al plan seleccionado
+- Si quieren Pro o Agencia antes del mes, pueden actualizar anticipadamente
+- Para más de 10 sitios, deben contactar ventas en hola@blooglee.com
+```
+
+## Diseño visual de la oferta Pro
+
+Para destacar la oferta de lanzamiento en el plan Pro:
+
+```tsx
+{/* Badge de oferta */}
+<div className="absolute -top-4 right-4 z-10">
+  <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-lg animate-pulse">
+    🎉 Oferta lanzamiento
+  </div>
+</div>
+
+{/* Precio con tachado */}
+<div className="mb-6">
+  <div className="flex items-baseline gap-2">
+    <span className="text-lg line-through text-foreground/40">49€</span>
+    <span className="text-5xl font-display font-bold text-foreground">29€</span>
+    <span className="text-foreground/50 text-sm">/mes</span>
+  </div>
+</div>
+```
+
+## FAQs actualizadas
 
 ```typescript
-const BLOOGLEE_DEFINITION = `
-// ... definición existente ...
-
-EJEMPLOS DE FRASES PROHIBIDAS:
-- "Blooglee analiza tus métricas" ✗
-- "Blooglee monitoriza tu NAP" ✗
-- "Blooglee te envía newsletters" ✗
-- "Blooglee gestiona tus redes sociales" ✗
-- "Blooglee hace auditorías SEO" ✗
-- "Blooglee ofrece reporting automatizado" ✗
-
-EJEMPLOS DE FRASES CORRECTAS:
-- "Blooglee genera artículos de blog optimizados para SEO" ✓
-- "Blooglee publica automáticamente en WordPress" ✓
-- "Blooglee incluye imágenes destacadas de Pexels/Unsplash" ✓
-- "Blooglee soporta español, catalán e inglés" ✓
-`;
+const pricingFaqs = [
+  {
+    question: '¿Qué incluye el plan gratuito?',
+    answer: 'El plan Free te da 1 mes gratis con acceso completo: 1 sitio web, hasta 4 artículos con imagen destacada y SEO optimizado. No requiere tarjeta de crédito.',
+  },
+  {
+    question: '¿Cómo funciona el período de prueba?',
+    answer: 'Todos los usuarios empiezan con el plan Free de 1 mes gratis. Durante este período puedes generar hasta 4 artículos. Al finalizar el mes, puedes actualizar al plan que prefieras.',
+  },
+  {
+    question: '¿Puedo actualizar mi plan antes de que termine el mes gratis?',
+    answer: 'Sí, si necesitas más artículos o sitios antes de que termine tu mes gratuito, puedes actualizar a Pro o Agencia en cualquier momento.',
+  },
+  {
+    question: '¿Qué pasa si necesito más de 10 sitios?',
+    answer: 'El plan Agencia incluye hasta 10 sitios. Si necesitas más, contacta con nuestro equipo en hola@blooglee.com para un plan personalizado.',
+  },
+  // ... resto de FAQs actualizadas
+];
 ```
-
-## Resultado esperado
-
-1. Todos los 24 posts serán corregidos eliminando afirmaciones falsas
-2. Las menciones de Blooglee solo hablarán de:
-   - Generación de artículos de blog con IA
-   - Publicación automática en WordPress
-   - Imágenes destacadas
-   - Optimización SEO básica (títulos, meta, estructura)
-   - Gestión multi-sitio y multi-idioma
-3. Los nuevos posts generados no incluirán funcionalidades inventadas
 
 ## Archivos a modificar
 
-| Archivo | Cambio |
-|---------|--------|
-| `supabase/functions/fix-blog-false-claims/index.ts` | Mejorar prompt, cambiar modelo, forzar actualización |
-| `supabase/functions/generate-blog-blooglee/index.ts` | Reforzar BLOOGLEE_DEFINITION con ejemplos |
+| Archivo | Cambios |
+|---------|---------|
+| `src/pages/Pricing.tsx` | Precios, features, FAQs, oferta Pro |
+| `src/pages/BillingPage.tsx` | Array de planes sincronizado |
+| `supabase/functions/support-chatbot/index.ts` | SYSTEM_PROMPT con info de planes |
+
+## Resultado esperado
+
+1. Página de precios con nueva estructura de planes
+2. Oferta de lanzamiento visible en Pro (29€ con 49€ tachado)
+3. FAQs actualizadas explicando el mes gratis
+4. Bloobot conoce los nuevos planes y puede responder preguntas
+5. Consistencia entre página pública y dashboard
 
