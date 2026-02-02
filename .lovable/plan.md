@@ -1,75 +1,74 @@
 
+# Plan: Arreglar la generación automática del blog de Blooglee
 
-# Plan: Ordenar Fichas Alfabéticamente
+## Diagnóstico del problema
 
-## Situación Actual
+Los cron jobs se ejecutaron correctamente esta mañana a las 09:15 y 09:17 UTC, pero la Edge Function `generate-blog-blooglee` falló silenciosamente por un desajuste entre lo que el cron envía y lo que la función espera.
 
-Los tres hooks ordenan las fichas por **fecha de creación** (`created_at`):
+| Componente | Envía/Espera | Valor |
+|------------|--------------|-------|
+| Cron job | `audience` | `"empresas"` (minúsculas) |
+| Edge Function | `category` | `"Empresas"` (capitalizado) |
 
-| Hook | Línea | Orden Actual |
-|------|-------|--------------|
-| `useFarmacias.ts` | 25 | `.order("created_at", { ascending: true })` |
-| `useEmpresas.ts` | 29 | `.order("created_at", { ascending: true })` |
-| `useSites.ts` | 60 | `.order('created_at', { ascending: true })` |
+**Error devuelto:** `Invalid category. Must be 'Empresas' or 'Agencias'`
 
-## Cambio Propuesto
+## Solución propuesta
 
-Cambiar el orden de `created_at` a `name` en los tres hooks:
+Modificar la Edge Function para aceptar **ambos formatos** (retrocompatibilidad) y normalizar la entrada:
 
-```typescript
-// ANTES
-.order("created_at", { ascending: true })
+1. Aceptar tanto `audience` como `category` en el body
+2. Normalizar mayúsculas/minúsculas automáticamente
 
-// DESPUÉS
-.order("name", { ascending: true })
-```
+## Cambios requeridos
 
-## Archivos a Modificar
+### Archivo: `supabase/functions/generate-blog-blooglee/index.ts`
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/hooks/useFarmacias.ts` | Línea 25: ordenar por `name` |
-| `src/hooks/useEmpresas.ts` | Línea 29: ordenar por `name` |
-| `src/hooks/useSites.ts` | Línea 60: ordenar por `name` |
-
-## Resultado
-
-Las fichas aparecerán ordenadas de la A a la Z:
-- **MKPro Farmacias**: Farmacia Berenguer, Farmacia Bujanda, Farmacia Cervantes...
-- **MKPro Empresas**: Buena Onda Acupuntura, MKPro, Raquel Alonso...
-- **SaaS Sites**: ordenados alfabéticamente por nombre del sitio
-
----
-
-## Sección Técnica
-
-### useFarmacias.ts - Línea 25
+**Líneas 612-616** - Cambiar la extracción y validación:
 
 ```typescript
 // ANTES
-.order("created_at", { ascending: true });
+const { category, force, forceThematicCategory } = await req.json();
+
+if (!category || !['Empresas', 'Agencias'].includes(category)) {
+  throw new Error("Invalid category. Must be 'Empresas' or 'Agencias'");
+}
 
 // DESPUÉS
-.order("name", { ascending: true });
+const body = await req.json();
+// Accept both 'category' and 'audience' (for backward compatibility with cron jobs)
+const rawCategory = body.category || body.audience;
+const force = body.force;
+const forceThematicCategory = body.forceThematicCategory;
+
+// Normalize: accept lowercase and capitalize
+const normalizeCategory = (cat: string): string => {
+  if (!cat) return '';
+  const lower = cat.toLowerCase();
+  if (lower === 'empresas') return 'Empresas';
+  if (lower === 'agencias') return 'Agencias';
+  return cat;
+};
+
+const category = normalizeCategory(rawCategory);
+
+if (!category || !['Empresas', 'Agencias'].includes(category)) {
+  throw new Error("Invalid category. Must be 'Empresas' or 'Agencias'");
+}
 ```
 
-### useEmpresas.ts - Línea 29
+## Resultado esperado
 
-```typescript
-// ANTES
-.order("created_at", { ascending: true });
+Tras este cambio:
+- Los cron jobs existentes funcionarán sin modificaciones
+- La función aceptará `audience` o `category`
+- La función aceptará `empresas`, `Empresas`, `EMPRESAS`, etc.
+- Se generarán los 2 posts del blog de hoy al ejecutar manualmente
 
-// DESPUÉS
-.order("name", { ascending: true });
-```
+## Pasos post-implementación
 
-### useSites.ts - Línea 60
-
-```typescript
-// ANTES
-.order('created_at', { ascending: true });
-
-// DESPUÉS
-.order('name', { ascending: true });
-```
-
+1. Desplegar la Edge Function
+2. Ejecutar manualmente para generar los posts de hoy:
+   - `POST /generate-blog-blooglee` con `{"audience": "empresas"}`
+   - `POST /generate-blog-blooglee` con `{"audience": "agencias"}`
+3. Verificar que los posts aparecen en `/blog`
+4. La newsletter del día siguiente incluirá estos posts
