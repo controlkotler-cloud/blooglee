@@ -1,12 +1,24 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, Sparkles, Building2, Users, Rocket, ArrowRight, X, HelpCircle, Calculator } from "lucide-react";
+import { Check, Sparkles, Building2, Users, Rocket, ArrowRight, HelpCircle } from "lucide-react";
 import { PublicLayout } from "@/components/marketing/PublicLayout";
 import { SEOHead, FAQSchema, ProductSchema } from '@/components/seo';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 // FAQ data for SEO and AI Overviews
 const pricingFaqs = [
+  {
+    question: '¿Qué incluye el plan gratuito?',
+    answer: 'El plan Free te da 1 mes gratis con acceso completo: 1 sitio web, hasta 4 artículos con imagen destacada y SEO optimizado. No requiere tarjeta de crédito.',
+  },
+  {
+    question: '¿Cómo funciona el período de prueba?',
+    answer: 'Todos los usuarios empiezan con el plan Free de 1 mes gratis. Durante este período puedes generar hasta 4 artículos. Al finalizar el mes, puedes actualizar al plan que prefieras.',
+  },
+  {
+    question: '¿Puedo actualizar mi plan antes de que termine el mes gratis?',
+    answer: 'Sí, si necesitas más artículos o sitios antes de que termine tu mes gratuito, puedes actualizar a Pro o Agencia en cualquier momento.',
+  },
   {
     question: '¿Puedo cambiar de plan en cualquier momento?',
     answer: 'Sí, puedes cambiar tu plan en cualquier momento. Si subes de plan, el cambio es inmediato. Si bajas, se aplicará al siguiente ciclo de facturación.',
@@ -20,12 +32,8 @@ const pricingFaqs = [
     answer: 'Aceptamos tarjetas de crédito y débito (Visa, Mastercard, American Express). También aceptamos PayPal y transferencia bancaria para planes anuales.',
   },
   {
-    question: '¿Qué incluye el plan gratuito?',
-    answer: 'El plan gratuito incluye 1 sitio web y 1 artículo publicado con imagen destacada y SEO optimizado. Es perfecto para probar Blooglee sin compromiso. No requiere tarjeta de crédito.',
-  },
-  {
-    question: '¿Ofrecen descuentos para agencias con más de 10 sitios?',
-    answer: 'Sí, ofrecemos planes personalizados para agencias con necesidades especiales. Contacta con nuestro equipo en info@blooglee.com para una propuesta a medida.',
+    question: '¿Qué pasa si necesito más de 10 sitios?',
+    answer: 'El plan Agencia incluye hasta 10 sitios. Si necesitas más, contacta con nuestro equipo en hola@blooglee.com para un plan personalizado.',
   },
   {
     question: '¿Cómo funciona la facturación anual?',
@@ -33,24 +41,20 @@ const pricingFaqs = [
   },
   {
     question: '¿Cuánto cuesta un redactor freelance comparado con Blooglee?',
-    answer: 'Un redactor freelance cobra entre 30-80€ por artículo de calidad. Con Blooglee Pro (49€/mes) generas 30 artículos, lo que equivale a 1,63€/artículo. Ahorro del 95%.',
+    answer: 'Un redactor freelance cobra entre 30-80€ por artículo de calidad. Con Blooglee Pro (29€/mes en oferta) generas 30 artículos, lo que equivale a menos de 1€/artículo. Ahorro del 97%.',
   },
   {
     question: '¿Emiten facturas con IVA?',
     answer: 'Sí, todas las facturas incluyen IVA (21% para empresas españolas). Para empresas de la UE con NIF intracomunitario válido, el IVA es 0%.',
   },
-  {
-    question: '¿Puedo probar antes de pagar?',
-    answer: 'Sí, el plan Free te permite generar 1 artículo completamente gratis para probar la calidad. No requiere tarjeta de crédito.',
-  },
 ];
 
 // Datos para ProductSchema
 const pricingPlans = [
-  { name: 'Free', description: '1 sitio, 1 artículo gratis', price: 0, features: ['1 sitio', '1 artículo'] },
-  { name: 'Starter', description: '1 sitio, 4 artículos/mes', price: 19, features: ['1 sitio', '4 artículos'] },
-  { name: 'Pro', description: '3 sitios, 30 artículos/mes', price: 49, features: ['3 sitios', '30 artículos'] },
-  { name: 'Agencia', description: '10 sitios, artículos ilimitados', price: 149, features: ['10 sitios', 'Ilimitados'] },
+  { name: 'Free', description: '1 mes gratis, hasta 4 artículos/mes', price: 0, features: ['1 sitio', '4 artículos/mes'] },
+  { name: 'Starter', description: '1 sitio, 4 artículos/mes, SEO avanzado', price: 19, features: ['1 sitio', '4 artículos'] },
+  { name: 'Pro', description: '3 sitios, 30 artículos/mes, oferta lanzamiento', price: 29, features: ['3 sitios', '30 artículos'] },
+  { name: 'Agencia', description: '10 sitios, artículos ilimitados, white-label', price: 149, features: ['10 sitios', 'Ilimitados'] },
 ];
 
 const Pricing = () => {
@@ -59,23 +63,22 @@ const Pricing = () => {
   const plans = [
     {
       name: "Free",
-      description: "Prueba Blooglee sin compromiso",
+      description: "1 mes gratis de prueba",
       monthlyPrice: 0,
       annualPrice: 0,
       icon: Sparkles,
       features: [
         "1 sitio web",
-        "1 artículo publicado",
+        "Hasta 4 artículos/mes",
         "Imagen destacada incluida",
         "SEO optimizado",
         "Conexión WordPress",
       ],
-      limitations: [
-        "Solo primer artículo",
-      ],
+      limitations: [],
       cta: "Empezar gratis",
       popular: false,
       color: "from-slate-400 to-slate-500",
+      isOffer: false,
     },
     {
       name: "Starter",
@@ -87,7 +90,7 @@ const Pricing = () => {
         "1 sitio web",
         "Hasta 4 artículos/mes",
         "Imagen destacada incluida",
-        "SEO completo",
+        "SEO avanzado",
         "Publicación automática",
         "Soporte por email",
       ],
@@ -95,26 +98,28 @@ const Pricing = () => {
       cta: "Comenzar ahora",
       popular: false,
       color: "from-cyan-400 to-blue-500",
+      isOffer: false,
     },
     {
       name: "Pro",
       description: "Para empresas en crecimiento",
-      monthlyPrice: 49,
+      monthlyPrice: 29,
       annualPrice: 39,
+      originalMonthlyPrice: 49,
       icon: Building2,
       features: [
+        "Todo lo de Starter",
         "Hasta 3 sitios web",
         "Hasta 30 artículos/mes",
-        "Imagen destacada incluida",
         "SEO avanzado",
         "Publicación automática",
         "Soporte prioritario",
-        "Estadísticas de rendimiento",
       ],
       limitations: [],
       cta: "Elegir Pro",
       popular: true,
       color: "from-violet-500 to-fuchsia-500",
+      isOffer: true,
     },
     {
       name: "Agencia",
@@ -128,14 +133,15 @@ const Pricing = () => {
         "Imagen destacada incluida",
         "SEO avanzado",
         "Publicación automática",
-        "Soporte dedicado",
-        "API access",
-        "White-label disponible",
+        "Soporte prioritario",
+        "White-label",
       ],
       limitations: [],
       cta: "Contactar ventas",
       popular: false,
       color: "from-orange-400 to-amber-500",
+      isOffer: false,
+      note: "¿Más de 10 sitios? Contacta ventas",
     },
   ];
 
@@ -143,7 +149,7 @@ const Pricing = () => {
     <PublicLayout>
       <SEOHead 
         title="Precios y Planes"
-        description="Planes flexibles de Blooglee desde 0€/mes. Free, Starter, Pro y Agencia. Sin permanencia, cancela cuando quieras."
+        description="Planes flexibles de Blooglee desde 0€/mes. 1 mes gratis para todos. Free, Starter, Pro y Agencia. Sin permanencia, cancela cuando quieras."
         canonicalUrl="/pricing"
         keywords="precios Blooglee, planes blog automático, suscripción contenido IA, tarifas WordPress automático"
       />
@@ -165,7 +171,7 @@ const Pricing = () => {
           </h1>
 
           <p className="text-base sm:text-lg text-foreground/70 max-w-2xl mx-auto mb-8 sm:mb-10">
-            Sin permanencia. Cancela cuando quieras. 
+            <span className="font-semibold text-foreground">1 mes gratis para todos.</span> Sin permanencia. Cancela cuando quieras. 
             <span className="font-semibold text-foreground"> Ahorra un 20% con el plan anual.</span>
           </p>
 
@@ -223,6 +229,15 @@ const Pricing = () => {
                     </div>
                   )}
 
+                  {/* Offer badge for Pro */}
+                  {plan.isOffer && !isAnnual && (
+                    <div className="absolute -top-4 right-4 z-10">
+                      <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-lg animate-pulse">
+                        🎉 Oferta lanzamiento
+                      </div>
+                    </div>
+                  )}
+
                   <div
                     className={`h-full glass-card-strong rounded-3xl p-6 sm:p-8 transition-all duration-500 hover:scale-[1.02] ${
                       plan.popular
@@ -245,7 +260,13 @@ const Pricing = () => {
 
                     {/* Price */}
                     <div className="mb-6">
-                      <div className="flex items-baseline gap-1">
+                      <div className="flex items-baseline gap-2">
+                        {/* Show strikethrough price for Pro monthly offer */}
+                        {plan.isOffer && !isAnnual && plan.originalMonthlyPrice && (
+                          <span className="text-lg line-through text-foreground/40">
+                            {plan.originalMonthlyPrice}€
+                          </span>
+                        )}
                         <span className="text-4xl sm:text-5xl font-display font-bold text-foreground">
                           {price === 0 ? "Gratis" : `${price}€`}
                         </span>
@@ -256,6 +277,11 @@ const Pricing = () => {
                       {isAnnual && price > 0 && (
                         <p className="text-xs text-foreground/50 mt-1">
                           Facturado anualmente ({price * 12}€/año)
+                        </p>
+                      )}
+                      {plan.name === "Free" && (
+                        <p className="text-xs text-green-600 font-medium mt-1">
+                          Sin tarjeta de crédito
                         </p>
                       )}
                     </div>
@@ -270,15 +296,14 @@ const Pricing = () => {
                           <span className="text-sm text-foreground/80">{feature}</span>
                         </li>
                       ))}
-                      {plan.limitations.map((limitation) => (
-                        <li key={limitation} className="flex items-start gap-3 opacity-50">
-                          <div className="w-5 h-5 rounded-full bg-foreground/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <X className="w-3 h-3 text-foreground/50" />
-                          </div>
-                          <span className="text-sm text-foreground/50">{limitation}</span>
-                        </li>
-                      ))}
                     </ul>
+
+                    {/* Note for Agency */}
+                    {plan.note && (
+                      <p className="text-xs text-foreground/50 text-center mb-4 italic">
+                        {plan.note}
+                      </p>
+                    )}
 
                     {/* CTA */}
                     <Link
