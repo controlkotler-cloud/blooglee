@@ -15,10 +15,11 @@ const plans = [
     name: 'Free',
     price: '0€',
     period: '/mes',
-    description: 'Para empezar',
-    features: ['1 sitio', 'Primer artículo gratis', 'Generación manual'],
+    description: '1 mes gratis de prueba',
+    features: ['1 sitio', 'Hasta 4 artículos/mes', 'SEO optimizado', 'Sin tarjeta de crédito'],
     cta: 'Plan actual',
     popular: false,
+    isOffer: false,
   },
   {
     id: 'starter' as PlanType,
@@ -26,19 +27,22 @@ const plans = [
     price: '19€',
     period: '/mes',
     description: 'Para creadores',
-    features: ['1 sitio', 'Hasta 4 artículos/mes', 'Generación automática', 'Publicación a WordPress'],
+    features: ['1 sitio', 'Hasta 4 artículos/mes', 'SEO avanzado', 'Publicación automática', 'Soporte por email'],
     cta: 'Actualizar',
     popular: false,
+    isOffer: false,
   },
   {
     id: 'pro' as PlanType,
     name: 'Pro',
-    price: '49€',
+    price: '29€',
+    originalPrice: '49€',
     period: '/mes',
     description: 'Para profesionales',
-    features: ['Hasta 3 sitios', '30 artículos/mes', 'Generación automática', 'Publicación a WordPress', 'Soporte prioritario'],
+    features: ['Todo lo de Starter', 'Hasta 3 sitios', 'Hasta 30 artículos/mes', 'Soporte prioritario'],
     cta: 'Actualizar',
     popular: true,
+    isOffer: true,
   },
   {
     id: 'agency' as PlanType,
@@ -46,9 +50,11 @@ const plans = [
     price: '149€',
     period: '/mes',
     description: 'Para agencias',
-    features: ['Hasta 10 sitios', 'Artículos ilimitados', 'Generación automática', 'Publicación a WordPress', 'Soporte prioritario', 'API access'],
+    features: ['Hasta 10 sitios', 'Artículos ilimitados', 'Soporte prioritario', 'White-label'],
     cta: 'Contactar',
     popular: false,
+    isOffer: false,
+    note: '¿Más de 10 sitios? Contacta ventas',
   },
 ];
 
@@ -128,12 +134,22 @@ export default function BillingPage() {
                       Popular
                     </Badge>
                   )}
+                  {plan.isOffer && (
+                    <Badge className="absolute -top-3 right-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0">
+                      🎉 Oferta
+                    </Badge>
+                  )}
                   <CardHeader className="text-center pb-2">
                     <CardTitle className="text-lg">{plan.name}</CardTitle>
                     <CardDescription>{plan.description}</CardDescription>
                   </CardHeader>
                   <CardContent className="text-center">
                     <div className="mb-4">
+                      {plan.originalPrice && (
+                        <span className="text-lg line-through text-muted-foreground mr-2">
+                          {plan.originalPrice}
+                        </span>
+                      )}
                       <span className="text-3xl font-bold">{plan.price}</span>
                       <span className="text-muted-foreground">{plan.period}</span>
                     </div>
@@ -146,6 +162,12 @@ export default function BillingPage() {
                         </li>
                       ))}
                     </ul>
+
+                    {plan.note && (
+                      <p className="text-xs text-muted-foreground mb-4 italic">
+                        {plan.note}
+                      </p>
+                    )}
 
                     <Button
                       className="w-full"
