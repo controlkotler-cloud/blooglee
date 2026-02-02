@@ -7,8 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// MKPro notification email
-const NOTIFICATION_EMAIL = "controlkotler@gmail.com";
+// MKPro notification emails
+const NOTIFICATION_EMAILS = ["controlkotler@gmail.com", "laura@mkpro.es"];
 
 interface CompanyData {
   id?: string;
@@ -90,12 +90,12 @@ async function sendMKProNotification(
 
     await resend.emails.send({
       from: "Blooglee <hola@blooglee.com>",
-      to: [NOTIFICATION_EMAIL],
+      to: NOTIFICATION_EMAILS,
       subject: isPublished ? `🚀 Artículo publicado: ${companyName}` : `✅ Artículo generado: ${companyName}`,
       html,
     });
 
-    console.log("Notification email sent to:", NOTIFICATION_EMAIL);
+    console.log("Notification email sent to:", NOTIFICATION_EMAILS.join(", "));
   } catch (error) {
     console.error("Error sending notification email:", error);
   }

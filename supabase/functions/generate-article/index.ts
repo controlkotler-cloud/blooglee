@@ -7,8 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// MKPro notification email
-const NOTIFICATION_EMAIL = "controlkotler@gmail.com";
+// MKPro notification emails
+const NOTIFICATION_EMAILS = ["controlkotler@gmail.com", "laura@mkpro.es"];
 
 interface TopicData {
   tema: string;
@@ -93,12 +93,12 @@ async function sendMKProNotification(
 
     await resend.emails.send({
       from: "Blooglee <hola@blooglee.com>",
-      to: [NOTIFICATION_EMAIL],
+      to: NOTIFICATION_EMAILS,
       subject: isPublished ? `🚀 Artículo publicado: ${pharmacyName}` : `✅ Artículo generado: ${pharmacyName}`,
       html,
     });
 
-    console.log("Notification email sent to:", NOTIFICATION_EMAIL);
+    console.log("Notification email sent to:", NOTIFICATION_EMAILS.join(", "));
   } catch (error) {
     console.error("Error sending notification email:", error);
   }
@@ -497,7 +497,7 @@ Genera el artículo completo EN ESPAÑOL. RESPONDE SOLO CON JSON VÁLIDO en este
         seoLinks.push(`<a href="${pharmacy.blog_url}" target="_blank" rel="noopener">nuestro blog</a>`);
       }
       if (pharmacy.instagram_url) {
-        seoLinks.push(`<a href="${pharmacy.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
+        seoLinks.push(`<a href="${pharmacy.instagram_url}" target="_blank" rel="noopener">nuestras redes sociales</a>`);
       }
       
       if (seoLinks.length > 0) {
@@ -650,8 +650,8 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
                 if (pharmacy.blog_url) {
                   seoLinksCa.push(`<a href="${pharmacy.blog_url}" target="_blank" rel="noopener">el nostre blog</a>`);
                 }
-                if (pharmacy.instagram_url) {
-                  seoLinksCa.push(`<a href="${pharmacy.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
+              if (pharmacy.instagram_url) {
+                  seoLinksCa.push(`<a href="${pharmacy.instagram_url}" target="_blank" rel="noopener">les nostres xarxes socials</a>`);
                 }
                 
                 if (seoLinksCa.length > 0) {

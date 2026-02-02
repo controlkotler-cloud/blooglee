@@ -539,11 +539,11 @@ export function SiteSettings({ site }: SiteSettingsProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="instagram_url">URL de Instagram</Label>
+              <Label htmlFor="instagram_url">Enlace a tu mejor red social</Label>
               <Input
                 id="instagram_url"
                 type="url"
-                placeholder="https://instagram.com/..."
+                placeholder="https://instagram.com/tusitio o tu red social preferida"
                 {...register('instagram_url')}
               />
             </div>

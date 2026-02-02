@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Globe, Eye, EyeOff, Trash2, Link2, Instagram, Cog } from "lucide-react";
+import { Globe, Eye, EyeOff, Trash2, Link2, Cog } from "lucide-react";
 import type { Farmacia } from "@/hooks/useFarmacias";
 import { useWordPressSite, useUpsertWordPressSite, useDeleteWordPressSite } from "@/hooks/useWordPressSites";
 import { TaxonomyManager } from "@/components/shared/TaxonomyManager";
@@ -216,14 +216,14 @@ export function PharmacyForm({ open, onClose, onSubmit, initialData, isLoading }
             
             <div className="space-y-2">
               <Label htmlFor="instagram-url" className="flex items-center gap-1">
-                <Instagram className="w-3 h-3" />
-                Instagram
+                <Link2 className="w-3 h-3" />
+                Enlace a tu mejor red social
               </Label>
               <Input
                 id="instagram-url"
                 value={instagramUrl}
                 onChange={(e) => setInstagramUrl(e.target.value)}
-                placeholder="https://instagram.com/farmacia"
+                placeholder="https://instagram.com/farmacia o tu red social preferida"
               />
             </div>
           </div>
