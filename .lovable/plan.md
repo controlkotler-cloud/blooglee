@@ -1,57 +1,119 @@
 
-# Plan: Corregir Actualización del Estado "Publicado" + Diagnóstico Error 401
 
-## Problemas Identificados
+# Plan: Tres Correcciones - Instagram/Redes, Emails Laura y Error SaaS
 
-### Problema 1: Error 401 en dos farmacias
-- **Farmacias afectadas**: "Farmacia de Reboreda" (mascercadeti.net) y "Farmàcia La Sínia" (farmacialasinia.es)
-- **Causa**: Error HTTP 401 en `upload-wordpress-media` indica credenciales de WordPress inválidas o expiradas
-- **Solución**: Debes revisar y actualizar las credenciales de WordPress (username y Application Password) para estas dos farmacias
+## Resumen de los Tres Problemas
 
-### Problema 2: El estado "Publicado" no se actualiza tras publicación manual
-- **Causa**: El componente `WordPressPublishDialog` llama a `publish-to-wordpress` y muestra el resultado, pero NO actualiza el campo `wp_post_url` en la tabla `articulos`
-- **Resultado**: Las cards siguen mostrando "Sin publicar" aunque el post existe en WordPress
-- **Solución**: Añadir lógica para actualizar `wp_post_url` en la base de datos después de una publicación exitosa
+### 1. Cambiar "Instagram" por "Enlace a tu mejor red social"
+- **Ubicación**: Formularios de configuración de farmacias, empresas y sites
+- **También**: Cambiar el pie de los artículos de "Instagram" a "Redes sociales"
+
+### 2. Laura no recibe emails individuales de publicación
+- **Problema**: Las funciones `generate-article` y `generate-article-empresa` envían emails solo a `controlkotler@gmail.com`
+- **Causa**: La constante `NOTIFICATION_EMAIL` está configurada como un solo email, no como array
+- **Solución**: Cambiar a array `NOTIFICATION_EMAILS = ["controlkotler@gmail.com", "laura@mkpro.es"]`
+
+### 3. Error "Body already consumed" en generate-article-saas
+- **Causa**: El código llama a `req.json()` DOS veces:
+  - Línea 380: `const requestBody = await req.json()` (para verificar scheduler mode)
+  - Línea 441: `const { siteId, topic, ... } = await req.json()` (para obtener datos)
+- **Solución**: Usar los datos ya parseados de la primera llamada
 
 ---
 
-## Cambios Necesarios
+## Parte 1: Cambios en Formularios y Artículos
 
-### 1. Actualizar `WordPressPublishDialog.tsx`
+### Archivos UI a Modificar
 
-Después de publicar exitosamente, actualizar el artículo en la base de datos:
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/pharmacy/PharmacyForm.tsx` | Cambiar label "Instagram" → "Enlace a tu mejor red social" |
+| `src/components/company/CompanyForm.tsx` | Cambiar label "URL de Instagram" → "Enlace a tu mejor red social" |
+| `src/components/saas/SiteSettings.tsx` | Cambiar label "URL de Instagram" → "Enlace a tu mejor red social" |
 
-```typescript
-// Después de publicación exitosa
-if (results.spanish?.success && results.spanish.post_url) {
-  await supabase
-    .from("articulos")
-    .update({ wp_post_url: results.spanish.post_url })
-    .eq("id", article.id);
-}
+### Edge Functions a Modificar (Footer de artículos)
+
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/functions/generate-article/index.ts` | Cambiar texto "Instagram" → "Redes sociales" en footer |
+| `supabase/functions/generate-article-empresa/index.ts` | Cambiar texto "Instagram" → "Redes sociales" en footer |
+| `supabase/functions/generate-article-saas/index.ts` | Cambiar texto "Instagram" → "Redes sociales" en footer |
+
+Cambio específico en los prompts de generación:
+
+```text
+ANTES:
+- Síguenos en Instagram: ${instagramUrl}
+
+DESPUÉS:
+- Síguenos en redes sociales: ${instagramUrl}
 ```
 
-### 2. Actualizar `WordPressPublishDialogEmpresa.tsx`
+---
 
-Mismo patrón para empresas:
+## Parte 2: Añadir laura@mkpro.es a Notificaciones
+
+### Cambio en generate-article/index.ts
 
 ```typescript
-// Después de publicación exitosa
-if (results.spanish?.success && results.spanish.post_url) {
-  await supabase
-    .from("articulos_empresas")
-    .update({ wp_post_url: results.spanish.post_url })
-    .eq("id", article.id);
-}
+// ANTES (línea 11)
+const NOTIFICATION_EMAIL = "controlkotler@gmail.com";
+
+// DESPUÉS
+const NOTIFICATION_EMAILS = ["controlkotler@gmail.com", "laura@mkpro.es"];
 ```
 
-### 3. Invalidar Cache de React Query
-
-Para que las cards se actualicen inmediatamente sin recargar la página:
+Y en la función `sendMKProNotification`, cambiar:
 
 ```typescript
-// Añadir invalidación del cache
-queryClient.invalidateQueries({ queryKey: ["articulos"] });
+// ANTES
+await resend.emails.send({
+  from: "Blooglee <hola@blooglee.com>",
+  to: [NOTIFICATION_EMAIL],
+  ...
+});
+
+// DESPUÉS
+await resend.emails.send({
+  from: "Blooglee <hola@blooglee.com>",
+  to: NOTIFICATION_EMAILS,
+  ...
+});
+```
+
+### Mismo cambio en generate-article-empresa/index.ts
+
+Aplicar exactamente el mismo patrón: convertir `NOTIFICATION_EMAIL` a `NOTIFICATION_EMAILS` array.
+
+---
+
+## Parte 3: Corregir Error "Body already consumed"
+
+### Problema en generate-article-saas/index.ts
+
+El código actual:
+
+```typescript
+// Línea 380 - Primera lectura del body
+const requestBody: RequestBody = await req.json();
+const { isScheduled, userId: schedulerUserId } = requestBody;
+
+// ... más código ...
+
+// Línea 441 - Segunda lectura (ERROR!)
+const { siteId, topic: providedTopic, month, year }: RequestBody = await req.json();
+```
+
+### Solución
+
+Usar los datos ya parseados de `requestBody`:
+
+```typescript
+// Línea 380 - Única lectura del body
+const requestBody: RequestBody = await req.json();
+const { isScheduled, userId: schedulerUserId, siteId, topic: providedTopic, month, year } = requestBody;
+
+// ... eliminar la segunda llamada a req.json() ...
 ```
 
 ---
@@ -60,96 +122,75 @@ queryClient.invalidateQueries({ queryKey: ["articulos"] });
 
 | Archivo | Cambios |
 |---------|---------|
-| `src/components/pharmacy/WordPressPublishDialog.tsx` | Guardar `wp_post_url` en BD + invalidar cache |
-| `src/components/company/WordPressPublishDialogEmpresa.tsx` | Guardar `wp_post_url` en BD + invalidar cache |
-
----
-
-## Sobre el Error 401
-
-El error en "Farmacia de Reboreda" y "Farmàcia La Sínia" es un problema de configuración, no de código:
-
-1. Las credenciales de WordPress almacenadas están incorrectas o han caducado
-2. Posiblemente el Application Password fue revocado o cambiado en WordPress
-3. El plugin de seguridad (como Wordfence) podría estar bloqueando la API
-
-**Acción requerida**: Editar estas dos farmacias en MKPro y actualizar las credenciales de WordPress con un Application Password válido.
-
----
-
-## Flujo Corregido
-
-```text
-Usuario pulsa "Publicar"
-         |
-         v
-WordPressPublishDialog
-         |
-         v
-Llama a publish-to-wordpress Edge Function
-         |
-         v
-Si éxito:
-  1. Mostrar resultado al usuario ✓ (ya funciona)
-  2. [NUEVO] Guardar wp_post_url en articulos
-  3. [NUEVO] Invalidar cache de React Query
-         |
-         v
-La card se actualiza y muestra "Publicado" con el link
-```
-
----
-
-## Sección Técnica
-
-### Código de Actualización
-
-```typescript
-// En WordPressPublishDialog.tsx, dentro de handlePublish()
-try {
-  for (const lang of selectedLanguages) {
-    // ... código existente de publicación ...
-    results[lang] = result;
-  }
-
-  setPublishResults(results);
-  
-  // NUEVO: Guardar URL en base de datos
-  if (results.spanish?.success && results.spanish.post_url) {
-    const { error: updateError } = await supabase
-      .from("articulos")
-      .update({ wp_post_url: results.spanish.post_url })
-      .eq("id", article.id);
-    
-    if (updateError) {
-      console.error("Error updating wp_post_url:", updateError);
-    }
-    
-    // Invalidar cache para que las cards se actualicen
-    queryClient.invalidateQueries({ queryKey: ["articulos"] });
-  }
-} catch (error) {
-  // Error handling...
-}
-```
-
-### Props Necesarios
-
-El componente ya recibe el `article` completo con su `id`, así que no necesitamos cambiar las props.
-
-### Dependencias
-
-Necesitamos añadir:
-- `useQueryClient` de `@tanstack/react-query`
-- `supabase` de `@/integrations/supabase/client`
+| `src/components/pharmacy/PharmacyForm.tsx` | Label: "Instagram" → "Enlace a tu mejor red social" |
+| `src/components/company/CompanyForm.tsx` | Label: "URL de Instagram" → "Enlace a tu mejor red social" |
+| `src/components/saas/SiteSettings.tsx` | Label: "URL de Instagram" → "Enlace a tu mejor red social" |
+| `supabase/functions/generate-article/index.ts` | 1. NOTIFICATION_EMAILS array, 2. Footer "Redes sociales" |
+| `supabase/functions/generate-article-empresa/index.ts` | 1. NOTIFICATION_EMAILS array, 2. Footer "Redes sociales" |
+| `supabase/functions/generate-article-saas/index.ts` | 1. Fix Body already consumed, 2. Footer "Redes sociales" |
 
 ---
 
 ## Resultado Esperado
 
-Después de implementar estos cambios:
+1. **Formularios**: Los campos mostrarán "Enlace a tu mejor red social" en lugar de "Instagram"
+2. **Artículos**: El pie mostrará "Síguenos en redes sociales" en lugar de "Instagram"
+3. **Emails**: Tanto controlkotler@gmail.com como laura@mkpro.es recibirán notificaciones de cada artículo publicado
+4. **SaaS**: El site FarmaPro podrá generar artículos sin el error de Edge Function
 
-1. Cuando publiques manualmente un artículo, la card mostrará inmediatamente el badge "Publicado" con el enlace
-2. El campo `wp_post_url` quedará guardado en la base de datos para futuras referencias
-3. No necesitarás recargar la página para ver el estado actualizado
-4. Las farmacias con error 401 seguirán fallando hasta que actualices sus credenciales de WordPress
+---
+
+## Sección Técnica
+
+### PharmacyForm.tsx - Líneas 218-228
+
+```typescript
+// ANTES
+<Label htmlFor="instagram-url" className="flex items-center gap-1">
+  <Instagram className="w-3 h-3" />
+  Instagram
+</Label>
+
+// DESPUÉS
+<Label htmlFor="instagram-url" className="flex items-center gap-1">
+  <Link2 className="w-3 h-3" />
+  Enlace a tu mejor red social
+</Label>
+```
+
+### CompanyForm.tsx - Líneas 390-399
+
+```typescript
+// ANTES
+<Label htmlFor="instagramUrl">URL de Instagram</Label>
+
+// DESPUÉS
+<Label htmlFor="instagramUrl">Enlace a tu mejor red social</Label>
+```
+
+### SiteSettings.tsx - Líneas 541-548
+
+```typescript
+// ANTES
+<Label htmlFor="instagram_url">URL de Instagram</Label>
+
+// DESPUÉS
+<Label htmlFor="instagram_url">Enlace a tu mejor red social</Label>
+```
+
+### Footer de Artículos (en prompts de las 3 Edge Functions)
+
+Buscar y reemplazar en las secciones del prompt que generan el footer:
+
+```text
+ANTES:
+Instagram: ${instagram_url}
+o
+Síguenos en Instagram
+
+DESPUÉS:
+Redes sociales: ${instagram_url}
+o
+Síguenos en redes sociales
+```
+
