@@ -24,15 +24,13 @@ interface BlogPostData {
 // Thematic categories (separate from audience)
 const THEMATIC_CATEGORIES = ['SEO', 'Marketing', 'Tutoriales', 'Comparativas', 'Producto', 'Tendencias'];
 
-// Topics for empresas (businesses) - expanded for premium content
+// Topics for empresas (businesses) - CLEANED to avoid semantic duplicates
 const EMPRESA_TOPICS = [
   "automatizar marketing contenidos pymes",
-  "SEO local para pequeñas empresas",
   "content marketing ROI medición",
   "blog corporativo estrategia beneficios",
   "estrategia contenidos digital",
   "IA para marketing empresarial automatización",
-  "posicionamiento web local negocios",
   "generación leads inbound marketing blog",
   "WordPress para empresas optimización",
   "analytics marketing contenidos métricas",
@@ -41,9 +39,11 @@ const EMPRESA_TOPICS = [
   "estrategia omnicanal contenidos",
   "marketing automation herramientas",
   "customer journey contenidos digitales",
+  "copywriting persuasivo ventas conversiones",
+  "redes sociales integración blog corporativo",
 ];
 
-// Topics for agencias (agencies) - expanded
+// Topics for agencias (agencies) - CLEANED to avoid semantic duplicates
 const AGENCIA_TOPICS = [
   "escalar producción contenidos clientes",
   "gestionar múltiples blogs WordPress agencia",
@@ -54,23 +54,69 @@ const AGENCIA_TOPICS = [
   "pricing servicios content marketing",
   "client onboarding proceso agencias",
   "content calendar management equipos",
-  "multi-client SEO strategy escalable",
   "rentabilidad servicios contenidos agencia",
   "pitch propuestas content marketing",
   "retención clientes agencias marketing",
   "formación equipos content marketing",
-  "dashboards reporting clientes",
+  "dashboards métricas clientes agencia",
+  "automatización tareas repetitivas agencia",
 ];
 
+// Enhanced deduplication: get titles AND keywords from existing posts
 async function getUsedBlogTopics(supabase: any, audience: string): Promise<string[]> {
   const { data } = await supabase
     .from('blog_posts')
-    .select('title')
+    .select('title, seo_keywords')
     .eq('audience', audience.toLowerCase())
     .order('published_at', { ascending: false })
-    .limit(50);
+    .limit(30);
   
-  return data?.map((p: any) => p.title.toLowerCase()) || [];
+  const topics: string[] = [];
+  data?.forEach((p: any) => {
+    // Add title
+    topics.push(p.title.toLowerCase());
+    // Add keywords
+    if (p.seo_keywords?.length) {
+      topics.push(...p.seo_keywords.map((k: string) => k.toLowerCase()));
+    }
+  });
+  
+  // Remove duplicates
+  return [...new Set(topics)];
+}
+
+// Check if a new title is too similar to existing topics
+function isTooSimilar(newTitle: string, existingTopics: string[]): { similar: boolean; matchedTopic?: string; similarity?: number } {
+  // Stop words to ignore in similarity calculation
+  const stopWords = new Set(['el', 'la', 'los', 'las', 'de', 'del', 'en', 'para', 'por', 'con', 'tu', 'tus', 'un', 'una', 'y', 'o', 'a', 'que', 'es', 'como', 'cómo', 'su', 'sus']);
+  
+  const newWords = new Set(
+    newTitle.toLowerCase()
+      .split(/[\s:,\-–—]+/)
+      .filter(w => w.length > 2 && !stopWords.has(w))
+  );
+  
+  if (newWords.size === 0) return { similar: false };
+  
+  for (const existing of existingTopics) {
+    const existingWords = new Set(
+      existing.toLowerCase()
+        .split(/[\s:,\-–—]+/)
+        .filter(w => w.length > 2 && !stopWords.has(w))
+    );
+    
+    if (existingWords.size === 0) continue;
+    
+    const intersection = [...newWords].filter(w => existingWords.has(w));
+    const similarity = intersection.length / Math.min(newWords.size, existingWords.size);
+    
+    if (similarity > 0.5) {
+      console.log(`⚠️ Title too similar to: "${existing}" (${(similarity * 100).toFixed(0)}% match)`);
+      console.log(`   Matching words: ${intersection.join(', ')}`);
+      return { similar: true, matchedTopic: existing, similarity };
+    }
+  }
+  return { similar: false };
 }
 
 // Get the next thematic category in rotation for the given audience
@@ -319,7 +365,7 @@ function normalizeThematicCategory(raw: string): string {
   return 'Marketing';
 }
 
-// Step 1: Generate metadata (title, slug, excerpt, keywords)
+// Step 1: Generate metadata (title, slug, excerpt, keywords) with STRICT deduplication
 async function generateMetadata(
   lovableApiKey: string,
   category: string,
@@ -331,6 +377,9 @@ async function generateMetadata(
   const audienceContext = category === 'Empresas' 
     ? "PYMEs españolas que quieren automatizar su marketing de contenidos"
     : "agencias de marketing digital que gestionan contenido para múltiples clientes";
+
+  // Format prohibited topics list for the prompt
+  const prohibitedTopicsList = usedTopics.slice(0, 30).map(t => `- ${t}`).join('\n');
 
   // If forceCategory is provided, focus the prompt on that category
   const categoryInstruction = forceCategory 
@@ -347,18 +396,24 @@ El artículo DEBE ser sobre ${forceCategory}. Elige un tema que encaje perfectam
   const prompt = `Eres un experto en SEO y marketing de contenidos.
 
 AUDIENCIA: ${audienceContext}
-TEMAS DISPONIBLES: ${topicPool.join(', ')}
-TEMAS YA USADOS (evitar): ${usedTopics.slice(0, 15).join(', ') || 'ninguno'}
+TEMAS SUGERIDOS: ${topicPool.join(', ')}
+
+⛔ TEMAS PROHIBIDOS (NO usar bajo NINGUNA circunstancia):
+${prohibitedTopicsList || 'ninguno'}
+
+Si el tema que generas es similar a alguno de los PROHIBIDOS, tu respuesta será rechazada.
+Debes buscar un ángulo COMPLETAMENTE DIFERENTE.
 
 ${categoryInstruction}
 
-Elige un tema ÚNICO y genera los metadatos para un artículo de blog épico.
+Genera los metadatos para un artículo de blog ORIGINAL y ÚNICO.
 
-REGLAS:
+REGLAS ESTRICTAS:
 - El año actual es ${currentYear}. NO menciones años anteriores.
 - NO incluir el año en el título (contenido evergreen)
 - El título debe ser irresistible y tener máximo 60 caracteres
 - El excerpt debe tener máximo 155 caracteres
+- El tema DEBE ser diferente a todos los prohibidos arriba
 
 REGLAS DE CAPITALIZACIÓN (ESPAÑOL - MUY IMPORTANTE):
 - Solo la primera letra del título en mayúscula (más nombres propios)
@@ -550,50 +605,74 @@ Escribe el artículo completo ahora:`;
   }
 }
 
+// Generate blog content with similarity validation and retry logic
 async function generateBlogContent(
   lovableApiKey: string,
   category: string,
   usedTopics: string[],
   now: Date,
-  forceCategory?: string
+  forceCategory?: string,
+  maxRetries: number = 3
 ): Promise<BlogPostData | null> {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
   const monthName = MONTH_NAMES[currentMonth];
   
-  // Step 1: Generate metadata
-  console.log("Step 1: Generating metadata...");
-  const metadata = await generateMetadata(lovableApiKey, category, usedTopics, currentYear, forceCategory);
+  let attempts = 0;
   
-  if (!metadata) {
-    console.error("Failed to generate metadata");
-    return null;
+  while (attempts < maxRetries) {
+    attempts++;
+    console.log(`Step 1: Generating metadata (attempt ${attempts}/${maxRetries})...`);
+    
+    const metadata = await generateMetadata(lovableApiKey, category, usedTopics, currentYear, forceCategory);
+    
+    if (!metadata) {
+      console.error("Failed to generate metadata");
+      continue;
+    }
+    
+    console.log(`Metadata ready: "${metadata.title}" [${metadata.thematic_category}]`);
+    
+    // Check similarity BEFORE generating expensive content
+    const similarityCheck = isTooSimilar(metadata.title, usedTopics);
+    
+    if (similarityCheck.similar) {
+      console.log(`❌ Title rejected (attempt ${attempts}): too similar to existing content`);
+      console.log(`   Matched: "${similarityCheck.matchedTopic}" (${((similarityCheck.similarity || 0) * 100).toFixed(0)}%)`);
+      
+      // Add the rejected title to usedTopics to avoid it in next attempt
+      usedTopics.push(metadata.title.toLowerCase());
+      continue;
+    }
+    
+    console.log(`✓ Title passed similarity check`);
+    
+    // Step 2: Generate content only after passing similarity check
+    console.log("Step 2: Generating content...");
+    const content = await generateContent(lovableApiKey, metadata, category, currentYear, monthName);
+    
+    if (!content) {
+      console.error("Failed to generate content");
+      continue;
+    }
+
+    // Calculate read time (average 200 words per minute)
+    const wordCount = content.split(/\s+/).length;
+    const readMinutes = Math.ceil(wordCount / 200);
+    
+    return {
+      title: metadata.title,
+      slug: metadata.slug,
+      excerpt: metadata.excerpt,
+      content: content,
+      seo_keywords: metadata.keywords,
+      read_time: `${readMinutes} min`,
+      thematic_category: metadata.thematic_category,
+    };
   }
   
-  console.log(`Metadata ready: "${metadata.title}" [${metadata.thematic_category}]`);
-
-  // Step 2: Generate content
-  console.log("Step 2: Generating content...");
-  const content = await generateContent(lovableApiKey, metadata, category, currentYear, monthName);
-  
-  if (!content) {
-    console.error("Failed to generate content");
-    return null;
-  }
-
-  // Calculate read time (average 200 words per minute)
-  const wordCount = content.split(/\s+/).length;
-  const readMinutes = Math.ceil(wordCount / 200);
-  
-  return {
-    title: metadata.title,
-    slug: metadata.slug,
-    excerpt: metadata.excerpt,
-    content: content,
-    seo_keywords: metadata.keywords,
-    read_time: `${readMinutes} min`,
-    thematic_category: metadata.thematic_category,
-  };
+  console.error(`Failed to generate unique content after ${maxRetries} attempts`);
+  return null;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -660,9 +739,9 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("Force mode enabled - skipping daily check");
     }
 
-    // Get used topics to avoid repetition
+    // Get used topics (titles + keywords) to avoid repetition
     const usedTopics = await getUsedBlogTopics(supabase, category);
-    console.log(`Found ${usedTopics.length} existing topics to avoid`);
+    console.log(`Found ${usedTopics.length} existing topics/keywords to avoid`);
 
     // Determine thematic category: use forced, or calculate rotation automatically
     let effectiveThematicCategory = forceThematicCategory;
@@ -671,12 +750,12 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`Auto-rotated thematic category: ${effectiveThematicCategory}`);
     }
 
-    // Generate premium content (2-step process)
+    // Generate premium content (with similarity validation and retry)
     console.log(`Generating with thematicCategory: ${effectiveThematicCategory}`);
-    const blogData = await generateBlogContent(lovableApiKey, category, usedTopics, now, effectiveThematicCategory);
+    const blogData = await generateBlogContent(lovableApiKey, category, usedTopics, now, effectiveThematicCategory, 3);
     
     if (!blogData) {
-      throw new Error("Failed to generate blog content");
+      throw new Error("Failed to generate unique blog content after multiple attempts");
     }
 
     const wordCount = blogData.content.split(/\s+/).length;
