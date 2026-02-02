@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.fix-blog-false-claims]
 verify_jwt = false
+
+[functions.register-beta-user]
+verify_jwt = false
