@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { Articulo, ArticleContent } from "@/hooks/useArticulos";
 import { usePublishToWordPress, type PublishResult } from "@/hooks/useWordPressSites";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WordPressPublishDialogProps {
   open: boolean;
@@ -46,6 +48,7 @@ export function WordPressPublishDialog({
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishingLanguage, setPublishingLanguage] = useState<Language | null>(null);
 
+  const queryClient = useQueryClient();
   const publishMutation = usePublishToWordPress();
   const hasCatalan = !!article.content_catalan;
 
@@ -101,6 +104,21 @@ export function WordPressPublishDialog({
       }
 
       setPublishResults(results);
+
+      // Save wp_post_url to database if published successfully
+      if (results.spanish?.success && results.spanish.post_url) {
+        const { error: updateError } = await supabase
+          .from("articulos")
+          .update({ wp_post_url: results.spanish.post_url })
+          .eq("id", article.id);
+
+        if (updateError) {
+          console.error("Error updating wp_post_url:", updateError);
+        }
+
+        // Invalidate cache so cards update immediately
+        queryClient.invalidateQueries({ queryKey: ["articulos"] });
+      }
     } catch (error) {
       // Error is handled by the mutation
     } finally {

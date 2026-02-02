@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarIcon, Loader2, ExternalLink, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WordPressPublishDialogEmpresaProps {
   open: boolean;
@@ -59,6 +61,7 @@ export function WordPressPublishDialogEmpresa({
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
+  const queryClient = useQueryClient();
   const publishMutation = usePublishToWordPressEmpresa();
   const { data: wpSite } = useWordPressSiteByEmpresa(empresaId);
 
@@ -109,6 +112,22 @@ export function WordPressPublishDialogEmpresa({
     }
 
     setPublishResults(results);
+
+    // Save wp_post_url to database if published successfully
+    if (results.spanish?.success && results.spanish.post_url) {
+      const { error: updateError } = await supabase
+        .from("articulos_empresas")
+        .update({ wp_post_url: results.spanish.post_url })
+        .eq("id", article.id);
+
+      if (updateError) {
+        console.error("Error updating wp_post_url:", updateError);
+      }
+
+      // Invalidate cache so cards update immediately
+      queryClient.invalidateQueries({ queryKey: ["articulos_empresas"] });
+    }
+
     setIsPublishing(false);
     setPublishingLanguage(null);
   };
