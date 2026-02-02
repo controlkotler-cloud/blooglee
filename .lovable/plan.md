@@ -1,262 +1,147 @@
 
+# Plan: Corregir Actualización del Estado "Publicado" + Diagnóstico Error 401
 
-# Plan: Mejoras en Cards MKPro + Cambio de Emails a "Publicado"
+## Problemas Identificados
 
-## Resumen de Cambios
+### Problema 1: Error 401 en dos farmacias
+- **Farmacias afectadas**: "Farmacia de Reboreda" (mascercadeti.net) y "Farmàcia La Sínia" (farmacialasinia.es)
+- **Causa**: Error HTTP 401 en `upload-wordpress-media` indica credenciales de WordPress inválidas o expiradas
+- **Solución**: Debes revisar y actualizar las credenciales de WordPress (username y Application Password) para estas dos farmacias
 
-Vamos a implementar dos mejoras importantes:
-
-1. **Rediseño de las tarjetas** de farmacias, empresas y sites con indicadores claros de:
-   - Estado de publicación automática (Auto/Manual)
-   - Estado de publicación en WordPress (Publicado/Pendiente)
-   - Cards más anchas con mejor organización visual
-
-2. **Cambio de emails de notificación**: De "Artículo Generado" a "Artículo Publicado" con el enlace directo al post en WordPress
-
----
-
-## Parte 1: Nuevos Campos en Base de Datos
-
-Añadir columnas para rastrear la URL del post publicado:
-
-| Tabla | Nueva Columna | Tipo | Propósito |
-|-------|---------------|------|-----------|
-| `articulos` | `wp_post_url` | text | URL del post publicado en WordPress |
-| `articulos_empresas` | `wp_post_url` | text | URL del post publicado en WordPress |
-| `articles` (SaaS) | `wp_post_url` | text | URL del post publicado en WordPress |
+### Problema 2: El estado "Publicado" no se actualiza tras publicación manual
+- **Causa**: El componente `WordPressPublishDialog` llama a `publish-to-wordpress` y muestra el resultado, pero NO actualiza el campo `wp_post_url` en la tabla `articulos`
+- **Resultado**: Las cards siguen mostrando "Sin publicar" aunque el post existe en WordPress
+- **Solución**: Añadir lógica para actualizar `wp_post_url` en la base de datos después de una publicación exitosa
 
 ---
 
-## Parte 2: Rediseño de PharmacyCard
+## Cambios Necesarios
 
-### Cambios Visuales
+### 1. Actualizar `WordPressPublishDialog.tsx`
 
-```text
-+------------------------------------------------------------+
-| 📍 Barcelona                          [Auto] [ES/CA] [WP]  |
-+------------------------------------------------------------+
-| Farmàcia de l'Esglèsia                                     |
-|                                                            |
-| Tema: Refuerza tus defensas para el invierno               |
-|                                                            |
-| +------------------+  +------------------+                  |
-| | ✓ Generado       |  | ✓ Publicado      |                  |
-| +------------------+  +------------------+                  |
-|                                                            |
-| [Ver] [Regenerar] [Publicar]              [Editar] [Borrar]|
-+------------------------------------------------------------+
-```
-
-### Nuevos Indicadores
-
-| Badge | Color | Significado |
-|-------|-------|-------------|
-| `Auto` | Verde esmeralda | Publicación automática activada |
-| `Manual` | Ámbar/Naranja | Publicación manual (requiere acción) |
-| `✓ Generado` | Verde | Artículo generado para el período |
-| `✓ Publicado` | Azul/Violeta | Publicado en WordPress |
-| `Pendiente` | Gris | Generado pero no publicado |
-
-### Props Adicionales
+Después de publicar exitosamente, actualizar el artículo en la base de datos:
 
 ```typescript
-interface PharmacyCardProps {
-  // ... existentes
-  article: Articulo | null;
-  isPublished: boolean;  // NUEVO: true si wp_post_url existe
-  wpPostUrl?: string;    // NUEVO: URL del post
+// Después de publicación exitosa
+if (results.spanish?.success && results.spanish.post_url) {
+  await supabase
+    .from("articulos")
+    .update({ wp_post_url: results.spanish.post_url })
+    .eq("id", article.id);
 }
 ```
 
----
+### 2. Actualizar `WordPressPublishDialogEmpresa.tsx`
 
-## Parte 3: Rediseño de CompanyCard
+Mismo patrón para empresas:
 
-Misma estructura que PharmacyCard con los indicadores de:
-- Auto/Manual (ya existe, mejorar visual)
-- Generado/No generado (ya existe)
-- Publicado/Pendiente (NUEVO)
-
----
-
-## Parte 4: Actualización de SiteCard (SaaS)
-
-Añadir indicador de auto_generate y estado de publicación para el último artículo.
-
----
-
-## Parte 5: Cambio de Emails a "Publicado"
-
-### Lógica Actual (Problema)
-
-```text
-1. Generar artículo con IA
-2. Guardar en BD
-3. Publicar en WordPress (si hay config)
-4. Enviar email "Artículo Generado" ← SIEMPRE se envía aquí
+```typescript
+// Después de publicación exitosa
+if (results.spanish?.success && results.spanish.post_url) {
+  await supabase
+    .from("articulos_empresas")
+    .update({ wp_post_url: results.spanish.post_url })
+    .eq("id", article.id);
+}
 ```
 
-### Nueva Lógica
+### 3. Invalidar Cache de React Query
 
-```text
-1. Generar artículo con IA
-2. Guardar en BD
-3. Publicar en WordPress (si hay config)
-4. SI se publicó → Enviar email "Artículo Publicado" con URL
-   SI NO se publicó → NO enviar email (o enviar aviso de fallo)
-```
+Para que las cards se actualicen inmediatamente sin recargar la página:
 
-### Nuevo Diseño del Email
-
-```text
-+--------------------------------------------------+
-|            🚀 Artículo Publicado                  |
-+--------------------------------------------------+
-| Se ha publicado un nuevo artículo para           |
-| Farmàcia de l'Esglèsia:                          |
-|                                                  |
-| +----------------------------------------------+ |
-| | Refuerza tus defensas para el invierno       | |
-| | Descubre los mejores consejos para...        | |
-| +----------------------------------------------+ |
-|                                                  |
-| [Ver artículo en WordPress →]                    |
-|                                                  |
-| MKPro - Publicación automática de contenido      |
-+--------------------------------------------------+
+```typescript
+// Añadir invalidación del cache
+queryClient.invalidateQueries({ queryKey: ["articulos"] });
 ```
 
 ---
 
 ## Archivos a Modificar
 
-### Base de Datos (Migración)
-
-| Acción | Descripción |
-|--------|-------------|
-| ALTER TABLE | Añadir `wp_post_url` a `articulos`, `articulos_empresas`, `articles` |
-
-### Componentes UI
-
 | Archivo | Cambios |
 |---------|---------|
-| `src/components/pharmacy/PharmacyCard.tsx` | Añadir badge Publicado, mejorar layout, más ancha |
-| `src/components/company/CompanyCard.tsx` | Añadir badge Publicado, unificar estilo |
-| `src/components/saas/SiteCard.tsx` | Añadir indicador auto_generate y publicado |
-
-### Hooks de Datos
-
-| Archivo | Cambios |
-|---------|---------|
-| `src/hooks/useArticulos.ts` | Añadir `wp_post_url` al tipo `Articulo` |
-| `src/hooks/useArticulosEmpresas.ts` | Añadir `wp_post_url` al tipo `ArticuloEmpresa` |
-| `src/hooks/useArticlesSaas.ts` | Añadir `wp_post_url` al tipo |
-
-### Edge Functions
-
-| Archivo | Cambios |
-|---------|---------|
-| `supabase/functions/generate-article/index.ts` | Guardar `wp_post_url`, cambiar email a "Publicado" |
-| `supabase/functions/generate-article-empresa/index.ts` | Guardar `wp_post_url`, cambiar email a "Publicado" |
-| `supabase/functions/generate-article-saas/index.ts` | Guardar `wp_post_url`, cambiar email a "Publicado" |
+| `src/components/pharmacy/WordPressPublishDialog.tsx` | Guardar `wp_post_url` en BD + invalidar cache |
+| `src/components/company/WordPressPublishDialogEmpresa.tsx` | Guardar `wp_post_url` en BD + invalidar cache |
 
 ---
 
-## Diseño Visual Mejorado de las Cards
+## Sobre el Error 401
 
-### Antes (Actual)
+El error en "Farmacia de Reboreda" y "Farmàcia La Sínia" es un problema de configuración, no de código:
 
-```text
-+------------------------+
-| Localidad              |
-| Nombre Farmacia        |
-| Tema                   |
-| [Generado]             |
-| [Ver] [Regenerar] ...  |
-+------------------------+
-```
+1. Las credenciales de WordPress almacenadas están incorrectas o han caducado
+2. Posiblemente el Application Password fue revocado o cambiado en WordPress
+3. El plugin de seguridad (como Wordfence) podría estar bloqueando la API
 
-### Después (Nuevo)
+**Acción requerida**: Editar estas dos farmacias en MKPro y actualizar las credenciales de WordPress con un Application Password válido.
+
+---
+
+## Flujo Corregido
 
 ```text
-+----------------------------------------+
-| 📍 Barcelona                   [Auto]  |
-|                           [ES] [CA]    |
-|----------------------------------------|
-| Farmàcia de l'Esglèsia                 |
-|                                        |
-| 🏷️ Defensas para el invierno          |
-|----------------------------------------|
-| Estado:                                |
-| [✓ Generado] [✓ Publicado]             |
-|----------------------------------------|
-| [👁️ Ver] [🔄 Regenerar]    [✏️] [🗑️]   |
-+----------------------------------------+
+Usuario pulsa "Publicar"
+         |
+         v
+WordPressPublishDialog
+         |
+         v
+Llama a publish-to-wordpress Edge Function
+         |
+         v
+Si éxito:
+  1. Mostrar resultado al usuario ✓ (ya funciona)
+  2. [NUEVO] Guardar wp_post_url en articulos
+  3. [NUEVO] Invalidar cache de React Query
+         |
+         v
+La card se actualiza y muestra "Publicado" con el link
 ```
-
-### Ancho de Cards
-
-- Actual: Grid de 3 columnas en desktop
-- Nuevo: Grid de 2 columnas en desktop para cards más amplias
-- Móvil: 1 columna (sin cambios)
 
 ---
 
 ## Sección Técnica
 
-### Migración SQL
-
-```sql
--- Añadir campo wp_post_url a las tablas de artículos
-ALTER TABLE articulos ADD COLUMN IF NOT EXISTS wp_post_url text;
-ALTER TABLE articulos_empresas ADD COLUMN IF NOT EXISTS wp_post_url text;
-ALTER TABLE articles ADD COLUMN IF NOT EXISTS wp_post_url text;
-```
-
-### Actualización del Tipo Articulo
+### Código de Actualización
 
 ```typescript
-export interface Articulo {
-  // ... campos existentes
-  wp_post_url: string | null;  // NUEVO
-}
-```
+// En WordPressPublishDialog.tsx, dentro de handlePublish()
+try {
+  for (const lang of selectedLanguages) {
+    // ... código existente de publicación ...
+    results[lang] = result;
+  }
 
-### Lógica de Email Condicional
-
-```typescript
-// En generate-article/index.ts
-if (wpPostUrl) {
-  // Solo enviar email si se publicó correctamente
-  await sendMKProNotification(
-    pharmacy.name,
-    spanishArticle.title,
-    excerpt,
-    wpPostUrl,
-    true // isPublished = true
-  );
+  setPublishResults(results);
   
-  // Guardar URL en BD
-  await supabase
-    .from("articulos")
-    .update({ wp_post_url: wpPostUrl })
-    .eq("farmacia_id", farmaciaId)
-    .eq("month", month)
-    .eq("year", year);
+  // NUEVO: Guardar URL en base de datos
+  if (results.spanish?.success && results.spanish.post_url) {
+    const { error: updateError } = await supabase
+      .from("articulos")
+      .update({ wp_post_url: results.spanish.post_url })
+      .eq("id", article.id);
+    
+    if (updateError) {
+      console.error("Error updating wp_post_url:", updateError);
+    }
+    
+    // Invalidar cache para que las cards se actualicen
+    queryClient.invalidateQueries({ queryKey: ["articulos"] });
+  }
+} catch (error) {
+  // Error handling...
 }
 ```
 
-### Nueva Firma de sendMKProNotification
+### Props Necesarios
 
-```typescript
-async function sendMKProNotification(
-  entityName: string,
-  articleTitle: string,
-  articleExcerpt: string,
-  wpUrl: string,           // Ahora obligatorio
-  isPublished: boolean     // Nuevo parámetro
-): Promise<void>
-```
+El componente ya recibe el `article` completo con su `id`, así que no necesitamos cambiar las props.
+
+### Dependencias
+
+Necesitamos añadir:
+- `useQueryClient` de `@tanstack/react-query`
+- `supabase` de `@/integrations/supabase/client`
 
 ---
 
@@ -264,14 +149,7 @@ async function sendMKProNotification(
 
 Después de implementar estos cambios:
 
-1. **Cards más informativas**: De un vistazo sabrás si una farmacia/empresa tiene:
-   - Publicación automática o manual
-   - Artículo generado
-   - Artículo publicado en WordPress (con link directo)
-
-2. **Emails útiles**: Solo recibirás emails cuando el artículo esté publicado en WordPress, con el enlace directo para revisarlo
-
-3. **Mejor UX**: Cards más anchas y organizadas con toda la información visible sin necesidad de entrar a cada cuenta
-
-4. **Trazabilidad**: Campo `wp_post_url` en BD permite saber qué artículos están publicados y acceder a ellos directamente
-
+1. Cuando publiques manualmente un artículo, la card mostrará inmediatamente el badge "Publicado" con el enlace
+2. El campo `wp_post_url` quedará guardado en la base de datos para futuras referencias
+3. No necesitarás recargar la página para ver el estado actualizado
+4. Las farmacias con error 401 seguirán fallando hasta que actualices sus credenciales de WordPress
