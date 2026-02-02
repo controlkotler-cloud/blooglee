@@ -89,52 +89,23 @@ export default function BetaSignup() {
       if (authError) throw authError;
 
       if (authData.user) {
-        // The trigger will create the profile, but we need to update beta fields
-        // Wait a moment for the trigger to execute
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait for the trigger to create the profile
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
-        // Update profile with beta information
-        const betaStartedAt = new Date();
-        const betaExpiresAt = new Date();
-        betaExpiresAt.setMonth(betaExpiresAt.getMonth() + 3);
+        // Use Edge Function to complete beta registration (bypasses RLS)
+        const { data: betaResult, error: betaError } = await supabase.functions.invoke('register-beta-user', {
+          body: { 
+            user_id: authData.user.id, 
+            invitation_id: invitation.id 
+          }
+        });
 
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            is_beta: true,
-            beta_started_at: betaStartedAt.toISOString(),
-            beta_expires_at: betaExpiresAt.toISOString(),
-            beta_invitation_id: invitation.id,
-            plan: 'starter',
-            sites_limit: 1,
-            posts_limit: 4,
-          })
-          .eq('user_id', authData.user.id);
-
-        if (profileError) {
-          console.error('Error updating profile:', profileError);
-        }
-
-        // Add beta role
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: authData.user.id,
-            role: 'beta',
-          });
-
-        if (roleError) {
-          console.error('Error adding beta role:', roleError);
-        }
-
-        // Increment invitation uses
-        const { error: incrementError } = await supabase
-          .from('beta_invitations')
-          .update({ current_uses: invitation.current_uses + 1 })
-          .eq('id', invitation.id);
-
-        if (incrementError) {
-          console.error('Error incrementing uses:', incrementError);
+        if (betaError) {
+          console.error('Error completing beta registration:', betaError);
+          // Don't fail completely - user account was created
+          toast.warning('Cuenta creada, pero hubo un problema con la configuración beta. Contacta soporte.');
+        } else {
+          console.log('Beta registration complete:', betaResult);
         }
 
         toast.success('¡Cuenta creada! Por favor, verifica tu email para activar tu cuenta.');
