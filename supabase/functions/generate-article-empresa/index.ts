@@ -1351,7 +1351,7 @@ REGLAS:
       topic: topic,
     };
 
-    // If scheduled execution, save to DB and send notification
+    // If scheduled execution, save to DB, publish to WordPress, and send notification
     if (isScheduled && resolvedEmpresaId) {
       console.log("Scheduled mode: Saving article to database...");
       
@@ -1382,13 +1382,159 @@ REGLAS:
         console.log("Article saved to database successfully");
       }
 
-      // Send notification email
+      // ========== AUTO-PUBLISH TO WORDPRESS ==========
+      let wpPostUrl: string | null = null;
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      
+      try {
+        // Check if empresa has WordPress configured
+        const { data: wpSite, error: wpSiteError } = await supabase
+          .from("wordpress_sites")
+          .select("*")
+          .eq("empresa_id", resolvedEmpresaId)
+          .maybeSingle();
+        
+        if (wpSiteError) {
+          console.error("Error fetching WordPress site:", wpSiteError);
+        } else if (wpSite) {
+          console.log("WordPress site found, publishing article...");
+          
+          // Get default taxonomies for this WordPress site
+          let categoryIds: number[] = [];
+          let tagIds: number[] = [];
+          
+          try {
+            const { data: defaultTaxonomies } = await supabase
+              .from("wordpress_site_default_taxonomies")
+              .select("taxonomy:wordpress_taxonomies(wp_id, taxonomy_type)")
+              .eq("wordpress_site_id", wpSite.id);
+            
+            if (defaultTaxonomies && defaultTaxonomies.length > 0) {
+              for (const dt of defaultTaxonomies) {
+                const taxonomy = dt.taxonomy as unknown as { wp_id: number; taxonomy_type: string } | null;
+                if (taxonomy) {
+                  if (taxonomy.taxonomy_type === "category") {
+                    categoryIds.push(taxonomy.wp_id);
+                  } else if (taxonomy.taxonomy_type === "tag") {
+                    tagIds.push(taxonomy.wp_id);
+                  }
+                }
+              }
+            }
+            
+            // If no defaults, get first available category
+            if (categoryIds.length === 0) {
+              const { data: categories } = await supabase
+                .from("wordpress_taxonomies")
+                .select("wp_id")
+                .eq("wordpress_site_id", wpSite.id)
+                .eq("taxonomy_type", "category")
+                .limit(1);
+              
+              if (categories && categories.length > 0) {
+                categoryIds = [categories[0].wp_id];
+              }
+            }
+          } catch (taxError) {
+            console.error("Error fetching taxonomies:", taxError);
+          }
+          
+          console.log("Publishing with categories:", categoryIds, "tags:", tagIds);
+          
+          // Publish Spanish article
+          if (spanishArticle) {
+            try {
+              const publishResponse = await fetch(`${SUPABASE_URL}/functions/v1/publish-to-wordpress`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                },
+                body: JSON.stringify({
+                  empresa_id: resolvedEmpresaId,
+                  title: spanishArticle.title,
+                  content: spanishArticle.content,
+                  slug: spanishArticle.slug,
+                  status: "publish",
+                  image_url: imageResult?.url,
+                  image_alt: spanishArticle.title,
+                  meta_description: spanishArticle.meta_description,
+                  lang: "es",
+                  category_ids: categoryIds,
+                  tag_ids: tagIds,
+                }),
+              });
+              
+              if (publishResponse.ok) {
+                const publishResult = await publishResponse.json();
+                if (publishResult.success && publishResult.post_url) {
+                  wpPostUrl = publishResult.post_url;
+                  console.log("✓ Spanish article published to WordPress:", wpPostUrl);
+                } else {
+                  console.error("WordPress publish failed:", publishResult.error);
+                }
+              } else {
+                const errorText = await publishResponse.text();
+                console.error("WordPress publish HTTP error:", publishResponse.status, errorText);
+              }
+            } catch (publishError) {
+              console.error("Error publishing to WordPress:", publishError);
+            }
+          }
+          
+          // Publish Catalan article if available
+          if (catalanArticle) {
+            try {
+              const publishResponseCa = await fetch(`${SUPABASE_URL}/functions/v1/publish-to-wordpress`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                },
+                body: JSON.stringify({
+                  empresa_id: resolvedEmpresaId,
+                  title: catalanArticle.title,
+                  content: catalanArticle.content,
+                  slug: catalanArticle.slug + "-ca",
+                  status: "publish",
+                  image_url: imageResult?.url,
+                  image_alt: catalanArticle.title,
+                  meta_description: catalanArticle.meta_description,
+                  lang: "ca",
+                  category_ids: categoryIds,
+                  tag_ids: tagIds,
+                }),
+              });
+              
+              if (publishResponseCa.ok) {
+                const publishResultCa = await publishResponseCa.json();
+                if (publishResultCa.success) {
+                  console.log("✓ Catalan article published to WordPress:", publishResultCa.post_url);
+                } else {
+                  console.error("WordPress Catalan publish failed:", publishResultCa.error);
+                }
+              } else {
+                console.error("WordPress Catalan publish HTTP error:", publishResponseCa.status);
+              }
+            } catch (publishErrorCa) {
+              console.error("Error publishing Catalan to WordPress:", publishErrorCa);
+            }
+          }
+        } else {
+          console.log("No WordPress site configured for this empresa");
+        }
+      } catch (wpError) {
+        console.error("WordPress publishing error:", wpError);
+      }
+
+      // Send notification email with WordPress URL if available
       const excerpt = spanishArticle?.meta_description || spanishArticle?.content?.substring(0, 150) || "";
       await sendMKProNotification(
         company.name,
         spanishArticle?.title || "Artículo generado",
         excerpt,
-        company.blog_url
+        wpPostUrl || company.blog_url
       );
     }
 
