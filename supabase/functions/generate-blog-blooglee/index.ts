@@ -57,6 +57,28 @@ Blooglee es una plataforma SaaS que hace ÚNICAMENTE esto:
 - NO analiza competencia
 - NO optimiza Core Web Vitals
 - NO genera informes PDF automatizados
+- NO hace análisis predictivo
+- NO ofrece alertas ni notificaciones de métricas
+
+🚫 EJEMPLOS DE FRASES PROHIBIDAS (NUNCA usar):
+- "Blooglee analiza tus métricas" ✗
+- "Blooglee monitoriza tu NAP" ✗
+- "Blooglee te envía newsletters" ✗
+- "Blooglee gestiona tus redes sociales" ✗
+- "Blooglee hace auditorías SEO" ✗
+- "Blooglee ofrece reporting automatizado" ✗
+- "Blooglee genera informes de rendimiento" ✗
+- "Blooglee anticipa la demanda con análisis predictivo" ✗
+- "Blooglee optimiza fragmentos destacados" ✗
+- "Blooglee propone ideas basadas en datos" ✗
+
+✅ EJEMPLOS DE FRASES CORRECTAS (usar estas):
+- "Blooglee genera artículos de blog optimizados para SEO" ✓
+- "Blooglee publica automáticamente en WordPress" ✓
+- "Blooglee incluye imágenes destacadas de Pexels/Unsplash" ✓
+- "Blooglee soporta español, catalán e inglés" ✓
+- "Blooglee gestiona múltiples blogs desde un único dashboard" ✓
+- "Blooglee te ahorra horas de redacción cada semana" ✓
 
 REGLA CRÍTICA SOBRE MENCIONES DE BLOOGLEE:
 - Si el tema del artículo es sobre blogs, contenido o WordPress → menciona Blooglee como solución para generar y publicar artículos automáticamente
