@@ -137,6 +137,7 @@ export interface Article {
   generated_at: string;
   week_of_month: number | null;
   day_of_month: number | null;
+  wp_post_url: string | null;
 }
 
 export function useArticlesSaas(siteId: string | undefined, month?: number, year?: number) {

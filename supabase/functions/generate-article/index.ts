@@ -39,12 +39,13 @@ interface RequestBody {
   isScheduled?: boolean; // Flag for scheduled execution
 }
 
-// Send notification email for MKPro
+// Send notification email for MKPro - ONLY for published articles
 async function sendMKProNotification(
   pharmacyName: string,
   articleTitle: string,
   articleExcerpt: string,
-  wpUrl?: string | null
+  wpUrl: string,
+  isPublished: boolean = true
 ): Promise<void> {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) {
@@ -55,9 +56,14 @@ async function sendMKProNotification(
   try {
     const resend = new Resend(RESEND_API_KEY);
     
-    const wpSection = wpUrl 
-      ? `<p style="margin: 20px 0;"><a href="${wpUrl}" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Ver en WordPress →</a></p>`
-      : '';
+    const statusTitle = isPublished ? "🚀 Artículo Publicado" : "📝 Artículo Generado";
+    const statusMessage = isPublished 
+      ? `Se ha publicado un nuevo artículo para <strong>${pharmacyName}</strong>:`
+      : `Se ha generado un nuevo artículo para <strong>${pharmacyName}</strong>:`;
+    const buttonText = isPublished ? "Ver artículo publicado →" : "Ver en el blog →";
+    const footerText = isPublished 
+      ? "MKPro - Publicación automática de contenido" 
+      : "MKPro - Generación automática de contenido";
 
     const html = `
 <!DOCTYPE html>
@@ -65,20 +71,20 @@ async function sendMKProNotification(
 <head><meta charset="utf-8"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px;">
   <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-    <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 30px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">📝 Artículo Generado</h1>
+    <div style="background: linear-gradient(135deg, ${isPublished ? '#10b981' : '#6366f1'}, ${isPublished ? '#059669' : '#8b5cf6'}); padding: 30px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 24px;">${statusTitle}</h1>
     </div>
     <div style="padding: 30px;">
       <p style="color: #374151; font-size: 16px; margin-bottom: 20px;">
-        Se ha generado un nuevo artículo para <strong>${pharmacyName}</strong>:
+        ${statusMessage}
       </p>
-      <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+      <div style="background: #f9fafb; padding: 20px; border-radius: 8px; border-left: 4px solid ${isPublished ? '#10b981' : '#8b5cf6'};">
         <h2 style="color: #1f2937; margin: 0 0 10px 0; font-size: 18px;">${articleTitle}</h2>
         <p style="color: #6b7280; margin: 0; font-size: 14px;">${articleExcerpt || 'Artículo generado automáticamente'}</p>
       </div>
-      ${wpSection}
+      <p style="margin: 20px 0;"><a href="${wpUrl}" style="display: inline-block; background: ${isPublished ? '#10b981' : '#6366f1'}; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">${buttonText}</a></p>
       <p style="color: #9ca3af; font-size: 12px; margin-top: 30px; text-align: center;">
-        MKPro - Generación automática de contenido
+        ${footerText}
       </p>
     </div>
   </div>
@@ -88,7 +94,7 @@ async function sendMKProNotification(
     await resend.emails.send({
       from: "Blooglee <hola@blooglee.com>",
       to: [NOTIFICATION_EMAIL],
-      subject: `✅ Artículo generado: ${pharmacyName}`,
+      subject: isPublished ? `🚀 Artículo publicado: ${pharmacyName}` : `✅ Artículo generado: ${pharmacyName}`,
       html,
     });
 
@@ -1052,14 +1058,35 @@ REGLAS:
         console.error("WordPress publishing error:", wpError);
       }
 
-      // Send notification email with WordPress URL if available
-      const excerpt = spanishArticle?.meta_description || spanishArticle?.content?.substring(0, 150) || "";
-      await sendMKProNotification(
-        pharmacy.name,
-        spanishArticle?.title || "Artículo generado",
-        excerpt,
-        wpPostUrl || pharmacy.blog_url
-      );
+      // Save wp_post_url to database if published
+      if (wpPostUrl) {
+        const { error: updateWpUrlError } = await supabase
+          .from("articulos")
+          .update({ wp_post_url: wpPostUrl })
+          .eq("farmacia_id", farmaciaId)
+          .eq("month", month)
+          .eq("year", year);
+        
+        if (updateWpUrlError) {
+          console.error("Error updating wp_post_url:", updateWpUrlError);
+        } else {
+          console.log("wp_post_url saved to database");
+        }
+      }
+
+      // Send notification email - ONLY if published to WordPress
+      if (wpPostUrl) {
+        const excerpt = spanishArticle?.meta_description || spanishArticle?.content?.substring(0, 150) || "";
+        await sendMKProNotification(
+          pharmacy.name,
+          spanishArticle?.title || "Artículo publicado",
+          excerpt,
+          wpPostUrl,
+          true // isPublished
+        );
+      } else {
+        console.log("Article generated but not published to WordPress - no email sent");
+      }
     }
 
     return new Response(

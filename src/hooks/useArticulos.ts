@@ -23,6 +23,7 @@ export interface Articulo {
   image_photographer: string | null;
   image_photographer_url: string | null;
   generated_at: string;
+  wp_post_url: string | null;
 }
 
 interface GenerateArticleParams {

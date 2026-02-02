@@ -378,7 +378,7 @@ export default function MKPro() {
                   <Button onClick={() => setShowAddForm(true)}><Plus className="w-4 h-4 mr-2" />Añadir farmacia</Button>
                 </CardContent></Card>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2">
                   {farmacias.map((pharmacy, index) => (
                     <PharmacyCard 
                       key={pharmacy.id} 
@@ -417,7 +417,7 @@ export default function MKPro() {
                   <Button onClick={() => setShowAddCompanyForm(true)}><Plus className="w-4 h-4 mr-2" />Añadir empresa</Button>
                 </CardContent></Card>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2">
                   {empresas.map((company) => (
                     <CompanyCard 
                       key={company.id} 
