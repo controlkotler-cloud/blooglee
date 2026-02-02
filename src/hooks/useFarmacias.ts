@@ -22,7 +22,7 @@ export function useFarmacias() {
       const { data, error } = await supabase
         .from("farmacias")
         .select("*")
-        .order("created_at", { ascending: true });
+        .order("name", { ascending: true });
 
       if (error) throw error;
       return data as Farmacia[];

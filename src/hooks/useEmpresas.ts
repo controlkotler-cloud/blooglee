@@ -26,7 +26,7 @@ export function useEmpresas() {
       const { data, error } = await supabase
         .from("empresas")
         .select("*")
-        .order("created_at", { ascending: true });
+        .order("name", { ascending: true });
 
       if (error) throw error;
       return data as Empresa[];

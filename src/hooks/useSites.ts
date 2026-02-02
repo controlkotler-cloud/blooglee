@@ -57,7 +57,7 @@ export function useSites() {
         .from('sites')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
+        .order('name', { ascending: true });
 
       if (error) {
         console.error('Error fetching sites:', error);
