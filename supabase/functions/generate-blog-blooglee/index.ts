@@ -24,6 +24,49 @@ interface BlogPostData {
 // Thematic categories (separate from audience)
 const THEMATIC_CATEGORIES = ['SEO', 'Marketing', 'Tutoriales', 'Comparativas', 'Producto', 'Tendencias'];
 
+// ===== DEFINICIÓN RESTRICTIVA DE BLOOGLEE =====
+// Esta definición se incluye en el prompt para evitar que la IA invente funcionalidades
+const BLOOGLEE_DEFINITION = `
+DEFINICIÓN EXACTA DE BLOOGLEE (NO INVENTAR OTRAS FUNCIONALIDADES):
+
+Blooglee es una plataforma SaaS que hace ÚNICAMENTE esto:
+1. Genera artículos de blog con IA (GPT-5, Gemini 2.5) de 800-1200 palabras
+2. Optimiza SEO automáticamente: meta título, meta descripción, slug, estructura H1-H3
+3. Incluye imagen destacada automática (de Pexels, Unsplash o generada por IA)
+4. Publica directamente en WordPress con un solo clic mediante API REST
+5. Soporta español, catalán e inglés
+6. Gestiona múltiples sitios web desde un dashboard centralizado (hasta 10 sitios)
+
+⛔ BLOOGLEE NO HACE (NUNCA mencionar estas funcionalidades):
+- NO genera newsletters ni email marketing
+- NO gestiona redes sociales (LinkedIn, Instagram, Facebook, X, TikTok, etc.)
+- NO hace SEO técnico ni auditorías SEO
+- NO ofrece analytics ni informes de rendimiento
+- NO crea landing pages
+- NO hace reporting automatizado de métricas
+- NO monitoriza NAP ni datos de negocio local
+- NO tiene dashboards de métricas avanzadas
+- NO integra con herramientas de análisis (GA4, Search Console, etc.)
+- NO genera contenido para redes sociales
+- NO automatiza campañas de email marketing
+- NO hace A/B testing
+- NO ofrece CRM ni gestión de clientes
+- NO publica en redes sociales
+- NO programa publicaciones en social media
+- NO hace link building ni outreach
+- NO analiza competencia
+- NO optimiza Core Web Vitals
+- NO genera informes PDF automatizados
+
+REGLA CRÍTICA SOBRE MENCIONES DE BLOOGLEE:
+- Si el tema del artículo es sobre blogs, contenido o WordPress → menciona Blooglee como solución para generar y publicar artículos automáticamente
+- Si el tema NO es sobre blogs/contenido → NO menciones Blooglee o hazlo de forma MUY breve y genérica al final
+- NUNCA atribuyas a Blooglee funcionalidades que no tiene
+- Es 100% preferible NO mencionar Blooglee a inventar lo que hace
+- Cuando menciones Blooglee, hazlo SOLO en contexto de: generar artículos, publicar en WordPress, imágenes destacadas, SEO de posts, gestión multi-sitio
+`;
+// ===== FIN DEFINICIÓN BLOOGLEE =====
+
 // Topics for empresas (businesses) - CLEANED to avoid semantic duplicates
 const EMPRESA_TOPICS = [
   "automatizar marketing contenidos pymes",
@@ -497,9 +540,10 @@ Escribe un artículo de blog ÉPICO y COMPLETO sobre: "${metadata.title}"
 
 CONTEXTO:
 - Fecha actual: ${monthName} de ${currentYear}
-- Plataforma: Blooglee (https://blooglee.com) - SaaS de automatización de blogs con IA
-- Instagram: https://www.instagram.com/blooglee_/
+- Instagram de Blooglee: https://www.instagram.com/blooglee_/
 - Audiencia: ${audienceContext}
+
+${BLOOGLEE_DEFINITION}
 
 ESTRUCTURA OBLIGATORIA (2500-3500 palabras en Markdown):
 
@@ -547,12 +591,14 @@ REGLAS DE CAPITALIZACIÓN (ESPAÑOL - MUY IMPORTANTE):
 
 Síguenos en [Instagram](https://www.instagram.com/blooglee_/) para más consejos de marketing.
 
-[Prueba Blooglee gratis](/auth) y transforma tu estrategia de contenidos.
+[Prueba Blooglee gratis](/auth) y automatiza la generación de artículos para tu blog WordPress.
 
 IMPORTANTE:
 - NO uses JSON, solo Markdown puro
 - NO incluyas el título del artículo al inicio (ya lo tenemos)
-- Menciona Blooglee naturalmente 3-4 veces
+- Menciona Blooglee SOLO 2-3 veces y SIEMPRE en contexto de generación de blogs/WordPress
+- Si el tema del artículo NO es sobre blogs, menciona Blooglee solo al final de forma genérica
+- NUNCA inventes funcionalidades de Blooglee que no existen
 - El contenido debe ser EXHAUSTIVO y de alta calidad
 - Año actual: ${currentYear} (no menciones años anteriores)
 
