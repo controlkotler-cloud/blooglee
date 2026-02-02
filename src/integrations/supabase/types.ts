@@ -30,6 +30,7 @@ export type Database = {
           topic: string
           user_id: string
           week_of_month: number | null
+          wp_post_url: string | null
           year: number
         }
         Insert: {
@@ -47,6 +48,7 @@ export type Database = {
           topic: string
           user_id: string
           week_of_month?: number | null
+          wp_post_url?: string | null
           year: number
         }
         Update: {
@@ -64,6 +66,7 @@ export type Database = {
           topic?: string
           user_id?: string
           week_of_month?: number | null
+          wp_post_url?: string | null
           year?: number
         }
         Relationships: [
@@ -89,6 +92,7 @@ export type Database = {
           month: number
           pexels_query: string | null
           topic: string
+          wp_post_url: string | null
           year: number
         }
         Insert: {
@@ -103,6 +107,7 @@ export type Database = {
           month: number
           pexels_query?: string | null
           topic: string
+          wp_post_url?: string | null
           year: number
         }
         Update: {
@@ -117,6 +122,7 @@ export type Database = {
           month?: number
           pexels_query?: string | null
           topic?: string
+          wp_post_url?: string | null
           year?: number
         }
         Relationships: [
@@ -144,6 +150,7 @@ export type Database = {
           pexels_query: string | null
           topic: string
           week_of_month: number | null
+          wp_post_url: string | null
           year: number
         }
         Insert: {
@@ -160,6 +167,7 @@ export type Database = {
           pexels_query?: string | null
           topic: string
           week_of_month?: number | null
+          wp_post_url?: string | null
           year: number
         }
         Update: {
@@ -176,6 +184,7 @@ export type Database = {
           pexels_query?: string | null
           topic?: string
           week_of_month?: number | null
+          wp_post_url?: string | null
           year?: number
         }
         Relationships: [
