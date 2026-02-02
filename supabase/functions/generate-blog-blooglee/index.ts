@@ -609,7 +609,22 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { category, force, forceThematicCategory } = await req.json();
+    const body = await req.json();
+    // Accept both 'category' and 'audience' (for backward compatibility with cron jobs)
+    const rawCategory = body.category || body.audience;
+    const force = body.force;
+    const forceThematicCategory = body.forceThematicCategory;
+
+    // Normalize: accept lowercase and capitalize
+    const normalizeCategory = (cat: string): string => {
+      if (!cat) return '';
+      const lower = cat.toLowerCase();
+      if (lower === 'empresas') return 'Empresas';
+      if (lower === 'agencias') return 'Agencias';
+      return cat;
+    };
+
+    const category = normalizeCategory(rawCategory);
     
     if (!category || !['Empresas', 'Agencias'].includes(category)) {
       throw new Error("Invalid category. Must be 'Empresas' or 'Agencias'");
