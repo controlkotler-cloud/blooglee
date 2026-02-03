@@ -477,9 +477,12 @@ function detectSectorCategory(sector: string | null | undefined): string {
   if (!sector) return "default";
   const s = sector.toLowerCase();
   
+  // IMPORTANT: Check specific sectors BEFORE generic ones
+  // "farmacia" must be checked before "digital" (a pharmacy site might mention "digital")
+  if (s.includes("farmacia") || s.includes("parafarm") || s.includes("dermofarm") || s.includes("botica")) return "farmacia";
   if (s.includes("peluqu") || s.includes("cabello") || s.includes("estétic") || s.includes("beauty")) return "belleza";
   if (s.includes("restaur") || s.includes("hotel") || s.includes("hostel") || s.includes("bar ") || s.includes("cafeter")) return "hosteleria";
-  if (s.includes("marketing") || s.includes("seo") || s.includes("digital") || s.includes("publicidad")) return "marketing";
+  if (s.includes("marketing") || s.includes("seo") || s.includes("publicidad") || s.includes("agencia")) return "marketing";
   if (s.includes("tecnolog") || s.includes("software") || s.includes("informát") || s.includes("saas")) return "tecnologia";
   if (s.includes("salud") || s.includes("médic") || s.includes("clínic") || s.includes("wellness")) return "salud";
   
@@ -806,14 +809,22 @@ serve(async (req) => {
     if (!topic) {
       console.log("Generating topic with AI...");
       const usedTopics = await getUsedTopicsForSite(supabase, siteId);
-      console.log(`Found ${usedTopics.length} previously used topics`);
+      console.log(`Found ${usedTopics.length} Blooglee topics`);
+      
+      // Get WordPress topics from context
+      const wpTopics = wpContext?.lastTopics || [];
+      console.log(`Found ${wpTopics.length} WordPress topics from context`);
+      if (wpTopics.length > 0) {
+        console.log('WordPress topics to avoid:', wpTopics.slice(0, 5).join(', '));
+      }
       
       // Build comprehensive avoid list
       const allAvoidTopics = [
         ...avoidTopics,
         ...usedTopics.slice(0, 30),
-        ...(wpContext?.lastTopics || [])
+        ...wpTopics // WordPress topics from sync
       ];
+      console.log(`Total topics to avoid: ${allAvoidTopics.length}`);
       
       const usedTopicsSection = allAvoidTopics.length > 0 
         ? `\n\n⚠️ TEMAS A EVITAR (NO REPETIR NI SIMILARES):\n${allAvoidTopics.slice(0, 40).map((t, i) => `${i+1}. ${t}`).join('\n')}`
