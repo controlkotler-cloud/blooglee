@@ -46,12 +46,16 @@ export function useSyncTaxonomiesSaas() {
 
   return useMutation({
     mutationFn: async (wordpressConfigId: string) => {
+      console.log('Calling sync-wordpress-taxonomies-saas with config:', wordpressConfigId);
+      
       const { data, error } = await supabase.functions.invoke('sync-wordpress-taxonomies-saas', {
-        body: { wordpress_config_id: wordpressConfigId }
+        body: { wordpress_config_id: wordpressConfigId, analyze_content: true }
       });
 
+      console.log('Sync response:', { data, error });
+
       if (error) {
-        console.error('Sync error:', error);
+        console.error('Sync invoke error:', error);
         throw new Error(error.message || 'Error al sincronizar');
       }
 
@@ -63,11 +67,24 @@ export function useSyncTaxonomiesSaas() {
     },
     onSuccess: (data, wordpressConfigId) => {
       queryClient.invalidateQueries({ queryKey: ['wordpress-taxonomies-saas', wordpressConfigId] });
-      toast.success(`Sincronizadas ${data.categories} categorías y ${data.tags} tags`);
+      queryClient.invalidateQueries({ queryKey: ['sites'] }); // Refresh sites to get updated wordpress_context
+      
+      // Show detailed feedback
+      const taxonomyMsg = `${data.categories} categorías y ${data.tags} tags sincronizados`;
+      
+      if (data.content_analyzed && data.wordpress_context) {
+        const topicsCount = data.wordpress_context.lastTopics?.length || 0;
+        toast.success(`${taxonomyMsg}. Contexto WordPress guardado (${topicsCount} temas analizados).`);
+      } else if (data.content_analyzed === false) {
+        toast.success(taxonomyMsg);
+      } else {
+        // content_analyzed true but no wordpress_context - something went wrong
+        toast.warning(`${taxonomyMsg}, pero no se pudo guardar el contexto de WordPress.`);
+      }
     },
     onError: (error: Error) => {
       console.error('Sync mutation error:', error);
-      toast.error(`Error: ${error.message}`);
+      toast.error(`Error al sincronizar: ${error.message}`);
     }
   });
 }
