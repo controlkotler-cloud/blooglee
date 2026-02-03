@@ -1,262 +1,121 @@
 
-# Plan: Sistema de generación inteligente con contexto enriquecido
+# Diagnóstico: Por qué los artículos siguen siendo repetitivos
 
-## El problema de fondo
+## Problemas identificados
 
-El sistema actual es "dumb" - solo cambia variables en un prompt fijo. Esto causa:
+### Problema 1: `wordpress_context` está NULL
 
-1. **Repetitividad temática**: Siempre tiende a IA, tendencias, digitalización
-2. **Falta de personalización real**: No conoce el tono, audiencia ni estilo del negocio
-3. **Desperdicio de datos**: No usamos los posts existentes de WordPress ni las categorías
-4. **Experiencia pobre**: El usuario no puede definir qué tipo de contenido quiere
-
-## Solución propuesta: Contexto enriquecido en 3 capas
-
-```text
-┌──────────────────────────────────────────────────────────────────────┐
-│                        CAPA 1: PERFIL DE CONTENIDO                   │
-│  (Nueva sección en configuración del sitio)                          │
-│                                                                      │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐         │
-│  │ Tono de voz    │  │ Audiencia      │  │ Pilares de     │         │
-│  │ - Formal       │  │ - Profesionales│  │ contenido      │         │
-│  │ - Cercano      │  │ - Consumidor   │  │ - Educativo    │         │
-│  │ - Técnico      │  │ - B2B / B2C    │  │ - Tendencias   │         │
-│  │ - Divulgativo  │  │ - Edad aprox   │  │ - Casos éxito  │         │
-│  └────────────────┘  └────────────────┘  │ - Guías        │         │
-│                                          └────────────────┘         │
-├──────────────────────────────────────────────────────────────────────┤
-│                        CAPA 2: ANÁLISIS WORDPRESS                    │
-│  (Automático al sincronizar)                                         │
-│                                                                      │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ 1. Leer últimos 10-20 posts del blog                         │    │
-│  │ 2. Extraer: títulos, categorías usadas, longitud media       │    │
-│  │ 3. Analizar con IA: tono detectado, temas recurrentes        │    │
-│  │ 4. Guardar como "contexto_wordpress" en el sitio             │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│                                                                      │
-├──────────────────────────────────────────────────────────────────────┤
-│                        CAPA 3: ROTACIÓN TEMÁTICA                     │
-│  (En cada generación)                                                │
-│                                                                      │
-│  En lugar de: "genera un tema sobre X"                              │
-│  Ahora: "Esta semana toca pilar EDUCATIVO, usa categoría Y"         │
-│                                                                      │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ Pilares rotan automáticamente:                               │    │
-│  │ Semana 1 → Educativo (guías, tutoriales)                    │    │
-│  │ Semana 2 → Tendencias (novedades del sector)                │    │
-│  │ Semana 3 → Casos prácticos (ejemplos reales)                │    │
-│  │ Semana 4 → Estacional (según época del año)                 │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────────────────┘
+A pesar de sincronizar WordPress, el contexto no se guardó:
+```
+wordpress_context: <nil>
 ```
 
-## Parte 1: Nuevos campos en la tabla sites
+La Edge Function `sync-wordpress-taxonomies-saas` tiene la lógica, pero parece que no se ejecutó correctamente o falló silenciosamente. Sin logs disponibles, no puedo confirmar qué pasó.
 
-Añadir columnas para el perfil de contenido:
+### Problema 2: El tema generado menciona "marzo" cuando estamos en febrero
 
-| Campo | Tipo | Propósito |
-|-------|------|-----------|
-| `tone` | text | "formal", "casual", "technical", "educational" |
-| `target_audience` | text | Descripción de audiencia objetivo |
-| `content_pillars` | text[] | Array de pilares: ["educativo", "tendencias", "casos", "guias"] |
-| `avoid_topics` | text[] | Temas a evitar (competencia, temas sensibles) |
-| `preferred_length` | text | "short" (800), "medium" (1500), "long" (2500) |
-| `wordpress_context` | jsonb | Análisis automático del blog existente |
-| `last_pillar_index` | integer | Para rotar pilares automáticamente |
-
-## Parte 2: Nueva sección en configuración del sitio
-
-Añadir pestaña o card "Perfil de contenido" en SiteSettings:
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ 📝 Perfil de contenido                                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│ Tono de voz                                                     │
-│ ┌─────────────────────────────────────────────────────────────┐ │
-│ │ ○ Formal y profesional                                      │ │
-│ │ ● Cercano pero experto                                      │ │
-│ │ ○ Técnico y especializado                                   │ │
-│ │ ○ Divulgativo y accesible                                   │ │
-│ └─────────────────────────────────────────────────────────────┘ │
-│                                                                 │
-│ Audiencia objetivo                                              │
-│ ┌─────────────────────────────────────────────────────────────┐ │
-│ │ Ej: Profesionales del sector salud, 35-55 años, interesados │ │
-│ │ en mejorar su práctica diaria...                            │ │
-│ └─────────────────────────────────────────────────────────────┘ │
-│                                                                 │
-│ Pilares de contenido (selecciona 2-4)                          │
-│ ☑ Educativo (guías, tutoriales, how-to)                        │
-│ ☑ Tendencias (novedades, innovación)                           │
-│ ☐ Casos prácticos (ejemplos, testimonios)                      │
-│ ☑ Estacional (adaptado a época del año)                        │
-│ ☐ Opinión/Análisis (perspectivas del sector)                   │
-│                                                                 │
-│ Temas a evitar                                                  │
-│ ┌─────────────────────────────────────────────────────────────┐ │
-│ │ competencia, precios, polémicas políticas...                │ │
-│ └─────────────────────────────────────────────────────────────┘ │
-│                                                                 │
-│ Longitud preferida                                              │
-│ ○ Corto (~800 palabras) - Lectura rápida                       │
-│ ● Medio (~1500 palabras) - Equilibrado                         │
-│ ○ Largo (~2500 palabras) - SEO intensivo                       │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+El prompt dice "Estamos en Febrero 2026" pero la IA respondió:
+```
+"Farmacia del futuro: digitalización más allá de la venta online este marzo"
 ```
 
-## Parte 3: Análisis automático de WordPress
+Esto indica que la IA ignora las instrucciones o el prompt no es lo suficientemente restrictivo.
 
-Nueva función `analyze-wordpress-content`:
+### Problema 3: Ambos artículos son sobre "digitalización/tendencias/futuro"
 
-```typescript
-// Al sincronizar taxonomías O manualmente desde la UI
-async function analyzeWordPressContent(wpConfig, supabase) {
-  // 1. Obtener últimos 15 posts publicados
-  const posts = await fetch(`${wpUrl}/wp-json/wp/v2/posts?per_page=15&status=publish`);
-  
-  // 2. Extraer información
-  const analysis = {
-    avgLength: calcularLongitudMedia(posts),
-    commonCategories: extraerCategoriasMasUsadas(posts),
-    titlePatterns: analizarPatronesTitulos(posts),
-    lastTopics: posts.map(p => p.title.rendered).slice(0, 10)
-  };
-  
-  // 3. Analizar con IA para detectar tono
-  const toneAnalysis = await analyzeWithAI(`
-    Analiza estos títulos y extractos de blog:
-    ${posts.map(p => `- ${p.title.rendered}: ${p.excerpt.rendered}`).join('\n')}
-    
-    Responde JSON:
-    {
-      "detected_tone": "formal|casual|technical|educational",
-      "main_themes": ["tema1", "tema2", "tema3"],
-      "style_notes": "observaciones sobre el estilo"
-    }
-  `);
-  
-  // 4. Guardar en site.wordpress_context
-  await supabase.from('sites').update({
-    wordpress_context: { ...analysis, ...toneAnalysis, analyzed_at: new Date() }
-  }).eq('id', siteId);
-}
+| Fecha | Tema |
+|-------|------|
+| 1 Feb | "Tendencias digitales clave para farmacias este año" |
+| 3 Feb | "Farmacia del futuro: digitalización más allá de la venta online" |
+
+El pilar rotó de "educational" a "trends" pero el problema es más profundo:
+
+**El prompt NO prohíbe explícitamente palabras genéricas como:**
+- digitalización, digital, futuro, innovación, IA, inteligencia artificial, tendencias, tecnología
+
+### Problema 4: Falta de "lista negra" de conceptos sobreusados
+
+Para sectores como farmacias, siempre hay respuestas "fáciles" que la IA da por defecto. No hay nada que la fuerce a pensar diferente.
+
+## Solución propuesta
+
+### Parte 1: Añadir lista de conceptos prohibidos por sector
+
+En la base de datos, tener una tabla o campo con palabras/conceptos que la IA NO puede usar para ese sector específico:
+
+| Sector | Conceptos prohibidos |
+|--------|----------------------|
+| farmacia | digitalización, transformación digital, IA, inteligencia artificial, futuro, innovación, tecnología punta |
+| marketing | viralidad, engagement, influencer, trending |
+| general | IA, ChatGPT, transformación digital |
+
+### Parte 2: Mejorar el prompt de topic con prohibiciones explícitas
+
+Cambiar el prompt `saas.topic` para incluir:
+
+```
+⛔ PALABRAS PROHIBIDAS (NUNCA USAR EN EL TEMA):
+{{prohibitedTerms}}
+
+⛔ CONCEPTOS GENÉRICOS PROHIBIDOS:
+- "digitalización", "transformación digital"
+- "futuro de [sector]", "el futuro"
+- "innovación", "innovador"
+- "IA", "inteligencia artificial"
+- "tendencias 2026", "este año"
+- Cualquier buzzword tecnológico genérico
+
+EN SU LUGAR, sé CONCRETO y PRÁCTICO:
+- BIEN: "Cómo organizar el stock de medicamentos refrigerados"
+- MAL: "Digitalización del inventario farmacéutico"
+- BIEN: "Servicios de nutrición deportiva en tu farmacia"
+- MAL: "Innovación en servicios farmacéuticos"
 ```
 
-## Parte 4: Modificar generación de artículos
+### Parte 3: Forzar especificidad en el prompt
 
-El prompt ahora usa todo este contexto:
+Añadir instrucciones como:
+```
+El tema debe ser sobre una ACCIÓN CONCRETA o un PROBLEMA ESPECÍFICO, no sobre conceptos abstractos.
 
-```typescript
-// En generate-article-saas
-const site = await getSiteWithFullContext(siteId);
+Ejemplos de temas CONCRETOS (BUENOS):
+- "Cómo reducir devoluciones de productos cosméticos"
+- "Consejos para atender clientes con alergias estacionales"
+- "Optimiza el espacio de tu mostrador de parafarmacia"
 
-// Determinar pilar de esta semana (rotación automática)
-const pillarIndex = (site.last_pillar_index + 1) % site.content_pillars.length;
-const currentPillar = site.content_pillars[pillarIndex];
-
-// Seleccionar categoría de WordPress que encaje
-const wpCategory = selectCategoryForPillar(currentPillar, site.wordpress_taxonomies);
-
-// Construir prompt con TODO el contexto
-const topicPrompt = await getPrompt(supabase, 'saas.topic', {
-  siteName: site.name,
-  sector: site.sector,
-  description: site.description,
-  
-  // NUEVO: Contexto enriquecido
-  tone: site.tone || 'cercano',
-  targetAudience: site.target_audience || '',
-  currentPillar: PILLAR_DESCRIPTIONS[currentPillar],
-  wpCategory: wpCategory?.name || '',
-  avoidTopics: (site.avoid_topics || []).join(', '),
-  
-  // NUEVO: Contexto de WordPress
-  existingStyle: site.wordpress_context?.style_notes || '',
-  recentTopics: site.wordpress_context?.lastTopics?.join(', ') || '',
-  
-  // Deduplicación normal
-  usedTopics: usedTopics.join(', ')
-}, FALLBACK_TOPIC_PROMPT);
-
-// Actualizar índice del pilar para próxima vez
-await supabase.from('sites').update({
-  last_pillar_index: pillarIndex
-}).eq('id', siteId);
+Ejemplos de temas ABSTRACTOS (MALOS):
+- "El futuro de la farmacia digital"
+- "Tendencias en el sector farmacéutico"
+- "La transformación del retail farmacéutico"
 ```
 
-## Parte 5: Nuevos prompts dinámicos
+### Parte 4: Verificar y corregir sincronización de WordPress
 
-El prompt de topic ahora es mucho más rico:
+El `wordpress_context` debería guardarse pero está NULL. Necesito verificar:
+1. Si la función se ejecutó realmente
+2. Si hubo algún error silencioso
+3. Si hay problema con los permisos de actualización
 
-```text
-Eres un experto en content marketing para el sector {{sector}}.
+### Parte 5: Añadir validación post-generación
 
-EMPRESA: {{siteName}}
-AUDIENCIA: {{targetAudience}}
-TONO: {{tone}}
+Después de que la IA genere el tema, verificar que no contenga palabras prohibidas y si las contiene, regenerar con temperatura más alta o un prompt más restrictivo.
 
-PILAR DE CONTENIDO ACTUAL: {{currentPillar}}
-(Los pilares rotan para dar variedad: educativo, tendencias, casos prácticos, estacional)
-
-{{#wpCategory}}
-CATEGORÍA WORDPRESS SUGERIDA: {{wpCategory}}
-Intenta que el tema encaje en esta categoría.
-{{/wpCategory}}
-
-{{#existingStyle}}
-ESTILO DETECTADO EN SU BLOG: {{existingStyle}}
-Mantén coherencia con este estilo.
-{{/existingStyle}}
-
-TEMAS A EVITAR:
-- {{avoidTopics}}
-- Temas ya publicados: {{usedTopics}}
-- Temas recientes de su blog: {{recentTopics}}
-
-GENERA un tema que:
-1. Encaje con el pilar "{{currentPillar}}"
-2. Sea relevante para la audiencia descrita
-3. Use el tono {{tone}}
-4. Sea DIFERENTE a todo lo anterior
-5. Tenga potencial SEO
-
-Responde SOLO con el tema (max 80 caracteres).
-```
-
-## Archivos a modificar
+## Cambios técnicos
 
 | Archivo | Cambio |
 |---------|--------|
-| Migración SQL | Añadir columnas: tone, target_audience, content_pillars, avoid_topics, preferred_length, wordpress_context, last_pillar_index |
-| `src/components/saas/SiteSettings.tsx` | Añadir sección "Perfil de contenido" |
-| `src/hooks/useSites.ts` | Actualizar interface Site con nuevos campos |
-| `supabase/functions/generate-article-saas/index.ts` | Usar contexto enriquecido, rotación de pilares |
-| `supabase/functions/sync-wordpress-taxonomies-saas/index.ts` | Añadir análisis de posts existentes |
-| Tabla `prompts` | Actualizar prompts con nuevas variables |
+| `supabase/functions/generate-article-saas/index.ts` | Añadir lista de palabras prohibidas, validación post-generación |
+| Tabla `prompts` (saas.topic) | Actualizar con sección de prohibiciones explícitas |
+| Tabla `sector_contexts` (nueva o existente) | Almacenar palabras prohibidas por sector |
+| `supabase/functions/sync-wordpress-taxonomies-saas/index.ts` | Añadir logging para debug y verificar guardado |
 
 ## Resultado esperado
 
-1. **Variedad real**: Cada semana un pilar diferente (educativo, tendencias, casos...)
-2. **Personalización**: El usuario define su audiencia y tono
-3. **Coherencia**: Analizamos su blog existente para mantener el estilo
-4. **Categorización inteligente**: Usamos las categorías de WordPress
-5. **Menos IA genérica**: No todo es "tendencias 2026" o "IA en tu sector"
+En lugar de:
+- "Farmacia del futuro: digitalización más allá de la venta online"
+- "Tendencias digitales clave para farmacias"
 
-## Ejemplo de diferencia
-
-**ANTES (genérico)**:
-- "IA en farmacias: personaliza la atención"
-- "Tendencias digitales para farmacias"
-- "IA y farmacia: el futuro"
-
-**DESPUES (contextualizado)**:
-- Semana 1 (Educativo): "Guía completa para organizar el stock de invierno"
-- Semana 2 (Tendencias): "Nuevas normativas de dispensación: lo que debes saber"
-- Semana 3 (Casos): "Cómo Farmacia López aumentó ventas con servicios de nutrición"
-- Semana 4 (Estacional): "Prepara tu farmacia para la campaña de gripe"
+Generar:
+- "Cómo organizar tu almacén de productos termolábiles"
+- "5 errores comunes al atender consultas de dermocosmética"
+- "Prepara tu farmacia para la campaña de gripe de este invierno"
