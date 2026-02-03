@@ -265,6 +265,46 @@ Deno.serve(async (req) => {
     console.log('Post ID:', postData2.id);
     console.log('Post URL:', postData2.link);
 
+    // Update wordpress_context with the new title (auto-sync)
+    try {
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabaseService = createClient(supabaseUrl, serviceRoleKey);
+
+      const { data: siteData, error: siteError } = await supabaseService
+        .from('sites')
+        .select('wordpress_context')
+        .eq('id', body.site_id)
+        .single();
+
+      if (!siteError && siteData) {
+        const currentContext = (siteData.wordpress_context as Record<string, unknown>) || {};
+        const currentTopics = (currentContext.lastTopics as string[]) || [];
+
+        // Add new title at the beginning, limit to 25
+        const updatedTopics = [body.title, ...currentTopics].slice(0, 25);
+
+        const { error: updateError } = await supabaseService
+          .from('sites')
+          .update({
+            wordpress_context: {
+              ...currentContext,
+              lastTopics: updatedTopics,
+              last_publish_at: new Date().toISOString()
+            }
+          })
+          .eq('id', body.site_id);
+
+        if (updateError) {
+          console.error('Error updating wordpress_context:', updateError);
+        } else {
+          console.log('wordpress_context updated with new topic:', body.title);
+        }
+      }
+    } catch (contextError) {
+      console.error('Error updating wordpress_context (non-blocking):', contextError);
+      // Don't fail the publish if context update fails
+    }
+
     const result: PublishResult = {
       success: true,
       post_id: postData2.id,
