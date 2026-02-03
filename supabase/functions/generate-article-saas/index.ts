@@ -92,17 +92,30 @@ EMPRESA: {{siteName}}
 SECTOR: {{sector}}
 {{description}}
 ÁMBITO: {{scope}}
+{{targetAudience}}
+
+TIPO DE CONTENIDO REQUERIDO: {{pillarType}}
+{{pillarDescription}}
+
+TONO DE VOZ: {{toneType}}
+{{toneDescription}}
+
+{{wpStyleNotes}}
+{{wpRecentTopics}}
+
 CONTEXTO TEMPORAL: Estamos en {{month}} {{year}}, considera estacionalidad si aplica.
 {{usedTopics}}
 
 Genera UN tema de blog que:
-1. Sea relevante para el sector {{sector}}{{descriptionContext}}
-2. Tenga potencial SEO
-3. Considere tendencias estacionales si aplica
-4. NO mencione el nombre de la empresa
-5. Sea DIFERENTE a los temas ya usados
-6. NO incluyas el año en el tema (ej: "2026", "este año")
-7. Usa capitalización española (solo inicial mayúscula, no Title Case)
+1. Encaje PERFECTAMENTE con el pilar de contenido "{{pillarType}}"
+2. Sea relevante para el sector {{sector}}{{descriptionContext}}
+3. Tenga potencial SEO
+4. Considere la estacionalidad si el pilar es "seasonal"
+5. NO mencione el nombre de la empresa
+6. Sea DIFERENTE a los temas ya usados
+7. NO incluyas el año en el tema (ej: "2026", "este año")
+8. Usa capitalización española (solo inicial mayúscula, no Title Case)
+9. Use el tono indicado
 
 Responde SOLO con el tema (máx 80 caracteres), sin explicaciones.`,
 
@@ -112,8 +125,19 @@ EMPRESA: {{siteName}}
 SECTOR: {{sector}}
 {{description}}
 ÁMBITO: {{scope}}
+{{targetAudience}}
 
-TU MISIÓN: Generar un artículo de ~2000 palabras optimizado para SEO{{descriptionContext}}.
+TONO DE VOZ: {{toneType}}
+{{toneDescription}}
+
+TIPO DE CONTENIDO: {{pillarType}}
+{{pillarDescription}}
+
+LONGITUD OBJETIVO: {{lengthDescription}}
+
+{{wpStyleNotes}}
+
+TU MISIÓN: Generar un artículo de {{lengthWords}} palabras optimizado para SEO{{descriptionContext}}.
 
 REGLAS:
 {{geoContext}}
@@ -122,7 +146,7 @@ FORMATO:
 - TÍTULO H1: Máximo 60 caracteres. SIN nombre de empresa. SIN año (ej: "2026").
 - META DESCRIPTION: 150-160 caracteres con CTA.
 - SLUG: URL amigable en minúsculas con guiones.
-- CONTENIDO: ~2000 palabras con H2 y párrafos.
+- CONTENIDO: ~{{lengthWords}} palabras con H2 y párrafos.
 
 ⚠️ CAPITALIZACIÓN ESPAÑOLA OBLIGATORIA:
 - SOLO la primera letra del título/subtítulo en mayúscula (+ nombres propios)
@@ -140,7 +164,10 @@ RESPONDE EN JSON VÁLIDO.`,
 
   articleUser: `TEMA: {{topic}}
 
-Genera un artículo profesional.
+TIPO DE CONTENIDO: {{pillarType}}
+{{pillarDescription}}
+
+Genera un artículo profesional que encaje con este tipo de contenido.
 
 FORMATO JSON:
 {
@@ -300,6 +327,16 @@ async function sendArticleNotification(
 // ==========================================
 // TYPES
 // ==========================================
+interface WordPressContext {
+  avgLength?: number;
+  commonCategories?: Array<{ name: string; count: number }>;
+  lastTopics?: string[];
+  detected_tone?: string;
+  main_themes?: string[];
+  style_notes?: string;
+  analyzed_at?: string;
+}
+
 interface SiteData {
   id: string;
   name: string;
@@ -313,6 +350,14 @@ interface SiteData {
   include_featured_image?: boolean;
   user_id: string;
   publish_frequency?: string;
+  // Enriched context fields
+  tone?: string | null;
+  target_audience?: string | null;
+  content_pillars?: string[];
+  avoid_topics?: string[];
+  preferred_length?: string | null;
+  wordpress_context?: WordPressContext | null;
+  last_pillar_index?: number;
 }
 
 interface RequestBody {
@@ -330,6 +375,30 @@ interface SectorContext {
   fallbackQuery: string;
   toneDescription?: string;
 }
+
+// ==========================================
+// PILLAR DESCRIPTIONS
+// ==========================================
+const PILLAR_DESCRIPTIONS: Record<string, string> = {
+  educational: "Contenido EDUCATIVO: guías prácticas, tutoriales paso a paso, how-to, consejos aplicables inmediatamente. Enseña algo útil al lector.",
+  trends: "Contenido de TENDENCIAS: novedades del sector, innovación, cambios recientes, lo que viene. Mantén al lector actualizado.",
+  cases: "Contenido de CASOS PRÁCTICOS: ejemplos reales, testimonios, historias de éxito, antes/después. Muestra resultados concretos.",
+  seasonal: "Contenido ESTACIONAL: adaptado a la época del año, fechas señaladas, temporadas comerciales, eventos relevantes.",
+  opinion: "Contenido de OPINIÓN/ANÁLISIS: perspectivas del sector, reflexiones profesionales, análisis de situaciones, visión experta."
+};
+
+const TONE_DESCRIPTIONS: Record<string, string> = {
+  formal: "Tono FORMAL y profesional: lenguaje institucional, serio pero no frío, evita coloquialismos.",
+  casual: "Tono CERCANO pero experto: accesible sin perder autoridad, tutea al lector, conversacional.",
+  technical: "Tono TÉCNICO y especializado: usa terminología del sector, para audiencia experta.",
+  educational: "Tono DIVULGATIVO y accesible: explica conceptos complejos de forma simple, pedagógico."
+};
+
+const LENGTH_TARGETS: Record<string, { words: number; description: string }> = {
+  short: { words: 800, description: "~800 palabras, lectura rápida de 3 minutos" },
+  medium: { words: 1500, description: "~1500 palabras, lectura de 6-7 minutos" },
+  long: { words: 2500, description: "~2500 palabras, guía completa de 10+ minutos" }
+};
 
 // ==========================================
 // SECTOR CONTEXTS
@@ -684,6 +753,33 @@ serve(async (req) => {
     const descriptionContext = site.description ? `, teniendo en cuenta que la empresa es: ${site.description}` : '';
     const scope = site.geographic_scope === "national" ? "Nacional (España)" : (site.location || "General");
 
+    // ==========================================
+    // ENRICHED CONTEXT: Pillar rotation & profile
+    // ==========================================
+    const contentPillars = site.content_pillars && site.content_pillars.length > 0 
+      ? site.content_pillars 
+      : ['educational', 'trends', 'seasonal'];
+    
+    const lastPillarIndex = site.last_pillar_index ?? 0;
+    const currentPillarIndex = (lastPillarIndex + 1) % contentPillars.length;
+    const currentPillar = contentPillars[currentPillarIndex];
+    const pillarDescription = PILLAR_DESCRIPTIONS[currentPillar] || PILLAR_DESCRIPTIONS.educational;
+    
+    console.log(`Content pillar rotation: ${currentPillar} (index ${currentPillarIndex}/${contentPillars.length})`);
+    
+    // Tone and audience from profile
+    const siteTone = site.tone || 'casual';
+    const toneDescription = TONE_DESCRIPTIONS[siteTone] || TONE_DESCRIPTIONS.casual;
+    const targetAudience = site.target_audience || '';
+    const avoidTopics = site.avoid_topics || [];
+    const preferredLength = site.preferred_length || 'medium';
+    const lengthTarget = LENGTH_TARGETS[preferredLength] || LENGTH_TARGETS.medium;
+    
+    // WordPress context if available
+    const wpContext = site.wordpress_context || null;
+    const wpStyleNotes = wpContext?.style_notes || '';
+    const wpRecentTopics = wpContext?.lastTopics?.slice(0, 5).join(', ') || '';
+
     // Generate topic if not provided
     let topic = providedTopic;
     
@@ -692,24 +788,42 @@ serve(async (req) => {
       const usedTopics = await getUsedTopicsForSite(supabase, siteId);
       console.log(`Found ${usedTopics.length} previously used topics`);
       
-      const usedTopicsSection = usedTopics.length > 0 
-        ? `\n\n⚠️ TEMAS YA USADOS (NO REPETIR):\n${usedTopics.slice(0, 30).map((t, i) => `${i+1}. ${t}`).join('\n')}`
+      // Build comprehensive avoid list
+      const allAvoidTopics = [
+        ...avoidTopics,
+        ...usedTopics.slice(0, 30),
+        ...(wpContext?.lastTopics || [])
+      ];
+      
+      const usedTopicsSection = allAvoidTopics.length > 0 
+        ? `\n\n⚠️ TEMAS A EVITAR (NO REPETIR NI SIMILARES):\n${allAvoidTopics.slice(0, 40).map((t, i) => `${i+1}. ${t}`).join('\n')}`
         : '';
+
+      // Build enriched topic prompt variables
+      const enrichedVariables = {
+        siteName: site.name,
+        sector: sector,
+        description: description,
+        descriptionContext: descriptionContext,
+        scope: scope,
+        month: monthNameEs,
+        year: year.toString(),
+        usedTopics: usedTopicsSection,
+        // NEW: Enriched context
+        pillarType: currentPillar,
+        pillarDescription: pillarDescription,
+        toneType: siteTone,
+        toneDescription: toneDescription,
+        targetAudience: targetAudience ? `AUDIENCIA OBJETIVO: ${targetAudience}` : '',
+        wpStyleNotes: wpStyleNotes ? `ESTILO DETECTADO EN SU BLOG: ${wpStyleNotes}` : '',
+        wpRecentTopics: wpRecentTopics ? `TEMAS RECIENTES DE SU BLOG: ${wpRecentTopics}` : ''
+      };
 
       // Get topic prompt from database with cache
       const topicPrompt = await getPrompt(
         supabase,
         'saas.topic',
-        {
-          siteName: site.name,
-          sector: sector,
-          description: description,
-          descriptionContext: descriptionContext,
-          scope: scope,
-          month: monthNameEs,
-          year: year.toString(),
-          usedTopics: usedTopicsSection
-        },
+        enrichedVariables,
         FALLBACK_PROMPTS.topic
       );
 
@@ -723,7 +837,7 @@ serve(async (req) => {
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             messages: [{ role: "user", content: topicPrompt }],
-            temperature: 0.8,
+            temperature: 0.85,
             max_tokens: 100,
           }),
         });
@@ -742,7 +856,7 @@ serve(async (req) => {
       }
     }
 
-    // Build system prompt from database
+    // Build system prompt from database with enriched context
     const systemPrompt = await getPrompt(
       supabase,
       'saas.article.system',
@@ -753,7 +867,16 @@ serve(async (req) => {
         descriptionContext: descriptionContext,
         scope: scope,
         geoContext: geoContext,
-        dateContext: dateContext
+        dateContext: dateContext,
+        // NEW: Enriched context
+        toneType: siteTone,
+        toneDescription: toneDescription,
+        targetAudience: targetAudience ? `AUDIENCIA: ${targetAudience}` : '',
+        pillarType: currentPillar,
+        pillarDescription: pillarDescription,
+        lengthWords: lengthTarget.words.toString(),
+        lengthDescription: lengthTarget.description,
+        wpStyleNotes: wpStyleNotes ? `ESTILO A MANTENER: ${wpStyleNotes}` : ''
       },
       FALLBACK_PROMPTS.articleSystem
     );
@@ -762,7 +885,11 @@ serve(async (req) => {
     const userPrompt = await getPrompt(
       supabase,
       'saas.article.user',
-      { topic: topic },
+      { 
+        topic: topic,
+        pillarType: currentPillar,
+        pillarDescription: pillarDescription
+      },
       FALLBACK_PROMPTS.articleUser
     );
 
@@ -1142,6 +1269,21 @@ serve(async (req) => {
 
     console.log("=== ARTICLE GENERATION COMPLETE ===");
     console.log("Article ID:", savedArticle.id);
+
+    // Update pillar index for next generation (rotation)
+    if (!providedTopic) {
+      // Only update if we auto-generated the topic
+      const { error: pillarUpdateError } = await supabase
+        .from('sites')
+        .update({ last_pillar_index: currentPillarIndex })
+        .eq('id', siteId);
+      
+      if (pillarUpdateError) {
+        console.error("Error updating pillar index:", pillarUpdateError);
+      } else {
+        console.log(`Updated pillar index to ${currentPillarIndex} (${currentPillar})`);
+      }
+    }
 
     // Send notification email to user
     const { data: userProfile } = await supabase
