@@ -232,23 +232,29 @@ Deno.serve(async (req) => {
     // ==========================================
     let contentAnalysis: WordPressContext | null = null;
     
+    console.log('=== CONTENT ANALYSIS START ===');
+    console.log('Site ID for update:', siteId);
+    console.log('Analyze content enabled:', analyzeContent);
+    
     if (analyzeContent) {
-      console.log('Analyzing existing WordPress content...');
+      console.log('Fetching WordPress posts for analysis...');
       
       try {
         // Fetch last 15 published posts
-        const postsResponse = await fetch(
-          `${wpUrl}/wp-json/wp/v2/posts?per_page=15&status=publish&orderby=date&order=desc`,
-          { headers: wpHeaders }
-        );
+        const postsUrl = `${wpUrl}/wp-json/wp/v2/posts?per_page=15&status=publish&orderby=date&order=desc`;
+        console.log('Fetching from:', postsUrl);
+        
+        const postsResponse = await fetch(postsUrl, { headers: wpHeaders });
+        console.log('Posts response status:', postsResponse.status);
         
         if (postsResponse.ok) {
           const posts: WordPressPost[] = await postsResponse.json();
-          console.log(`Found ${posts.length} recent posts to analyze`);
+          console.log(`SUCCESS: Found ${posts.length} published posts to analyze`);
           
           if (posts.length > 0) {
             // Extract basic metrics
             const titles = posts.map(p => p.title.rendered.replace(/<[^>]*>/g, ''));
+            console.log('Extracted titles:', titles.slice(0, 5));
             const excerpts = posts.map(p => p.excerpt.rendered.replace(/<[^>]*>/g, ''));
             
             // Calculate average content length (word count)
@@ -257,6 +263,7 @@ Deno.serve(async (req) => {
               return plainText.split(/\s+/).length;
             });
             const avgLength = Math.round(wordCounts.reduce((a, b) => a + b, 0) / wordCounts.length);
+            console.log('Average post length:', avgLength, 'words');
             
             // Count category usage
             const categoryCount: Record<number, number> = {};
@@ -338,21 +345,34 @@ Responde SOLO con JSON válido (sin markdown):
             }
             
             // Save wordpress_context to site
-            const { error: contextError } = await supabase
+            console.log('=== SAVING WORDPRESS CONTEXT ===');
+            console.log('Site ID to update:', siteId);
+            console.log('Content analysis data:', JSON.stringify(contentAnalysis));
+            
+            const { data: updateResult, error: contextError } = await supabase
               .from('sites')
               .update({ wordpress_context: contentAnalysis })
-              .eq('id', siteId);
+              .eq('id', siteId)
+              .select('id, wordpress_context');
             
             if (contextError) {
-              console.error('Error saving wordpress_context:', contextError);
+              console.error('FAILED to save wordpress_context:', contextError);
             } else {
-              console.log('WordPress context saved to site');
+              console.log('SUCCESS: wordpress_context saved to site');
+              console.log('Update result:', JSON.stringify(updateResult));
             }
+          } else {
+            console.log('No posts found, skipping context analysis');
           }
+        } else {
+          const errorText = await postsResponse.text();
+          console.error('Failed to fetch posts:', postsResponse.status, errorText);
         }
       } catch (error) {
         console.error('Content analysis error (non-blocking):', error);
       }
+    } else {
+      console.log('Content analysis disabled, skipping');
     }
 
     console.log('=== SYNC COMPLETE ===');
