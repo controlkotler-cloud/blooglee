@@ -7,17 +7,192 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Per-user rate limiting to prevent rapid successive requests
-// Note: Resets on cold starts but provides basic abuse protection
+// ==========================================
+// PROMPT CACHE SYSTEM
+// ==========================================
+// Global cache that persists between executions on the same worker
+const promptCache: Map<string, string> = new Map();
+let cacheVersion: number = 0;
+
+// Substitute {{variable}} placeholders with actual values
+function substituteVariables(content: string, variables: Record<string, string>): string {
+  let result = content;
+  for (const [key, value] of Object.entries(variables)) {
+    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value || '');
+  }
+  return result;
+}
+
+// Get prompt from cache or database, with fallback to hardcoded
+async function getPrompt(
+  supabase: any,
+  key: string,
+  variables: Record<string, string>,
+  fallback: string
+): Promise<string> {
+  try {
+    // 1. Check cache version from database
+    const { data: versionData, error: versionError } = await supabase
+      .from('prompt_cache_version')
+      .select('version')
+      .eq('id', 1)
+      .single();
+    
+    if (versionError) {
+      console.log("Cache version check failed, using fallback:", versionError.message);
+      return substituteVariables(fallback, variables);
+    }
+    
+    const currentVersion = versionData?.version || 0;
+    
+    // 2. If version changed, clear cache
+    if (currentVersion !== cacheVersion) {
+      promptCache.clear();
+      cacheVersion = currentVersion;
+      console.log(`Prompt cache invalidated, new version: ${cacheVersion}`);
+    }
+    
+    // 3. If in cache, use it
+    if (promptCache.has(key)) {
+      console.log(`Using cached prompt: ${key}`);
+      return substituteVariables(promptCache.get(key)!, variables);
+    }
+    
+    // 4. Load from database
+    const { data, error } = await supabase
+      .from('prompts')
+      .select('content')
+      .eq('key', key)
+      .eq('is_active', true)
+      .single();
+    
+    if (error || !data?.content) {
+      console.log(`Prompt not found in DB (${key}), using fallback`);
+      return substituteVariables(fallback, variables);
+    }
+    
+    // 5. Store in cache and return
+    promptCache.set(key, data.content);
+    console.log(`Loaded prompt from DB: ${key}`);
+    return substituteVariables(data.content, variables);
+    
+  } catch (e) {
+    console.error(`Error loading prompt ${key}:`, e);
+    return substituteVariables(fallback, variables);
+  }
+}
+
+// ==========================================
+// FALLBACK PROMPTS (used if DB prompt not found)
+// ==========================================
+const FALLBACK_PROMPTS = {
+  topic: `Eres un experto en marketing de contenidos para el sector "{{sector}}".
+
+EMPRESA: {{siteName}}
+SECTOR: {{sector}}
+{{description}}
+ÁMBITO: {{scope}}
+CONTEXTO TEMPORAL: Estamos en {{month}} {{year}}, considera estacionalidad si aplica.
+{{usedTopics}}
+
+Genera UN tema de blog que:
+1. Sea relevante para el sector {{sector}}{{descriptionContext}}
+2. Tenga potencial SEO
+3. Considere tendencias estacionales si aplica
+4. NO mencione el nombre de la empresa
+5. Sea DIFERENTE a los temas ya usados
+6. NO incluyas el año en el tema (ej: "2026", "este año")
+7. Usa capitalización española (solo inicial mayúscula, no Title Case)
+
+Responde SOLO con el tema (máx 80 caracteres), sin explicaciones.`,
+
+  articleSystem: `Eres un redactor experto en marketing de contenidos y SEO para el sector {{sector}}.
+
+EMPRESA: {{siteName}}
+SECTOR: {{sector}}
+{{description}}
+ÁMBITO: {{scope}}
+
+TU MISIÓN: Generar un artículo de ~2000 palabras optimizado para SEO{{descriptionContext}}.
+
+REGLAS:
+{{geoContext}}
+
+FORMATO:
+- TÍTULO H1: Máximo 60 caracteres. SIN nombre de empresa. SIN año (ej: "2026").
+- META DESCRIPTION: 150-160 caracteres con CTA.
+- SLUG: URL amigable en minúsculas con guiones.
+- CONTENIDO: ~2000 palabras con H2 y párrafos.
+
+⚠️ CAPITALIZACIÓN ESPAÑOLA OBLIGATORIA:
+- SOLO la primera letra del título/subtítulo en mayúscula (+ nombres propios)
+- INCORRECTO: "Claves Del Éxito Digital Para Farmacias"
+- CORRECTO: "Claves del éxito digital para farmacias"
+- Los subtítulos H2 siguen la misma regla
+- NO uses Title Case inglés bajo ninguna circunstancia
+
+LISTAS:
+- Si enumeras con dos puntos (:), usa lista HTML (<ul><li>)
+
+CONTEXTO TEMPORAL: Hoy es {{dateContext}}. Usa esta información para estacionalidad, pero NO incluyas el año en el título ni subtítulos.
+
+RESPONDE EN JSON VÁLIDO.`,
+
+  articleUser: `TEMA: {{topic}}
+
+Genera un artículo profesional.
+
+FORMATO JSON:
+{
+  "title": "Título atractivo máx 60 caracteres",
+  "meta_description": "Meta descripción 150-160 caracteres",
+  "slug": "url-amigable",
+  "content": "<h2>Sección</h2><p>Contenido...</p>"
+}`,
+
+  translateCatalan: `Traduce este artículo del español al catalán.
+
+ARTÍCULO:
+Título: {{title}}
+Meta: {{meta}}
+Slug: {{slug}}
+Contenido: {{content}}
+
+RESPONDE EN JSON:
+{
+  "title": "Títol en català",
+  "meta_description": "Meta descripció en català",
+  "slug": "url-en-catala",
+  "content": "Contingut HTML en català"
+}`,
+
+  image: `Generate a professional blog header image.
+
+TOPIC: "{{topic}}"
+SECTOR: {{sector}}
+{{description}}
+
+REQUIREMENTS:
+- Clean, professional photograph
+- Visually related to the topic and sector
+- NO text, NO logos, NO faces
+- Suitable for blog header, 16:9 ratio
+- High quality, editorial style
+
+Generate an image that a {{sector}} business would use for their blog.`
+};
+
+// ==========================================
+// RATE LIMITING
+// ==========================================
 const userRateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 5; // 5 generation requests per minute per user
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 5;
 
 function checkUserRateLimit(userId: string): { allowed: boolean; retryAfter?: number } {
   const now = Date.now();
   const record = userRateLimitMap.get(userId);
   
-  // Clean up old entries periodically
   if (userRateLimitMap.size > 500) {
     for (const [key, value] of userRateLimitMap.entries()) {
       if (now > value.resetTime) {
@@ -40,7 +215,9 @@ function checkUserRateLimit(userId: string): { allowed: boolean; retryAfter?: nu
   return { allowed: true };
 }
 
-// Send email notification to user when article is generated
+// ==========================================
+// EMAIL NOTIFICATION
+// ==========================================
 async function sendArticleNotification(
   userEmail: string,
   siteName: string,
@@ -120,6 +297,9 @@ async function sendArticleNotification(
   }
 }
 
+// ==========================================
+// TYPES
+// ==========================================
 interface SiteData {
   id: string;
   name: string;
@@ -132,6 +312,7 @@ interface SiteData {
   geographic_scope?: string;
   include_featured_image?: boolean;
   user_id: string;
+  publish_frequency?: string;
 }
 
 interface RequestBody {
@@ -139,93 +320,8 @@ interface RequestBody {
   topic?: string | null;
   month: number;
   year: number;
-  isScheduled?: boolean;  // Flag for scheduled execution
-  userId?: string;         // User ID passed by scheduler
-}
-
-// Check if user has admin role
-async function isUserAdmin(supabaseClient: any, userId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabaseClient
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId);
-    
-    if (error) {
-      console.error("Error checking admin role:", error);
-      return false;
-    }
-    
-    return data?.some((r: { role: string }) => r.role === 'admin') || false;
-  } catch (e) {
-    console.error("Exception checking admin role:", e);
-    return false;
-  }
-}
-
-// Get user profile with plan limits
-async function getUserProfile(supabaseClient: any, userId: string): Promise<{ posts_limit: number; plan: string } | null> {
-  try {
-    const { data, error } = await supabaseClient
-      .from('profiles')
-      .select('posts_limit, plan')
-      .eq('user_id', userId)
-      .single();
-    
-    if (error) {
-      console.error("Error fetching profile:", error);
-      return null;
-    }
-    
-    return data;
-  } catch (e) {
-    console.error("Exception fetching profile:", e);
-    return null;
-  }
-}
-
-// Count articles generated this month by user
-async function countArticlesThisMonth(supabaseClient: any, userId: string, month: number, year: number): Promise<number> {
-  try {
-    const { count, error } = await supabaseClient
-      .from('articles')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('month', month)
-      .eq('year', year);
-    
-    if (error) {
-      console.error("Error counting articles:", error);
-      return 0;
-    }
-    
-    return count || 0;
-  } catch (e) {
-    console.error("Exception counting articles:", e);
-    return 0;
-  }
-}
-
-// Get used topics for a site
-async function getUsedTopicsForSite(supabaseClient: any, siteId: string): Promise<string[]> {
-  try {
-    const { data, error } = await supabaseClient
-      .from('articles')
-      .select('topic')
-      .eq('site_id', siteId)
-      .order('generated_at', { ascending: false })
-      .limit(50);
-    
-    if (error) {
-      console.error("Error fetching used topics:", error);
-      return [];
-    }
-    
-    return data?.map((a: { topic: string }) => a.topic) || [];
-  } catch (e) {
-    console.error("Exception fetching used topics:", e);
-    return [];
-  }
+  isScheduled?: boolean;
+  userId?: string;
 }
 
 interface SectorContext {
@@ -235,7 +331,9 @@ interface SectorContext {
   toneDescription?: string;
 }
 
-// Sector-specific image contexts
+// ==========================================
+// SECTOR CONTEXTS
+// ==========================================
 const SECTOR_IMAGE_CONTEXTS: Record<string, SectorContext> = {
   marketing: {
     examples: ["business team meeting modern office laptop", "digital marketing analytics dashboard screen", "creative workspace minimal design desk"],
@@ -269,7 +367,6 @@ const SECTOR_IMAGE_CONTEXTS: Record<string, SectorContext> = {
   }
 };
 
-// Fallback images
 const FALLBACK_IMAGES = [
   { url: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200", photographer: "Austin Distel", photographer_url: "https://unsplash.com/@austindistel" },
   { url: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200", photographer: "Dylan Gillis", photographer_url: "https://unsplash.com/@dylandgillis" },
@@ -279,7 +376,9 @@ const FALLBACK_IMAGES = [
 const MONTH_NAMES_ES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const MONTH_NAMES_CA = ["Gener", "Febrer", "Març", "Abril", "Maig", "Juny", "Juliol", "Agost", "Setembre", "Octubre", "Novembre", "Desembre"];
 
-// Helper function for retry logic
+// ==========================================
+// HELPER FUNCTIONS
+// ==========================================
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
   let lastError: Error | null = null;
   
@@ -305,7 +404,6 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3)
   throw lastError || new Error("All retry attempts failed");
 }
 
-// Detect sector category
 function detectSectorCategory(sector: string | null | undefined): string {
   if (!sector) return "default";
   const s = sector.toLowerCase();
@@ -319,7 +417,6 @@ function detectSectorCategory(sector: string | null | undefined): string {
   return "default";
 }
 
-// Build geographic context
 function buildGeoContext(site: SiteData): { geoContext: string; locationInfo: string } {
   const scope = site.geographic_scope || "local";
   
@@ -357,6 +454,90 @@ function buildGeoContext(site: SiteData): { geoContext: string; locationInfo: st
   }
 }
 
+async function isUserAdmin(supabaseClient: any, userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.error("Error checking admin role:", error);
+      return false;
+    }
+    
+    return data?.some((r: { role: string }) => r.role === 'admin') || false;
+  } catch (e) {
+    console.error("Exception checking admin role:", e);
+    return false;
+  }
+}
+
+async function getUserProfile(supabaseClient: any, userId: string): Promise<{ posts_limit: number; plan: string } | null> {
+  try {
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('posts_limit, plan')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error) {
+      console.error("Error fetching profile:", error);
+      return null;
+    }
+    
+    return data;
+  } catch (e) {
+    console.error("Exception fetching profile:", e);
+    return null;
+  }
+}
+
+async function countArticlesThisMonth(supabaseClient: any, userId: string, month: number, year: number): Promise<number> {
+  try {
+    const { count, error } = await supabaseClient
+      .from('articles')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('month', month)
+      .eq('year', year);
+    
+    if (error) {
+      console.error("Error counting articles:", error);
+      return 0;
+    }
+    
+    return count || 0;
+  } catch (e) {
+    console.error("Exception counting articles:", e);
+    return 0;
+  }
+}
+
+async function getUsedTopicsForSite(supabaseClient: any, siteId: string): Promise<string[]> {
+  try {
+    const { data, error } = await supabaseClient
+      .from('articles')
+      .select('topic')
+      .eq('site_id', siteId)
+      .order('generated_at', { ascending: false })
+      .limit(50);
+    
+    if (error) {
+      console.error("Error fetching used topics:", error);
+      return [];
+    }
+    
+    return data?.map((a: { topic: string }) => a.topic) || [];
+  } catch (e) {
+    console.error("Exception fetching used topics:", e);
+    return [];
+  }
+}
+
+// ==========================================
+// MAIN HANDLER
+// ==========================================
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -376,7 +557,6 @@ serve(async (req) => {
       });
     }
 
-    // Parse request body first to check for scheduler mode
     const requestBody: RequestBody = await req.json();
     const { isScheduled, userId: schedulerUserId } = requestBody;
 
@@ -384,13 +564,11 @@ serve(async (req) => {
     let userId: string;
 
     if (isScheduled && schedulerUserId && SUPABASE_SERVICE_ROLE_KEY) {
-      // Scheduler mode: use service role and passed userId
       console.log("=== SCHEDULER MODE ===");
       supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
       userId = schedulerUserId;
       console.log("Using scheduler userId:", userId);
     } else {
-      // Normal mode: validate JWT and get user
       const authHeader = req.headers.get('Authorization');
       if (!authHeader?.startsWith('Bearer ')) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
@@ -416,7 +594,6 @@ serve(async (req) => {
 
       userId = claimsData.claims.sub as string;
 
-      // Rate limit check per user (skip for scheduled jobs)
       const rateLimitResult = checkUserRateLimit(userId);
       if (!rateLimitResult.allowed) {
         console.log(`Rate limit exceeded for user: ${userId}`);
@@ -438,7 +615,6 @@ serve(async (req) => {
     console.log("User ID:", userId);
     console.log("Is Scheduled:", isScheduled);
 
-    // Use data from already-parsed requestBody (avoid calling req.json() twice)
     const { siteId, topic: providedTopic, month, year } = requestBody;
     console.log("Site ID:", siteId);
     console.log("Month/Year:", month, year);
@@ -502,6 +678,12 @@ serve(async (req) => {
     const sectorCategory = detectSectorCategory(site.sector);
     const sectorContext = SECTOR_IMAGE_CONTEXTS[sectorCategory] || SECTOR_IMAGE_CONTEXTS.default;
 
+    // Build prompt variables
+    const sector = site.sector || "servicios profesionales";
+    const description = site.description ? `DESCRIPCIÓN: ${site.description}` : '';
+    const descriptionContext = site.description ? `, teniendo en cuenta que la empresa es: ${site.description}` : '';
+    const scope = site.geographic_scope === "national" ? "Nacional (España)" : (site.location || "General");
+
     // Generate topic if not provided
     let topic = providedTopic;
     
@@ -513,25 +695,23 @@ serve(async (req) => {
       const usedTopicsSection = usedTopics.length > 0 
         ? `\n\n⚠️ TEMAS YA USADOS (NO REPETIR):\n${usedTopics.slice(0, 30).map((t, i) => `${i+1}. ${t}`).join('\n')}`
         : '';
-      
-      const topicPrompt = `Eres un experto en marketing de contenidos para el sector "${site.sector || "servicios profesionales"}".
 
-EMPRESA: ${site.name}
-SECTOR: ${site.sector || "Servicios profesionales"}
-${site.description ? `DESCRIPCIÓN: ${site.description}` : ''}
-ÁMBITO: ${site.geographic_scope === "national" ? "Nacional (España)" : site.location || "General"}
-CONTEXTO TEMPORAL: Estamos en ${monthNameEs} ${year}, considera estacionalidad si aplica.${usedTopicsSection}
-
-Genera UN tema de blog que:
-1. Sea relevante para el sector ${site.sector || "profesional"}${site.description ? ` y especialmente para una empresa que es: ${site.description}` : ''}
-2. Tenga potencial SEO
-3. Considere tendencias estacionales si aplica
-4. NO mencione el nombre de la empresa
-5. Sea DIFERENTE a los temas ya usados
-6. NO incluyas el año en el tema (ej: "2026", "este año")
-7. Usa capitalización española (solo inicial mayúscula, no Title Case)
-
-Responde SOLO con el tema (máx 80 caracteres), sin explicaciones.`;
+      // Get topic prompt from database with cache
+      const topicPrompt = await getPrompt(
+        supabase,
+        'saas.topic',
+        {
+          siteName: site.name,
+          sector: sector,
+          description: description,
+          descriptionContext: descriptionContext,
+          scope: scope,
+          month: monthNameEs,
+          year: year.toString(),
+          usedTopics: usedTopicsSection
+        },
+        FALLBACK_PROMPTS.topic
+      );
 
       try {
         const topicResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -558,54 +738,33 @@ Responde SOLO con el tema (máx 80 caracteres), sin explicaciones.`;
       }
       
       if (!topic) {
-        topic = `Novedades y tendencias en ${site.sector || "el sector"}`;
+        topic = `Novedades y tendencias en ${sector}`;
       }
     }
 
-    // Build system prompt with description
-    const systemPrompt = `Eres un redactor experto en marketing de contenidos y SEO para el sector ${site.sector || "servicios profesionales"}.
+    // Build system prompt from database
+    const systemPrompt = await getPrompt(
+      supabase,
+      'saas.article.system',
+      {
+        siteName: site.name,
+        sector: sector,
+        description: description,
+        descriptionContext: descriptionContext,
+        scope: scope,
+        geoContext: geoContext,
+        dateContext: dateContext
+      },
+      FALLBACK_PROMPTS.articleSystem
+    );
 
-EMPRESA: ${site.name}
-SECTOR: ${site.sector || "Servicios profesionales"}
-${site.description ? `DESCRIPCIÓN: ${site.description}` : ''}
-ÁMBITO: ${site.geographic_scope === "national" ? "Nacional" : site.location || "General"}
-
-TU MISIÓN: Generar un artículo de ~2000 palabras optimizado para SEO${site.description ? `, teniendo en cuenta que la empresa es: ${site.description}` : ''}.
-
-REGLAS:
-${geoContext}
-
-FORMATO:
-- TÍTULO H1: Máximo 60 caracteres. SIN nombre de empresa. SIN año (ej: "2026").
-- META DESCRIPTION: 150-160 caracteres con CTA.
-- SLUG: URL amigable en minúsculas con guiones.
-- CONTENIDO: ~2000 palabras con H2 y párrafos.
-
-⚠️ CAPITALIZACIÓN ESPAÑOLA OBLIGATORIA:
-- SOLO la primera letra del título/subtítulo en mayúscula (+ nombres propios)
-- INCORRECTO: "Claves Del Éxito Digital Para Farmacias"
-- CORRECTO: "Claves del éxito digital para farmacias"
-- Los subtítulos H2 siguen la misma regla
-- NO uses Title Case inglés bajo ninguna circunstancia
-
-LISTAS:
-- Si enumeras con dos puntos (:), usa lista HTML (<ul><li>)
-
-CONTEXTO TEMPORAL: Hoy es ${dateContext}. Usa esta información para estacionalidad, pero NO incluyas el año en el título ni subtítulos.
-
-RESPONDE EN JSON VÁLIDO.`;
-
-    const userPrompt = `TEMA: ${topic}
-
-Genera un artículo profesional.
-
-FORMATO JSON:
-{
-  "title": "Título atractivo máx 60 caracteres",
-  "meta_description": "Meta descripción 150-160 caracteres",
-  "slug": "url-amigable",
-  "content": "<h2>Sección</h2><p>Contenido...</p>"
-}`;
+    // Build user prompt from database
+    const userPrompt = await getPrompt(
+      supabase,
+      'saas.article.user',
+      { topic: topic },
+      FALLBACK_PROMPTS.articleUser
+    );
 
     console.log("Generating Spanish article...");
 
@@ -682,24 +841,22 @@ FORMATO JSON:
     // Store Spanish content WITHOUT SEO footer for translation
     const spanishContentWithoutSeo = spanishArticle.content;
     let catalanArticle = null;
+    
     if (site.languages?.includes("catalan")) {
       console.log("Generating Catalan version...");
       
-      const catalanPrompt = `Traduce este artículo del español al catalán.
-
-ARTÍCULO:
-Título: ${spanishArticle.title}
-Meta: ${spanishArticle.meta_description}
-Slug: ${spanishArticle.slug}
-Contenido: ${spanishContentWithoutSeo}
-
-RESPONDE EN JSON:
-{
-  "title": "Títol en català",
-  "meta_description": "Meta descripció en català",
-  "slug": "url-en-catala",
-  "content": "Contingut HTML en català"
-}`;
+      // Get Catalan translation prompt from database
+      const catalanPrompt = await getPrompt(
+        supabase,
+        'saas.translate.catalan',
+        {
+          title: spanishArticle.title,
+          meta: spanishArticle.meta_description,
+          slug: spanishArticle.slug,
+          content: spanishContentWithoutSeo
+        },
+        FALLBACK_PROMPTS.translateCatalan
+      );
 
       try {
         const catalanResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -781,24 +938,19 @@ RESPONDE EN JSON:
     if (!skipImage) {
       console.log("Generating image with AI...");
       
-      // Create Supabase admin client for storage operations
-      const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
       const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
       
-      const imagePrompt = `Generate a professional blog header image.
-
-TOPIC: "${topic}"
-SECTOR: ${site.sector || "professional services"}
-${site.description ? `CONTEXT: ${site.description}` : ''}
-
-REQUIREMENTS:
-- Clean, professional photograph
-- Visually related to the topic and sector
-- NO text, NO logos, NO faces
-- Suitable for blog header, 16:9 ratio
-- High quality, editorial style
-
-Generate an image that a ${site.sector || "professional"} business would use for their blog.`;
+      // Get image prompt from database
+      const imagePrompt = await getPrompt(
+        supabase,
+        'saas.image',
+        {
+          topic: topic,
+          sector: sector,
+          description: site.description ? `CONTEXT: ${site.description}` : ''
+        },
+        FALLBACK_PROMPTS.image
+      );
 
       try {
         const imageResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -820,7 +972,6 @@ Generate an image that a ${site.sector || "professional"} business would use for
           const imageData = await imageResponse.json();
           console.log("AI image response structure:", JSON.stringify(Object.keys(imageData)));
           
-          // Check both possible response formats
           const message = imageData.choices?.[0]?.message;
           const base64Image = message?.images?.[0]?.image_url?.url;
           
@@ -831,11 +982,9 @@ Generate an image that a ${site.sector || "professional"} business would use for
           if (base64Image) {
             console.log("AI image generated successfully, uploading to storage...");
             
-            // Convert base64 to buffer and upload to storage
             const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
             const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
             
-            // Generate unique filename
             const timestamp = Date.now();
             const fileName = `${siteId}/${timestamp}-${topic.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.png`;
             
@@ -849,7 +998,6 @@ Generate an image that a ${site.sector || "professional"} business would use for
             if (uploadError) {
               console.error("Storage upload error:", uploadError);
             } else {
-              // Get public URL
               const { data: urlData } = supabaseAdmin.storage
                 .from('article-images')
                 .getPublicUrl(fileName);
@@ -877,7 +1025,6 @@ Generate an image that a ${site.sector || "professional"} business would use for
       // Fallback to Unsplash if AI generation failed
       if (!imageResult) {
         console.log("Falling back to Unsplash...");
-        const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
         
         if (UNSPLASH_ACCESS_KEY) {
           const fallbackQuery = sectorContext.fallbackQuery;
@@ -923,7 +1070,7 @@ Generate an image that a ${site.sector || "professional"} business would use for
     const dayOfMonth = new Date().getDate();
     const weekOfMonth = Math.ceil(dayOfMonth / 7);
 
-    // Save article to database with frequency-aware upsert logic
+    // Save article to database
     const articleData = {
       site_id: siteId,
       user_id: userId,
@@ -948,17 +1095,14 @@ Generate an image that a ${site.sector || "professional"} business would use for
       .eq('user_id', userId);
 
     if (site.publish_frequency === 'daily') {
-      // For daily: look for article generated TODAY only
       const todayStart = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
       existingQuery = existingQuery.gte('generated_at', todayStart.toISOString());
     } else if (site.publish_frequency === 'weekly') {
-      // For weekly: look for article generated THIS WEEK
       existingQuery = existingQuery
         .eq('week_of_month', weekOfMonth)
         .eq('month', month)
         .eq('year', year);
     } else {
-      // For monthly: look for article generated THIS MONTH
       existingQuery = existingQuery
         .eq('month', month)
         .eq('year', year);
@@ -968,7 +1112,6 @@ Generate an image that a ${site.sector || "professional"} business would use for
 
     let savedArticle;
     if (existingArticle) {
-      // Update existing article
       const { data, error: updateError } = await supabase
         .from('articles')
         .update(articleData)
@@ -983,7 +1126,6 @@ Generate an image that a ${site.sector || "professional"} business would use for
       savedArticle = data;
       console.log("Updated existing article:", savedArticle.id);
     } else {
-      // Insert new article
       const { data, error: insertError } = await supabase
         .from('articles')
         .insert(articleData)
@@ -1012,7 +1154,6 @@ Generate an image that a ${site.sector || "professional"} business would use for
       const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
       const articleExcerpt = spanishArticle?.meta_description || catalanArticle?.meta_description || `Nuevo artículo sobre ${topic}`;
       
-      // Don't await - send email in background
       sendArticleNotification(
         userProfile.email,
         site.name,
