@@ -1048,14 +1048,22 @@ serve(async (req) => {
       }
       
       const jsonString = cleanContent.substring(firstBrace, lastBrace + 1);
-      const sanitizedJson = jsonString.replace(/[\x00-\x1F\x7F]/g, (char: string) => {
-        if (char === '\n' || char === '\r' || char === '\t') return char;
-        return '';
-      });
+      
+      // Sanitize control characters more aggressively
+      // Replace unescaped control characters inside strings with their escaped versions or remove them
+      const sanitizedJson = jsonString
+        // First, replace literal newlines/tabs inside JSON strings with escaped versions
+        .replace(/\r\n/g, '\\n')
+        .replace(/\r/g, '\\n')
+        .replace(/\n/g, '\\n')
+        .replace(/\t/g, '\\t')
+        // Remove other control characters (0x00-0x1F except already handled, and 0x7F)
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
       
       spanishArticle = JSON.parse(sanitizedJson);
     } catch (e) {
       console.error("Error parsing Spanish JSON:", e);
+      console.error("Raw content preview:", spanishContent?.substring(0, 500));
       throw new Error("Failed to parse Spanish article JSON");
     }
 
@@ -1107,7 +1115,15 @@ serve(async (req) => {
             
             const jsonMatch = cleanCatalan.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-              catalanArticle = JSON.parse(jsonMatch[0]);
+              // Sanitize control characters in Catalan JSON too
+              const sanitizedCatalan = jsonMatch[0]
+                .replace(/\r\n/g, '\\n')
+                .replace(/\r/g, '\\n')
+                .replace(/\n/g, '\\n')
+                .replace(/\t/g, '\\t')
+                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+              
+              catalanArticle = JSON.parse(sanitizedCatalan);
               console.log("Catalan article generated successfully");
             }
           }
