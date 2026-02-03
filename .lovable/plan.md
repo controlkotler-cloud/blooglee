@@ -1,121 +1,126 @@
 
-# Diagnóstico: Por qué los artículos siguen siendo repetitivos
+# Plan: Corregir sincronización y deduplicación con WordPress
 
 ## Problemas identificados
 
-### Problema 1: `wordpress_context` está NULL
+| Problema | Estado | Impacto |
+|----------|--------|---------|
+| `wordpress_context` está NULL | CRÍTICO | No hay datos del blog existente |
+| No hay logs de sync-wordpress | ERROR | No podemos debuggear qué falló |
+| `usedTopics` no incluye WordPress | BUG | Genera temas duplicados del blog real |
+| Sector incorrecto en logs | MENOR | Dice "marketing" pero es farmacia |
 
-A pesar de sincronizar WordPress, el contexto no se guardó:
-```
-wordpress_context: <nil>
-```
+## Parte 1: Debuggear por qué no se guarda wordpress_context
 
-La Edge Function `sync-wordpress-taxonomies-saas` tiene la lógica, pero parece que no se ejecutó correctamente o falló silenciosamente. Sin logs disponibles, no puedo confirmar qué pasó.
+Revisar la Edge Function para encontrar dónde falla:
 
-### Problema 2: El tema generado menciona "marzo" cuando estamos en febrero
+```typescript
+// Problema potencial: el siteId puede no estar disponible
+const siteId = wpConfig.site_id;
 
-El prompt dice "Estamos en Febrero 2026" pero la IA respondió:
-```
-"Farmacia del futuro: digitalización más allá de la venta online este marzo"
-```
+// El update puede fallar silenciosamente
+const { error: contextError } = await supabase
+  .from('sites')
+  .update({ wordpress_context: contentAnalysis })
+  .eq('id', siteId);
 
-Esto indica que la IA ignora las instrucciones o el prompt no es lo suficientemente restrictivo.
-
-### Problema 3: Ambos artículos son sobre "digitalización/tendencias/futuro"
-
-| Fecha | Tema |
-|-------|------|
-| 1 Feb | "Tendencias digitales clave para farmacias este año" |
-| 3 Feb | "Farmacia del futuro: digitalización más allá de la venta online" |
-
-El pilar rotó de "educational" a "trends" pero el problema es más profundo:
-
-**El prompt NO prohíbe explícitamente palabras genéricas como:**
-- digitalización, digital, futuro, innovación, IA, inteligencia artificial, tendencias, tecnología
-
-### Problema 4: Falta de "lista negra" de conceptos sobreusados
-
-Para sectores como farmacias, siempre hay respuestas "fáciles" que la IA da por defecto. No hay nada que la fuerce a pensar diferente.
-
-## Solución propuesta
-
-### Parte 1: Añadir lista de conceptos prohibidos por sector
-
-En la base de datos, tener una tabla o campo con palabras/conceptos que la IA NO puede usar para ese sector específico:
-
-| Sector | Conceptos prohibidos |
-|--------|----------------------|
-| farmacia | digitalización, transformación digital, IA, inteligencia artificial, futuro, innovación, tecnología punta |
-| marketing | viralidad, engagement, influencer, trending |
-| general | IA, ChatGPT, transformación digital |
-
-### Parte 2: Mejorar el prompt de topic con prohibiciones explícitas
-
-Cambiar el prompt `saas.topic` para incluir:
-
-```
-⛔ PALABRAS PROHIBIDAS (NUNCA USAR EN EL TEMA):
-{{prohibitedTerms}}
-
-⛔ CONCEPTOS GENÉRICOS PROHIBIDOS:
-- "digitalización", "transformación digital"
-- "futuro de [sector]", "el futuro"
-- "innovación", "innovador"
-- "IA", "inteligencia artificial"
-- "tendencias 2026", "este año"
-- Cualquier buzzword tecnológico genérico
-
-EN SU LUGAR, sé CONCRETO y PRÁCTICO:
-- BIEN: "Cómo organizar el stock de medicamentos refrigerados"
-- MAL: "Digitalización del inventario farmacéutico"
-- BIEN: "Servicios de nutrición deportiva en tu farmacia"
-- MAL: "Innovación en servicios farmacéuticos"
+if (contextError) {
+  console.error('Error saving wordpress_context:', contextError);
+}
 ```
 
-### Parte 3: Forzar especificidad en el prompt
+Cambios necesarios:
+1. Añadir más logging antes y después del update
+2. Verificar que `siteId` es correcto
+3. Verificar que el update realmente se ejecuta
 
-Añadir instrucciones como:
-```
-El tema debe ser sobre una ACCIÓN CONCRETA o un PROBLEMA ESPECÍFICO, no sobre conceptos abstractos.
+## Parte 2: Incluir temas de WordPress en la deduplicación
 
-Ejemplos de temas CONCRETOS (BUENOS):
-- "Cómo reducir devoluciones de productos cosméticos"
-- "Consejos para atender clientes con alergias estacionales"
-- "Optimiza el espacio de tu mostrador de parafarmacia"
-
-Ejemplos de temas ABSTRACTOS (MALOS):
-- "El futuro de la farmacia digital"
-- "Tendencias en el sector farmacéutico"
-- "La transformación del retail farmacéutico"
+Actualmente el código solo mira `articles`:
+```typescript
+const { data: existingArticles } = await supabase
+  .from('articles')
+  .select('topic, content_spanish')
+  .eq('site_id', siteId);
 ```
 
-### Parte 4: Verificar y corregir sincronización de WordPress
+Hay que añadir los temas del contexto de WordPress:
+```typescript
+// Obtener temas ya usados de AMBAS fuentes
+const usedTopics = [
+  // 1. Artículos generados por Blooglee
+  ...existingArticles.map(a => a.topic),
+  
+  // 2. Temas del blog WordPress existente
+  ...(site.wordpress_context?.lastTopics || [])
+];
+```
 
-El `wordpress_context` debería guardarse pero está NULL. Necesito verificar:
-1. Si la función se ejecutó realmente
-2. Si hubo algún error silencioso
-3. Si hay problema con los permisos de actualización
+## Parte 3: Mejorar logging de sincronización
 
-### Parte 5: Añadir validación post-generación
+Añadir logs explícitos en cada paso crítico:
 
-Después de que la IA genere el tema, verificar que no contenga palabras prohibidas y si las contiene, regenerar con temperatura más alta o un prompt más restrictivo.
+```typescript
+console.log('=== CONTENT ANALYSIS START ===');
+console.log('Site ID for update:', siteId);
+console.log('WordPress URL:', wpUrl);
 
-## Cambios técnicos
+// Después de fetch posts
+console.log(`Fetched ${posts.length} posts from WordPress`);
+
+// Antes del update
+console.log('Content analysis result:', JSON.stringify(contentAnalysis));
+
+// Después del update
+if (contextError) {
+  console.error('FAILED to save wordpress_context:', contextError);
+} else {
+  console.log('SUCCESS: wordpress_context saved to site');
+}
+```
+
+## Parte 4: Verificar sector correcto
+
+Los logs dicen:
+```
+Loaded 26 prohibited terms for sector marketing
+```
+
+Pero farmapro es del sector "farmacia". El código busca palabras prohibidas por sector pero usa el sector incorrecto o no lo encuentra.
+
+Verificar que:
+1. El sector del site está bien configurado
+2. La tabla `sector_contexts` tiene entrada para "farmacia"
+3. El matching de sector funciona correctamente
+
+## Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/functions/generate-article-saas/index.ts` | Añadir lista de palabras prohibidas, validación post-generación |
-| Tabla `prompts` (saas.topic) | Actualizar con sección de prohibiciones explícitas |
-| Tabla `sector_contexts` (nueva o existente) | Almacenar palabras prohibidas por sector |
-| `supabase/functions/sync-wordpress-taxonomies-saas/index.ts` | Añadir logging para debug y verificar guardado |
+| `supabase/functions/sync-wordpress-taxonomies-saas/index.ts` | Añadir logging detallado |
+| `supabase/functions/generate-article-saas/index.ts` | Incluir lastTopics de wordpress_context en deduplicación |
+| Tabla `sector_contexts` | Verificar/añadir contexto para "farmacia" |
 
-## Resultado esperado
+## Cambio crítico en generate-article-saas
 
-En lugar de:
-- "Farmacia del futuro: digitalización más allá de la venta online"
-- "Tendencias digitales clave para farmacias"
+```typescript
+// ANTES: Solo miraba articles de Blooglee
+const usedTopics = existingArticles?.map(a => a.topic) || [];
 
-Generar:
-- "Cómo organizar tu almacén de productos termolábiles"
-- "5 errores comunes al atender consultas de dermocosmética"
-- "Prepara tu farmacia para la campaña de gripe de este invierno"
+// DESPUÉS: Combinar ambas fuentes
+const bloogleeTopics = existingArticles?.map(a => a.topic) || [];
+const wpTopics = site.wordpress_context?.lastTopics || [];
+const usedTopics = [...bloogleeTopics, ...wpTopics];
+
+console.log(`Found ${bloogleeTopics.length} Blooglee topics`);
+console.log(`Found ${wpTopics.length} WordPress topics`);
+console.log('Combined topics to avoid:', usedTopics.join(', '));
+```
+
+## Prueba de verificación
+
+Después de los cambios:
+1. Sincronizar WordPress para farmapro
+2. Verificar en logs que wordpress_context se guardó
+3. Verificar en BD que sites.wordpress_context tiene datos
+4. Generar artículo y verificar que evita "escaparate" y otros temas del blog
