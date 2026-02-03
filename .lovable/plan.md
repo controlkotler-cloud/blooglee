@@ -1,174 +1,240 @@
 
-# Plan: Corregir límites de sitios y mejorar ayuda en WordPress
 
-## Problemas detectados
+# Plan: Hacer funcionar los prompts del panel admin (de verdad)
 
-| Problema | Causa | Impacto |
-|----------|-------|---------|
-| Usuario beta muestra "2/1 sitios" | El Onboarding no valida el límite antes de crear | Usuarios pueden crear más sitios de los permitidos |
-| No hay ayuda visible en WordPress | El formulario solo tiene guía básica, sin enlace a soluciones | Usuarios se quedan atascados con problemas de Wordfence, idiomas, etc. |
-| Snippets de código no accesibles | Existen en `/data/codeSnippets.ts` pero no hay enlace desde WordPress | Usuarios no saben que hay soluciones disponibles |
+## El problema real
+
+La Edge Function `generate-article-saas` tiene TODO hardcodeado:
+
+| Ubicación en código | Qué hace | Líneas |
+|---------------------|----------|--------|
+| Líneas 517-534 | Prompt para generar TEMA | Hardcodeado |
+| Líneas 566-596 | Prompt SISTEMA para artículo | Hardcodeado |
+| Líneas 598-608 | Prompt USUARIO para artículo | Hardcodeado |
+| Líneas 688-702 | Prompt traducción CATALÁN | Hardcodeado |
+| Líneas 788-801 | Prompt generación IMAGEN | Hardcodeado |
+
+Los prompts en la tabla `prompts` con keys `generate-article-saas.system.es` y `generate-article-saas.topic` **nunca se consultan**.
 
 ## Solución propuesta
 
-### Parte 1: Validar límite de sitios en Onboarding
+### Parte 1: Sistema de caché de prompts
 
-Añadir validación al inicio de `Onboarding.tsx`:
+En lugar de consultar la BD en cada ejecución, mantener los prompts en memoria y solo recargar cuando cambien:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Panel Admin: Editar prompt                                 │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ Al guardar cambios:                                     ││
+│  │ 1. Actualiza tabla prompts                              ││
+│  │ 2. Actualiza tabla prompt_cache_version (incrementa)    ││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Edge Function: generate-article-saas                       │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ 1. Consulta version en prompt_cache_version             ││
+│  │ 2. Si version cambió → Recarga prompts de BD            ││
+│  │ 3. Si no → Usa prompts en memoria (Map global)          ││
+│  │ 4. Fallback hardcodeado si prompt no existe             ││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Parte 2: Crear tabla de versión de caché
+
+Nueva tabla simple para saber cuándo recargar:
+
+```sql
+CREATE TABLE prompt_cache_version (
+  id integer PRIMARY KEY DEFAULT 1,
+  version integer NOT NULL DEFAULT 1,
+  updated_at timestamptz DEFAULT now(),
+  CONSTRAINT single_row CHECK (id = 1)
+);
+```
+
+### Parte 3: Trigger para actualizar versión
+
+Cuando se modifica un prompt, incrementar automáticamente la versión:
+
+```sql
+CREATE OR REPLACE FUNCTION increment_prompt_cache_version()
+RETURNS trigger AS $$
+BEGIN
+  UPDATE prompt_cache_version SET 
+    version = version + 1,
+    updated_at = now()
+  WHERE id = 1;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER prompt_updated
+AFTER INSERT OR UPDATE OR DELETE ON prompts
+FOR EACH STATEMENT
+EXECUTE FUNCTION increment_prompt_cache_version();
+```
+
+### Parte 4: Modificar Edge Function
+
+Implementar caché en memoria con invalidación por versión:
 
 ```typescript
-const { data: profile } = useProfile();
-const { data: sites = [] } = useSites();
+// Cache global (persiste entre ejecuciones en el mismo worker)
+const promptCache: Map<string, string> = new Map();
+let cacheVersion: number = 0;
 
-// Si ya alcanzó el límite, redirigir
-useEffect(() => {
-  if (profile && sites.length >= profile.sites_limit) {
-    toast.error('Has alcanzado el límite de sitios de tu plan');
-    navigate('/dashboard');
+async function getPrompt(
+  supabase: any, 
+  key: string, 
+  variables: Record<string, string>,
+  fallback: string
+): Promise<string> {
+  // 1. Verificar si caché está actualizada
+  const { data: versionData } = await supabase
+    .from('prompt_cache_version')
+    .select('version')
+    .eq('id', 1)
+    .single();
+  
+  const currentVersion = versionData?.version || 0;
+  
+  // 2. Si versión cambió, limpiar caché
+  if (currentVersion !== cacheVersion) {
+    promptCache.clear();
+    cacheVersion = currentVersion;
+    console.log(`Prompt cache invalidated, new version: ${cacheVersion}`);
   }
-}, [profile, sites]);
-```
-
-### Parte 2: Añadir sección de ayuda visible en WordPress
-
-Añadir un panel destacado en `WordPressConfigForm.tsx` con:
-
-1. **Enlace a "¿Problemas de conexión?"** que abre una sección de soluciones
-2. **Snippets rápidos** para los problemas más comunes:
-   - Wordfence bloquea la API
-   - Polylang/WPML para multiidioma
-   - Contraseñas de aplicación no disponibles
-3. **Botón para abrir Bloobot** directamente desde WordPress
-
-Diseño propuesto:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│ ⚠️ ¿Problemas conectando WordPress?                     │
-│                                                         │
-│ Estos son los problemas más comunes:                   │
-│                                                         │
-│ 🛡️ Wordfence/Seguridad    → Ver solución              │
-│ 🌐 Polylang/WPML          → Ver solución              │
-│ 🔑 Sin contraseñas de app → Ver solución              │
-│                                                         │
-│ [💬 Hablar con Bloobot]  [📚 Ver más soluciones]       │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Parte 3: Eliminar el sitio extra del usuario beta
-
-El usuario `controlkotler@gmail.com` tiene 2 sitios ("fisiolleida" y "farmacia 1") pero el límite es 1. Hay que notificar al usuario o eliminar el sitio extra.
-
-**Opción recomendada**: No eliminar automáticamente - añadir un aviso en el dashboard cuando se excede el límite para que el usuario elija qué sitio mantener.
-
-## Cambios técnicos
-
-### Archivo: `src/pages/Onboarding.tsx`
-
-**Añadir validación de límite al inicio:**
-
-```typescript
-import { useProfile } from '@/hooks/useProfile';
-import { useSites } from '@/hooks/useSites';
-
-// Dentro del componente:
-const { data: profile } = useProfile();
-const { data: existingSites = [] } = useSites();
-
-useEffect(() => {
-  if (profile && existingSites.length >= profile.sites_limit) {
-    toast.error(`Has alcanzado el límite de ${profile.sites_limit} sitio(s) de tu plan`);
-    navigate('/dashboard');
+  
+  // 3. Si está en caché, usar
+  if (promptCache.has(key)) {
+    let content = promptCache.get(key)!;
+    return substituteVariables(content, variables);
   }
-}, [profile, existingSites, navigate]);
+  
+  // 4. Si no, cargar de BD
+  const { data } = await supabase
+    .from('prompts')
+    .select('content')
+    .eq('key', key)
+    .eq('is_active', true)
+    .single();
+  
+  if (data?.content) {
+    promptCache.set(key, data.content);
+    return substituteVariables(data.content, variables);
+  }
+  
+  // 5. Fallback hardcodeado
+  console.log(`Using fallback for prompt: ${key}`);
+  return substituteVariables(fallback, variables);
+}
+
+function substituteVariables(
+  content: string, 
+  variables: Record<string, string>
+): string {
+  let result = content;
+  for (const [key, value] of Object.entries(variables)) {
+    result = result.replace(
+      new RegExp(`\\{\\{${key}\\}\\}`, 'g'), 
+      value || ''
+    );
+  }
+  return result;
+}
 ```
 
-### Archivo: `src/components/saas/WordPressConfigForm.tsx`
+### Parte 5: Prompts con keys correctos
 
-**Añadir sección de ayuda expandida después del formulario:**
+Actualizar los prompts existentes en la BD con contenido real:
 
-```typescript
-// Nueva sección después del formulario de configuración
-<Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
-  <CardHeader className="pb-3">
-    <CardTitle className="text-base flex items-center gap-2">
-      <AlertTriangle className="w-5 h-5 text-amber-500" />
-      ¿Problemas conectando WordPress?
-    </CardTitle>
-  </CardHeader>
-  <CardContent className="space-y-4">
-    <p className="text-sm text-muted-foreground">
-      Los plugins de seguridad pueden bloquear la conexión. Aquí tienes soluciones:
-    </p>
-    
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      <TroubleshootButton 
-        icon={Shield}
-        title="Wordfence bloquea"
-        description="Añadir excepciones al firewall"
-        snippetId="wordfence-whitelist"
-      />
-      <TroubleshootButton 
-        icon={Globe}
-        title="Polylang/WPML"
-        description="Soporte API para idiomas"
-        snippetId="polylang-api-support"
-      />
-      <TroubleshootButton 
-        icon={Key}
-        title="Sin contraseñas de app"
-        description="Habilitar en wp-config.php"
-        snippetId="force-app-passwords"
-      />
-      <TroubleshootButton 
-        icon={Shield}
-        title="iThemes Security"
-        description="Reactivar API REST"
-        snippetId="ithemes-api-enable"
-      />
-    </div>
-    
-    <div className="flex gap-2 pt-2">
-      <Button variant="outline" onClick={openBloobot}>
-        <MessageSquare className="w-4 h-4 mr-2" />
-        Hablar con Bloobot
-      </Button>
-      <Button variant="ghost" onClick={() => navigate('/help')}>
-        <HelpCircle className="w-4 h-4 mr-2" />
-        Centro de ayuda
-      </Button>
-    </div>
-  </CardContent>
-</Card>
+| Key del prompt | Propósito | Variables disponibles |
+|----------------|-----------|----------------------|
+| `saas.topic` | Generar tema | `{{site.name}}`, `{{sector}}`, `{{description}}`, `{{location}}`, `{{scope}}`, `{{month}}`, `{{year}}`, `{{usedTopics}}` |
+| `saas.article.system` | Sistema artículo | `{{site.name}}`, `{{sector}}`, `{{description}}`, `{{geoContext}}`, `{{dateContext}}` |
+| `saas.article.user` | Usuario artículo | `{{topic}}` |
+| `saas.image` | Generar imagen | `{{topic}}`, `{{sector}}`, `{{description}}` |
+| `saas.translate.catalan` | Traducir catalán | `{{title}}`, `{{meta}}`, `{{slug}}`, `{{content}}` |
+
+### Parte 6: Actualizar hook del panel admin
+
+Cuando se guarda un prompt, el trigger automáticamente incrementa la versión, no hay cambios necesarios en el frontend.
+
+## Cambios técnicos detallados
+
+### Migración SQL
+
+```sql
+-- Tabla de versión de caché
+CREATE TABLE prompt_cache_version (
+  id integer PRIMARY KEY DEFAULT 1,
+  version integer NOT NULL DEFAULT 1,
+  updated_at timestamptz DEFAULT now(),
+  CONSTRAINT single_row CHECK (id = 1)
+);
+
+-- Insertar registro inicial
+INSERT INTO prompt_cache_version (id, version) VALUES (1, 1);
+
+-- RLS: Solo lectura para service_role
+ALTER TABLE prompt_cache_version ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role can read cache version"
+  ON prompt_cache_version FOR SELECT
+  USING (auth.role() = 'service_role');
+
+CREATE POLICY "Superadmins can manage cache version"
+  ON prompt_cache_version FOR ALL
+  USING (has_role(auth.uid(), 'superadmin'));
+
+-- Trigger para invalidar caché
+CREATE OR REPLACE FUNCTION increment_prompt_cache_version()
+RETURNS trigger AS $$
+BEGIN
+  UPDATE prompt_cache_version SET 
+    version = version + 1,
+    updated_at = now()
+  WHERE id = 1;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER prompt_cache_invalidation
+AFTER INSERT OR UPDATE OR DELETE ON prompts
+FOR EACH STATEMENT
+EXECUTE FUNCTION increment_prompt_cache_version();
 ```
 
-**Añadir modal de snippet:**
+### Edge Function: generate-article-saas/index.ts
 
-Crear un componente `SnippetModal` que muestre el código del snippet seleccionado con botón de copiar.
+1. Añadir sistema de caché al inicio del archivo
+2. Crear función `getPrompt()` con lógica de caché
+3. Crear función `substituteVariables()` para reemplazo
+4. Reemplazar prompts hardcodeados por llamadas a `getPrompt()`
+5. Mantener los actuales como fallbacks
 
-### Archivo: `src/pages/SiteDetail.tsx`
+### Actualizar/Crear prompts en BD
 
-Añadir el widget de Bloobot en la página de detalle del sitio:
-
-```typescript
-import { SupportChatWidget } from '@/components/saas/SupportChatWidget';
-
-// En el return, al final:
-<SupportChatWidget siteId={site.id} />
-```
+Insertar los prompts con el contenido actual de la Edge Function para que funcionen desde el día 1.
 
 ## Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/pages/Onboarding.tsx` | Validar límite de sitios antes de permitir crear |
-| `src/components/saas/WordPressConfigForm.tsx` | Añadir panel de ayuda con soluciones rápidas |
-| `src/pages/SiteDetail.tsx` | Añadir widget de Bloobot |
-| `src/components/saas/TroubleshootPanel.tsx` | CREAR - Panel reutilizable de soluciones |
+| Migración SQL | Crear tabla `prompt_cache_version`, trigger |
+| `supabase/functions/generate-article-saas/index.ts` | Implementar sistema de caché, usar prompts de BD |
+| Inserción de datos | Crear prompts con contenido correcto |
 
 ## Resultado esperado
 
-1. Los usuarios NO pueden crear más sitios de los permitidos por su plan
-2. Cuando hay problemas con WordPress, las soluciones están visibles
-3. Los snippets de código son accesibles desde el formulario de WordPress
-4. Bloobot está disponible directamente en la página del sitio
+1. Los prompts del panel admin SON los que se usan
+2. Solo se consulta la BD cuando cambias algo
+3. El sistema es eficiente (caché en memoria)
+4. Hay fallbacks si borras un prompt por error
+5. Puedes ajustar tono, longitud, reglas sin tocar código
+
