@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Save, Unplug, ChevronDown, BookOpen, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, Save, Unplug, ChevronDown, BookOpen, CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useWordPressConfig, useUpsertWordPressConfig, useDeleteWordPressConfig } from '@/hooks/useWordPressConfigSaas';
 import { useWordPressHealthCheck, HealthCheckResult } from '@/hooks/useWordPressHealthCheck';
+import { useSyncTaxonomiesSaas } from '@/hooks/useWordPressTaxonomiesSaas';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { WordPressTroubleshootPanel } from './WordPressTroubleshootPanel';
 import { toast } from 'sonner';
@@ -50,6 +51,7 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
   const upsertMutation = useUpsertWordPressConfig();
   const deleteMutation = useDeleteWordPressConfig();
   const { runHealthCheck, isChecking } = useWordPressHealthCheck();
+  const syncMutation = useSyncTaxonomiesSaas();
   
   const [showPassword, setShowPassword] = useState(false);
   const [helpOpen, setHelpOpen] = useState(true);
@@ -175,6 +177,12 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
     setValidationState('idle');
     setValidationResult(null);
     setUrlStatus('idle');
+  };
+
+  const handleSync = () => {
+    if (config?.id) {
+      syncMutation.mutate(config.id);
+    }
   };
 
   const getCheckIcon = (status: 'ok' | 'warning' | 'error') => {
@@ -423,9 +431,31 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
             </Button>
 
             {config && (
+              <Button 
+                variant="outline" 
+                type="button" 
+                onClick={handleSync}
+                disabled={syncMutation.isPending}
+                className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
+              >
+                {syncMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Sincronizar categorías
+                  </>
+                )}
+              </Button>
+            )}
+
+            {config && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" type="button" className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm">
+                  <Button variant="outline" type="button" className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm text-destructive hover:text-destructive">
                     <Unplug className="w-4 h-4 mr-2" />
                     Desconectar
                   </Button>
