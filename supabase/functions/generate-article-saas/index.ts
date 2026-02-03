@@ -780,6 +780,26 @@ serve(async (req) => {
     const wpStyleNotes = wpContext?.style_notes || '';
     const wpRecentTopics = wpContext?.lastTopics?.slice(0, 5).join(', ') || '';
 
+    // ==========================================
+    // LOAD SECTOR PROHIBITED TERMS
+    // ==========================================
+    let sectorProhibitedTerms: string[] = [];
+    try {
+      const { data: sectorData } = await supabase
+        .from('sector_contexts')
+        .select('prohibited_terms')
+        .or(`sector_key.eq.${sectorCategory},sector_key.eq.general`)
+        .order('sector_key', { ascending: false }); // sector-specific first
+      
+      if (sectorData && sectorData.length > 0) {
+        // Merge all prohibited terms from sector + general
+        sectorProhibitedTerms = sectorData.flatMap((s: { prohibited_terms: string[] }) => s.prohibited_terms || []);
+        console.log(`Loaded ${sectorProhibitedTerms.length} prohibited terms for sector ${sectorCategory}`);
+      }
+    } catch (e) {
+      console.log("Could not load sector prohibited terms:", e);
+    }
+
     // Generate topic if not provided
     let topic = providedTopic;
     
@@ -799,6 +819,11 @@ serve(async (req) => {
         ? `\n\n⚠️ TEMAS A EVITAR (NO REPETIR NI SIMILARES):\n${allAvoidTopics.slice(0, 40).map((t, i) => `${i+1}. ${t}`).join('\n')}`
         : '';
 
+      // Build prohibited terms string for prompt
+      const prohibitedTermsForPrompt = sectorProhibitedTerms.length > 0
+        ? `- ${sectorProhibitedTerms.slice(0, 20).join('\n- ')}`
+        : '';
+
       // Build enriched topic prompt variables
       const enrichedVariables = {
         siteName: site.name,
@@ -816,7 +841,9 @@ serve(async (req) => {
         toneDescription: toneDescription,
         targetAudience: targetAudience ? `AUDIENCIA OBJETIVO: ${targetAudience}` : '',
         wpStyleNotes: wpStyleNotes ? `ESTILO DETECTADO EN SU BLOG: ${wpStyleNotes}` : '',
-        wpRecentTopics: wpRecentTopics ? `TEMAS RECIENTES DE SU BLOG: ${wpRecentTopics}` : ''
+        wpRecentTopics: wpRecentTopics ? `TEMAS RECIENTES DE SU BLOG: ${wpRecentTopics}` : '',
+        // NEW: Prohibited terms
+        prohibitedTerms: prohibitedTermsForPrompt
       };
 
       // Get topic prompt from database with cache
@@ -827,32 +854,90 @@ serve(async (req) => {
         FALLBACK_PROMPTS.topic
       );
 
-      try {
-        const topicResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [{ role: "user", content: topicPrompt }],
-            temperature: 0.85,
-            max_tokens: 100,
-          }),
-        });
+      // Maximum retry attempts for topic validation
+      const MAX_TOPIC_ATTEMPTS = 3;
+      let topicAttempt = 0;
+      let validTopic = false;
 
-        if (topicResponse.ok) {
-          const topicData = await topicResponse.json();
-          topic = topicData.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, "") || topic;
-          console.log("AI generated topic:", topic);
+      while (!validTopic && topicAttempt < MAX_TOPIC_ATTEMPTS) {
+        topicAttempt++;
+        console.log(`Topic generation attempt ${topicAttempt}/${MAX_TOPIC_ATTEMPTS}`);
+        
+        try {
+          const topicResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [{ role: "user", content: topicPrompt }],
+              temperature: 0.85 + (topicAttempt * 0.1), // Increase temperature on retries
+              max_tokens: 100,
+            }),
+          });
+
+          if (topicResponse.ok) {
+            const topicData = await topicResponse.json();
+            const generatedTopic = topicData.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, "") || '';
+            
+            if (generatedTopic) {
+              // Validate topic doesn't contain prohibited terms
+              const topicLower = generatedTopic.toLowerCase();
+              const containsProhibited = sectorProhibitedTerms.some(term => 
+                topicLower.includes(term.toLowerCase())
+              );
+              
+              // Also check for generic patterns
+              const genericPatterns = [
+                /\b(202\d|2030)\b/, // Years
+                /\b(futuro|future)\b/i,
+                /\b(tendencias?|trends?)\b/i,
+                /\b(digitaliza|transforma)/i,
+                /\b(innovaci[oó]n|disrupt)/i,
+                /\b(inteligencia artificial|ia\s|ai\s)/i
+              ];
+              
+              const containsGenericPattern = genericPatterns.some(pattern => pattern.test(topicLower));
+              
+              if (!containsProhibited && !containsGenericPattern) {
+                topic = generatedTopic;
+                validTopic = true;
+                console.log(`✓ Valid topic generated: "${topic}"`);
+              } else {
+                console.log(`✗ Topic rejected (contains prohibited/generic terms): "${generatedTopic}"`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Topic generation attempt ${topicAttempt} error:`, error);
         }
-      } catch (error) {
-        console.error("Error generating topic:", error);
       }
       
+      // Fallback if all attempts failed - generate a concrete, sector-specific topic
       if (!topic) {
-        topic = `Novedades y tendencias en ${sector}`;
+        const concreteFallbacks: Record<string, string[]> = {
+          farmacia: [
+            "Cómo organizar el mostrador de dermofarmacia",
+            "Consejos para la atención de alergias estacionales",
+            "Guía de productos para el cuidado solar"
+          ],
+          marketing: [
+            "Estructura de una landing page efectiva",
+            "Cómo redactar asuntos de email que abren",
+            "Guía de palabras clave long-tail"
+          ],
+          default: [
+            "Cómo mejorar la atención al cliente",
+            "Organiza tu espacio de trabajo eficientemente",
+            "Guía para fidelizar a tus clientes"
+          ]
+        };
+        
+        const fallbacks = concreteFallbacks[sectorCategory] || concreteFallbacks.default;
+        topic = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+        console.log(`Using concrete fallback topic: "${topic}"`);
       }
     }
 

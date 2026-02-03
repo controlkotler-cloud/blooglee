@@ -56,23 +56,28 @@ Deno.serve(async (req) => {
     // Create Supabase client with user's token
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    // Client for auth validation
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
-    // Validate user
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      console.error('Invalid token:', claimsError);
+    // Validate user via getUser (getClaims doesn't exist)
+    const { data: userData, error: userError } = await supabaseAuth.auth.getUser();
+    if (userError || !userData?.user) {
+      console.error('Invalid token:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = claimsData.claims.sub as string;
+    const userId = userData.user.id;
     console.log('User ID:', userId);
+    
+    // Use service role for updates (bypasses RLS)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Parse request body
     const body: SyncRequest = await req.json();
@@ -89,9 +94,8 @@ Deno.serve(async (req) => {
     // Get WordPress config and validate ownership
     const { data: wpConfig, error: wpError } = await supabase
       .from('wordpress_configs')
-      .select('*, sites!inner(id, name)')
+      .select('*, sites!inner(id, name, user_id)')
       .eq('id', body.wordpress_config_id)
-      .eq('user_id', userId)
       .maybeSingle();
 
     if (wpError) {
@@ -103,10 +107,19 @@ Deno.serve(async (req) => {
     }
 
     if (!wpConfig) {
-      console.error('WordPress config not found or access denied');
+      console.error('WordPress config not found');
       return new Response(
         JSON.stringify({ error: 'Configuración de WordPress no encontrada' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify the user owns this config
+    if (wpConfig.user_id !== userId) {
+      console.error('Access denied: user does not own this config');
+      return new Response(
+        JSON.stringify({ error: 'Acceso denegado' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
