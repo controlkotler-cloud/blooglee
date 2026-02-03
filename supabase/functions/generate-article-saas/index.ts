@@ -446,6 +446,62 @@ const MONTH_NAMES_ES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "
 const MONTH_NAMES_CA = ["Gener", "Febrer", "Març", "Abril", "Maig", "Juny", "Juliol", "Agost", "Setembre", "Octubre", "Novembre", "Desembre"];
 
 // ==========================================
+// JSON REPAIR: Escape control chars ONLY inside string literals
+// ==========================================
+function escapeControlCharsInsideStrings(input: string): string {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+  
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    const code = input.charCodeAt(i);
+    
+    if (escaped) {
+      // Previous char was backslash inside string, just add this char
+      result += char;
+      escaped = false;
+      continue;
+    }
+    
+    if (char === '"' && !escaped) {
+      // Toggle string state
+      inString = !inString;
+      result += char;
+      continue;
+    }
+    
+    if (char === '\\' && inString) {
+      // Next char is escaped
+      escaped = true;
+      result += char;
+      continue;
+    }
+    
+    if (inString) {
+      // Inside a string - escape control characters
+      if (char === '\n') {
+        result += '\\n';
+      } else if (char === '\r') {
+        result += '\\r';
+      } else if (char === '\t') {
+        result += '\\t';
+      } else if (code >= 0x00 && code <= 0x1F) {
+        // Other control chars - convert to unicode escape
+        result += '\\u' + code.toString(16).padStart(4, '0');
+      } else {
+        result += char;
+      }
+    } else {
+      // Outside string - keep as-is (whitespace is valid JSON structure)
+      result += char;
+    }
+  }
+  
+  return result;
+}
+
+// ==========================================
 // HELPER FUNCTIONS
 // ==========================================
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
@@ -1032,7 +1088,7 @@ serve(async (req) => {
       throw new Error("No Spanish content generated");
     }
 
-    // Parse JSON from response
+    // Parse JSON from response using robust two-attempt strategy
     let spanishArticle;
     try {
       let cleanContent = spanishContent
@@ -1044,23 +1100,28 @@ serve(async (req) => {
       const lastBrace = cleanContent.lastIndexOf('}');
       
       if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+        console.error("JSON extraction failed:", { firstBrace, lastBrace, contentLength: cleanContent.length });
         throw new Error("No JSON object found in response");
       }
       
       const jsonString = cleanContent.substring(firstBrace, lastBrace + 1);
       
-      // Sanitize control characters more aggressively
-      // Replace unescaped control characters inside strings with their escaped versions or remove them
-      const sanitizedJson = jsonString
-        // First, replace literal newlines/tabs inside JSON strings with escaped versions
-        .replace(/\r\n/g, '\\n')
-        .replace(/\r/g, '\\n')
-        .replace(/\n/g, '\\n')
-        .replace(/\t/g, '\\t')
-        // Remove other control characters (0x00-0x1F except already handled, and 0x7F)
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+      // Clean BOM and zero-width characters (always safe to remove globally)
+      const cleanedJson = jsonString.replace(/[\uFEFF\u200B\u200C\u200D]/g, '');
       
-      spanishArticle = JSON.parse(sanitizedJson);
+      // Attempt 1: Parse directly (works for most valid JSON)
+      try {
+        spanishArticle = JSON.parse(cleanedJson);
+      } catch (firstError) {
+        console.log("JSON parse failed on first attempt; applying string-only escaping and retrying");
+        console.log("First error:", (firstError as Error).message);
+        console.log("Raw content preview:", cleanedJson.substring(0, 200));
+        
+        // Attempt 2: Escape control chars ONLY inside string literals
+        const repairedJson = escapeControlCharsInsideStrings(cleanedJson);
+        spanishArticle = JSON.parse(repairedJson);
+        console.log("JSON parse succeeded after string-only escaping");
+      }
     } catch (e) {
       console.error("Error parsing Spanish JSON:", e);
       console.error("Raw content preview:", spanishContent?.substring(0, 500));
@@ -1115,15 +1176,17 @@ serve(async (req) => {
             
             const jsonMatch = cleanCatalan.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-              // Sanitize control characters in Catalan JSON too
-              const sanitizedCatalan = jsonMatch[0]
-                .replace(/\r\n/g, '\\n')
-                .replace(/\r/g, '\\n')
-                .replace(/\n/g, '\\n')
-                .replace(/\t/g, '\\t')
-                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+              // Clean BOM and zero-width characters
+              const cleanedCatalanJson = jsonMatch[0].replace(/[\uFEFF\u200B\u200C\u200D]/g, '');
               
-              catalanArticle = JSON.parse(sanitizedCatalan);
+              // Two-attempt parsing for Catalan too
+              try {
+                catalanArticle = JSON.parse(cleanedCatalanJson);
+              } catch (firstError) {
+                console.log("Catalan JSON parse failed on first attempt; applying string-only escaping");
+                const repairedCatalanJson = escapeControlCharsInsideStrings(cleanedCatalanJson);
+                catalanArticle = JSON.parse(repairedCatalanJson);
+              }
               console.log("Catalan article generated successfully");
             }
           }
