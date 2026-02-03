@@ -672,7 +672,9 @@ export type Database = {
       sites: {
         Row: {
           auto_generate: boolean
+          avoid_topics: string[] | null
           blog_url: string | null
+          content_pillars: string[] | null
           created_at: string
           custom_topic: string | null
           description: string | null
@@ -681,20 +683,27 @@ export type Database = {
           include_featured_image: boolean
           instagram_url: string | null
           languages: string[]
+          last_pillar_index: number | null
           location: string | null
           name: string
+          preferred_length: string | null
           publish_day_of_month: number | null
           publish_day_of_week: number | null
           publish_frequency: string
           publish_hour_utc: number | null
           publish_week_of_month: number | null
           sector: string | null
+          target_audience: string | null
+          tone: string | null
           updated_at: string
           user_id: string
+          wordpress_context: Json | null
         }
         Insert: {
           auto_generate?: boolean
+          avoid_topics?: string[] | null
           blog_url?: string | null
+          content_pillars?: string[] | null
           created_at?: string
           custom_topic?: string | null
           description?: string | null
@@ -703,20 +712,27 @@ export type Database = {
           include_featured_image?: boolean
           instagram_url?: string | null
           languages?: string[]
+          last_pillar_index?: number | null
           location?: string | null
           name: string
+          preferred_length?: string | null
           publish_day_of_month?: number | null
           publish_day_of_week?: number | null
           publish_frequency?: string
           publish_hour_utc?: number | null
           publish_week_of_month?: number | null
           sector?: string | null
+          target_audience?: string | null
+          tone?: string | null
           updated_at?: string
           user_id: string
+          wordpress_context?: Json | null
         }
         Update: {
           auto_generate?: boolean
+          avoid_topics?: string[] | null
           blog_url?: string | null
+          content_pillars?: string[] | null
           created_at?: string
           custom_topic?: string | null
           description?: string | null
@@ -725,16 +741,21 @@ export type Database = {
           include_featured_image?: boolean
           instagram_url?: string | null
           languages?: string[]
+          last_pillar_index?: number | null
           location?: string | null
           name?: string
+          preferred_length?: string | null
           publish_day_of_month?: number | null
           publish_day_of_week?: number | null
           publish_frequency?: string
           publish_hour_utc?: number | null
           publish_week_of_month?: number | null
           sector?: string | null
+          target_audience?: string | null
+          tone?: string | null
           updated_at?: string
           user_id?: string
+          wordpress_context?: Json | null
         }
         Relationships: []
       }

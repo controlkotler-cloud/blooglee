@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -29,6 +29,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Loader2, Save, Trash2, Clock, Calendar } from 'lucide-react';
+import { ContentProfileCard } from './ContentProfileCard';
 import { useUpdateSite, useDeleteSite, type Site } from '@/hooks/useSites';
 
 const DAYS_OF_WEEK = [
@@ -94,6 +95,12 @@ const formSchema = z.object({
   include_featured_image: z.boolean(),
   blog_url: z.string().url().optional().or(z.literal('')),
   instagram_url: z.string().url().optional().or(z.literal('')),
+  // Content profile fields
+  tone: z.string(),
+  target_audience: z.string().optional(),
+  content_pillars: z.array(z.string()).min(1),
+  avoid_topics: z.string().optional(),
+  preferred_length: z.string(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -136,6 +143,12 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       include_featured_image: site.include_featured_image,
       blog_url: site.blog_url || '',
       instagram_url: site.instagram_url || '',
+      // Content profile fields
+      tone: site.tone || 'casual',
+      target_audience: site.target_audience || '',
+      content_pillars: site.content_pillars || ['educational', 'trends', 'seasonal'],
+      avoid_topics: (site.avoid_topics || []).join(', '),
+      preferred_length: site.preferred_length || 'medium',
     },
   });
 
@@ -174,6 +187,11 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       }
     }
 
+    // Parse avoid_topics from comma-separated string to array
+    const avoidTopicsArray = data.avoid_topics
+      ? data.avoid_topics.split(',').map((t) => t.trim()).filter(Boolean)
+      : [];
+
     updateMutation.mutate({
       id: site.id,
       name: data.name,
@@ -192,6 +210,12 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       include_featured_image: data.include_featured_image,
       blog_url: data.blog_url || null,
       instagram_url: data.instagram_url || null,
+      // Content profile fields
+      tone: data.tone || null,
+      target_audience: data.target_audience || null,
+      content_pillars: data.content_pillars,
+      avoid_topics: avoidTopicsArray,
+      preferred_length: data.preferred_length || null,
     });
   };
 
@@ -549,6 +573,13 @@ export function SiteSettings({ site }: SiteSettingsProps) {
             </div>
           </CardContent>
         </Card>
+
+        {/* Content Profile Card */}
+        <ContentProfileCard
+          watch={watch}
+          setValue={setValue}
+          register={register}
+        />
 
         {/* Save button */}
         <Button type="submit" disabled={!isDirty || updateMutation.isPending}>

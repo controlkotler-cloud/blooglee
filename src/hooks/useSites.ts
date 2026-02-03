@@ -3,6 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
+export interface WordPressContext {
+  avgLength?: number;
+  commonCategories?: Array<{ name: string; count: number }>;
+  lastTopics?: string[];
+  detected_tone?: string;
+  main_themes?: string[];
+  style_notes?: string;
+  analyzed_at?: string;
+}
+
 export interface Site {
   id: string;
   user_id: string;
@@ -22,6 +32,14 @@ export interface Site {
   publish_day_of_month: number | null;
   publish_week_of_month: number | null;
   publish_hour_utc: number;
+  // New content profile fields
+  tone: string | null;
+  target_audience: string | null;
+  content_pillars: string[];
+  avoid_topics: string[];
+  preferred_length: string | null;
+  wordpress_context: WordPressContext | null;
+  last_pillar_index: number;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +61,12 @@ export interface SiteInput {
   publish_day_of_month?: number | null;
   publish_week_of_month?: number | null;
   publish_hour_utc?: number;
+  // New content profile fields
+  tone?: string | null;
+  target_audience?: string | null;
+  content_pillars?: string[];
+  avoid_topics?: string[];
+  preferred_length?: string | null;
 }
 
 export function useSites() {

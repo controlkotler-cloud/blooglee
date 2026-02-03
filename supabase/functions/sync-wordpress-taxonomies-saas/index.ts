@@ -7,12 +7,31 @@ const corsHeaders = {
 
 interface SyncRequest {
   wordpress_config_id: string;
+  analyze_content?: boolean; // New: optionally analyze existing posts
 }
 
 interface Taxonomy {
   id: number;
   name: string;
   slug: string;
+}
+
+interface WordPressPost {
+  id: number;
+  title: { rendered: string };
+  excerpt: { rendered: string };
+  content: { rendered: string };
+  categories: number[];
+}
+
+interface WordPressContext {
+  avgLength: number;
+  commonCategories: Array<{ name: string; count: number }>;
+  lastTopics: string[];
+  detected_tone?: string;
+  main_themes?: string[];
+  style_notes?: string;
+  analyzed_at: string;
 }
 
 Deno.serve(async (req) => {
@@ -58,6 +77,7 @@ Deno.serve(async (req) => {
     // Parse request body
     const body: SyncRequest = await req.json();
     console.log('WordPress Config ID:', body.wordpress_config_id);
+    const analyzeContent = body.analyze_content ?? true; // Default to analyzing content
 
     if (!body.wordpress_config_id) {
       return new Response(
@@ -69,7 +89,7 @@ Deno.serve(async (req) => {
     // Get WordPress config and validate ownership
     const { data: wpConfig, error: wpError } = await supabase
       .from('wordpress_configs')
-      .select('*')
+      .select('*, sites!inner(id, name)')
       .eq('id', body.wordpress_config_id)
       .eq('user_id', userId)
       .maybeSingle();
@@ -91,6 +111,7 @@ Deno.serve(async (req) => {
     }
 
     console.log('WordPress URL:', wpConfig.site_url);
+    const siteId = wpConfig.site_id;
 
     // Normalize WordPress URL
     let wpUrl = wpConfig.site_url.trim();
@@ -193,6 +214,134 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ==========================================
+    // CONTENT ANALYSIS: Analyze existing posts
+    // ==========================================
+    let contentAnalysis: WordPressContext | null = null;
+    
+    if (analyzeContent) {
+      console.log('Analyzing existing WordPress content...');
+      
+      try {
+        // Fetch last 15 published posts
+        const postsResponse = await fetch(
+          `${wpUrl}/wp-json/wp/v2/posts?per_page=15&status=publish&orderby=date&order=desc`,
+          { headers: wpHeaders }
+        );
+        
+        if (postsResponse.ok) {
+          const posts: WordPressPost[] = await postsResponse.json();
+          console.log(`Found ${posts.length} recent posts to analyze`);
+          
+          if (posts.length > 0) {
+            // Extract basic metrics
+            const titles = posts.map(p => p.title.rendered.replace(/<[^>]*>/g, ''));
+            const excerpts = posts.map(p => p.excerpt.rendered.replace(/<[^>]*>/g, ''));
+            
+            // Calculate average content length (word count)
+            const wordCounts = posts.map(p => {
+              const plainText = p.content.rendered.replace(/<[^>]*>/g, '');
+              return plainText.split(/\s+/).length;
+            });
+            const avgLength = Math.round(wordCounts.reduce((a, b) => a + b, 0) / wordCounts.length);
+            
+            // Count category usage
+            const categoryCount: Record<number, number> = {};
+            posts.forEach(p => {
+              p.categories.forEach(catId => {
+                categoryCount[catId] = (categoryCount[catId] || 0) + 1;
+              });
+            });
+            
+            // Map category IDs to names
+            const commonCategories = Object.entries(categoryCount)
+              .sort(([,a], [,b]) => b - a)
+              .slice(0, 5)
+              .map(([catId, count]) => {
+                const category = categories.find(c => c.id === parseInt(catId));
+                return { name: category?.name || `Category ${catId}`, count };
+              });
+            
+            contentAnalysis = {
+              avgLength,
+              commonCategories,
+              lastTopics: titles.slice(0, 10),
+              analyzed_at: new Date().toISOString()
+            };
+            
+            // Optionally analyze tone with AI (if Lovable API key available)
+            const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+            if (LOVABLE_API_KEY && posts.length >= 3) {
+              console.log('Analyzing content tone with AI...');
+              
+              const analysisPrompt = `Analiza estos títulos y extractos de un blog existente:
+
+${titles.slice(0, 8).map((t, i) => `${i+1}. "${t}": ${excerpts[i]?.substring(0, 100) || ''}`).join('\n')}
+
+Responde SOLO con JSON válido (sin markdown):
+{
+  "detected_tone": "formal|casual|technical|educational",
+  "main_themes": ["tema1", "tema2", "tema3"],
+  "style_notes": "Una frase describiendo el estilo general del blog"
+}`;
+              
+              try {
+                const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    model: 'google/gemini-2.5-flash',
+                    messages: [{ role: 'user', content: analysisPrompt }],
+                    temperature: 0.3,
+                    max_tokens: 200,
+                  }),
+                });
+                
+                if (aiResponse.ok) {
+                  const aiData = await aiResponse.json();
+                  const aiContent = aiData.choices?.[0]?.message?.content;
+                  
+                  if (aiContent) {
+                    // Parse JSON from response
+                    const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                      const toneAnalysis = JSON.parse(jsonMatch[0]);
+                      contentAnalysis = {
+                        ...contentAnalysis!,
+                        detected_tone: toneAnalysis.detected_tone,
+                        main_themes: toneAnalysis.main_themes,
+                        style_notes: toneAnalysis.style_notes
+                      };
+                      console.log('AI tone analysis complete:', toneAnalysis.detected_tone);
+                    }
+                  }
+                }
+              } catch (aiError) {
+                console.error('AI analysis error (non-blocking):', aiError);
+              }
+            }
+            
+            // Save wordpress_context to site
+            const { error: contextError } = await supabase
+              .from('sites')
+              .update({ wordpress_context: contentAnalysis })
+              .eq('id', siteId);
+            
+            if (contextError) {
+              console.error('Error saving wordpress_context:', contextError);
+            } else {
+              console.log('WordPress context saved to site');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Content analysis error (non-blocking):', error);
+      }
+    }
+
     console.log('=== SYNC COMPLETE ===');
 
     return new Response(
@@ -200,6 +349,8 @@ Deno.serve(async (req) => {
         success: true,
         categories: categories.length,
         tags: tags.length,
+        content_analyzed: !!contentAnalysis,
+        wordpress_context: contentAnalysis
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
