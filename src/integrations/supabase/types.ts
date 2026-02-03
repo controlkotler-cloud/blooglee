@@ -573,6 +573,24 @@ export type Database = {
           },
         ]
       }
+      prompt_cache_version: {
+        Row: {
+          id: number
+          updated_at: string | null
+          version: number
+        }
+        Insert: {
+          id?: number
+          updated_at?: string | null
+          version?: number
+        }
+        Update: {
+          id?: number
+          updated_at?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
       prompts: {
         Row: {
           category: string
