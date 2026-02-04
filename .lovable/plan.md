@@ -1,65 +1,72 @@
 
+## Plan: Eliminar social proof falso y optimizar tarjetas móvil
 
-## Plan: Actualizar el imagotipo de Blooglee en toda la web
+### 1. Eliminar la sección de avatares y estrellas (Primera imagen)
 
-### Problema actual
-El favicon en `public/favicon.png` es el de Lovable (no el de Blooglee), y necesitas que el logo que has subido (la pluma con estrellas y gradiente violeta-fucsia) aparezca en todas partes.
+Esta sección en el Hero contiene datos inventados (avatares de stock, "+500 empresas") que no son reales. Se eliminará completamente.
 
-### Archivos a actualizar
+**Líneas a eliminar**: 225-254 (Social proof - Simplified on mobile)
 
-| Ubicación | Uso actual | Acción |
-|-----------|------------|--------|
-| `src/assets/blooglee-logo.png` | Componente BloogleeLogo (navbar, footer, auth, dashboard) | Reemplazar con el nuevo logo |
-| `public/favicon.png` | Favicon en pestañas del navegador + SEO schemas | Reemplazar con el nuevo logo |
-| `public/favicon.ico` | Favicon para navegadores legacy | Reemplazar con el nuevo logo |
+```jsx
+// ELIMINAR COMPLETAMENTE:
+{/* Social proof - Simplified on mobile */}
+<div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 justify-center lg:justify-start">
+  <div className="flex -space-x-2 sm:-space-x-3">
+    {[...avatares...].map(...)}
+  </div>
+  <div className="text-sm text-center sm:text-left">
+    <div className="flex items-center justify-center sm:justify-start gap-1 text-amber-500">
+      {[...Array(5)].map(...)} // Estrellas
+    </div>
+    <span>+500 empresas confían en nosotros</span>
+  </div>
+</div>
+```
 
-### Lugares donde se mostrará el nuevo logo
+### 2. Optimizar la sección "Por qué funciona" para móvil (Segunda imagen)
 
-El componente `BloogleeLogo` se usa en **13 archivos**:
+Actualmente las tarjetas se ven bien pero hay elementos redundantes y el espaciado puede mejorarse.
 
-1. **PublicNavbar.tsx** - Navbar de todas las páginas públicas
-2. **PublicFooter.tsx** - Footer de todas las páginas públicas
-3. **Auth.tsx** - Página de login/registro
-4. **Waitlist.tsx** - Página de lista de espera
-5. **Onboarding.tsx** - Onboarding de nuevos usuarios
-6. **SaasDashboard.tsx** - Dashboard principal
-7. **SiteDetail.tsx** - Detalle de sitio
-8. **AccountSettings.tsx** - Configuración de cuenta
-9. **HelpPage.tsx** - Página de ayuda
-10. **BillingPage.tsx** - Página de facturación
-11. **AdminLayout.tsx** - Layout del panel admin
-12. **ProductMockup.tsx** - Mockup animado de la landing
+#### Problemas detectados en el código actual:
+- Hay un icono duplicado (líneas 427-437 tiene un icono con SVG gradient que no se usa, y líneas 438-440 tiene el icono real)
+- El padding y espaciado puede optimizarse para móvil
 
-### También afecta al SEO
+#### Cambios en las tarjetas:
 
-El favicon se referencia en:
-- `index.html` - `<link rel="icon" href="/favicon.png">`
-- `index.html` - JSON-LD schema (`"logo": "https://blooglee.com/favicon.png"`)
-- `src/components/seo/JsonLd.tsx` - Schema Organization
-- `src/components/seo/SoftwareAppSchema.tsx` - Schema SoftwareApplication
+```jsx
+// ANTES (con icono duplicado):
+<item.icon className={`w-8 h-8 sm:w-10 sm:h-10 mb-3 sm:mb-4 ...`} style={{ stroke: 'url(#icon-gradient)' }} />
+<div className="hidden">
+  <svg width="0" height="0">...</svg>
+</div>
+<div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ...`}>
+  <item.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+</div>
 
-### Pasos de implementación
+// DESPUÉS (limpio, solo un icono):
+<div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+  <item.icon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+</div>
+```
 
-1. **Copiar el nuevo logo** desde `user-uploads://logo_blooglee.jpeg` a:
-   - `src/assets/blooglee-logo.png` (para el componente React)
-   - `public/favicon.png` (para el favicon y SEO)
-   
-2. **Añadir soporte para Apple** en `index.html`:
-   ```html
-   <link rel="apple-touch-icon" href="/favicon.png">
-   ```
+#### Optimizaciones móvil adicionales:
+
+| Elemento | Antes | Después |
+|----------|-------|---------|
+| Icono container | `w-10 h-10 sm:w-12 sm:h-12` | `w-12 h-12 sm:w-14 sm:h-14` (más grande en móvil) |
+| Stat text | `text-3xl sm:text-4xl` | `text-4xl sm:text-5xl` (más impacto) |
+| Card padding | `p-5 sm:p-6 lg:p-8` | `p-6 sm:p-8` (más respiración) |
+| Gap entre tarjetas | `gap-4 sm:gap-6` | `gap-3 sm:gap-4 lg:gap-6` (optimizado para 2x2 móvil) |
+
+### Archivos a modificar
+
+| Archivo | Cambios |
+|---------|---------|
+| `src/pages/Landing.tsx` | Eliminar social proof (líneas 225-254) + Limpiar tarjetas "Por qué funciona" (líneas 418-451) |
 
 ### Resultado esperado
 
-- El logo de la pluma con estrellas aparecerá en:
-  - La pestaña del navegador (favicon)
-  - La navbar de todas las páginas
-  - El footer
-  - Las páginas de auth, dashboard, onboarding, etc.
-  - Los schemas SEO que Google lee
-  - Los resultados de búsqueda de Google (tras re-indexación)
-
-### Nota sobre Google
-
-Después de publicar, Google puede tardar **días o semanas** en actualizar el favicon en sus resultados de búsqueda. Puedes acelerar esto solicitando una re-indexación en Google Search Console.
-
+- Hero sin avatares ni estrellas inventadas (más honesto)
+- Tarjetas "Por qué funciona" más limpias y con mejor legibilidad en móvil
+- Iconos más grandes y estadísticas más impactantes
+- Sin código SVG duplicado/muerto
