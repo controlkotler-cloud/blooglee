@@ -18,7 +18,7 @@ import { ProductMockup } from '@/components/saas/ProductMockup';
 import { LiquidBlobs } from '@/components/saas/LiquidBlobs';
 import { PublicNavbar } from '@/components/marketing/PublicNavbar';
 import { PublicFooter } from '@/components/marketing/PublicFooter';
-import { SEOHead, FAQSchema, ReviewSchema, SoftwareAppSchema } from '@/components/seo';
+import { SEOHead, FAQSchema, SoftwareAppSchema } from '@/components/seo';
 
 // FAQs ampliadas para AEO - Optimizadas para ChatGPT, Claude, Perplexity
 const landingFAQs = [
@@ -72,31 +72,35 @@ const landingFAQs = [
   },
 ];
 
-// Testimonios con datos para ReviewSchema
-const testimonialReviews = [
+// Por qué funciona - Datos reales del producto
+const whyItWorks = [
   {
-    author: 'María García',
-    role: 'Directora de Marketing',
-    company: 'Clínica Estética Luna',
-    rating: 5,
-    reviewBody: 'Blooglee ha transformado nuestra estrategia de contenido. Nuestro tráfico orgánico creció un 340% en 6 meses. Ahora tenemos presencia constante en Google sin dedicar tiempo a redactar.',
-    datePublished: '2026-01-15',
+    stat: "60 seg",
+    label: "Por artículo",
+    description: "Generación completa con imagen y SEO",
+    icon: Clock,
+    color: "from-violet-500 to-fuchsia-500",
   },
   {
-    author: 'Carlos Rodríguez',
-    role: 'CEO',
-    company: 'FitLife Studios',
-    rating: 5,
-    reviewBody: 'La calidad del contenido es impresionante. Mis clientes piensan que tengo un equipo de redactores dedicado. El ROI ha sido increíble.',
-    datePublished: '2026-01-10',
+    stat: "100%",
+    label: "SEO incluido",
+    description: "Meta título, descripción, slug y estructura H1-H3",
+    icon: TrendingUp,
+    color: "from-fuchsia-500 to-pink-500",
   },
   {
-    author: 'Ana Martínez',
-    role: 'Propietaria',
-    company: 'Salón Belle',
-    rating: 5,
-    reviewBody: 'Como dueña de un salón de belleza, no tenía tiempo para mantener el blog. Ahora tengo contenido profesional cada semana sin esfuerzo alguno.',
-    datePublished: '2026-01-05',
+    stat: "3",
+    label: "Pasos y listo",
+    description: "Conectar → Generar → Publicar en WordPress",
+    icon: Zap,
+    color: "from-pink-500 to-orange-400",
+  },
+  {
+    stat: "0",
+    label: "Curva aprendizaje",
+    description: "Si publicas en WordPress, ya sabes usar Blooglee",
+    icon: Sparkles,
+    color: "from-orange-400 to-amber-400",
   },
 ];
 const features = [
@@ -138,32 +142,6 @@ const features = [
   },
 ];
 
-const testimonials = [
-  {
-    name: "María García",
-    role: "Directora de Marketing",
-    company: "Clínica Estética Luna",
-    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
-    quote: "Blooglee ha transformado nuestra estrategia de contenido. Nuestro tráfico orgánico creció un 340%.",
-    rating: 5,
-  },
-  {
-    name: "Carlos Rodríguez",
-    role: "CEO",
-    company: "FitLife Studios",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-    quote: "La calidad del contenido es impresionante. Mis clientes piensan que tengo un equipo de redactores.",
-    rating: 5,
-  },
-  {
-    name: "Ana Martínez",
-    role: "Propietaria",
-    company: "Salón Belle",
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
-    quote: "Como dueña de un salón, no tenía tiempo para el blog. Ahora tengo contenido profesional cada semana.",
-    rating: 5,
-  },
-];
 
 // Stats con contexto citable para AEO
 const stats = [
@@ -182,7 +160,7 @@ const Landing = () => {
         keywords="blog automático, generación contenido IA, WordPress, marketing contenidos, SEO, artículos automáticos, Blooglee, alternativa NextBlog"
       />
       <FAQSchema faqs={landingFAQs} />
-      <ReviewSchema reviews={testimonialReviews} />
+      
       <SoftwareAppSchema />
       {/* LIQUID BLOBS BACKGROUND */}
       <LiquidBlobs variant="hero" />
@@ -418,61 +396,69 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Testimonials Section - Horizontal scroll on mobile */}
-      <section id="testimonials" className="relative py-12 sm:py-16 lg:py-24 px-4 sm:px-6 z-10">
+      {/* Why It Works Section */}
+      <section id="why-it-works" className="relative py-12 sm:py-16 lg:py-24 px-4 sm:px-6 z-10">
         <div className="container-custom">
           <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-16">
-            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/80 backdrop-blur-sm border border-orange-200/50 shadow-lg mb-4 sm:mb-6">
-              <Star className="w-4 h-4 text-orange-500 fill-orange-500" />
-              <span className="text-xs sm:text-sm font-medium text-orange-600">Testimonios</span>
+            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/80 backdrop-blur-sm border border-emerald-200/50 shadow-lg mb-4 sm:mb-6">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <span className="text-xs sm:text-sm font-medium text-emerald-600">Por qué funciona</span>
             </div>
             <h2 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6">
-              Lo que dicen nuestros{' '}
-              <span className="bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 bg-clip-text text-transparent">
-                clientes
+              La automatización que tu{' '}
+              <span className="bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
+                blog necesita
               </span>
             </h2>
+            <p className="text-base sm:text-lg text-foreground/60 px-4">
+              Sin promesas vacías. Esto es lo que Blooglee hace por ti en cada artículo.
+            </p>
           </div>
 
-          {/* Horizontal scroll on mobile, grid on larger screens */}
-          <div className="flex overflow-x-auto pb-4 sm:pb-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide snap-x snap-mandatory">
-            {testimonials.map((testimonial, i) => (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {whyItWorks.map((item, i) => (
               <div 
                 key={i}
-                className="flex-shrink-0 w-[85vw] sm:w-auto snap-center group relative p-5 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 sm:hover:-translate-y-2"
+                className="group relative p-5 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 sm:hover:-translate-y-2 overflow-hidden"
               >
-                {/* Rating */}
-                <div className="flex gap-1 mb-3 sm:mb-5">
-                  {[...Array(testimonial.rating)].map((_, j) => (
-                    <Star key={j} className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 fill-amber-400" />
-                  ))}
-                </div>
+                {/* Gradient blob on hover */}
+                <div className={`absolute -right-16 -top-16 w-32 h-32 rounded-full bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-20 transition-opacity duration-500 blur-2xl`} />
                 
-                {/* Quote */}
-                <p className="text-foreground/80 mb-5 sm:mb-8 leading-relaxed text-base sm:text-lg">
-                  "{testimonial.quote}"
+                <item.icon className={`w-8 h-8 sm:w-10 sm:h-10 mb-3 sm:mb-4 bg-gradient-to-br ${item.color} bg-clip-text text-transparent`} style={{ stroke: 'url(#icon-gradient)' }} />
+                <div className="hidden">
+                  <svg width="0" height="0">
+                    <defs>
+                      <linearGradient id="icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#8B5CF6" />
+                        <stop offset="100%" stopColor="#F97316" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center mb-3 sm:mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                  <item.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                </div>
+                <div className="font-display text-3xl sm:text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent mb-1">
+                  {item.stat}
+                </div>
+                <div className="text-sm sm:text-base font-semibold text-foreground/80 mb-2">
+                  {item.label}
+                </div>
+                <p className="text-xs sm:text-sm text-foreground/60 leading-relaxed">
+                  {item.description}
                 </p>
-                
-                {/* Author */}
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <img 
-                    src={testimonial.image} 
-                    alt={testimonial.name}
-                    width={56}
-                    height={56}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl object-cover shadow-lg"
-                  />
-                  <div>
-                    <div className="font-display font-bold text-sm sm:text-base text-foreground">{testimonial.name}</div>
-                    <div className="text-xs sm:text-sm text-foreground/60">
-                      {testimonial.role}, {testimonial.company}
-                    </div>
-                  </div>
-                </div>
               </div>
             ))}
+          </div>
+
+          {/* Feature summary */}
+          <div className="mt-8 sm:mt-12 p-5 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/50 shadow-lg">
+            <p className="text-center text-sm sm:text-base lg:text-lg text-foreground/70">
+              <span className="font-semibold text-foreground">Cada artículo incluye:</span>{' '}
+              título H1 optimizado, meta descripción, imagen con licencia libre, 
+              estructura de encabezados H2-H3, y slug SEO-friendly. 
+              <span className="font-semibold text-emerald-600"> Todo automático.</span>
+            </p>
           </div>
         </div>
       </section>
