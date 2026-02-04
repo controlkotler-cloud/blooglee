@@ -8,6 +8,7 @@ const corsHeaders = {
 interface PublishRequest {
   site_id: string;
   title: string;
+  seo_title?: string;
   content: string;
   slug: string;
   status: 'publish' | 'draft' | 'future';
@@ -203,11 +204,25 @@ Deno.serve(async (req) => {
       postData.date = body.date;
     }
 
-    // Add Yoast SEO meta description if provided
-    if (body.meta_description) {
-      postData.meta = {
-        _yoast_wpseo_metadesc: body.meta_description,
-      };
+    // Add Yoast SEO meta fields if provided
+    if (body.meta_description || body.seo_title) {
+      const yoastMeta: Record<string, string> = {};
+      
+      if (body.meta_description) {
+        // Ensure max 160 characters for meta description
+        yoastMeta._yoast_wpseo_metadesc = body.meta_description.substring(0, 160);
+      }
+      
+      if (body.seo_title) {
+        // Ensure max 60 characters for SEO title
+        yoastMeta._yoast_wpseo_title = body.seo_title.substring(0, 60);
+      } else if (body.title) {
+        // Fallback to regular title if no seo_title
+        yoastMeta._yoast_wpseo_title = body.title.substring(0, 60);
+      }
+      
+      postData.meta = yoastMeta;
+      console.log('Yoast meta fields:', yoastMeta);
     }
 
     // Add language parameter for Polylang

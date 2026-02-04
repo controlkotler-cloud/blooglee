@@ -139,26 +139,33 @@ LONGITUD OBJETIVO: {{lengthDescription}}
 
 TU MISIÓN: Generar un artículo de {{lengthWords}} palabras optimizado para SEO{{descriptionContext}}.
 
-REGLAS:
+REGLAS DE ESTRUCTURA HTML:
+- ⚠️ NO incluyas <h1> en el contenido - WordPress lo añade automáticamente desde el título
+- El contenido DEBE empezar con un <h2> introductorio DIFERENTE al título H1
+- Ese H2 inicial debe ser un gancho o resumen del tema, NO repetir el título
+
+OPTIMIZACIÓN SEO (para Yoast verde):
+- Incluye la keyword principal en el primer párrafo del artículo
+- Usa la keyword principal en al menos un H2
+- Mantén los párrafos entre 2-4 oraciones
+- Incluye 1-2 enlaces externos a fuentes autoritativas del sector
+
 {{geoContext}}
 
-FORMATO:
-- TÍTULO H1: Máximo 60 caracteres. SIN nombre de empresa. SIN año (ej: "2026").
-- META DESCRIPTION: 150-160 caracteres con CTA.
-- SLUG: URL amigable en minúsculas con guiones.
-- CONTENIDO: ~{{lengthWords}} palabras con H2 y párrafos.
+FORMATO DE RESPUESTA JSON:
+- title: Título H1 atractivo (máximo 70 caracteres). SIN nombre de empresa. SIN año.
+- seo_title: Meta título optimizado para CTR (máximo 60 caracteres, puede ser diferente al title)
+- meta_description: Descripción SEO con CTA (150-160 caracteres MÁXIMO)
+- slug: URL amigable en minúsculas con guiones
+- content: HTML empezando por <h2>, SIN <h1>, con párrafos cortos
 
 ⚠️ CAPITALIZACIÓN ESPAÑOLA OBLIGATORIA:
 - SOLO la primera letra del título/subtítulo en mayúscula (+ nombres propios)
-- INCORRECTO: "Claves Del Éxito Digital Para Farmacias"
-- CORRECTO: "Claves del éxito digital para farmacias"
-- Los subtítulos H2 siguen la misma regla
-- NO uses Title Case inglés bajo ninguna circunstancia
 
 LISTAS:
 - Si enumeras con dos puntos (:), usa lista HTML (<ul><li>)
 
-CONTEXTO TEMPORAL: Hoy es {{dateContext}}. Usa esta información para estacionalidad, pero NO incluyas el año en el título ni subtítulos.
+CONTEXTO TEMPORAL: Hoy es {{dateContext}}.
 
 RESPONDE EN JSON VÁLIDO.`,
 
@@ -169,12 +176,19 @@ TIPO DE CONTENIDO: {{pillarType}}
 
 Genera un artículo profesional que encaje con este tipo de contenido.
 
-FORMATO JSON:
+RECUERDA:
+- El contenido HTML NO debe contener <h1> (WordPress lo añade)
+- Empieza el contenido con un <h2> que sea un GANCHO, diferente al título
+- Incluye la keyword del tema en el primer párrafo
+- Añade 1-2 enlaces externos a fuentes de autoridad
+
+FORMATO JSON OBLIGATORIO:
 {
-  "title": "Título atractivo máx 60 caracteres",
-  "meta_description": "Meta descripción 150-160 caracteres",
-  "slug": "url-amigable",
-  "content": "<h2>Sección</h2><p>Contenido...</p>"
+  "title": "Título H1 atractivo (máx 70 caracteres)",
+  "seo_title": "Meta título para Google (máx 60 caracteres, diferente al title)",
+  "meta_description": "Meta descripción 150-160 caracteres con CTA",
+  "slug": "url-amigable-sin-espacios",
+  "content": "<h2>Subtítulo gancho diferente al título</h2><p>Primer párrafo con keyword...</p>..."
 }`,
 
   translateCatalan: `Traduce este artículo del español al catalán.
@@ -1196,6 +1210,59 @@ serve(async (req) => {
       }
     }
 
+    // ==========================================
+    // ADD INTERNAL LINK TO HOME ON FIRST BRAND MENTION
+    // ==========================================
+    function escapeRegexChars(str: string): string {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function addHomeLinkToContent(content: string, siteName: string, blogUrl: string | null): string {
+      if (!blogUrl || !siteName) return content;
+      
+      // Derive home URL from blog URL (remove /blog or last path segment)
+      let homeUrl = blogUrl.replace(/\/blog\/?$/i, '');
+      if (homeUrl === blogUrl) {
+        // If no /blog suffix, try removing last path segment
+        homeUrl = blogUrl.replace(/\/[^\/]+\/?$/, '') || blogUrl;
+      }
+      // Ensure it ends without trailing slash for consistency
+      homeUrl = homeUrl.replace(/\/$/, '');
+      
+      // If homeUrl is empty or same as blog, use blog domain root
+      if (!homeUrl || homeUrl === blogUrl) {
+        try {
+          const url = new URL(blogUrl);
+          homeUrl = `${url.protocol}//${url.host}`;
+        } catch {
+          return content;
+        }
+      }
+      
+      console.log(`Adding home link: ${siteName} -> ${homeUrl}`);
+      
+      // Find first mention of brand name (case insensitive, not inside an existing tag)
+      const escapedName = escapeRegexChars(siteName);
+      // Match siteName not preceded by '>' or followed by '<' (to avoid matching inside tags)
+      const regex = new RegExp(`(?<![>"])\\b(${escapedName})\\b(?![<"])`, 'i');
+      const match = content.match(regex);
+      
+      if (match && match.index !== undefined) {
+        // Replace only the first occurrence
+        const before = content.substring(0, match.index);
+        const after = content.substring(match.index + match[0].length);
+        const linkedName = `<a href="${homeUrl}" target="_blank" rel="noopener">${match[0]}</a>`;
+        console.log(`Home link added at position ${match.index}`);
+        return before + linkedName + after;
+      }
+      
+      return content;
+    }
+
+    // Add home link to Spanish content (first mention of brand)
+    let processedSpanishContent = spanishContentWithoutSeo;
+    processedSpanishContent = addHomeLinkToContent(processedSpanishContent, site.name, site.blog_url || null);
+
     // Add SEO footer with blog/social links to Spanish content
     console.log("Adding SEO footer links...");
     const seoLinksEs: string[] = [];
@@ -1209,8 +1276,10 @@ serve(async (req) => {
     if (seoLinksEs.length > 0) {
       const linksTextEs = seoLinksEs.join(' y ');
       const closingParagraphEs = `<p><strong>¿Quieres más consejos?</strong> Visita ${linksTextEs} para descubrir más contenido de ${site.name}.</p>`;
-      spanishArticle.content = spanishContentWithoutSeo + closingParagraphEs;
+      spanishArticle.content = processedSpanishContent + closingParagraphEs;
       console.log("SEO footer added to Spanish article");
+    } else {
+      spanishArticle.content = processedSpanishContent;
     }
 
     // Add SEO footer to Catalan content AFTER translation

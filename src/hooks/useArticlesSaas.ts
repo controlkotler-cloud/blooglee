@@ -12,6 +12,7 @@ interface GenerateArticleParams {
 export interface PublishInputSaas {
   site_id: string;
   title: string;
+  seo_title?: string;
   content: string;
   slug: string;
   status: 'publish' | 'draft' | 'future';
@@ -116,6 +117,7 @@ export function useGenerateArticleSaas() {
 
 export interface ArticleContent {
   title: string;
+  seo_title?: string;
   meta_description: string;
   slug: string;
   content: string;
