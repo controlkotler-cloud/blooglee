@@ -222,36 +222,6 @@ const Landing = () => {
                 </button>
               </div>
 
-              {/* Social proof - Simplified on mobile */}
-              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 justify-center lg:justify-start">
-              <div className="flex -space-x-2 sm:-space-x-3">
-                  {[
-                    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=40&h=40&fit=crop&crop=face",
-                    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face",
-                    "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=face",
-                    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face",
-                  ].map((src, i) => (
-                    <img
-                      key={i}
-                      src={src}
-                      alt="Usuario de Blooglee"
-                      width={40}
-                      height={40}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 sm:border-3 border-white object-cover shadow-md"
-                    />
-                  ))}
-                </div>
-                <div className="text-sm text-center sm:text-left">
-                  <div className="flex items-center justify-center sm:justify-start gap-1 text-amber-500">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
-                    ))}
-                  </div>
-                  <span className="text-foreground/60 text-xs sm:text-sm">+500 empresas confían en nosotros</span>
-                </div>
-              </div>
             </div>
 
             {/* Right - Product Mockup - Hidden on very small screens, scaled down on mobile */}
@@ -415,30 +385,19 @@ const Landing = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
             {whyItWorks.map((item, i) => (
               <div 
                 key={i}
-                className="group relative p-5 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 sm:hover:-translate-y-2 overflow-hidden"
+                className="group relative p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-white/80 backdrop-blur-xl border border-white/50 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 sm:hover:-translate-y-2 overflow-hidden"
               >
                 {/* Gradient blob on hover */}
                 <div className={`absolute -right-16 -top-16 w-32 h-32 rounded-full bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-20 transition-opacity duration-500 blur-2xl`} />
                 
-                <item.icon className={`w-8 h-8 sm:w-10 sm:h-10 mb-3 sm:mb-4 bg-gradient-to-br ${item.color} bg-clip-text text-transparent`} style={{ stroke: 'url(#icon-gradient)' }} />
-                <div className="hidden">
-                  <svg width="0" height="0">
-                    <defs>
-                      <linearGradient id="icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#8B5CF6" />
-                        <stop offset="100%" stopColor="#F97316" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
+                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                  <item.icon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                 </div>
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center mb-3 sm:mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <item.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                </div>
-                <div className="font-display text-3xl sm:text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent mb-1">
+                <div className="font-display text-4xl sm:text-5xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent mb-1">
                   {item.stat}
                 </div>
                 <div className="text-sm sm:text-base font-semibold text-foreground/80 mb-2">
