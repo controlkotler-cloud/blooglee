@@ -151,33 +151,67 @@ async function getUsedBlogTopics(supabase: any, audience: string): Promise<strin
 }
 
 // Check if a new title is too similar to existing topics
+// Fixed: Require minimum 3 matching meaningful words to trigger similarity
 function isTooSimilar(newTitle: string, existingTopics: string[]): { similar: boolean; matchedTopic?: string; similarity?: number } {
-  // Stop words to ignore in similarity calculation
-  const stopWords = new Set(['el', 'la', 'los', 'las', 'de', 'del', 'en', 'para', 'por', 'con', 'tu', 'tus', 'un', 'una', 'y', 'o', 'a', 'que', 'es', 'como', 'cómo', 'su', 'sus']);
+  // Stop words to ignore in similarity calculation (expanded list)
+  const stopWords = new Set([
+    'el', 'la', 'los', 'las', 'de', 'del', 'en', 'para', 'por', 'con', 
+    'tu', 'tus', 'un', 'una', 'y', 'o', 'a', 'que', 'es', 'como', 'cómo', 
+    'su', 'sus', 'al', 'se', 'lo', 'le', 'más', 'sin', 'sobre', 'entre',
+    'cada', 'todo', 'todos', 'toda', 'todas', 'este', 'esta', 'estos', 'estas',
+    'ese', 'esa', 'esos', 'esas', 'muy', 'ya', 'hay', 'hace', 'solo', 'así'
+  ]);
   
-  const newWords = new Set(
-    newTitle.toLowerCase()
-      .split(/[\s:,\-–—]+/)
-      .filter(w => w.length > 2 && !stopWords.has(w))
-  );
+  // Common generic words that shouldn't trigger similarity on their own
+  const genericWords = new Set([
+    'blog', 'contenido', 'contenidos', 'marketing', 'digital', 'online',
+    'empresa', 'empresas', 'negocio', 'negocios', 'pymes', 'pyme',
+    'agencia', 'agencias', 'cliente', 'clientes', 'equipo', 'equipos',
+    'guía', 'guia', 'guías', 'estrategia', 'estrategias', 'herramienta', 'herramientas',
+    'mejor', 'mejores', 'clave', 'claves', 'éxito', 'exito', 'resultado', 'resultados',
+    'año', 'años', 'mes', 'meses', 'nuevo', 'nueva', 'nuevos', 'nuevas'
+  ]);
   
-  if (newWords.size === 0) return { similar: false };
+  const extractWords = (text: string) => {
+    return text.toLowerCase()
+      .split(/[\s:,\-–—.;!?¿¡()[\]{}]+/)
+      .filter(w => w.length > 2 && !stopWords.has(w));
+  };
+  
+  const newWords = extractWords(newTitle);
+  const newWordsSet = new Set(newWords);
+  
+  // Need at least 3 meaningful words in the new title to compare
+  if (newWordsSet.size < 3) return { similar: false };
+  
+  // Separate generic and specific words
+  const newSpecificWords = [...newWordsSet].filter(w => !genericWords.has(w));
   
   for (const existing of existingTopics) {
-    const existingWords = new Set(
-      existing.toLowerCase()
-        .split(/[\s:,\-–—]+/)
-        .filter(w => w.length > 2 && !stopWords.has(w))
-    );
+    const existingWords = extractWords(existing);
+    const existingWordsSet = new Set(existingWords);
     
-    if (existingWords.size === 0) continue;
+    // Skip very short topics (single keywords shouldn't block new content)
+    if (existingWordsSet.size < 2) continue;
     
-    const intersection = [...newWords].filter(w => existingWords.has(w));
-    const similarity = intersection.length / Math.min(newWords.size, existingWords.size);
+    const intersection = [...newWordsSet].filter(w => existingWordsSet.has(w));
     
-    if (similarity > 0.5) {
+    // NEW LOGIC: Must have at least 3 matching words AND at least 1 specific (non-generic) word match
+    const specificMatches = intersection.filter(w => !genericWords.has(w));
+    
+    // Use the larger set size for more lenient percentage calculation
+    const similarity = intersection.length / Math.max(newWordsSet.size, existingWordsSet.size);
+    
+    // Strict conditions: 
+    // - At least 3 matching words total
+    // - At least 2 specific (non-generic) matching words
+    // - Similarity ratio above 50%
+    const isSimilar = intersection.length >= 3 && specificMatches.length >= 2 && similarity > 0.5;
+    
+    if (isSimilar) {
       console.log(`⚠️ Title too similar to: "${existing}" (${(similarity * 100).toFixed(0)}% match)`);
       console.log(`   Matching words: ${intersection.join(', ')}`);
+      console.log(`   Specific matches: ${specificMatches.join(', ')}`);
       return { similar: true, matchedTopic: existing, similarity };
     }
   }
