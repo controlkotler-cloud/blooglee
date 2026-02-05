@@ -3,6 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'Access-Control-Max-Age': '86400',
 };
 
 interface PublishRequest {
@@ -32,13 +34,18 @@ interface PublishResult {
 }
 
 Deno.serve(async (req) => {
+  const requestId = crypto.randomUUID().slice(0, 8);
+  const origin = req.headers.get('origin') || 'unknown';
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    console.log(`[${requestId}] OPTIONS preflight from origin=${origin}, headers=${req.headers.get('access-control-request-headers')}`);
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    console.log('=== PUBLISH TO WORDPRESS SAAS ===');
+    console.log(`[${requestId}] === PUBLISH TO WORDPRESS SAAS ===`);
+    console.log(`[${requestId}] Origin: ${origin}`);
 
     // Get authorization header
     const authHeader = req.headers.get('Authorization');

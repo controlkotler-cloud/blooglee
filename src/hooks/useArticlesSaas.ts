@@ -39,19 +39,48 @@ export interface PublishResultSaas {
 export function usePublishToWordPressSaas() {
   return useMutation({
     mutationFn: async (input: PublishInputSaas): Promise<PublishResultSaas> => {
+      console.log('[usePublishToWordPressSaas] Invoking edge function with:', {
+        site_id: input.site_id,
+        title: input.title?.substring(0, 50),
+        status: input.status,
+        lang: input.lang,
+        timestamp: new Date().toISOString(),
+      });
+
       const { data, error } = await supabase.functions.invoke('publish-to-wordpress-saas', {
         body: input
       });
       
       if (error) {
-        console.error('Publish error:', error);
-        throw new Error(error.message || 'Error al publicar');
+        // Detect network/CORS errors
+        const errorMessage = error.message || '';
+        const isNetworkError = 
+          errorMessage.includes('Failed to fetch') ||
+          errorMessage.includes('Load failed') ||
+          errorMessage.includes('NetworkError') ||
+          errorMessage.includes('Failed to send') ||
+          errorMessage.includes('CORS') ||
+          errorMessage.includes('net::ERR');
+        
+        console.error('[usePublishToWordPressSaas] Publish error:', {
+          message: errorMessage,
+          isNetworkError,
+          error,
+          cause: (error as any).cause,
+        });
+
+        if (isNetworkError) {
+          throw new Error('No se pudo conectar con el servidor. Verifica tu conexión, extensiones del navegador o red corporativa.');
+        }
+        throw new Error(errorMessage || 'Error al publicar');
       }
       
       if (data?.error) {
+        console.error('[usePublishToWordPressSaas] Backend returned error:', data.error);
         throw new Error(data.error);
       }
-      
+
+      console.log('[usePublishToWordPressSaas] Success:', data);
       return data as PublishResultSaas;
     },
     onSuccess: (result) => {
@@ -60,8 +89,14 @@ export function usePublishToWordPressSaas() {
       }
     },
     onError: (error: Error) => {
-      console.error('Publish mutation error:', error);
-      toast.error(`Error: ${error.message}`);
+      console.error('[usePublishToWordPressSaas] Mutation error:', error);
+      
+      // More descriptive toast messages
+      if (error.message.includes('No se pudo conectar')) {
+        toast.error('Error de conexión. Revisa tu red o extensiones del navegador.');
+      } else {
+        toast.error(`Error: ${error.message}`);
+      }
     }
   });
 }
