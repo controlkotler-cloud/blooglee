@@ -557,7 +557,7 @@ RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin punt
     console.log("Image regenerated successfully:", imageData.url.substring(0, 50));
 
     return new Response(
-      JSON.stringify({ image: imageData }),
+      JSON.stringify(imageData),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
