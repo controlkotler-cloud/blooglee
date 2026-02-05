@@ -1,184 +1,261 @@
 
-## Plan: Mejoras SEO para artículos de sites (Yoast verde)
 
-### Problemas detectados y soluciones
+## Plan: Corregir meta descripción Yoast y añadir campos SEO adicionales
 
-#### 1. H1 duplicado en el artículo
+### Diagnóstico del problema
 
-**Problema actual**: El contenido HTML generado empieza con `<h1>Título</h1>`, pero WordPress también inserta el `title` del post como H1 en la plantilla del tema. Resultado: dos H1 identicos.
+Tras analizar los logs, el código y la documentación oficial de Yoast, he identificado la causa raíz:
 
-**Solución**: Modificar el prompt de generacion para que el contenido empiece con un H2 diferente al titulo, y eliminar el H1 del HTML.
+| Problema | Causa |
+|----------|-------|
+| Meta descripción no se publica | **Yoast no expone sus campos via REST API** - su API es solo lectura (read-only) |
+| SEO title no se publica | Mismo problema - requiere `register_post_meta` en WordPress |
 
-**Archivos a modificar**:
-- Prompt `saas.article.system` en la base de datos
-- Prompt `saas.article.user` en la base de datos
+La documentación oficial de Yoast confirma: *"The Yoast REST API is currently read-only and doesn't support POST or PUT calls to update the data."*
 
-**Cambios en el prompt**:
-```text
-REGLAS DE ESTRUCTURA:
-- El contenido HTML debe empezar con un <h2> introductorio DIFERENTE al titulo H1
-- NO incluyas <h1> en el contenido - WordPress lo añade automaticamente desde el titulo
-- El H2 inicial debe ser un gancho o resumen del articulo, NO una repeticion del titulo
+### Solución en dos fases
+
+#### Fase 1: Campos nativos de WordPress (funcionan sin configuración)
+
+WordPress tiene campos nativos que **sí funcionan** via REST API sin necesidad de snippets:
+
+| Campo | Uso SEO | Estado actual |
+|-------|---------|---------------|
+| `excerpt` | Extracto/resumen del post (Yoast lo usa como fallback para meta descripción) | NO enviamos |
+| `title` | Título H1 | OK |
+| `content` | Contenido HTML | OK |
+| `slug` | URL amigable | OK |
+| `featured_media` | Imagen destacada | OK |
+| `meta.alt_text` | Alt de imagen | OK |
+
+**Acción**: Añadir el campo `excerpt` a la publicación. Yoast usa el excerpt como fallback cuando no hay meta descripción configurada manualmente.
+
+#### Fase 2: Snippet PHP para campos de Yoast (solución completa)
+
+Para que meta descripción y SEO title funcionen correctamente, el usuario debe añadir un snippet en su WordPress que registre los campos meta:
+
+```php
+/**
+ * Blooglee - Yoast SEO API Support
+ * Habilita la edición de campos Yoast via REST API
+ */
+add_action('init', function() {
+    // Meta descripción
+    register_post_meta('post', '_yoast_wpseo_metadesc', [
+        'show_in_rest' => true,
+        'single' => true,
+        'type' => 'string',
+        'auth_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ]);
+    
+    // SEO Title
+    register_post_meta('post', '_yoast_wpseo_title', [
+        'show_in_rest' => true,
+        'single' => true,
+        'type' => 'string',
+        'auth_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ]);
+    
+    // Focus keyword
+    register_post_meta('post', '_yoast_wpseo_focuskw', [
+        'show_in_rest' => true,
+        'single' => true,
+        'type' => 'string',
+        'auth_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ]);
+});
 ```
 
----
+### Campos SEO adicionales a implementar
 
-#### 2. Enlace interno a la Home cuando se menciona la marca
+| Campo | Descripción | Beneficio SEO |
+|-------|-------------|---------------|
+| `excerpt` | Resumen de 150-160 caracteres | Fallback de meta descripción, mejora CTR |
+| `_yoast_wpseo_focuskw` | Keyword principal del artículo | Yoast analiza densidad y ubicación |
+| `_yoast_wpseo_metadesc` | Meta descripción optimizada | Snippet en Google |
+| `_yoast_wpseo_title` | SEO title (diferente al H1) | Título optimizado para CTR |
 
-**Problema actual**: Solo se añade un enlace al blog al final del articulo. Google puede interpretar que el blog es la pagina mas importante.
-
-**Solucion**: Añadir logica para detectar menciones al nombre de la empresa/marca en el contenido y convertir la primera mencion en un enlace a la home.
-
-**Archivos a modificar**:
-- `supabase/functions/generate-article-saas/index.ts` (post-procesado del contenido)
-
-**Logica a implementar**:
-```javascript
-// Despues de generar el articulo, buscar la primera mencion del nombre del site
-// y convertirla en un enlace a la home
-
-function addHomeLinkToContent(content: string, siteName: string, blogUrl: string): string {
-  // Derivar home URL del blog URL (quitar /blog si existe)
-  const homeUrl = blogUrl.replace(/\/blog\/?$/, '') || blogUrl.replace(/\/[^\/]+\/?$/, '');
-  
-  // Buscar primera mencion del nombre (case insensitive)
-  const regex = new RegExp(`\\b(${escapeRegex(siteName)})\\b`, 'i');
-  const match = content.match(regex);
-  
-  if (match) {
-    // Reemplazar solo la primera ocurrencia
-    return content.replace(regex, `<a href="${homeUrl}">${match[1]}</a>`);
-  }
-  return content;
-}
-```
-
----
-
-#### 3. Meta descripcion no se publica en Yoast
-
-**Problema actual**: El codigo envia `meta._yoast_wpseo_metadesc` pero puede que el endpoint de WordPress no acepte este formato.
-
-**Solucion**: Verificar el formato correcto para Yoast y tambien limitar a 160 caracteres.
-
-**Archivos a modificar**:
-- `supabase/functions/publish-to-wordpress-saas/index.ts`
-- Prompt `saas.article.system` (asegurar max 160 chars)
-
-**Cambios en el edge function**:
-```javascript
-// Formato correcto para Yoast SEO 
-if (body.meta_description) {
-  // Asegurar maximo 160 caracteres
-  const metaDesc = body.meta_description.substring(0, 160);
-  
-  postData.meta = {
-    // Yoast meta description
-    _yoast_wpseo_metadesc: metaDesc,
-  };
-}
-```
-
----
-
-#### 4. Meta titulo (SEO title) separado del H1
-
-**Problema actual**: Solo se genera `title` que se usa para H1 y para meta title. Yoast permite un SEO title diferente.
-
-**Solucion**: Añadir campo `seo_title` al JSON generado con maximo 60 caracteres optimizado para CTR.
-
-**Archivos a modificar**:
-- Prompt `saas.article.user` en la base de datos
-- `supabase/functions/publish-to-wordpress-saas/index.ts`
-- Tipos en `useArticlesSaas.ts`
-
-**Nuevo formato JSON**:
-```json
-{
-  "title": "Titulo H1 del articulo (puede ser mas largo)",
-  "seo_title": "Meta titulo optimizado para Google (max 60 chars)",
-  "meta_description": "Meta descripcion 150-160 caracteres",
-  "slug": "url-amigable",
-  "content": "<h2>Subtitulo inicial</h2><p>Contenido...</p>"
-}
-```
-
-**Envio a WordPress**:
-```javascript
-postData.meta = {
-  _yoast_wpseo_metadesc: metaDesc,
-  _yoast_wpseo_title: body.seo_title || body.title
-};
-```
-
----
-
-#### 5. Optimizaciones adicionales para Yoast SEO (semaforo verde)
-
-Yoast evalua estos factores principales:
-
-| Factor | Estado actual | Mejora propuesta |
-|--------|---------------|------------------|
-| Meta descripcion | No se publica | Corregir envio a Yoast |
-| SEO title | Usa H1 | Generar separado |
-| Keyword en titulo | Variable | Añadir keyword focus al prompt |
-| Keyword en H2 | Variable | Instruir en prompt |
-| Enlaces internos | Solo al final | Enlace a home en mencion marca |
-| Enlaces externos | Ninguno | Añadir 1-2 enlaces a fuentes |
-| Alt text imagenes | Solo titulo | Ya se envia, verificar |
-| Longitud contenido | ~800-2500 | OK |
-| Parrafos cortos | Variable | Instruir en prompt |
-
-**Mejoras en el prompt del sistema**:
-```text
-OPTIMIZACION SEO (Yoast):
-- Incluye la keyword principal en el primer parrafo
-- Usa la keyword en al menos un H2
-- Mantén los parrafos entre 2-4 oraciones para mejor legibilidad
-- Incluye 1-2 enlaces externos a fuentes autoritativas del sector (ej: estudios, estadisticas)
-- El primer H2 debe ser diferente al titulo pero relacionado tematicamente
-```
-
----
-
-### Resumen de archivos a modificar
+### Archivos a modificar
 
 | Archivo | Cambios |
 |---------|---------|
-| Base de datos: `prompts` (key: saas.article.system) | Añadir reglas H1/H2, SEO Yoast, parrafos cortos, enlaces externos |
-| Base de datos: `prompts` (key: saas.article.user) | Añadir campo `seo_title` al JSON |
-| `supabase/functions/generate-article-saas/index.ts` | Añadir funcion para insertar enlace a home en primera mencion de marca |
-| `supabase/functions/publish-to-wordpress-saas/index.ts` | Enviar `_yoast_wpseo_title` ademas de metadesc |
-| `src/hooks/useArticlesSaas.ts` | Añadir `seo_title` al tipo `ArticleContent` |
+| `supabase/functions/publish-to-wordpress-saas/index.ts` | Añadir campo `excerpt`, añadir `_yoast_wpseo_focuskw` |
+| `supabase/functions/generate-article-saas/index.ts` | Generar `excerpt` y `focus_keyword` en el contenido |
+| `src/hooks/useArticlesSaas.ts` | Añadir tipos `excerpt` y `focus_keyword` |
+| `src/components/saas/WordPressPublishDialogSaas.tsx` | Enviar `excerpt` y `focus_keyword` al publicar |
+| `src/data/codeSnippets.ts` | Añadir snippet de Yoast API Support |
+| Base de datos: `prompts` | Actualizar prompts para generar `excerpt` y `focus_keyword` |
 
-### Seccion tecnica: Flujo de cambios
+### Cambios técnicos detallados
+
+#### 1. Actualizar interfaz ArticleContent
+
+```typescript
+export interface ArticleContent {
+  title: string;
+  seo_title?: string;
+  meta_description: string;
+  excerpt?: string;           // NUEVO: resumen corto
+  focus_keyword?: string;     // NUEVO: keyword principal
+  slug: string;
+  content: string;
+}
+```
+
+#### 2. Actualizar PublishInputSaas
+
+```typescript
+export interface PublishInputSaas {
+  // ... campos existentes
+  excerpt?: string;           // NUEVO
+  focus_keyword?: string;     // NUEVO
+}
+```
+
+#### 3. Actualizar publish-to-wordpress-saas
+
+```typescript
+// Añadir excerpt (funciona nativamente)
+if (body.excerpt) {
+  postData.excerpt = body.excerpt;
+}
+
+// Campos Yoast (requieren snippet PHP)
+if (body.meta_description || body.seo_title || body.focus_keyword) {
+  const yoastMeta: Record<string, string> = {};
+  
+  if (body.meta_description) {
+    yoastMeta._yoast_wpseo_metadesc = body.meta_description.substring(0, 160);
+  }
+  
+  if (body.seo_title) {
+    yoastMeta._yoast_wpseo_title = body.seo_title.substring(0, 60);
+  }
+  
+  if (body.focus_keyword) {
+    yoastMeta._yoast_wpseo_focuskw = body.focus_keyword;
+  }
+  
+  postData.meta = yoastMeta;
+}
+```
+
+#### 4. Actualizar prompts de generación
+
+Añadir al JSON de salida:
+
+```json
+{
+  "title": "Título H1 del artículo",
+  "seo_title": "SEO title optimizado (max 60 chars)",
+  "meta_description": "Meta descripción 150-160 caracteres",
+  "excerpt": "Resumen corto del artículo (max 160 chars, ideal para snippet)",
+  "focus_keyword": "keyword principal del artículo",
+  "slug": "url-amigable",
+  "content": "<h2>...</h2><p>...</p>"
+}
+```
+
+#### 5. Añadir snippet de Yoast a la biblioteca
+
+Añadir a `src/data/codeSnippets.ts`:
+
+```typescript
+{
+  id: 'yoast-api-support',
+  title: 'Yoast SEO - Soporte API REST',
+  description: 'Habilita la edición de meta descripción, SEO title y focus keyword vía API',
+  category: 'general',
+  plugin: 'yoast',
+  fileName: 'functions.php',
+  code: `/**
+ * Blooglee - Yoast SEO API Support
+ * Habilita la edición de campos Yoast via REST API
+ */
+add_action('init', function() {
+    // Meta descripción
+    register_post_meta('post', '_yoast_wpseo_metadesc', [
+        'show_in_rest' => true,
+        'single' => true,
+        'type' => 'string',
+        'auth_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ]);
+    
+    // SEO Title
+    register_post_meta('post', '_yoast_wpseo_title', [
+        'show_in_rest' => true,
+        'single' => true,
+        'type' => 'string',
+        'auth_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ]);
+    
+    // Focus keyword
+    register_post_meta('post', '_yoast_wpseo_focuskw', [
+        'show_in_rest' => true,
+        'single' => true,
+        'type' => 'string',
+        'auth_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ]);
+});`,
+  instructions: `1. Accede a tu WordPress
+2. Ve a **Apariencia → Editor de temas**
+3. Selecciona tu tema hijo
+4. Abre **functions.php**
+5. Añade el código al final
+6. Guarda los cambios
+
+⚠️ Este snippet es NECESARIO para que Blooglee pueda rellenar automáticamente:
+- Meta descripción (aparece en Google)
+- SEO Title (título optimizado para CTR)
+- Focus Keyword (para análisis de Yoast)
+
+Sin este snippet, Yoast ignorará estos campos.`
+}
+```
+
+### Flujo de usuario actualizado
 
 ```text
-1. GENERACION (generate-article-saas)
-   +-- Prompt pide: NO <h1>, empezar con <h2>, generar seo_title
-   +-- Post-proceso: insertar enlace a home en primera mencion de marca
-   +-- Guardar: content_spanish incluye seo_title
-
-2. PUBLICACION (publish-to-wordpress-saas)
-   +-- Leer seo_title del content
-   +-- Enviar a WP REST API:
-       - title: titulo H1
-       - content: HTML sin H1, con enlace a home
-       - meta._yoast_wpseo_title: seo_title
-       - meta._yoast_wpseo_metadesc: meta_description (max 160)
-
-3. RESULTADO EN WORDPRESS
-   - Yoast: semaforo verde (meta title, meta desc, keyword, enlaces)
-   - HTML: solo un H1 (el del tema), contenido empieza con H2
+1. Usuario configura WordPress en Blooglee
+   |
+   v
+2. Sistema detecta si Yoast responde a campos meta
+   |
+   +-- SI: Todo funciona automáticamente
+   |
+   +-- NO: Mostrar aviso "Añade el snippet de Yoast para mejor SEO"
+   |
+   v
+3. Mientras tanto, excerpt funciona siempre
+   (Yoast usa excerpt como fallback de meta descripción)
 ```
 
 ### Resultado esperado
 
-- Un solo H1 por articulo (el que inserta WordPress)
-- H2 introductorio diferente al titulo
-- Meta descripcion visible en Yoast (max 160 chars)
-- SEO title separado del H1 (max 60 chars)
-- Enlace interno a la home cuando se menciona la marca
-- 1-2 enlaces externos a fuentes del sector
-- Parrafos cortos para mejor legibilidad
-- Semaforo Yoast en verde o naranja (mejora significativa desde rojo)
+| Campo | Sin snippet | Con snippet |
+|-------|-------------|-------------|
+| Excerpt | Funciona (fallback meta desc) | Funciona |
+| Meta descripción Yoast | NO funciona | Funciona |
+| SEO Title Yoast | NO funciona | Funciona |
+| Focus keyword | NO funciona | Funciona |
+| Semáforo Yoast | Naranja (mejor que rojo) | Verde |
+
+### Beneficios de esta solución
+
+1. **Mejora inmediata**: El `excerpt` funciona sin configuración adicional
+2. **Solución completa opcional**: El snippet PHP habilita todos los campos de Yoast
+3. **UX clara**: El usuario sabe exactamente qué hacer para tener SEO perfecto
+4. **Retrocompatible**: No rompe nada existente
+
