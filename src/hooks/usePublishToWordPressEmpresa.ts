@@ -12,6 +12,9 @@ export interface PublishToWordPressEmpresaInput {
   image_url?: string;
   image_alt?: string;
   meta_description?: string;
+  seo_title?: string;
+  focus_keyword?: string;
+  excerpt?: string;
   lang?: "es" | "ca";
   category_ids?: number[];
   tag_ids?: number[];
@@ -40,6 +43,9 @@ export function usePublishToWordPressEmpresa() {
           image_url: input.image_url,
           image_alt: input.image_alt,
           meta_description: input.meta_description,
+        seo_title: input.seo_title,
+        focus_keyword: input.focus_keyword,
+        excerpt: input.excerpt,
           lang: input.lang,
           category_ids: input.category_ids,
           tag_ids: input.tag_ids,

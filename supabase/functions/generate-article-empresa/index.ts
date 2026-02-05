@@ -923,6 +923,23 @@ Generar un artículo de blog de ~2000 palabras optimizado para SEO que ATRAIGA C
 REGLAS CRÍTICAS:
 ${geoContext}
 
+REGLAS SEO CRÍTICAS PARA YOAST (semáforo verde):
+
+1. FOCUS KEYWORD (frase clave):
+   - Debe tener 2-4 palabras (no más, no menos)
+   - DEBE aparecer EXACTAMENTE en:
+     * El slug (URL)
+     * El seo_title (idealmente al INICIO)
+     * La meta_description
+     * El primer párrafo del contenido (primeras 50 palabras)
+     * Al menos 1 subtítulo H2
+   
+2. DENSIDAD DE KEYWORD: El focus_keyword debe aparecer 1-2% del texto total
+
+3. SEO_TITLE: Diferente al título H1, optimizado para CTR, máximo 60 caracteres, debe EMPEZAR con el focus_keyword
+
+4. EXCERPT: Resumen diferente a meta_description, máximo 160 caracteres
+
 FORMATO DEL CONTENIDO:
 - TÍTULO H1: Máximo 60 caracteres. SIN nombre de empresa. SIN ubicación en el título.
 - META DESCRIPTION: 150-160 caracteres, atractiva con CTA implícito.
@@ -960,14 +977,18 @@ IMPORTANTE:
 - Aporta valor real al lector con información útil y práctica
 - Aplica las reglas de ortografía española: solo mayúscula inicial en títulos/subtítulos (no en cada palabra)
 - Si enumeras puntos tras dos puntos (:), usa SIEMPRE formato lista HTML (<ul><li>)
+- El focus_keyword DEBE aparecer en: slug, seo_title (al inicio), meta_description, primer párrafo y al menos un H2
 ${company.geographic_scope === "national" ? "- NUNCA menciones ubicaciones específicas ni uses la palabra 'null'" : ""}
 
 FORMATO DE RESPUESTA (JSON):
 {
   "title": "Título atractivo máx 60 caracteres",
+  "seo_title": "Focus keyword al inicio | Marca - máx 60 caracteres",
   "meta_description": "Meta descripción de 150-160 caracteres con CTA",
-  "slug": "url-amigable-sin-espacios",
-  "content": "<h2>Sección 1</h2><p>Contenido...</p><h2>Sección 2</h2><p>Más contenido...</p>"
+  "excerpt": "Resumen breve diferente a meta_description, máx 160 caracteres",
+  "focus_keyword": "frase clave 2-4 palabras",
+  "slug": "url-con-focus-keyword",
+  "content": "<h2>Subtítulo con focus_keyword</h2><p>Primer párrafo con focus_keyword en las primeras 50 palabras...</p><h2>Sección 2</h2><p>Más contenido...</p>"
 }`;
 
     console.log("Generating Spanish article for:", company.name, "Topic:", topic);
@@ -1090,17 +1111,24 @@ REGLAS ESTRICTAS:
 4. NO uses "y" (español), usa "i" (catalán)
 5. NO uses "de la", usa "de la" o "del" según corresponda en catalán
 6. Adapta expresiones al catalán natural, no traduzcas literalmente
+7. El focus_keyword debe traducirse al catalán y aparecer en los mismos lugares que en español
 
 ARTÍCULO EN ESPAÑOL:
 Título: ${spanishArticle.title}
+SEO Title: ${spanishArticle.seo_title || spanishArticle.title}
 Meta: ${spanishArticle.meta_description}
+Excerpt: ${spanishArticle.excerpt || spanishArticle.meta_description}
+Focus Keyword: ${spanishArticle.focus_keyword || ""}
 Slug: ${spanishArticle.slug}
 Contenido: ${spanishArticle.content}
 
 RESPONDE EN JSON:
 {
   "title": "Títol en català",
+  "seo_title": "Focus keyword en català | Marca - màx 60 caràcters",
   "meta_description": "Meta descripció en català",
+  "excerpt": "Resum breu diferent a meta_description, màx 160 caràcters",
+  "focus_keyword": "frase clau 2-4 paraules en català",
   "slug": "url-en-catala",
   "content": "Contingut HTML en català"
 }`;
@@ -1464,8 +1492,11 @@ REGLAS:
                   slug: spanishArticle.slug,
                   status: "publish",
                   image_url: imageResult?.url,
-                  image_alt: spanishArticle.title,
+                  image_alt: spanishArticle.focus_keyword || spanishArticle.title,
                   meta_description: spanishArticle.meta_description,
+                  seo_title: spanishArticle.seo_title,
+                  focus_keyword: spanishArticle.focus_keyword,
+                  excerpt: spanishArticle.excerpt || spanishArticle.meta_description,
                   lang: "es",
                   category_ids: categoryIds,
                   tag_ids: tagIds,
@@ -1505,8 +1536,11 @@ REGLAS:
                   slug: catalanArticle.slug + "-ca",
                   status: "publish",
                   image_url: imageResult?.url,
-                  image_alt: catalanArticle.title,
+                  image_alt: catalanArticle.focus_keyword || catalanArticle.title,
                   meta_description: catalanArticle.meta_description,
+                  seo_title: catalanArticle.seo_title,
+                  focus_keyword: catalanArticle.focus_keyword,
+                  excerpt: catalanArticle.excerpt || catalanArticle.meta_description,
                   lang: "ca",
                   category_ids: categoryIds,
                   tag_ids: tagIds,

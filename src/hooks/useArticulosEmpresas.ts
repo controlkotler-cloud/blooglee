@@ -5,7 +5,10 @@ import { toast } from "sonner";
 
 export interface ArticleContent {
   title: string;
+  seo_title?: string;
   meta_description: string;
+  excerpt?: string;
+  focus_keyword?: string;
   slug: string;
   content: string;
 }
