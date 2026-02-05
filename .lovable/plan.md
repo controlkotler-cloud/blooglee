@@ -1,158 +1,111 @@
 
 
-## Plan: Eliminar markdown residual del contenido HTML
+## Plan: Limpieza y Optimizacion del Proyecto
 
-### Problema detectado
+### 1. Limpiar plan.md
 
-El modelo Gemini genera contenido HTML pero a veces mezcla sintaxis markdown dentro del HTML:
+El archivo `.lovable/plan.md` contiene el plan del fix de markdown que ya fue implementado. Se limpiara dejando solo documentacion de referencia minima.
 
-```html
-<!-- Problema: markdown dentro de HTML -->
-<li>**SEO:** Optimiza tu contenido...</li>
+**Cambio:**
+```markdown
+# Blooglee - Notas de implementacion
 
-<!-- Correcto: HTML puro -->
-<li><strong>SEO:</strong> Optimiza tu contenido...</li>
+Este archivo se usa para planes temporales durante el desarrollo.
+Actualmente no hay planes pendientes.
 ```
 
-Esto se muestra literalmente en WordPress como `**texto**` en vez de **texto**.
+---
 
-### Causa raiz
+### 2. Optimizacion de Base de Datos
 
-| Factor | Descripcion |
-|--------|-------------|
-| Prompts insuficientes | Piden "formato HTML" pero no prohiben markdown explicita y enfaticamente |
-| Sin sanitizacion | No hay post-procesamiento que convierta markdown a HTML |
-| Comportamiento IA | Gemini mezcla formatos cuando el prompt no es estricto |
+#### A. Indices faltantes en tabla `articles`
 
-### Solucion propuesta (doble capa)
+La tabla `articles` solo tiene indice en `id` pero las consultas frecuentes filtran por `site_id`, `user_id`, `month` y `year`.
 
-#### Capa 1: Mejorar prompts (prevencion)
+**Indices a crear:**
+```sql
+-- Indice compuesto para consultas por site + usuario
+CREATE INDEX IF NOT EXISTS idx_articles_site_user 
+ON public.articles(site_id, user_id);
 
-Anadir instruccion explicita en `FALLBACK_PROMPTS.articleSystem`:
+-- Indice para consultas por mes/ano
+CREATE INDEX IF NOT EXISTS idx_articles_month_year 
+ON public.articles(month, year);
 
-```text
-FORMATO HTML OBLIGATORIO:
-- TODO el contenido DEBE estar en HTML puro
-- NUNCA uses sintaxis markdown: NO **texto**, NO *texto*, NO ~~texto~~
-- Para negrita usa <strong>texto</strong>
-- Para cursiva usa <em>texto</em>
-- Para listas usa <ul><li>texto</li></ul>
+-- Indice para ordenamiento por fecha
+CREATE INDEX IF NOT EXISTS idx_articles_generated_at 
+ON public.articles(generated_at DESC);
 ```
 
-#### Capa 2: Funcion de limpieza (garantia)
+#### B. Indices faltantes en tabla `sites`
 
-Crear funcion `cleanMarkdownFromHtml()` que se ejecute tras la generacion:
-
-```javascript
-function cleanMarkdownFromHtml(content: string): string {
-  return content
-    // **texto** → <strong>texto</strong>
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    // *texto* → <em>texto</em> (solo asteriscos simples no dentro de strong)
-    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>')
-    // ~~texto~~ → <del>texto</del>
-    .replace(/~~([^~]+)~~/g, '<del>$1</del>')
-    // `codigo` → <code>codigo</code>
-    .replace(/`([^`]+)`/g, '<code>$1</code>');
-}
+```sql
+-- Indice para consultas por usuario
+CREATE INDEX IF NOT EXISTS idx_sites_user_id 
+ON public.sites(user_id);
 ```
 
-### Archivos a modificar
+---
 
-| Archivo | Cambios |
-|---------|---------|
-| `supabase/functions/generate-article-saas/index.ts` | Anadir prohibicion markdown al prompt + funcion `cleanMarkdownFromHtml()` + aplicar tras generacion |
-| `supabase/functions/generate-article/index.ts` | Anadir funcion `cleanMarkdownFromHtml()` + aplicar tras generacion (MKPro farmacias) |
-| `supabase/functions/generate-article-empresa/index.ts` | Anadir funcion `cleanMarkdownFromHtml()` + aplicar tras generacion (MKPro empresas) |
+### 3. Politicas RLS con `true` (NO MODIFICAR)
 
-### Cambios detallados
+El linter detecta 10 politicas con `USING (true)` en:
+- `farmacias`
+- `articulos`
+- `empresas`
+- `articulos_empresas`
+- `wordpress_sites`
+- `wordpress_site_default_taxonomies`
 
-#### 1. `generate-article-saas/index.ts`
+Segun las reglas de arquitectura del proyecto, estas son tablas del sistema **MKPro legacy** que operan sin `user_id` y son INTENCIONALES. **NO SE MODIFICAN** para mantener compatibilidad con el panel de administracion MKPro.
 
-**A. Actualizar prompt (lineas 142-148):**
+---
 
-Insertar despues de "El contenido DEBE empezar con un h2 introductorio":
+### 4. Codigo duplicado (Aceptable)
 
-```text
-⚠️ FORMATO HTML ESTRICTO (OBLIGATORIO):
-- TODO el contenido DEBE estar en HTML puro
-- NUNCA uses sintaxis markdown dentro del HTML
-- NO uses **texto** → usa <strong>texto</strong>
-- NO uses *texto* → usa <em>texto</em>
-- NO uses ~~texto~~ → usa <del>texto</del>
-- NO uses `codigo` → usa <code>codigo</code>
-- Para listas SIEMPRE usa <ul><li>...</li></ul> sin markdown dentro
-```
+La funcion `cleanMarkdownFromHtml()` esta duplicada en 3 edge functions:
+- `generate-article-saas/index.ts`
+- `generate-article/index.ts`
+- `generate-article-empresa/index.ts`
 
-**B. Agregar funcion de limpieza (despues de linea 80):**
+**Evaluacion:** En Deno edge functions, no es posible compartir codigo facilmente entre funciones sin crear un modulo externo. Mantener la duplicacion es aceptable en este caso ya que:
+- Son funciones aisladas
+- El codigo es pequeno (~15 lineas)
+- Modificar una no afecta a las otras
 
-```javascript
-function cleanMarkdownFromHtml(content: string): string {
-  if (!content) return content;
-  
-  return content
-    // **texto** o __texto__ → <strong>texto</strong>
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
-    // *texto* o _texto_ → <em>texto</em>
-    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>')
-    .replace(/(?<!_)_([^_\n]+)_(?!_)/g, '<em>$1</em>')
-    // ~~texto~~ → <del>texto</del>
-    .replace(/~~([^~]+)~~/g, '<del>$1</del>')
-    // `codigo` → <code>codigo</code>
-    .replace(/`([^`]+)`/g, '<code>$1</code>');
-}
-```
+**Decision:** No se consolida.
 
-**C. Aplicar limpieza tras generacion (linea 1191, despues de "Spanish article generated successfully"):**
+---
 
-```javascript
-// Clean any markdown that slipped into HTML
-if (spanishArticle.content) {
-  spanishArticle.content = cleanMarkdownFromHtml(spanishArticle.content);
-  console.log("Cleaned markdown from Spanish content");
-}
-```
+### 5. Tablas vacias (Informativo)
 
-**D. Aplicar limpieza a catalan (linea 1268, despues de parsear catalan):**
+Hay tablas con 0 registros:
+- `survey_responses`
+- `pending_surveys`
+- `support_messages`
+- `support_conversations`
 
-```javascript
-// Clean any markdown from Catalan content
-if (catalanArticle.content) {
-  catalanArticle.content = cleanMarkdownFromHtml(catalanArticle.content);
-  console.log("Cleaned markdown from Catalan content");
-}
-```
+Estas son funcionalidades preparadas para futuro uso (encuestas y soporte). **No se eliminan** porque la estructura ya existe y puede usarse cuando se necesite.
 
-#### 2. `generate-article/index.ts` (MKPro farmacias)
+---
 
-**A. Agregar funcion `cleanMarkdownFromHtml` (misma implementacion)**
+### Resumen de cambios
 
-**B. Aplicar tras parsear spanishArticle (linea ~483):**
-
-```javascript
-if (spanishArticle.content) {
-  spanishArticle.content = cleanMarkdownFromHtml(spanishArticle.content);
-}
-```
-
-**C. Aplicar tras parsear catalanArticle si existe**
-
-#### 3. `generate-article-empresa/index.ts` (MKPro empresas)
-
-Mismos cambios que generate-article.
+| Componente | Accion | Motivo |
+|------------|--------|--------|
+| `.lovable/plan.md` | Limpiar contenido | Plan implementado, ya no necesario |
+| `articles` table | Agregar 3 indices | Mejorar rendimiento de consultas |
+| `sites` table | Agregar 1 indice | Mejorar rendimiento de consultas |
+| Politicas RLS MKPro | NO TOCAR | Intencional segun arquitectura |
+| Codigo duplicado | NO TOCAR | Aceptable en edge functions |
+| Tablas vacias | NO ELIMINAR | Preparadas para futuro uso |
 
 ---
 
 ### Resultado esperado
 
-| Antes | Despues |
-|-------|---------|
-| `<li>**SEO:** Optimiza...</li>` | `<li><strong>SEO:</strong> Optimiza...</li>` |
-| `<li>**SEM:** Invierte...</li>` | `<li><strong>SEM:</strong> Invierte...</li>` |
-| `<p>Usa *estrategias*...</p>` | `<p>Usa <em>estrategias</em>...</p>` |
-
-La doble capa garantiza que:
-1. El prompt previene la mayoria de casos
-2. La funcion de limpieza captura cualquier markdown residual
+- Archivo plan.md limpio y listo para proximos planes
+- Consultas a `articles` y `sites` mas rapidas con indices optimizados
+- Codigo y estructura de base de datos sin cambios innecesarios
+- Sistema mas organizado sin eliminar funcionalidad
 
