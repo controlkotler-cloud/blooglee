@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 // CORS headers - includes all Supabase client headers to prevent preflight failures
 const corsHeaders = {
