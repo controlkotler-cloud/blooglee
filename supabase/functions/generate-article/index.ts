@@ -370,14 +370,27 @@ REGLAS IMPORTANTES:
 - La fecha actual es ${dateContext.toUpperCase()}. TODAS las referencias temporales deben ser coherentes con esta fecha.
 - Genera contenido de ~2000 palabras
 - TÍTULO H1: Máximo 60 caracteres, atractivo, con keyword principal. NUNCA incluyas el nombre de la farmacia, la población, ni palabras como "Cierzo", "Guía de", etc.
-- Meta descripción de 150-160 caracteres
-- Slug URL amigable sin tildes ni caracteres especiales
+- SEO TITLE: Diferente al H1, optimizado para CTR, máximo 60 caracteres, que EMPIECE con la focus_keyword
+- Meta descripción de 150-160 caracteres que INCLUYA la focus_keyword
+- EXCERPT: Resumen corto del artículo (diferente a meta_description), máximo 160 caracteres
+- FOCUS KEYWORD: Define UNA keyword principal de 2-4 palabras relacionada con el tema
+- Slug URL amigable sin tildes ni caracteres especiales que INCLUYA la focus_keyword
 - Estructura: introducción + 4-5 secciones H2 + conclusión con CTA
 - Menciona la farmacia 1-2 veces en el CONTENIDO (nunca en el título)
 ${geoContext}
 - Tono profesional pero cercano
 - El contenido debe estar en formato HTML con tags <h2>, <p>, <ul>, <li>
 - VARIEDAD: Aunque el tema sea similar, cada artículo debe tener un enfoque único basado en la farmacia y su ubicación.
+
+REGLAS SEO CRÍTICAS PARA YOAST (semáforo verde):
+1. La FOCUS KEYWORD (2-4 palabras) DEBE aparecer en:
+   - El slug (URL)
+   - El seo_title (idealmente al INICIO)
+   - La meta_description
+   - El primer párrafo del contenido (primeras 50 palabras)
+   - Al menos 1 subtítulo H2
+2. Densidad de keyword: 1-2% del texto total
+3. El excerpt debe ser diferente de meta_description pero captar la esencia del artículo
 
 RESPONDE SIEMPRE EN JSON VÁLIDO.`;
 
@@ -406,9 +419,12 @@ REGLAS CRÍTICAS PARA EL TÍTULO:
 Genera el artículo completo EN ESPAÑOL. RESPONDE SOLO CON JSON VÁLIDO en este formato exacto:
 {
   "title": "Título H1 corto y atractivo (máx 60 caracteres, sin farmacia ni población)",
-  "meta_description": "Meta descripción de 150-160 caracteres",
-  "slug": "slug-url-amigable-sin-tildes",
-  "content": "<h2>Primera sección</h2><p>Contenido...</p><h2>Segunda sección</h2><p>Más contenido...</p>"
+  "seo_title": "SEO title que EMPIEZA con focus_keyword (máx 60 caracteres)",
+  "meta_description": "Meta descripción de 150-160 caracteres con focus_keyword",
+  "excerpt": "Resumen breve del artículo (máx 160 caracteres, diferente a meta_description)",
+  "focus_keyword": "keyword principal de 2-4 palabras",
+  "slug": "slug-url-con-focus-keyword-sin-tildes",
+  "content": "<h2>Subtítulo que incluya focus_keyword...</h2><p>El primer párrafo DEBE contener la focus_keyword de forma natural...</p><h2>Segunda sección</h2><p>Más contenido...</p>"
 }`;
 
     console.log("Generating Spanish article for:", pharmacy.name, "Topic:", topic.tema, "Date:", dateContext);
@@ -525,7 +541,10 @@ REGLES IMPORTANTS:
 - Mantén l'estructura i el contingut de l'article original, però adapta'l al català natural.
 - Ortografia i gramàtica catalana impecables (accent obert/tancat, ela geminada, etc.).
 - TÍTOL: Màxim 60 caràcters, atractiu, SENSE nom de farmàcia ni població.
+- SEO TITLE: Diferent al H1, optimitzat per CTR, màxim 60 caràcters, que COMENCI amb la focus_keyword
 - Meta descripció de 150-160 caràcters en català correcte.
+- EXCERPT: Resum curt de l'article (diferent de meta_description), màxim 160 caràcters
+- FOCUS KEYWORD: Tradueix la keyword principal del castellà al català (2-4 paraules)
 - Slug URL sense accents ni caràcters especials.
 
 TRADUCCIONS OBLIGATÒRIES - MAI USAR PARAULES CASTELLANES AL TÍTOL:
@@ -561,7 +580,10 @@ RESPÓN SEMPRE EN JSON VÀLID.`;
 
 ARTICLE ORIGINAL EN CASTELLÀ:
 Títol: ${spanishArticle.title}
+SEO Title: ${spanishArticle.seo_title || spanishArticle.title}
 Meta descripció: ${spanishArticle.meta_description}
+Excerpt: ${spanishArticle.excerpt || spanishArticle.meta_description}
+Focus keyword (castellà): ${spanishArticle.focus_keyword || ''}
 Contingut: ${spanishContentWithoutSeoLinks}
 
 FARMÀCIA: ${pharmacy.name}
@@ -575,13 +597,18 @@ ${geoContextCatalan}
 - El TÍTOL ha de ser curt (màx 60 caràcters) i SENSE nom de farmàcia ni població.
 - VERIFICA que el TÍTOL NO contingui cap paraula castellana (vence, consigue, combate, protege, etc.).
 - Assegura't que totes les paraules estiguin correctament escrites en català.
+- Tradueix la focus_keyword al català de forma natural (2-4 paraules).
+- Assegura't que la focus_keyword aparegui al seo_title, meta_description, slug i primer paràgraf.
 
 RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
 {
-  "title": "Títol H1 curt i atractiu en CATALÀ PUR (màx 60 caràcters, sense farmàcia ni població)",
-  "meta_description": "Meta descripció de 150-160 caràcters en català",
-  "slug": "slug-url-amigable-sense-accents",
-  "content": "<h2>Primera secció</h2><p>Contingut en català natural...</p>"
+  "title": "Títol H1 curt i atractiu en CATALÀ PUR (màx 60 caràcters)",
+  "seo_title": "SEO title que COMENCI amb focus_keyword (màx 60 caràcters)",
+  "meta_description": "Meta descripció de 150-160 caràcters amb focus_keyword",
+  "excerpt": "Resum breu de l'article (màx 160 caràcters)",
+  "focus_keyword": "keyword principal en català (2-4 paraules)",
+  "slug": "slug-url-amb-focus-keyword-sense-accents",
+  "content": "<h2>Subtítol amb focus_keyword...</h2><p>Primer paràgraf amb focus_keyword...</p>"
 }`;
 
       const catalanResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {

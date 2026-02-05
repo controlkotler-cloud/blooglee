@@ -29,6 +29,9 @@ export interface PublishToWordPressInput {
   image_url?: string;
   image_alt?: string;
   meta_description?: string;
+  seo_title?: string;
+  focus_keyword?: string;
+  excerpt?: string;
   lang?: 'es' | 'ca';
   category_ids?: number[];
   tag_ids?: number[];

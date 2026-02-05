@@ -17,6 +17,9 @@ interface PublishRequest {
   image_url?: string;
   image_alt?: string;
   meta_description?: string; // For Yoast SEO
+  seo_title?: string; // For Yoast SEO (custom title)
+  focus_keyword?: string; // For Yoast SEO
+  excerpt?: string; // Native WP excerpt (Yoast fallback for meta desc)
   lang?: 'es' | 'ca'; // For Polylang integration
   category_ids?: number[]; // WordPress category IDs
   tag_ids?: number[]; // WordPress tag IDs
@@ -29,7 +32,7 @@ serve(async (req) => {
   }
 
   try {
-    const { farmacia_id, empresa_id, title, content, slug, status, date, image_url, image_alt, meta_description, lang, category_ids, tag_ids } = await req.json() as PublishRequest;
+    const { farmacia_id, empresa_id, title, content, slug, status, date, image_url, image_alt, meta_description, seo_title, focus_keyword, excerpt, lang, category_ids, tag_ids } = await req.json() as PublishRequest;
 
     const entityId = farmacia_id || empresa_id;
     const entityType = farmacia_id ? 'farmacia' : 'empresa';
@@ -38,6 +41,7 @@ serve(async (req) => {
     console.log(`[publish-to-wordpress] Title: ${title}`);
     console.log(`[publish-to-wordpress] Status: ${status}, Date: ${date || 'now'}`);
     console.log(`[publish-to-wordpress] Categories: ${category_ids?.join(',') || 'none'}, Tags: ${tag_ids?.join(',') || 'none'}`);
+    console.log(`[publish-to-wordpress] SEO: seo_title=${!!seo_title}, focus_keyword=${!!focus_keyword}, excerpt=${!!excerpt}`);
 
     // Validate required fields
     if ((!farmacia_id && !empresa_id) || !title || !content || !slug || !status) {
@@ -152,16 +156,31 @@ serve(async (req) => {
       content,
       slug,
       status: finalStatus,
+      // Native WordPress excerpt (works without plugins, Yoast uses as fallback)
+      excerpt: excerpt || meta_description?.substring(0, 160) || '',
       // Language for Polylang (requires wp-rest-polylang plugin or custom REST registration)
       lang: lang || 'es',
-      // Meta description for Yoast SEO (requires Yoast and REST API meta registration)
-      meta: {
-        _yoast_wpseo_metadesc: meta_description || '',
-      },
       // Categories and tags (arrays of WordPress IDs)
       categories: category_ids && category_ids.length > 0 ? category_ids : [],
       tags: tag_ids && tag_ids.length > 0 ? tag_ids : [],
     };
+
+    // Yoast SEO meta fields (require PHP snippet in WP functions.php to enable via REST API)
+    const yoastMeta: Record<string, string> = {};
+    
+    if (meta_description) {
+      yoastMeta._yoast_wpseo_metadesc = meta_description.substring(0, 160);
+    }
+    if (seo_title) {
+      yoastMeta._yoast_wpseo_title = seo_title.substring(0, 60);
+    }
+    if (focus_keyword) {
+      yoastMeta._yoast_wpseo_focuskw = focus_keyword;
+    }
+    
+    if (Object.keys(yoastMeta).length > 0) {
+      postData.meta = yoastMeta;
+    }
 
     if (date) {
       postData.date = date;

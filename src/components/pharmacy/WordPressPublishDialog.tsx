@@ -95,8 +95,11 @@ export function WordPressPublishDialog({
           status: status === 'future' ? 'publish' : status,
           date: publishDate,
           image_url: article.image_url || undefined,
-          image_alt: content.title,
+          image_alt: content.focus_keyword || content.title,
           meta_description: content.meta_description,
+          seo_title: content.seo_title,
+          focus_keyword: content.focus_keyword,
+          excerpt: content.excerpt || content.meta_description,
           lang: lang === 'catalan' ? 'ca' : 'es',
         });
 
