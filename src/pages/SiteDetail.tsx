@@ -21,6 +21,7 @@ import { SiteSettings } from '@/components/saas/SiteSettings';
 import { WordPressConfigForm } from '@/components/saas/WordPressConfigForm';
 import { SupportChatProvider } from '@/components/saas/SupportChatWidget';
 import { toast } from 'sonner';
+ import { useGeneration } from '@/contexts/GenerationContext';
 
 export default function SiteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -44,8 +45,10 @@ export default function SiteDetail() {
   const { data: wpConfig } = useWordPressConfig(id);
   
   const generateMutation = useGenerateArticleSaas();
+   const { isGenerating: checkGenerating } = useGeneration();
   
   const canGenerate = !!wpConfig;
+   const isGenerating = site ? checkGenerating(site.id) : false;
 
   const handleGenerateArticle = () => {
     if (!site) return;
@@ -54,10 +57,8 @@ export default function SiteDetail() {
       setActiveTab('wordpress');
       return;
     }
-    generateMutation.mutate({ siteId: site.id });
+     generateMutation.mutate({ siteId: site.id });
   };
-
-  const isGenerating = generateMutation.isPending;
 
   if (loadingSites) {
     return (

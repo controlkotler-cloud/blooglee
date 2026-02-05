@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { SeasonalTopic } from "@/lib/seasonalTopics";
+ import { useGeneration } from "@/contexts/GenerationContext";
 
 export interface ArticleContent {
   title: string;
@@ -89,10 +90,13 @@ export async function getUsedImageUrls(month: number, year: number): Promise<str
 
 export function useGenerateArticle() {
   const queryClient = useQueryClient();
+   const { addGenerating, removeGenerating } = useGeneration();
 
   return useMutation({
     mutationFn: async (params: GenerateArticleParams) => {
       console.log("Generating article for:", params.pharmacyName, "Languages:", params.pharmacyLanguages);
+       
+       addGenerating(params.farmaciaId);
       
       // Obtener URLs de imágenes ya usadas para este mes/año
       const usedImageUrls = params.usedImageUrls || await getUsedImageUrls(params.month, params.year);
@@ -187,6 +191,9 @@ export function useGenerateArticle() {
       console.log("Article saved successfully:", savedArticle?.id);
       return savedArticle as unknown as Articulo;
     },
+     onSettled: (_, __, params) => {
+       removeGenerating(params.farmaciaId);
+     },
     onSuccess: (_, params) => {
       queryClient.invalidateQueries({ queryKey: ["articulos", params.month, params.year] });
       toast.success(`Artículo generado para ${params.pharmacyName}`);

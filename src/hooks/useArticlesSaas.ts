@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+ import { useGeneration } from '@/contexts/GenerationContext';
 
 interface GenerateArticleParams {
   siteId: string;
@@ -68,10 +69,13 @@ export function usePublishToWordPressSaas() {
 export function useGenerateArticleSaas() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+   const { addGenerating, removeGenerating } = useGeneration();
 
   return useMutation({
     mutationFn: async (params: GenerateArticleParams) => {
       if (!user?.id) throw new Error('No user logged in');
+       
+       addGenerating(params.siteId);
       
       const { data, error } = await supabase.functions.invoke('generate-article-saas', {
         body: {
@@ -96,6 +100,9 @@ export function useGenerateArticleSaas() {
       
       return data;
     },
+     onSettled: (_, __, params) => {
+       removeGenerating(params.siteId);
+     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['articles'] });
       toast.success('Artículo generado correctamente');

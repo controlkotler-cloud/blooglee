@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+ import { useGeneration } from "@/contexts/GenerationContext";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAYS = [2000, 4000, 8000];
@@ -57,20 +58,9 @@ export default function MKPro() {
   const [deletingCompany, setDeletingCompany] = useState<Empresa | null>(null);
   const [previewCompanyArticle, setPreviewCompanyArticle] = useState<{ article: ArticuloEmpresa; companyName: string; company: Empresa } | null>(null);
   
-  // Shared state - Use Set to track multiple concurrent generations
-  const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
-  
-  // Helpers for managing generating IDs
-  const addGeneratingId = (id: string) => {
-    setGeneratingIds(prev => new Set(prev).add(id));
-  };
-  const removeGeneratingId = (id: string) => {
-    setGeneratingIds(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  };
+   // Global generation state
+   const { isGenerating, addGenerating, removeGenerating } = useGeneration();
+   
   const [generatingAll, setGeneratingAll] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [currentRetry, setCurrentRetry] = useState(0);
@@ -128,7 +118,7 @@ export default function MKPro() {
     const topic = pharmacy.custom_topic && !pharmacy.auto_generate
       ? { tema: pharmacy.custom_topic, keywords: [], pexels_query: "pharmacy health wellness" }
       : getAssignedTopic(index, selectedMonth, pharmacy.id);
-    addGeneratingId(pharmacy.id);
+     addGenerating(pharmacy.id);
     setCurrentRetry(0);
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -145,7 +135,7 @@ export default function MKPro() {
           year: selectedYear,
           usedImageUrls,
         });
-        removeGeneratingId(pharmacy.id);
+         removeGenerating(pharmacy.id);
         setCurrentRetry(0);
         return true;
       } catch (error) {
@@ -157,7 +147,7 @@ export default function MKPro() {
           await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
           toast.error(`Error generando artículo para ${pharmacy.name} después de ${MAX_RETRIES} reintentos`);
-          removeGeneratingId(pharmacy.id);
+           removeGenerating(pharmacy.id);
           setCurrentRetry(0);
           return false;
         }
@@ -180,7 +170,7 @@ export default function MKPro() {
     for (let i = 0; i < pending.length; i++) {
       const pharmacy = pending[i];
       const pharmacyIndex = farmacias.findIndex((p) => p.id === pharmacy.id);
-      addGeneratingId(pharmacy.id);
+       addGenerating(pharmacy.id);
       setGenerationProgress(Math.round(((i + 1) / pending.length) * 100));
       const success = await handleGenerateArticle(pharmacy, pharmacyIndex, usedImageUrls);
       if (success) {
@@ -191,7 +181,6 @@ export default function MKPro() {
     }
 
     setGeneratingAll(false);
-    setGeneratingIds(new Set());
     setGenerationProgress(0);
     toast.success(`🎉 Se han generado ${successCount} artículos correctamente`);
   };
@@ -212,7 +201,7 @@ export default function MKPro() {
   };
 
   const handleGenerateArticleEmpresa = async (company: Empresa, usedImageUrls?: string[]) => {
-    addGeneratingId(company.id);
+     addGenerating(company.id);
     try {
       await generateArticleEmpresa.mutateAsync({
         empresaId: company.id,
@@ -233,7 +222,7 @@ export default function MKPro() {
     } catch (error) {
       console.error(`Error generating article for ${company.name}:`, error);
     } finally {
-      removeGeneratingId(company.id);
+       removeGenerating(company.id);
     }
   };
 
@@ -250,7 +239,7 @@ export default function MKPro() {
 
     for (let i = 0; i < pending.length; i++) {
       const company = pending[i];
-      addGeneratingId(company.id);
+       addGenerating(company.id);
       setGenerationProgress(Math.round(((i + 1) / pending.length) * 100));
       try {
         await handleGenerateArticleEmpresa(company, usedImageUrls);
@@ -263,7 +252,6 @@ export default function MKPro() {
     }
 
     setGeneratingAll(false);
-    setGeneratingIds(new Set());
     setGenerationProgress(0);
     toast.success(`🎉 Se han generado ${successCount} artículos de empresas`);
   };
@@ -385,7 +373,7 @@ export default function MKPro() {
                       pharmacy={pharmacy} 
                       topic={getAssignedTopic(index, selectedMonth, pharmacy.id)} 
                       article={getArticleForPharmacy(pharmacy.id)} 
-                      isGenerating={generatingIds.has(pharmacy.id)}
+                       isGenerating={isGenerating(pharmacy.id)}
                       hasWordPress={hasWordPress(pharmacy.id)}
                       onGenerate={() => handleGenerateArticle(pharmacy, index)} 
                       onRegenerate={() => handleGenerateArticle(pharmacy, index)}
@@ -423,7 +411,7 @@ export default function MKPro() {
                       key={company.id} 
                       company={company} 
                       article={getArticleForCompany(company)} 
-                      isGenerating={generatingIds.has(company.id)}
+                       isGenerating={isGenerating(company.id)}
                       hasWordPress={hasWordPressEmpresa(company.id)}
                       onGenerate={() => handleGenerateArticleEmpresa(company)} 
                       onRegenerate={() => handleGenerateArticleEmpresa(company)}
@@ -462,7 +450,7 @@ export default function MKPro() {
           handleGenerateArticle(previewArticle.pharmacy, previewArticle.pharmacyIndex);
           setPreviewArticle(null);
         } : undefined}
-        isRegenerating={previewArticle ? generatingIds.has(previewArticle.pharmacy.id) : false}
+         isRegenerating={previewArticle ? isGenerating(previewArticle.pharmacy.id) : false}
         onRegenerateImage={previewArticle?.article ? async () => {
           if (!previewArticle?.article) return;
           setRegeneratingImageId(previewArticle.article.id);
@@ -504,7 +492,7 @@ export default function MKPro() {
           handleGenerateArticleEmpresa(previewCompanyArticle.company);
           setPreviewCompanyArticle(null);
         } : undefined}
-        isRegenerating={previewCompanyArticle ? generatingIds.has(previewCompanyArticle.company.id) : false}
+         isRegenerating={previewCompanyArticle ? isGenerating(previewCompanyArticle.company.id) : false}
         onRegenerateImage={previewCompanyArticle?.article ? async () => {
           if (!previewCompanyArticle?.article) return;
           setRegeneratingImageId(previewCompanyArticle.article.id);
