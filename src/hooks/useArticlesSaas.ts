@@ -20,6 +20,8 @@ export interface PublishInputSaas {
   image_url?: string;
   image_alt?: string;
   meta_description?: string;
+  excerpt?: string;
+  focus_keyword?: string;
   lang?: 'es' | 'ca';
   category_ids?: number[];
   tag_ids?: number[];
@@ -118,6 +120,8 @@ export function useGenerateArticleSaas() {
 export interface ArticleContent {
   title: string;
   seo_title?: string;
+  excerpt?: string;
+  focus_keyword?: string;
   meta_description: string;
   slug: string;
   content: string;

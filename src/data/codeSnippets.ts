@@ -11,6 +11,62 @@ export interface CodeSnippet {
 
 export const CODE_SNIPPETS: CodeSnippet[] = [
   {
+    id: 'yoast-api-support',
+    title: 'Yoast SEO - Soporte API REST',
+    description: 'Habilita la edición de meta descripción, SEO title y focus keyword vía API',
+    category: 'general',
+    plugin: 'yoast',
+    fileName: 'functions.php',
+    code: `/**
+ * Blooglee - Yoast SEO API Support
+ * Habilita la edición de campos Yoast via REST API
+ */
+add_action('init', function() {
+    // Meta descripción
+    register_post_meta('post', '_yoast_wpseo_metadesc', [
+        'show_in_rest' => true,
+        'single' => true,
+        'type' => 'string',
+        'auth_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ]);
+    
+    // SEO Title
+    register_post_meta('post', '_yoast_wpseo_title', [
+        'show_in_rest' => true,
+        'single' => true,
+        'type' => 'string',
+        'auth_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ]);
+    
+    // Focus keyword
+    register_post_meta('post', '_yoast_wpseo_focuskw', [
+        'show_in_rest' => true,
+        'single' => true,
+        'type' => 'string',
+        'auth_callback' => function() {
+            return current_user_can('edit_posts');
+        }
+    ]);
+});`,
+    instructions: `1. Accede a tu WordPress
+2. Ve a **Apariencia → Editor de temas**
+3. Selecciona tu tema hijo
+4. Abre **functions.php**
+5. Añade el código al final
+6. Guarda los cambios
+
+⚠️ Este snippet es NECESARIO para que Blooglee pueda rellenar automáticamente:
+- Meta descripción (aparece en Google)
+- SEO Title (título optimizado para CTR)
+- Focus Keyword (para análisis de Yoast)
+
+Sin este snippet, Yoast ignorará estos campos. El **excerpt** funciona siempre como fallback.`,
+  },
+  {
     id: 'polylang-api-support',
     title: 'Polylang - Soporte API REST',
     description: 'Permite publicar artículos en el idioma correcto vía API REST',

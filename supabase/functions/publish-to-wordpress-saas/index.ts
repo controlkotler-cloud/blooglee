@@ -16,6 +16,8 @@ interface PublishRequest {
   image_url?: string;
   image_alt?: string;
   meta_description?: string;
+  excerpt?: string;
+  focus_keyword?: string;
   lang?: 'es' | 'ca';
   category_ids?: number[];
   tag_ids?: number[];
@@ -199,13 +201,19 @@ Deno.serve(async (req) => {
       postData.featured_media = featuredMediaId;
     }
 
+    // Add excerpt (native WordPress field, works without extra config)
+    if (body.excerpt) {
+      postData.excerpt = body.excerpt.substring(0, 160);
+      console.log('Adding excerpt:', body.excerpt.substring(0, 50) + '...');
+    }
+
     // Add scheduled date if provided
     if (body.status === 'future' && body.date) {
       postData.date = body.date;
     }
 
     // Add Yoast SEO meta fields if provided
-    if (body.meta_description || body.seo_title) {
+    if (body.meta_description || body.seo_title || body.focus_keyword) {
       const yoastMeta: Record<string, string> = {};
       
       if (body.meta_description) {
@@ -219,6 +227,11 @@ Deno.serve(async (req) => {
       } else if (body.title) {
         // Fallback to regular title if no seo_title
         yoastMeta._yoast_wpseo_title = body.title.substring(0, 60);
+      }
+
+      // Add focus keyword for Yoast analysis
+      if (body.focus_keyword) {
+        yoastMeta._yoast_wpseo_focuskw = body.focus_keyword.substring(0, 50);
       }
       
       postData.meta = yoastMeta;
