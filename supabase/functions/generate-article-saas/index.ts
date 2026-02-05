@@ -149,12 +149,13 @@ REGLAS DE ESTRUCTURA HTML:
 ⚠️ OPTIMIZACIÓN SEO CRÍTICA (Yoast verde OBLIGATORIO):
 
 1. FOCUS KEYWORD (2-4 palabras):
-   - DEBE aparecer en el slug
-   - DEBE aparecer en el seo_title (idealmente al INICIO)
+   - DEBE aparecer MÍNIMO 5 VECES en el texto completo
+   - Distribuir uniformemente: intro, mitad del artículo, y conclusión (NO todo junto)
+   - DEBE aparecer en el seo_title (AL INICIO, primeras palabras)
    - DEBE aparecer en la meta_description
    - DEBE aparecer en el primer párrafo (primeras 100 palabras)
-   - DEBE aparecer en al menos 1 subtítulo H2
-   - Densidad: 1-2% del texto total
+   - DEBE aparecer en AL MENOS 2 subtítulos H2 o H3
+   - Usa SINÓNIMOS de la keyword en otras secciones para distribución natural
 
 2. ENLACES EXTERNOS OBLIGATORIOS:
    - INCLUYE 1-2 enlaces a fuentes de autoridad (Wikipedia, estudios, instituciones oficiales, medios reconocidos)
@@ -162,13 +163,20 @@ REGLAS DE ESTRUCTURA HTML:
    - NO enlaces a competidores directos
 
 3. META DESCRIPTION:
-   - MÁXIMO 155 caracteres (NUNCA más, ni un carácter más)
+   - EXACTAMENTE 140-150 caracteres (NUNCA más de 150)
    - Incluir focus_keyword
    - Terminar con CTA
 
 4. PÁRRAFOS Y LEGIBILIDAD:
    - Mantén los párrafos entre 2-4 oraciones
    - Usa transiciones entre secciones
+
+5. PREGUNTAS PAA (People Also Ask):
+   - INCLUYE 1-2 subtítulos H2 en FORMATO PREGUNTA
+   - Estas preguntas deben ser las que los usuarios buscan en Google sobre el tema
+   - Ejemplos: "¿Por qué...?", "¿Cómo...?", "¿Cuál es...?", "¿Qué significa...?"
+   - Responde la pregunta en el párrafo siguiente (2-4 oraciones directas)
+   - Esto mejora posicionamiento en featured snippets de Google
 
 ⚠️ CAPITALIZACIÓN ESPAÑOLA OBLIGATORIA:
 - SOLO la primera letra del título/subtítulo en mayúscula (+ nombres propios)
@@ -182,11 +190,11 @@ FORMATO DE RESPUESTA JSON (TODOS los campos son OBLIGATORIOS):
 {
   "title": "Título H1 atractivo (máx 70 chars, SIN nombre empresa, SIN año)",
   "seo_title": "SEO title (máx 60 chars, EMPIEZA con focus_keyword)",
-  "meta_description": "Meta descripción (MÁXIMO 155 caracteres) con focus_keyword y CTA",
+  "meta_description": "Meta descripción (140-150 caracteres EXACTOS) con focus_keyword y CTA",
   "excerpt": "Resumen breve (máx 160 chars) DIFERENTE a meta_description",
   "focus_keyword": "keyword principal de 2-4 palabras",
   "slug": "url-con-focus-keyword-sin-espacios",
-  "content": "<h2>Subtítulo con focus_keyword</h2><p>Primer párrafo con focus_keyword en las primeras 100 palabras...</p>..."
+  "content": "<h2>Subtítulo con focus_keyword</h2><p>Primer párrafo con focus_keyword...</p>...<h2>¿Pregunta PAA relevante?</h2><p>Respuesta...</p>"
 }
 
 RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO.`,
@@ -202,18 +210,20 @@ REGLAS OBLIGATORIAS:
 1. El contenido HTML NO debe contener <h1> (WordPress lo añade)
 2. Empieza el contenido con un <h2> que sea un GANCHO, diferente al título
 3. INCLUYE 1-2 enlaces externos a fuentes de autoridad (Wikipedia, estudios, instituciones) - OBLIGATORIO
-4. La meta_description NUNCA puede superar 155 caracteres
-5. El focus_keyword (2-4 palabras) debe aparecer en: slug, seo_title, meta_description, primer párrafo y al menos 1 H2
+4. La meta_description debe tener EXACTAMENTE 140-150 caracteres (NUNCA más de 150)
+5. El focus_keyword (2-4 palabras) debe aparecer MÍNIMO 5 VECES distribuidas uniformemente
+6. El focus_keyword debe estar en: slug, seo_title (AL INICIO), meta_description, primer párrafo y AL MENOS 2 subtítulos H2/H3
+7. INCLUYE 1-2 subtítulos H2 en formato PREGUNTA (¿Por qué...?, ¿Cómo...?, ¿Qué...?) con respuesta directa
 
 FORMATO JSON OBLIGATORIO (TODOS los campos requeridos):
 {
   "title": "Título H1 atractivo (máx 70 caracteres)",
   "seo_title": "SEO title que EMPIEZA con focus_keyword (máx 60 chars)",
-  "meta_description": "Meta descripción (MÁXIMO 155 chars) con keyword y CTA",
+  "meta_description": "Meta descripción (140-150 chars EXACTOS) con keyword y CTA",
   "excerpt": "Resumen diferente a meta_description (máx 160 chars)",
   "focus_keyword": "keyword principal 2-4 palabras",
   "slug": "url-con-keyword-sin-espacios",
-  "content": "<h2>Subtítulo con keyword</h2><p>Primer párrafo con keyword en las primeras 100 palabras...</p>..."
+  "content": "<h2>Subtítulo con keyword</h2><p>Primer párrafo con keyword...</p>...<h2>¿Pregunta PAA?</h2><p>Respuesta...</p>"
 }`,
 
   translateCatalan: `Traduce este artículo del español al catalán.
@@ -1180,6 +1190,12 @@ serve(async (req) => {
 
     console.log("Spanish article generated successfully");
 
+    // Post-generation validation: truncate meta_description if over 155 chars
+    if (spanishArticle.meta_description && spanishArticle.meta_description.length > 155) {
+      console.log(`Meta description too long (${spanishArticle.meta_description.length} chars), truncating to 155`);
+      spanishArticle.meta_description = spanishArticle.meta_description.substring(0, 152) + '...';
+    }
+
     // Store Spanish content WITHOUT SEO footer for translation
     const spanishContentWithoutSeo = spanishArticle.content;
     let catalanArticle = null;
@@ -1259,23 +1275,14 @@ serve(async (req) => {
     function addHomeLinkToContent(content: string, siteName: string, blogUrl: string | null): string {
       if (!blogUrl || !siteName) return content;
       
-      // Derive home URL from blog URL (remove /blog or last path segment)
-      let homeUrl = blogUrl.replace(/\/blog\/?$/i, '');
-      if (homeUrl === blogUrl) {
-        // If no /blog suffix, try removing last path segment
-        homeUrl = blogUrl.replace(/\/[^\/]+\/?$/, '') || blogUrl;
-      }
-      // Ensure it ends without trailing slash for consistency
-      homeUrl = homeUrl.replace(/\/$/, '');
-      
-      // If homeUrl is empty or same as blog, use blog domain root
-      if (!homeUrl || homeUrl === blogUrl) {
-        try {
-          const url = new URL(blogUrl);
-          homeUrl = `${url.protocol}//${url.host}`;
-        } catch {
-          return content;
-        }
+      // ALWAYS extract the root domain as home URL
+      let homeUrl: string;
+      try {
+        const url = new URL(blogUrl);
+        homeUrl = `${url.protocol}//${url.host}`;
+      } catch {
+        console.log("Failed to parse blog URL for home link");
+        return content;
       }
       
       console.log(`Adding home link: ${siteName} -> ${homeUrl}`);
