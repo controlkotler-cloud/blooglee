@@ -1,59 +1,71 @@
 
-## Plan: Mejoras de Deduplicacion y Verificacion de Enlaces
 
-### ✅ COMPLETADO
+## Plan: Mejorar instrucciones de enlaces externos en prompts
 
----
+### Problema identificado
 
-### Problema 1: Memoria de deduplicacion insuficiente para sitios diarios
+El LLM tiene dos comportamientos:
+1. A veces acierta con URLs específicas reales (ej: `blog.hootsuite.com/best-time-to-post-on-instagram/`)
+2. Otras veces inventa rutas que no existen (ej: `nielsen.com/es/insights/2023/...`)
 
-**Cambio implementado en `generate-article-saas/index.ts`:**
+### Solucion
 
-```typescript
-function getTopicsLimitForFrequency(publishFrequency: string): number {
-  switch (publishFrequency) {
-    case 'daily':
-    case 'daily_weekdays':
-      return 60; // ~2 meses de memoria para diario
-    case 'weekly':
-    case 'biweekly':
-      return 30; // ~6-7 meses para semanal
-    case 'monthly':
-    default:
-      return 20; // ~20 meses para mensual
-  }
-}
+Modificar las instrucciones del prompt para que el LLM:
+- Si conoce la URL exacta de un recurso, la incluya
+- Si no esta seguro de la ruta especifica, enlace a la HOME del dominio de la fuente
+- NO hardcodear dominios para no limitar la variedad
+
+### Cambio en prompts
+
+**Instruccion actualizada para enlaces:**
+
+```
+Incluye 2-3 enlaces externos a fuentes de autoridad cuando menciones estadísticas, estudios o informes.
+- Si conoces la URL exacta del recurso (artículo, estudio, página específica), inclúyela.
+- Si NO estás seguro de la URL específica, enlaza a la página principal del dominio de esa fuente.
+  Ejemplo: en lugar de inventar "nielsen.com/es/insights/2023/titulo-inventado", usa "nielsen.com"
+- El texto del enlace debe ser descriptivo: "según Nielsen" con enlace a nielsen.com
 ```
 
-- ✅ `getUsedTopicsForSite()` ahora acepta límite dinámico
-- ✅ La lógica de generación usa el límite según la frecuencia del site
+### Archivos a modificar
 
----
+| Ubicacion | Cambio |
+|-----------|--------|
+| Tabla `prompts` - key `saas.article.system` | Actualizar instrucciones de enlaces |
+| Tabla `prompts` - key `saas.article.user` | Verificar coherencia (si aplica) |
+| `generate-article/index.ts` | Actualizar prompt hardcodeado para MKPro farmacias |
+| `generate-article-empresa/index.ts` | Actualizar prompt hardcodeado para MKPro empresas |
 
-### Problema 2: Enlaces externos que dan 404
+### Flujo resultante
 
-**Cambio implementado:**
+```text
+1. LLM genera articulo con enlaces
+   - URLs conocidas exactas → las incluye tal cual
+   - URLs dudosas → pone solo la home del dominio
 
-Nueva función `verifyAndCleanExternalLinks()` que:
-1. Extrae todos los enlaces externos del HTML generado
-2. Verifica cada uno con HEAD request (timeout 5s)
-3. Elimina los enlaces rotos, dejando solo el texto del ancla
+2. Sistema de verificacion (ya implementado)
+   - Verifica cada enlace con HEAD request
+   - Elimina los que devuelvan 404
+   - Las homes de dominios conocidos casi nunca fallan
 
-Integrada en el flujo antes de guardar el artículo:
-```typescript
-if (spanishArticle?.content) {
-  spanishArticle.content = await verifyAndCleanExternalLinks(spanishArticle.content);
-}
-if (catalanArticle?.content) {
-  catalanArticle.content = await verifyAndCleanExternalLinks(catalanArticle.content);
-}
+3. Articulo guardado con enlaces funcionales
 ```
 
----
+### Ejemplo practico
 
-### Pendiente para consistencia (opcional)
+**Antes (LLM inventa ruta):**
+```html
+Según un <a href="https://www.nielsen.com/es/insights/2023/comercio-electronico">estudio de Nielsen</a>...
+```
+→ Da 404 → Se elimina enlace
 
-- [ ] Aplicar mismos cambios a `generate-article/index.ts` (MKPro farmacias)
-- [ ] Aplicar mismos cambios a `generate-article-empresa/index.ts` (MKPro empresas)
+**Despues (LLM usa home si no esta seguro):**
+```html
+Según un estudio de <a href="https://www.nielsen.com">Nielsen</a>...
+```
+→ Funciona → Se mantiene
 
-Estos archivos están en zona protegida. Si deseas aplicar las mejoras, indícalo explícitamente.
+### Nota tecnica
+
+La verificacion de enlaces que implementamos sigue siendo util como red de seguridad: si alguna home de dominio cambia o falla, se eliminara automaticamente.
+
