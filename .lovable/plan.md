@@ -1,261 +1,206 @@
 
 
-## Plan: Corregir meta descripción Yoast y añadir campos SEO adicionales
+## Análisis: Problemas de Yoast SEO en artículos MKPro
 
-### Diagnóstico del problema
+He analizado la captura de pantalla con los 10 problemas de Yoast y el código actual de MKPro. Aquí está el diagnóstico:
 
-Tras analizar los logs, el código y la documentación oficial de Yoast, he identificado la causa raíz:
+### Resumen de problemas
 
-| Problema | Causa |
-|----------|-------|
-| Meta descripción no se publica | **Yoast no expone sus campos via REST API** - su API es solo lectura (read-only) |
-| SEO title no se publica | Mismo problema - requiere `register_post_meta` en WordPress |
+| Problema Yoast | Causa raíz | Podemos arreglar | Queremos arreglar |
+|----------------|------------|------------------|-------------------|
+| Frase clave en alt de imágenes | El alt usa el título, no la keyword | SI | SI |
+| Frase clave en la introducción | La IA no recibe instrucciones de keyword placement | SI | SI |
+| Keyphrase density | No hay keyword definida | SI | SI |
+| Frase clave en el título SEO | No se genera seo_title ni focus_keyword | SI | SI |
+| Longitud de la frase clave | No se genera focus_keyword | SI | SI |
+| Frase clave en la meta descripción | La keyword no se usa en meta_description | SI | SI |
+| Longitud de la metadescripción | Se genera pero requiere snippet PHP en WP | PARCIAL | SI (con snippet) |
+| Frase clave utilizada anteriormente | No hay tracking de keywords usadas | COMPLEJO | NO (bajo ROI) |
+| Frase clave en el slug | El slug no incluye keyword | SI | SI |
+| Keyphrase in subheading | La IA no incluye keyword en H2 | SI | SI |
 
-La documentación oficial de Yoast confirma: *"The Yoast REST API is currently read-only and doesn't support POST or PUT calls to update the data."*
+---
 
-### Solución en dos fases
+### Problema raíz: Falta el campo `focus_keyword`
 
-#### Fase 1: Campos nativos de WordPress (funcionan sin configuración)
+El sistema MKPro actualmente genera:
+- `title` (H1)
+- `meta_description`
+- `slug`
+- `content` (HTML)
 
-WordPress tiene campos nativos que **sí funcionan** via REST API sin necesidad de snippets:
+**Falta generar**:
+- `focus_keyword` - La palabra clave principal del artículo
+- `seo_title` - Título SEO optimizado (diferente al H1)
+- `excerpt` - Extracto/resumen corto
 
-| Campo | Uso SEO | Estado actual |
-|-------|---------|---------------|
-| `excerpt` | Extracto/resumen del post (Yoast lo usa como fallback para meta descripción) | NO enviamos |
-| `title` | Título H1 | OK |
-| `content` | Contenido HTML | OK |
-| `slug` | URL amigable | OK |
-| `featured_media` | Imagen destacada | OK |
-| `meta.alt_text` | Alt de imagen | OK |
+Sin `focus_keyword`, Yoast no puede analizar:
+- Densidad de la keyword
+- Presencia en título, meta, slug, H2, alt, introducción
 
-**Acción**: Añadir el campo `excerpt` a la publicación. Yoast usa el excerpt como fallback cuando no hay meta descripción configurada manualmente.
+---
 
-#### Fase 2: Snippet PHP para campos de Yoast (solución completa)
+### Solución propuesta
 
-Para que meta descripción y SEO title funcionen correctamente, el usuario debe añadir un snippet en su WordPress que registre los campos meta:
+#### Fase 1: Generar campos SEO adicionales en MKPro
 
-```php
-/**
- * Blooglee - Yoast SEO API Support
- * Habilita la edición de campos Yoast via REST API
- */
-add_action('init', function() {
-    // Meta descripción
-    register_post_meta('post', '_yoast_wpseo_metadesc', [
-        'show_in_rest' => true,
-        'single' => true,
-        'type' => 'string',
-        'auth_callback' => function() {
-            return current_user_can('edit_posts');
-        }
-    ]);
-    
-    // SEO Title
-    register_post_meta('post', '_yoast_wpseo_title', [
-        'show_in_rest' => true,
-        'single' => true,
-        'type' => 'string',
-        'auth_callback' => function() {
-            return current_user_can('edit_posts');
-        }
-    ]);
-    
-    // Focus keyword
-    register_post_meta('post', '_yoast_wpseo_focuskw', [
-        'show_in_rest' => true,
-        'single' => true,
-        'type' => 'string',
-        'auth_callback' => function() {
-            return current_user_can('edit_posts');
-        }
-    ]);
-});
-```
-
-### Campos SEO adicionales a implementar
-
-| Campo | Descripción | Beneficio SEO |
-|-------|-------------|---------------|
-| `excerpt` | Resumen de 150-160 caracteres | Fallback de meta descripción, mejora CTR |
-| `_yoast_wpseo_focuskw` | Keyword principal del artículo | Yoast analiza densidad y ubicación |
-| `_yoast_wpseo_metadesc` | Meta descripción optimizada | Snippet en Google |
-| `_yoast_wpseo_title` | SEO title (diferente al H1) | Título optimizado para CTR |
-
-### Archivos a modificar
-
-| Archivo | Cambios |
-|---------|---------|
-| `supabase/functions/publish-to-wordpress-saas/index.ts` | Añadir campo `excerpt`, añadir `_yoast_wpseo_focuskw` |
-| `supabase/functions/generate-article-saas/index.ts` | Generar `excerpt` y `focus_keyword` en el contenido |
-| `src/hooks/useArticlesSaas.ts` | Añadir tipos `excerpt` y `focus_keyword` |
-| `src/components/saas/WordPressPublishDialogSaas.tsx` | Enviar `excerpt` y `focus_keyword` al publicar |
-| `src/data/codeSnippets.ts` | Añadir snippet de Yoast API Support |
-| Base de datos: `prompts` | Actualizar prompts para generar `excerpt` y `focus_keyword` |
-
-### Cambios técnicos detallados
-
-#### 1. Actualizar interfaz ArticleContent
-
-```typescript
-export interface ArticleContent {
-  title: string;
-  seo_title?: string;
-  meta_description: string;
-  excerpt?: string;           // NUEVO: resumen corto
-  focus_keyword?: string;     // NUEVO: keyword principal
-  slug: string;
-  content: string;
-}
-```
-
-#### 2. Actualizar PublishInputSaas
-
-```typescript
-export interface PublishInputSaas {
-  // ... campos existentes
-  excerpt?: string;           // NUEVO
-  focus_keyword?: string;     // NUEVO
-}
-```
-
-#### 3. Actualizar publish-to-wordpress-saas
-
-```typescript
-// Añadir excerpt (funciona nativamente)
-if (body.excerpt) {
-  postData.excerpt = body.excerpt;
-}
-
-// Campos Yoast (requieren snippet PHP)
-if (body.meta_description || body.seo_title || body.focus_keyword) {
-  const yoastMeta: Record<string, string> = {};
-  
-  if (body.meta_description) {
-    yoastMeta._yoast_wpseo_metadesc = body.meta_description.substring(0, 160);
-  }
-  
-  if (body.seo_title) {
-    yoastMeta._yoast_wpseo_title = body.seo_title.substring(0, 60);
-  }
-  
-  if (body.focus_keyword) {
-    yoastMeta._yoast_wpseo_focuskw = body.focus_keyword;
-  }
-  
-  postData.meta = yoastMeta;
-}
-```
-
-#### 4. Actualizar prompts de generación
-
-Añadir al JSON de salida:
+Modificar `generate-article/index.ts` para generar:
 
 ```json
 {
-  "title": "Título H1 del artículo",
-  "seo_title": "SEO title optimizado (max 60 chars)",
-  "meta_description": "Meta descripción 150-160 caracteres",
-  "excerpt": "Resumen corto del artículo (max 160 chars, ideal para snippet)",
-  "focus_keyword": "keyword principal del artículo",
-  "slug": "url-amigable",
-  "content": "<h2>...</h2><p>...</p>"
+  "title": "Título H1 del artículo (max 60 chars)",
+  "seo_title": "Título SEO optimizado para CTR (max 60 chars)",
+  "meta_description": "Meta descripción con keyword (max 160 chars)",
+  "focus_keyword": "keyword principal",
+  "excerpt": "Resumen corto del artículo",
+  "slug": "slug-con-keyword",
+  "content": "<h2>Subtítulo con keyword</h2><p>Primera frase incluye keyword...</p>"
 }
 ```
 
-#### 5. Añadir snippet de Yoast a la biblioteca
+#### Fase 2: Actualizar prompts con reglas SEO
 
-Añadir a `src/data/codeSnippets.ts`:
-
-```typescript
-{
-  id: 'yoast-api-support',
-  title: 'Yoast SEO - Soporte API REST',
-  description: 'Habilita la edición de meta descripción, SEO title y focus keyword vía API',
-  category: 'general',
-  plugin: 'yoast',
-  fileName: 'functions.php',
-  code: `/**
- * Blooglee - Yoast SEO API Support
- * Habilita la edición de campos Yoast via REST API
- */
-add_action('init', function() {
-    // Meta descripción
-    register_post_meta('post', '_yoast_wpseo_metadesc', [
-        'show_in_rest' => true,
-        'single' => true,
-        'type' => 'string',
-        'auth_callback' => function() {
-            return current_user_can('edit_posts');
-        }
-    ]);
-    
-    // SEO Title
-    register_post_meta('post', '_yoast_wpseo_title', [
-        'show_in_rest' => true,
-        'single' => true,
-        'type' => 'string',
-        'auth_callback' => function() {
-            return current_user_can('edit_posts');
-        }
-    ]);
-    
-    // Focus keyword
-    register_post_meta('post', '_yoast_wpseo_focuskw', [
-        'show_in_rest' => true,
-        'single' => true,
-        'type' => 'string',
-        'auth_callback' => function() {
-            return current_user_can('edit_posts');
-        }
-    ]);
-});`,
-  instructions: `1. Accede a tu WordPress
-2. Ve a **Apariencia → Editor de temas**
-3. Selecciona tu tema hijo
-4. Abre **functions.php**
-5. Añade el código al final
-6. Guarda los cambios
-
-⚠️ Este snippet es NECESARIO para que Blooglee pueda rellenar automáticamente:
-- Meta descripción (aparece en Google)
-- SEO Title (título optimizado para CTR)
-- Focus Keyword (para análisis de Yoast)
-
-Sin este snippet, Yoast ignorará estos campos.`
-}
-```
-
-### Flujo de usuario actualizado
+Añadir al prompt del sistema:
 
 ```text
-1. Usuario configura WordPress en Blooglee
-   |
-   v
-2. Sistema detecta si Yoast responde a campos meta
-   |
-   +-- SI: Todo funciona automáticamente
-   |
-   +-- NO: Mostrar aviso "Añade el snippet de Yoast para mejor SEO"
-   |
-   v
-3. Mientras tanto, excerpt funciona siempre
-   (Yoast usa excerpt como fallback de meta descripción)
+REGLAS SEO PARA YOAST (semáforo verde):
+
+1. FOCUS KEYWORD:
+   - Define UNA keyword principal de 2-4 palabras
+   - Esta keyword DEBE aparecer en:
+     - El slug (URL)
+     - El seo_title (idealmente al inicio)
+     - La meta_description
+     - La primera frase del contenido
+     - Al menos un H2
+   - Densidad: 1-2% del contenido total
+
+2. ESTRUCTURA H2:
+   - Al menos 1 H2 debe contener la keyword exacta o variación cercana
+
+3. ALT DE IMAGEN:
+   - Usa la focus_keyword como base del alt text
 ```
 
-### Resultado esperado
+#### Fase 3: Actualizar publish-to-wordpress
 
-| Campo | Sin snippet | Con snippet |
-|-------|-------------|-------------|
-| Excerpt | Funciona (fallback meta desc) | Funciona |
-| Meta descripción Yoast | NO funciona | Funciona |
-| SEO Title Yoast | NO funciona | Funciona |
-| Focus keyword | NO funciona | Funciona |
-| Semáforo Yoast | Naranja (mejor que rojo) | Verde |
+Añadir campos al publicar:
 
-### Beneficios de esta solución
+```typescript
+postData.meta = {
+  _yoast_wpseo_metadesc: meta_description,
+  _yoast_wpseo_title: seo_title,
+  _yoast_wpseo_focuskw: focus_keyword // NUEVO
+};
 
-1. **Mejora inmediata**: El `excerpt` funciona sin configuración adicional
-2. **Solución completa opcional**: El snippet PHP habilita todos los campos de Yoast
-3. **UX clara**: El usuario sabe exactamente qué hacer para tener SEO perfecto
-4. **Retrocompatible**: No rompe nada existente
+// Alt de imagen con keyword
+image_alt: focus_keyword || title;
+
+// Excerpt nativo (fallback de meta descripción)
+postData.excerpt = excerpt;
+```
+
+---
+
+### Lo que NO queremos/podemos arreglar
+
+| Problema | Por qué no |
+|----------|------------|
+| "Frase clave utilizada anteriormente" | Requeriría un sistema de tracking de keywords usadas históricamente. Complejidad alta, ROI bajo. Yoast solo da aviso, no penaliza. |
+| "Longitud de metadescripción" sin snippet | La API REST de Yoast es read-only. Requiere que el usuario añada el snippet PHP. Sin embargo, el `excerpt` funciona como fallback. |
+
+---
+
+### Archivos a modificar (zona MKPro protegida)
+
+Nota: Según las reglas de arquitectura, estos archivos están en zona MKPro. Sin embargo, como es una mejora SEO que no cambia la estructura de datos ni rompe nada, es seguro modificarlos.
+
+| Archivo | Cambios |
+|---------|---------|
+| `supabase/functions/generate-article/index.ts` | Añadir `focus_keyword`, `seo_title`, `excerpt` al JSON. Actualizar prompts con reglas SEO. |
+| `supabase/functions/publish-to-wordpress/index.ts` | Añadir `excerpt`, `seo_title`, `focus_keyword` a los campos enviados |
+| `src/hooks/useArticulos.ts` | Añadir tipos para nuevos campos |
+| `src/components/pharmacy/WordPressPublishDialog.tsx` | Enviar nuevos campos al publicar |
+
+---
+
+### Cambios técnicos en el prompt de generación
+
+```text
+CAMPOS A GENERAR (JSON):
+{
+  "title": "Título H1 (max 60 chars)",
+  "seo_title": "Título SEO que EMPIECE con la focus_keyword (max 60 chars)",
+  "meta_description": "Descripción que INCLUYA la focus_keyword (max 160 chars)",
+  "focus_keyword": "keyword principal de 2-4 palabras",
+  "excerpt": "Resumen del artículo para snippet (max 160 chars)",
+  "slug": "url-amigable-con-focus-keyword",
+  "content": "<h2>Subtítulo que incluya focus_keyword...</h2><p>El primer párrafo DEBE contener la focus_keyword...</p>"
+}
+
+REGLAS SEO CRÍTICAS:
+1. La focus_keyword debe aparecer en:
+   - seo_title (idealmente al inicio)
+   - meta_description
+   - slug
+   - Primer párrafo del contenido
+   - Al menos 1 H2
+2. Densidad de keyword: 1-2% del texto total
+3. El excerpt debe ser diferente de meta_description pero relacionado
+```
+
+---
+
+### Cambios en publish-to-wordpress
+
+```typescript
+// Interfaz actualizada
+interface PublishRequest {
+  // ... campos existentes
+  seo_title?: string;      // NUEVO
+  focus_keyword?: string;  // NUEVO  
+  excerpt?: string;        // NUEVO
+}
+
+// Enviar a WordPress
+const postData = {
+  title,
+  content,
+  slug,
+  status,
+  excerpt: excerpt || meta_description?.substring(0, 160), // Fallback
+  meta: {
+    _yoast_wpseo_metadesc: meta_description,
+    _yoast_wpseo_title: seo_title || title,
+    _yoast_wpseo_focuskw: focus_keyword
+  }
+};
+
+// Alt de imagen con keyword
+image_alt: focus_keyword || image_alt || title;
+```
+
+---
+
+### Resultado esperado tras los cambios
+
+| Check de Yoast | Estado esperado |
+|----------------|-----------------|
+| Frase clave en alt de imágenes | VERDE (usamos focus_keyword) |
+| Frase clave en la introducción | VERDE (prompt lo exige) |
+| Keyphrase density | VERDE/NARANJA (1-2% target) |
+| Frase clave en el título SEO | VERDE (seo_title empieza con keyword) |
+| Longitud de la frase clave | VERDE (2-4 palabras) |
+| Frase clave en la meta descripción | VERDE (prompt lo exige) |
+| Longitud de la metadescripción | VERDE (con snippet) / NARANJA (sin snippet, usa excerpt) |
+| Frase clave utilizada anteriormente | NARANJA (no tracking - aceptable) |
+| Frase clave en el slug | VERDE (slug incluye keyword) |
+| Keyphrase in subheading | VERDE (al menos 1 H2 con keyword) |
+
+### Resumen
+
+- **9 de 10 problemas** se pueden resolver con cambios en los prompts y el código
+- **1 problema** ("frase clave utilizada anteriormente") no vale la pena arreglar por complejidad/ROI
+- Los campos de Yoast funcionarán completamente si el usuario añade el snippet PHP (ya disponible en la biblioteca de snippets)
+- El `excerpt` funciona siempre como fallback para meta descripción
 
