@@ -510,7 +510,7 @@ REGLAS ESTRICTAS:
 - El año actual es ${currentYear}. NO menciones años anteriores.
 - NO incluir el año en el título (contenido evergreen)
 - El título debe ser irresistible y tener máximo 60 caracteres
-- El excerpt: máximo 145 caracteres, tono directo, SIN exclamaciones ni interrogaciones
+- El excerpt: máximo 145 caracteres, tono directo, PROHIBIDO usar signos de exclamación (!) o interrogación (?)
 - El tema DEBE ser diferente a todos los prohibidos arriba
 
 REGLAS DE CAPITALIZACIÓN (ESPAÑOL - MUY IMPORTANTE):
@@ -564,10 +564,20 @@ Responde SOLO con este JSON válido:
     const validCategory = forceCategory || normalizeThematicCategory(parsed.thematic_category);
     console.log(`Category: AI said "${parsed.thematic_category}" → normalized to "${validCategory}"`);
     
+    // Clean excerpt: remove ! and ? marks, truncate to 145
+    let cleanExcerpt = (parsed.excerpt || "")
+      .replace(/[!¡?¿]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (cleanExcerpt.length > 145) {
+      cleanExcerpt = cleanExcerpt.substring(0, 142) + '...';
+    }
+    console.log("Cleaned punctuation from excerpt");
+    
     return {
       title: parsed.title || "Artículo sin título",
       slug: parsed.slug || `articulo-${Date.now()}`,
-      excerpt: parsed.excerpt || "",
+      excerpt: cleanExcerpt,
       keywords: parsed.keywords || [],
       topic: parsed.topic || "marketing digital",
       thematic_category: validCategory
