@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+ import { useGeneration } from "@/contexts/GenerationContext";
 
 export interface ArticleContent {
   title: string;
@@ -88,9 +89,12 @@ export async function getUsedImageUrlsEmpresas(month: number, year: number): Pro
 
 export function useGenerateArticleEmpresa() {
   const queryClient = useQueryClient();
+   const { addGenerating, removeGenerating } = useGeneration();
 
   return useMutation({
     mutationFn: async (params: GenerateArticleParams) => {
+       addGenerating(params.empresaId);
+       
       // Call the new dedicated edge function for companies
       const { data, error } = await supabase.functions.invoke("generate-article-empresa", {
         body: {
@@ -182,6 +186,9 @@ export function useGenerateArticleEmpresa() {
 
       return data;
     },
+     onSettled: (_, __, params) => {
+       removeGenerating(params.empresaId);
+     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["articulos_empresas", variables.month, variables.year],

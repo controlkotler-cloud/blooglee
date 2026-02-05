@@ -22,6 +22,7 @@ import { PlanBadge, type PlanType } from '@/components/saas/PlanBadge';
 import { SiteImportExport } from '@/components/saas/SiteImportExport';
 import { OnboardingTour } from '@/components/saas/OnboardingTour';
 import { toast } from 'sonner';
+ import { useGeneration } from '@/contexts/GenerationContext';
 
 export default function SaasDashboard() {
   const navigate = useNavigate();
@@ -34,8 +35,8 @@ export default function SaasDashboard() {
   // Onboarding tour
   const { shouldShowTour, completeTour } = useOnboardingTour();
   
-  // State for tracking multiple concurrent generations
-  const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
+   // Global generation state
+   const { isGenerating } = useGeneration();
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
@@ -48,10 +49,6 @@ export default function SaasDashboard() {
   const generateMutation = useGenerateArticleSaas();
   const importSitesMutation = useImportSites();
 
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
   const sitesLimit = profile?.sites_limit ?? 1;
   const canAddSite = sites.length < sitesLimit;
   const plan = (profile?.plan || 'free') as PlanType;
@@ -60,19 +57,12 @@ export default function SaasDashboard() {
     return articles.filter(a => a.site_id === siteId).length;
   };
 
-  const handleGenerateArticle = async (siteId: string) => {
-    // Add to generating set
-    setGeneratingIds(prev => new Set(prev).add(siteId));
-    try {
-      await generateMutation.mutateAsync({ siteId });
-    } finally {
-      // Remove from generating set when done
-      setGeneratingIds(prev => {
-        const next = new Set(prev);
-        next.delete(siteId);
-        return next;
-      });
-    }
+   const handleGenerateArticle = (siteId: string) => {
+     generateMutation.mutate({ siteId });
+   };
+ 
+   const handleSignOut = async () => {
+     await signOut();
   };
 
   const isLoading = loadingProfile || loadingSites;
@@ -211,7 +201,7 @@ export default function SaasDashboard() {
                 onConfigureWordPress={() => navigate(`/site/${site.id}?tab=wordpress`)}
                 onEdit={() => navigate(`/site/${site.id}?tab=settings`)}
                 onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
-                isGenerating={generatingIds.has(site.id)}
+                 isGenerating={isGenerating(site.id)}
                 isFirstSite={index === 0}
               />
             ))}
