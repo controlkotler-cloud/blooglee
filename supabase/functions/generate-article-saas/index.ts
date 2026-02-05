@@ -721,14 +721,29 @@ async function countArticlesThisMonth(supabaseClient: any, userId: string, month
   }
 }
 
-async function getUsedTopicsForSite(supabaseClient: any, siteId: string): Promise<string[]> {
+// Get dynamic topics limit based on publish frequency
+function getTopicsLimitForFrequency(publishFrequency: string): number {
+  switch (publishFrequency) {
+    case 'daily':
+    case 'daily_weekdays':
+      return 60; // ~2 months of memory for daily
+    case 'weekly':
+    case 'biweekly':
+      return 30; // ~6-7 months for weekly
+    case 'monthly':
+    default:
+      return 20; // ~20 months for monthly
+  }
+}
+
+async function getUsedTopicsForSite(supabaseClient: any, siteId: string, limit: number = 50): Promise<string[]> {
   try {
     const { data, error } = await supabaseClient
       .from('articles')
       .select('topic')
       .eq('site_id', siteId)
       .order('generated_at', { ascending: false })
-      .limit(50);
+      .limit(limit);
     
     if (error) {
       console.error("Error fetching used topics:", error);
@@ -740,6 +755,70 @@ async function getUsedTopicsForSite(supabaseClient: any, siteId: string): Promis
     console.error("Exception fetching used topics:", e);
     return [];
   }
+}
+
+// ==========================================
+// EXTERNAL LINK VERIFICATION
+// ==========================================
+async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string> {
+  if (!htmlContent) return htmlContent;
+  
+  // Regex to match external links
+  const linkRegex = /<a\s+([^>]*href="(https?:\/\/[^"]+)"[^>]*)>([^<]*)<\/a>/gi;
+  const matches: Array<{ full: string; url: string; text: string }> = [];
+  
+  let match;
+  while ((match = linkRegex.exec(htmlContent)) !== null) {
+    matches.push({
+      full: match[0],
+      url: match[2],
+      text: match[3]
+    });
+  }
+  
+  if (matches.length === 0) {
+    console.log("No external links found in content");
+    return htmlContent;
+  }
+  
+  console.log(`Verifying ${matches.length} external links...`);
+  
+  // Limit to first 10 links to avoid timeout
+  const linksToVerify = matches.slice(0, 10);
+  let cleanedContent = htmlContent;
+  let brokenCount = 0;
+  
+  for (const link of linksToVerify) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      const response = await fetch(link.url, {
+        method: 'HEAD',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; LinkChecker/1.0)'
+        }
+      });
+      
+      clearTimeout(timeout);
+      
+      if (response.status === 404 || response.status >= 500) {
+        console.log(`Broken link (${response.status}): ${link.url}`);
+        // Replace link with just the text
+        cleanedContent = cleanedContent.replace(link.full, link.text);
+        brokenCount++;
+      }
+    } catch (error) {
+      // Network error, timeout, or other issue - remove the link
+      console.log(`Link verification failed (${error instanceof Error ? error.message : 'unknown'}): ${link.url}`);
+      cleanedContent = cleanedContent.replace(link.full, link.text);
+      brokenCount++;
+    }
+  }
+  
+  console.log(`Link verification complete: ${brokenCount} broken links removed`);
+  return cleanedContent;
 }
 
 // ==========================================
@@ -943,7 +1022,12 @@ serve(async (req) => {
     
     if (!topic) {
       console.log("Generating topic with AI...");
-      const usedTopics = await getUsedTopicsForSite(supabase, siteId);
+      
+      // Use dynamic limit based on publish frequency
+      const topicsLimit = getTopicsLimitForFrequency(site.publish_frequency || 'monthly');
+      console.log(`Using topics limit: ${topicsLimit} for frequency: ${site.publish_frequency}`);
+      
+      const usedTopics = await getUsedTopicsForSite(supabase, siteId, topicsLimit);
       console.log(`Found ${usedTopics.length} Blooglee topics`);
       
       // Get WordPress topics from context
@@ -953,10 +1037,10 @@ serve(async (req) => {
         console.log('WordPress topics to avoid:', wpTopics.slice(0, 5).join(', '));
       }
       
-      // Build comprehensive avoid list
+      // Build comprehensive avoid list - use full dynamic limit
       const allAvoidTopics = [
         ...avoidTopics,
-        ...usedTopics.slice(0, 30),
+        ...usedTopics.slice(0, topicsLimit),
         ...wpTopics // WordPress topics from sync
       ];
       console.log(`Total topics to avoid: ${allAvoidTopics.length}`);
@@ -1517,6 +1601,18 @@ serve(async (req) => {
     // Calculate week of month
     const dayOfMonth = new Date().getDate();
     const weekOfMonth = Math.ceil(dayOfMonth / 7);
+
+    // ==========================================
+    // VERIFY AND CLEAN EXTERNAL LINKS
+    // ==========================================
+    console.log("Verifying external links in generated content...");
+    
+    if (spanishArticle?.content) {
+      spanishArticle.content = await verifyAndCleanExternalLinks(spanishArticle.content);
+    }
+    if (catalanArticle?.content) {
+      catalanArticle.content = await verifyAndCleanExternalLinks(catalanArticle.content);
+    }
 
     // Save article to database
     const articleData = {
