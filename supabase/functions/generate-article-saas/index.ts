@@ -180,12 +180,16 @@ REGLAS DE ESTRUCTURA HTML:
    - Formato: <a href="URL" target="_blank" rel="noopener">texto ancla descriptivo</a>
    - NO enlaces a competidores directos
 
-3. META DESCRIPTION:
+3. META DESCRIPTION (REGLAS CRÍTICAS):
    - MAXIMO 145 caracteres (nunca superar 150)
    - Incluir focus_keyword de forma natural
-   - Tono directo y profesional, SIN exclamaciones (!) ni interrogaciones (?)
-   - Sin adornos ni frases vacías (evitar "Descubre", "No te pierdas", etc.)
+   - ⚠️ PROHIBIDO usar signos de exclamación (!) - NUNCA
+   - ⚠️ PROHIBIDO usar signos de interrogación (?) - NUNCA
+   - Tono directo y profesional
+   - Sin adornos ni frases vacías (evitar "Descubre", "No te pierdas", "Aprende", etc.)
    - Foco en beneficio concreto o propuesta de valor clara
+   - Ejemplo CORRECTO: "Guía completa para optimizar tu blog WordPress con estrategias SEO probadas y resultados medibles"
+   - Ejemplo INCORRECTO: "¡Descubre cómo optimizar tu blog! ¿Quieres más tráfico?"
 
 4. PÁRRAFOS Y LEGIBILIDAD:
    - Mantén los párrafos entre 2-4 oraciones
@@ -230,7 +234,7 @@ REGLAS OBLIGATORIAS:
 1. El contenido HTML NO debe contener <h1> (WordPress lo añade)
 2. Empieza el contenido con un <h2> que sea un GANCHO, diferente al título
 3. INCLUYE 1-2 enlaces externos a fuentes de autoridad (Wikipedia, estudios, instituciones) - OBLIGATORIO
-4. La meta_description: máximo 145 caracteres, tono directo, SIN exclamaciones ni interrogaciones
+4. La meta_description: máximo 145 caracteres, tono directo, PROHIBIDO usar ! o ? (elimínalos siempre)
 5. El focus_keyword (2-4 palabras) debe aparecer MÍNIMO 5 VECES distribuidas uniformemente
 6. El focus_keyword debe estar en: slug, seo_title (AL INICIO), meta_description, primer párrafo y AL MENOS 2 subtítulos H2/H3
 7. INCLUYE 1-2 subtítulos H2 en formato PREGUNTA (¿Por qué...?, ¿Cómo...?, ¿Qué...?) con respuesta directa
@@ -259,7 +263,7 @@ Contenido: {{content}}
 
 REGLAS DE TRADUCCIÓN:
 - Mantén el focus_keyword traducido al catalán
-- La meta_description: máximo 145 caracteres, sin ! ni ?, tono directo
+- La meta_description: máximo 145 caracteres, PROHIBIDO usar ! o ?, tono directo
 - El excerpt debe ser diferente a la meta_description
 
 RESPONDE EN JSON (TODOS los campos obligatorios):
@@ -1301,10 +1305,20 @@ Deno.serve(async (req) => {
       console.log("Cleaned markdown from Spanish content");
     }
 
-    // Post-generation validation: truncate meta_description if over 155 chars
-    if (spanishArticle.meta_description && spanishArticle.meta_description.length > 155) {
-      console.log(`Meta description too long (${spanishArticle.meta_description.length} chars), truncating to 155`);
-      spanishArticle.meta_description = spanishArticle.meta_description.substring(0, 152) + '...';
+    // Post-generation validation: clean meta_description
+    if (spanishArticle.meta_description) {
+      // Remove exclamations and question marks
+      spanishArticle.meta_description = spanishArticle.meta_description
+        .replace(/[!¡?¿]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      console.log("Cleaned punctuation from meta_description");
+      
+      // Truncate if over 145 chars
+      if (spanishArticle.meta_description.length > 145) {
+        console.log(`Meta description too long (${spanishArticle.meta_description.length} chars), truncating to 145`);
+        spanishArticle.meta_description = spanishArticle.meta_description.substring(0, 142) + '...';
+      }
     }
 
     // Store Spanish content WITHOUT SEO footer for translation
@@ -1373,6 +1387,18 @@ Deno.serve(async (req) => {
               if (catalanArticle?.content) {
                 catalanArticle.content = cleanMarkdownFromHtml(catalanArticle.content);
                 console.log("Cleaned markdown from Catalan content");
+              }
+              
+              // Clean meta_description: remove ! and ? marks
+              if (catalanArticle?.meta_description) {
+                catalanArticle.meta_description = catalanArticle.meta_description
+                  .replace(/[!¡?¿]/g, '')
+                  .replace(/\s+/g, ' ')
+                  .trim();
+                if (catalanArticle.meta_description.length > 145) {
+                  catalanArticle.meta_description = catalanArticle.meta_description.substring(0, 142) + '...';
+                }
+                console.log("Cleaned punctuation from Catalan meta_description");
               }
             }
           }
