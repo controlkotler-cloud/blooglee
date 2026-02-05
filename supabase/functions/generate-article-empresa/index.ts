@@ -965,6 +965,14 @@ FORMATO DEL CONTENIDO:
 - SLUG: URL amigable en minúsculas con guiones.
 - CONTENIDO: ~2000 palabras con H2 y párrafos. NO uses H1 dentro del contenido.
 
+ENLACES EXTERNOS (2-3 por artículo):
+- Incluye 2-3 enlaces externos a fuentes de autoridad cuando menciones estadísticas, estudios o datos.
+- Si conoces la URL exacta del recurso (artículo, estudio, página específica), inclúyela completa.
+- Si NO estás seguro de la URL específica, enlaza a la página principal del dominio de esa fuente.
+  Ejemplo: en lugar de inventar "nielsen.com/es/insights/2023/titulo-inventado", usa simplemente "https://www.nielsen.com"
+- El texto del enlace debe ser descriptivo: "según Nielsen" con enlace a nielsen.com
+- Prioriza fuentes reconocidas del sector relevante para la empresa.
+
 REGLAS DE ORTOGRAFÍA Y FORMATO OBLIGATORIAS:
 - MAYÚSCULAS EN TÍTULOS: Usa las reglas del español, NO el estilo inglés (Title Case). Solo mayúscula inicial en títulos y subtítulos, excepto nombres propios.
   - CORRECTO: "Cómo mejorar tu estrategia de marketing digital"
