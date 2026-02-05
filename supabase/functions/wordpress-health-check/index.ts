@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// Deno native serve
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -454,7 +454,7 @@ async function checkPhase3(
   return { checks, errors, categories, languages };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
