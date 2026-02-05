@@ -1,234 +1,154 @@
 
 
-## Plan: Estado de generacion global y persistente para botones
+## Plan: Aplicar mejoras SEO a MKPro Empresas
 
-### Problema identificado
+### Diagnóstico confirmado
 
-Actualmente el estado de "generando" (`isGenerating`) se gestiona de forma local en cada componente:
+El artículo https://mkpro.es/asuntos-email-abrir-convertir/ fue generado por **MKPro Empresas** (`generate-article-empresa`), que **NO tiene implementados** los campos SEO que sí están en farmacias y SaaS:
 
-| Ubicacion | Estado | Problema |
-|-----------|--------|----------|
-| `SaasDashboard` | `useState<Set<string>>(generatingIds)` | Se pierde al navegar a otra pagina |
-| `SiteDetail` | `generateMutation.isPending` | Es una instancia diferente del hook, no comparte estado |
-| `MKPro` | `useState<Set<string>>(generatingIds)` | Se pierde al navegar |
+| Campo SEO | MKPro Farmacias | MKPro Empresas | Problema |
+|-----------|-----------------|----------------|----------|
+| `focus_keyword` | SI genera | NO genera | Yoast no puede analizar nada |
+| `seo_title` | SI genera | NO genera | Título SEO no optimizado |
+| `excerpt` | SI genera | NO genera | Sin fallback para meta desc |
+| Keyword en H2 | SI (prompt lo exige) | NO | Yoast marca error |
+| Keyword en intro | SI (prompt lo exige) | NO | Yoast marca error |
+| Keyword en slug | SI (prompt lo exige) | NO | Yoast marca error |
 
-### Solucion propuesta
+Aunque hayas añadido el snippet PHP de Yoast, los campos SEO nunca se envían porque:
+1. La generación NO los crea
+2. La publicación NO los envía aunque existieran
 
-Crear un **React Context global** que mantenga el estado de las generaciones activas y lo comparta entre todas las paginas/componentes.
-
-### Arquitectura
-
-```text
-GenerationContext (global)
-    |
-    +-- generatingIds: Set<string>  (IDs de sites/farmacias/empresas generando)
-    |
-    +-- addGenerating(id)  --> Marca como "generando"
-    +-- removeGenerating(id)  --> Marca como "completado"
-    +-- isGenerating(id)  --> Consulta si un ID esta generando
-```
-
-### Archivos a crear
-
-| Archivo | Descripcion |
-|---------|-------------|
-| `src/contexts/GenerationContext.tsx` | Context global con estado de generaciones activas |
+---
 
 ### Archivos a modificar
 
-| Archivo | Cambios |
-|---------|---------|
-| `src/App.tsx` | Envolver la app con `GenerationProvider` |
-| `src/hooks/useArticlesSaas.ts` | Integrar con el contexto en `useGenerateArticleSaas` |
-| `src/hooks/useArticulos.ts` | Integrar con el contexto en `useGenerateArticle` |
-| `src/hooks/useArticulosEmpresas.ts` | Integrar con el contexto en `useGenerateArticleEmpresa` |
-| `src/pages/SaasDashboard.tsx` | Usar el contexto en lugar de estado local |
-| `src/pages/SiteDetail.tsx` | Usar el contexto para mostrar estado correcto |
-| `src/pages/MKPro.tsx` | Usar el contexto en lugar de estado local |
-| `src/components/saas/SiteCard.tsx` | Recibir `isGenerating` del contexto (ya lo recibe por props, OK) |
-| `src/components/saas/SiteArticles.tsx` | Recibir `isGenerating` del contexto |
+| Archivo | Cambios necesarios |
+|---------|-------------------|
+| `supabase/functions/generate-article-empresa/index.ts` | Actualizar prompts para generar `focus_keyword`, `seo_title`, `excerpt` y aplicar reglas SEO |
+| `src/hooks/useArticulosEmpresas.ts` | Añadir campos SEO a la interfaz `ArticleContent` |
+| `src/components/company/WordPressPublishDialogEmpresa.tsx` | Enviar `focus_keyword`, `seo_title`, `excerpt` al publicar |
 
-### Detalle tecnico
+---
 
-#### 1. GenerationContext.tsx (nuevo archivo)
+### Cambios detallados
+
+#### 1. Actualizar interfaz `ArticleContent` en `useArticulosEmpresas.ts`
 
 ```typescript
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-
-interface GenerationContextType {
-  generatingIds: Set<string>;
-  addGenerating: (id: string) => void;
-  removeGenerating: (id: string) => void;
-  isGenerating: (id: string) => boolean;
-  isAnyGenerating: boolean;
-}
-
-const GenerationContext = createContext<GenerationContextType | undefined>(undefined);
-
-export function GenerationProvider({ children }: { children: ReactNode }) {
-  const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
-
-  const addGenerating = useCallback((id: string) => {
-    setGeneratingIds(prev => new Set(prev).add(id));
-  }, []);
-
-  const removeGenerating = useCallback((id: string) => {
-    setGeneratingIds(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  }, []);
-
-  const isGenerating = useCallback((id: string) => {
-    return generatingIds.has(id);
-  }, [generatingIds]);
-
-  const isAnyGenerating = generatingIds.size > 0;
-
-  return (
-    <GenerationContext.Provider value={{ 
-      generatingIds, 
-      addGenerating, 
-      removeGenerating, 
-      isGenerating, 
-      isAnyGenerating 
-    }}>
-      {children}
-    </GenerationContext.Provider>
-  );
-}
-
-export function useGeneration() {
-  const context = useContext(GenerationContext);
-  if (!context) {
-    throw new Error('useGeneration must be used within GenerationProvider');
-  }
-  return context;
+export interface ArticleContent {
+  title: string;
+  seo_title?: string;           // NUEVO
+  meta_description: string;
+  excerpt?: string;              // NUEVO
+  focus_keyword?: string;        // NUEVO
+  slug: string;
+  content: string;
 }
 ```
 
-#### 2. Modificar hooks de generacion
+#### 2. Actualizar prompt en `generate-article-empresa/index.ts`
 
-Cada hook de generacion llamara al contexto para marcar inicio/fin:
-
-```typescript
-// En useGenerateArticleSaas
-export function useGenerateArticleSaas() {
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const { addGenerating, removeGenerating } = useGeneration();
-
-  return useMutation({
-    mutationFn: async (params: GenerateArticleParams) => {
-      addGenerating(params.siteId);  // Marcar como generando
-      try {
-        // ... logica existente
-        return data;
-      } catch (error) {
-        throw error;
-      }
-    },
-    onSettled: (_, __, params) => {
-      removeGenerating(params.siteId);  // Siempre limpiar al terminar
-    },
-    // ... resto igual
-  });
+Cambiar el formato de respuesta JSON de:
+```json
+{
+  "title": "...",
+  "meta_description": "...",
+  "slug": "...",
+  "content": "..."
 }
 ```
 
-#### 3. Modificar SaasDashboard
-
-Eliminar el estado local y usar el contexto:
-
-```typescript
-// Antes
-const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
-
-// Despues
-const { isGenerating } = useGeneration();
-
-// En SiteCard
-isGenerating={isGenerating(site.id)}
+A:
+```json
+{
+  "title": "Título H1 (máx 60 caracteres)",
+  "seo_title": "SEO title que EMPIEZA con focus_keyword (máx 60 caracteres)",
+  "meta_description": "Meta descripción 150-160 caracteres con focus_keyword",
+  "excerpt": "Resumen breve (máx 160 caracteres, diferente a meta_description)",
+  "focus_keyword": "keyword principal de 2-4 palabras",
+  "slug": "url-amigable-con-focus-keyword",
+  "content": "<h2>Subtítulo con focus_keyword...</h2><p>Primer párrafo con focus_keyword...</p>"
+}
 ```
 
-#### 4. Modificar SiteDetail
-
-Usar el contexto para mostrar el estado real:
-
-```typescript
-const { isGenerating } = useGeneration();
-
-// En el boton
-const isCurrentlyGenerating = isGenerating(site.id);
-
-<Button disabled={isCurrentlyGenerating}>
-  {isCurrentlyGenerating ? 'Generando...' : 'Generar'}
-</Button>
-```
-
-#### 5. Modificar MKPro
-
-Igual que SaasDashboard, usar el contexto global:
-
-```typescript
-const { isGenerating, addGenerating, removeGenerating } = useGeneration();
-
-// En PharmacyCard
-isGenerating={isGenerating(pharmacy.id)}
-
-// En CompanyCard  
-isGenerating={isGenerating(company.id)}
-```
-
-### Flujo de uso
-
+Añadir reglas SEO al prompt del sistema:
 ```text
-Usuario en Dashboard
-    |
-    +-- Click "Generar" en SiteCard
-    |       |
-    |       +-- addGenerating(siteId) --> Set.add(siteId)
-    |       +-- Boton muestra "Generando..." con spinner
-    |
-    +-- Usuario navega a SiteDetail
-    |       |
-    |       +-- isGenerating(siteId) --> true
-    |       +-- Boton muestra "Generando..." (estado persistido)
-    |
-    +-- Usuario vuelve a Dashboard
-    |       |
-    |       +-- isGenerating(siteId) --> true (sigue mostrando)
-    |
-    +-- Generacion termina
-            |
-            +-- removeGenerating(siteId) --> Set.delete(siteId)
-            +-- Todos los botones se actualizan automaticamente
+REGLAS SEO CRÍTICAS PARA YOAST (semáforo verde):
+
+1. FOCUS KEYWORD (2-4 palabras) DEBE aparecer en:
+   - El slug (URL)
+   - El seo_title (idealmente al INICIO)
+   - La meta_description
+   - El primer párrafo del contenido (primeras 50 palabras)
+   - Al menos 1 subtítulo H2
+   
+2. DENSIDAD DE KEYWORD: 1-2% del texto total
+
+3. SEO_TITLE: Diferente al H1, optimizado para CTR, max 60 caracteres
+
+4. EXCERPT: Resumen diferente a meta_description, max 160 caracteres
 ```
 
-### Beneficios
+#### 3. Actualizar `WordPressPublishDialogEmpresa.tsx`
 
-1. **Estado consistente**: El boton muestra "Generando" en cualquier pantalla
-2. **No se pierde al navegar**: El estado vive en el contexto global
-3. **Multiples generaciones**: Soporta generar varios sites/farmacias a la vez
-4. **Reactivo**: Al terminar, todos los componentes se actualizan
+Modificar la llamada a `publishMutation.mutateAsync`:
 
-### Consideraciones
+```typescript
+const result = await publishMutation.mutateAsync({
+  empresa_id: empresaId,
+  title: content.title,
+  content: content.content,
+  slug: lang === "catalan" ? `${content.slug}-ca` : content.slug,
+  status: status === "future" && scheduleDate ? "future" : status,
+  date: status === "future" && scheduleDate ? scheduleDate.toISOString() : undefined,
+  image_url: article.image_url || undefined,
+  image_alt: content.focus_keyword || content.title,  // Usar keyword para alt
+  meta_description: content.meta_description,
+  seo_title: content.seo_title,                       // NUEVO
+  focus_keyword: content.focus_keyword,               // NUEVO
+  excerpt: content.excerpt || content.meta_description, // NUEVO con fallback
+  lang: lang === "catalan" ? "ca" : "es",
+  category_ids: selectedCategoryIds,
+  tag_ids: selectedTagIds,
+});
+```
 
-- El estado es **en memoria**, si el usuario recarga la pagina se pierde (esto es aceptable porque la generacion ya esta en proceso en el backend)
-- Para persistir entre recargas, se podria usar `sessionStorage` o una tabla en la base de datos, pero añade complejidad innecesaria
-- Los hooks de generacion deben llamarse dentro del `GenerationProvider` (App.tsx lo envuelve todo)
+#### 4. Actualizar `usePublishToWordPressEmpresa.ts` (interfaz)
 
-### Resumen de cambios
+```typescript
+export interface PublishToWordPressEmpresaInput {
+  // ... campos existentes
+  seo_title?: string;      // NUEVO
+  focus_keyword?: string;  // NUEVO
+  excerpt?: string;        // NUEVO
+}
+```
 
-| Accion | Archivo |
-|--------|---------|
-| CREAR | `src/contexts/GenerationContext.tsx` |
-| MODIFICAR | `src/App.tsx` (añadir Provider) |
-| MODIFICAR | `src/hooks/useArticlesSaas.ts` |
-| MODIFICAR | `src/hooks/useArticulos.ts` |
-| MODIFICAR | `src/hooks/useArticulosEmpresas.ts` |
-| MODIFICAR | `src/pages/SaasDashboard.tsx` |
-| MODIFICAR | `src/pages/SiteDetail.tsx` |
-| MODIFICAR | `src/pages/MKPro.tsx` |
+---
+
+### Resultado esperado
+
+Tras aplicar estos cambios:
+
+| Check de Yoast | Estado esperado |
+|----------------|-----------------|
+| Frase clave en alt de imágenes | VERDE (usamos focus_keyword) |
+| Frase clave en la introducción | VERDE (prompt lo exige) |
+| Keyphrase density | VERDE/NARANJA (1-2% target) |
+| Frase clave en el título SEO | VERDE (seo_title empieza con keyword) |
+| Longitud de la frase clave | VERDE (2-4 palabras) |
+| Frase clave en la meta descripción | VERDE (prompt lo exige) |
+| Longitud de la metadescripción | VERDE (snippet PHP + excerpt fallback) |
+| Frase clave en el slug | VERDE (prompt lo exige) |
+| Keyphrase in subheading | VERDE (al menos 1 H2 con keyword) |
+| Frase clave utilizada anteriormente | NARANJA (sin tracking - aceptable) |
+
+---
+
+### Nota importante
+
+Los artículos **ya generados** no se beneficiarán de estos cambios. Solo los **nuevos artículos** generados después de la implementación tendrán los campos SEO completos. Para el artículo actual, tendrías que:
+1. Regenerarlo desde MKPro
+2. O editarlo manualmente en WordPress
 
