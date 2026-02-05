@@ -1467,21 +1467,57 @@ Deno.serve(async (req) => {
       
       console.log(`Adding home link: ${siteName} -> ${homeUrl}`);
       
-      // Find first mention of brand name (case insensitive, not inside an existing tag)
+      // Find first mention of brand name that is NOT inside:
+      // 1. An already open <a> tag (not yet closed)
+      // 2. An href="..." or src="..." attribute value
       const escapedName = escapeRegexChars(siteName);
-      // Match siteName not preceded by '>' or followed by '<' (to avoid matching inside tags)
-      const regex = new RegExp(`(?<![>"])\\b(${escapedName})\\b(?![<"])`, 'i');
-      const match = content.match(regex);
+      const regex = new RegExp(`\\b${escapedName}\\b`, 'gi');
       
-      if (match && match.index !== undefined) {
-        // Replace only the first occurrence
-        const before = content.substring(0, match.index);
-        const after = content.substring(match.index + match[0].length);
+      let match;
+      while ((match = regex.exec(content)) !== null) {
+        const position = match.index;
+        const textBefore = content.substring(0, position);
+        
+        // Check 1: Are we inside an <a> tag? (open <a without closing </a>)
+        const lastOpenA = textBefore.lastIndexOf('<a ');
+        const lastCloseA = textBefore.lastIndexOf('</a>');
+        if (lastOpenA > lastCloseA) {
+          // We're inside an <a> tag, skip this match
+          continue;
+        }
+        
+        // Check 2: Are we inside an href="..." attribute?
+        const lastHref = textBefore.lastIndexOf('href="');
+        if (lastHref !== -1 && lastHref > textBefore.lastIndexOf('"', textBefore.length - 1)) {
+          // Check if there's a closing quote after href="
+          const afterHref = textBefore.substring(lastHref + 6);
+          const closingQuote = afterHref.indexOf('"');
+          if (closingQuote === -1) {
+            // No closing quote found, we're inside the href value
+            continue;
+          }
+        }
+        
+        // Check 3: Are we inside a src="..." attribute?
+        const lastSrc = textBefore.lastIndexOf('src="');
+        if (lastSrc !== -1 && lastSrc > textBefore.lastIndexOf('"', textBefore.length - 1)) {
+          const afterSrc = textBefore.substring(lastSrc + 5);
+          const closingQuote = afterSrc.indexOf('"');
+          if (closingQuote === -1) {
+            // No closing quote found, we're inside the src value
+            continue;
+          }
+        }
+        
+        // This occurrence is valid - replace it and return
+        const before = content.substring(0, position);
+        const after = content.substring(position + match[0].length);
         const linkedName = `<a href="${homeUrl}" target="_blank" rel="noopener">${match[0]}</a>`;
-        console.log(`Home link added at position ${match.index}`);
+        console.log(`Home link added at position ${position}`);
         return before + linkedName + after;
       }
       
+      console.log("No valid position found for home link");
       return content;
     }
 
