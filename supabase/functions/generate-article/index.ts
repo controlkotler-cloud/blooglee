@@ -401,6 +401,14 @@ ${geoContext}
 - El contenido debe estar en formato HTML con tags <h2>, <p>, <ul>, <li>
 - VARIEDAD: Aunque el tema sea similar, cada artículo debe tener un enfoque único basado en la farmacia y su ubicación.
 
+ENLACES EXTERNOS (2-3 por artículo):
+- Incluye 2-3 enlaces externos a fuentes de autoridad cuando menciones estadísticas, estudios o datos.
+- Si conoces la URL exacta del recurso (artículo, estudio, página específica), inclúyela completa.
+- Si NO estás seguro de la URL específica, enlaza a la página principal del dominio de esa fuente.
+  Ejemplo: en lugar de inventar "oms.int/es/noticias/2024/estudio-inventado", usa simplemente "https://www.who.int"
+- El texto del enlace debe ser descriptivo: "según la OMS" con enlace a who.int
+- Prioriza fuentes del sector salud: OMS, AEMPS, COFM, revistas médicas reconocidas.
+
 REGLAS SEO CRÍTICAS PARA YOAST (semáforo verde):
 1. La FOCUS KEYWORD (2-4 palabras) DEBE aparecer en:
    - El slug (URL)
