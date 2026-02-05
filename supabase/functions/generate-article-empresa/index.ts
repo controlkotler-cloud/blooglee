@@ -101,6 +101,25 @@ async function sendMKProNotification(
   }
 }
 
+// ==========================================
+// MARKDOWN CLEANUP - Remove markdown syntax that slipped into HTML
+// ==========================================
+function cleanMarkdownFromHtml(content: string): string {
+  if (!content) return content;
+  
+  return content
+    // **texto** or __texto__ → <strong>texto</strong>
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    // *texto* or _texto_ → <em>texto</em> (not inside strong tags)
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>')
+    .replace(/(?<!_)_([^_\n]+)_(?!_)/g, '<em>$1</em>')
+    // ~~texto~~ → <del>texto</del>
+    .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+    // `codigo` → <code>codigo</code>
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
 // Helper function to get used topics for a company
 async function getUsedTopicsForEmpresa(
   supabaseClient: any,
@@ -1058,6 +1077,13 @@ FORMATO DE RESPUESTA (JSON):
         });
         
         spanishArticle = JSON.parse(sanitizedJson);
+        
+        // Clean any markdown that slipped into HTML
+        if (spanishArticle.content) {
+          spanishArticle.content = cleanMarkdownFromHtml(spanishArticle.content);
+          console.log("Cleaned markdown from Spanish content");
+        }
+        
         console.log(`✓ Spanish content generated successfully on attempt ${contentRetry + 1}`);
         break; // Success! Exit the retry loop
         
@@ -1161,6 +1187,12 @@ RESPONDE EN JSON:
             const jsonMatch = cleanCatalan.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               catalanArticle = JSON.parse(jsonMatch[0]);
+              
+              // Clean any markdown from Catalan content
+              if (catalanArticle?.content) {
+                catalanArticle.content = cleanMarkdownFromHtml(catalanArticle.content);
+                console.log("Cleaned markdown from Catalan content");
+              }
               
               // Generate Catalan closing paragraph
               const closingParagraphCa = await generateClosingParagraph(company, catalanArticle.title, "ca", LOVABLE_API_KEY);

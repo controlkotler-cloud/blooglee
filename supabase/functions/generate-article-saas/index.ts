@@ -83,6 +83,25 @@ async function getPrompt(
 }
 
 // ==========================================
+// MARKDOWN CLEANUP - Remove markdown syntax that slipped into HTML
+// ==========================================
+function cleanMarkdownFromHtml(content: string): string {
+  if (!content) return content;
+  
+  return content
+    // **texto** or __texto__ → <strong>texto</strong>
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    // *texto* or _texto_ → <em>texto</em> (not inside strong tags)
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>')
+    .replace(/(?<!_)_([^_\n]+)_(?!_)/g, '<em>$1</em>')
+    // ~~texto~~ → <del>texto</del>
+    .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+    // `codigo` → <code>codigo</code>
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
+// ==========================================
 // FALLBACK PROMPTS (used if DB prompt not found)
 // ==========================================
 const FALLBACK_PROMPTS = {
@@ -1190,6 +1209,12 @@ serve(async (req) => {
 
     console.log("Spanish article generated successfully");
 
+    // Clean any markdown that slipped into HTML
+    if (spanishArticle.content) {
+      spanishArticle.content = cleanMarkdownFromHtml(spanishArticle.content);
+      console.log("Cleaned markdown from Spanish content");
+    }
+
     // Post-generation validation: truncate meta_description if over 155 chars
     if (spanishArticle.meta_description && spanishArticle.meta_description.length > 155) {
       console.log(`Meta description too long (${spanishArticle.meta_description.length} chars), truncating to 155`);
@@ -1254,9 +1279,15 @@ serve(async (req) => {
               } catch (firstError) {
                 console.log("Catalan JSON parse failed on first attempt; applying string-only escaping");
                 const repairedCatalanJson = escapeControlCharsInsideStrings(cleanedCatalanJson);
-                catalanArticle = JSON.parse(repairedCatalanJson);
+              catalanArticle = JSON.parse(repairedCatalanJson);
               }
               console.log("Catalan article generated successfully");
+              
+              // Clean any markdown from Catalan content
+              if (catalanArticle?.content) {
+                catalanArticle.content = cleanMarkdownFromHtml(catalanArticle.content);
+                console.log("Cleaned markdown from Catalan content");
+              }
             }
           }
         }

@@ -104,6 +104,25 @@ async function sendMKProNotification(
   }
 }
 
+// ==========================================
+// MARKDOWN CLEANUP - Remove markdown syntax that slipped into HTML
+// ==========================================
+function cleanMarkdownFromHtml(content: string): string {
+  if (!content) return content;
+  
+  return content
+    // **texto** or __texto__ → <strong>texto</strong>
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    // *texto* or _texto_ → <em>texto</em> (not inside strong tags)
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>')
+    .replace(/(?<!_)_([^_\n]+)_(?!_)/g, '<em>$1</em>')
+    // ~~texto~~ → <del>texto</del>
+    .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+    // `codigo` → <code>codigo</code>
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
 // Fallback queries for when AI query generation fails
 const FALLBACK_QUERIES = [
   "natural wellness beauty care",
@@ -480,6 +499,13 @@ Genera el artículo completo EN ESPAÑOL. RESPONDE SOLO CON JSON VÁLIDO en este
         const jsonMatch = spanishContent.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           spanishArticle = JSON.parse(jsonMatch[0]);
+          
+          // Clean any markdown that slipped into HTML
+          if (spanishArticle.content) {
+            spanishArticle.content = cleanMarkdownFromHtml(spanishArticle.content);
+            console.log("Cleaned markdown from Spanish content");
+          }
+          
           console.log(`✓ Spanish content generated successfully on attempt ${contentRetry + 1}`);
           break; // Success! Exit the retry loop
         } else {
@@ -639,6 +665,13 @@ RESPÓN NOMÉS AMB JSON VÀLID en aquest format exacte:
             const jsonMatch = catalanContent.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
               catalanArticle = JSON.parse(jsonMatch[0]);
+              
+              // Clean any markdown from Catalan content
+              if (catalanArticle?.content) {
+                catalanArticle.content = cleanMarkdownFromHtml(catalanArticle.content);
+                console.log("Cleaned markdown from Catalan content");
+              }
+              
               console.log("Catalan article parsed successfully. Title:", catalanArticle.title?.substring(0, 50));
               
               // Validate title doesn't contain Spanish words
