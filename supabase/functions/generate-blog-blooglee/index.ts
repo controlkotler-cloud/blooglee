@@ -510,7 +510,7 @@ REGLAS ESTRICTAS:
 - El año actual es ${currentYear}. NO menciones años anteriores.
 - NO incluir el año en el título (contenido evergreen)
 - El título debe ser irresistible y tener máximo 60 caracteres
-- El excerpt debe tener máximo 155 caracteres
+- El excerpt: máximo 145 caracteres, tono directo, SIN exclamaciones ni interrogaciones
 - El tema DEBE ser diferente a todos los prohibidos arriba
 
 REGLAS DE CAPITALIZACIÓN (ESPAÑOL - MUY IMPORTANTE):
@@ -529,7 +529,7 @@ Responde SOLO con este JSON válido:
   "topic": "tema elegido en 2-4 palabras",
   "title": "Título SEO optimizado (max 60 chars)",
   "slug": "url-amigable-sin-acentos",
-  "excerpt": "Meta description atractiva (max 155 chars)",
+  "excerpt": "Meta description directa (max 145 chars), sin ! ni ?, enfoque en beneficio concreto",
   "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
   "thematic_category": "${forceCategory || 'UNA de: SEO, Marketing, Tutoriales, Comparativas, Producto, Tendencias'}"
 }`;

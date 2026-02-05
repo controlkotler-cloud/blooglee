@@ -181,9 +181,11 @@ REGLAS DE ESTRUCTURA HTML:
    - NO enlaces a competidores directos
 
 3. META DESCRIPTION:
-   - EXACTAMENTE 140-150 caracteres (NUNCA más de 150)
-   - Incluir focus_keyword
-   - Terminar con CTA
+   - MAXIMO 145 caracteres (nunca superar 150)
+   - Incluir focus_keyword de forma natural
+   - Tono directo y profesional, SIN exclamaciones (!) ni interrogaciones (?)
+   - Sin adornos ni frases vacías (evitar "Descubre", "No te pierdas", etc.)
+   - Foco en beneficio concreto o propuesta de valor clara
 
 4. PÁRRAFOS Y LEGIBILIDAD:
    - Mantén los párrafos entre 2-4 oraciones
@@ -208,7 +210,7 @@ FORMATO DE RESPUESTA JSON (TODOS los campos son OBLIGATORIOS):
 {
   "title": "Título H1 atractivo (máx 70 chars, SIN nombre empresa, SIN año)",
   "seo_title": "SEO title (máx 60 chars, EMPIEZA con focus_keyword)",
-  "meta_description": "Meta descripción (140-150 caracteres EXACTOS) con focus_keyword y CTA",
+  "meta_description": "Meta descripción directa (max 145 chars) con focus_keyword, sin ! ni ?",
   "excerpt": "Resumen breve (máx 160 chars) DIFERENTE a meta_description",
   "focus_keyword": "keyword principal de 2-4 palabras",
   "slug": "url-con-focus-keyword-sin-espacios",
@@ -228,7 +230,7 @@ REGLAS OBLIGATORIAS:
 1. El contenido HTML NO debe contener <h1> (WordPress lo añade)
 2. Empieza el contenido con un <h2> que sea un GANCHO, diferente al título
 3. INCLUYE 1-2 enlaces externos a fuentes de autoridad (Wikipedia, estudios, instituciones) - OBLIGATORIO
-4. La meta_description debe tener EXACTAMENTE 140-150 caracteres (NUNCA más de 150)
+4. La meta_description: máximo 145 caracteres, tono directo, SIN exclamaciones ni interrogaciones
 5. El focus_keyword (2-4 palabras) debe aparecer MÍNIMO 5 VECES distribuidas uniformemente
 6. El focus_keyword debe estar en: slug, seo_title (AL INICIO), meta_description, primer párrafo y AL MENOS 2 subtítulos H2/H3
 7. INCLUYE 1-2 subtítulos H2 en formato PREGUNTA (¿Por qué...?, ¿Cómo...?, ¿Qué...?) con respuesta directa
@@ -237,7 +239,7 @@ FORMATO JSON OBLIGATORIO (TODOS los campos requeridos):
 {
   "title": "Título H1 atractivo (máx 70 caracteres)",
   "seo_title": "SEO title que EMPIEZA con focus_keyword (máx 60 chars)",
-  "meta_description": "Meta descripción (140-150 chars EXACTOS) con keyword y CTA",
+  "meta_description": "Descripción directa (max 145 chars) con keyword, sin signos de exclamación",
   "excerpt": "Resumen diferente a meta_description (máx 160 chars)",
   "focus_keyword": "keyword principal 2-4 palabras",
   "slug": "url-con-keyword-sin-espacios",
@@ -257,14 +259,14 @@ Contenido: {{content}}
 
 REGLAS DE TRADUCCIÓN:
 - Mantén el focus_keyword traducido al catalán
-- La meta_description NO puede superar 155 caracteres
+- La meta_description: máximo 145 caracteres, sin ! ni ?, tono directo
 - El excerpt debe ser diferente a la meta_description
 
 RESPONDE EN JSON (TODOS los campos obligatorios):
 {
   "title": "Títol en català",
   "seo_title": "SEO title en català (màx 60 chars)",
-  "meta_description": "Meta descripció en català (MÀXIM 155 chars)",
+  "meta_description": "Meta descripció directa (max 145 chars), sense ! ni ?",
   "excerpt": "Resum en català (màx 160 chars, diferent de meta)",
   "focus_keyword": "keyword traduïda al català",
   "slug": "url-en-catala",
