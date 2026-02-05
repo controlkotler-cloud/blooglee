@@ -1,56 +1,50 @@
 
-## Plan: Arreglar la función regenerate-image
+## Plan: Corregir desajuste de respuesta entre regenerate-image y frontend
 
 ### Problema detectado
-La función `regenerate-image` falla con:
-```
-ReferenceError: serve is not defined
-```
+La función `regenerate-image` funciona correctamente (los logs muestran "Image regenerated successfully"), pero el frontend muestra "Error: no se obtuvo imagen".
 
-**Causa raíz**: En la línea 338 usa `serve(async (req) => {` pero NO tiene el import de `serve`. Le falta:
+**Causa raíz**: Desajuste en la estructura de la respuesta:
+
+- **Backend devuelve** (línea 560):
 ```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+JSON.stringify({ image: imageData })
+// Resultado: { image: { url: "...", photographer: "...", photographer_url: "..." } }
 ```
 
-Además, el handler de OPTIONS devuelve `new Response(null, ...)` en vez de `new Response('ok', ...)` que es el estándar que aplicamos a las demás funciones.
+- **Frontend espera** (línea 301 del hook):
+```typescript
+if (!data?.url) throw new Error('No se obtuvo imagen');
+// Espera: { url: "...", photographer: "...", photographer_url: "..." }
+```
 
----
+### Solución
 
-### Cambios a implementar
+Modificar la función `regenerate-image` para devolver el objeto directamente sin envolverlo en `image`:
 
 **Archivo**: `supabase/functions/regenerate-image/index.ts`
 
-1. **Añadir el import de serve** al inicio del archivo:
+**Cambio en línea 560**:
 ```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+// ANTES:
+return new Response(
+  JSON.stringify({ image: imageData }),
+  { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+);
+
+// DESPUÉS:
+return new Response(
+  JSON.stringify(imageData),
+  { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+);
 ```
 
-2. **Estandarizar corsHeaders** (añadir Allow-Methods y Max-Age):
-```typescript
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-  "Access-Control-Max-Age": "86400",
-};
-```
+Esto hará que la respuesta sea directamente `{ url, photographer, photographer_url }` que es lo que espera el frontend.
 
-3. **Cambiar el handler de OPTIONS** (línea 339-341):
-```typescript
-if (req.method === "OPTIONS") {
-  return new Response('ok', { headers: corsHeaders });
-}
-```
-
----
+### Archivos a modificar
+- `supabase/functions/regenerate-image/index.ts` - Línea 560
 
 ### Validación
 - Desplegar la función actualizada
-- Probar el botón "Cambiar" imagen desde el preview de un artículo en el dashboard SaaS
-- Verificar que genera una nueva imagen sin errores
-
----
-
-### Nota importante
-El error `serve is not defined` es un error de compilación que impide que la función se ejecute en absoluto. Por eso devuelve "Failed to send a request to the Edge Function" - la función ni siquiera arranca.
+- Probar el botón "Cambiar" imagen desde el preview de un artículo
+- Verificar que la imagen se actualiza correctamente sin errores
