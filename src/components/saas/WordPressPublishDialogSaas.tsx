@@ -122,6 +122,7 @@ export function WordPressPublishDialogSaas({
         const result = await publishMutation.mutateAsync({
           site_id: siteId,
           title: content.title,
+          seo_title: content.seo_title,
           content: content.content,
           slug: content.slug,
           status: status === 'future' ? 'future' : status,
@@ -129,6 +130,8 @@ export function WordPressPublishDialogSaas({
           image_url: article.image_url || undefined,
           image_alt: content.title,
           meta_description: content.meta_description,
+          excerpt: content.excerpt || content.meta_description,
+          focus_keyword: content.focus_keyword,
           lang: lang === 'catalan' ? 'ca' : 'es',
           category_ids: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
           tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
