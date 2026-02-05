@@ -144,20 +144,31 @@ REGLAS DE ESTRUCTURA HTML:
 - El contenido DEBE empezar con un <h2> introductorio DIFERENTE al título H1
 - Ese H2 inicial debe ser un gancho o resumen del tema, NO repetir el título
 
-OPTIMIZACIÓN SEO (para Yoast verde):
-- Incluye la keyword principal en el primer párrafo del artículo
-- Usa la keyword principal en al menos un H2
-- Mantén los párrafos entre 2-4 oraciones
-- Incluye 1-2 enlaces externos a fuentes autoritativas del sector
-
 {{geoContext}}
 
-FORMATO DE RESPUESTA JSON:
-- title: Título H1 atractivo (máximo 70 caracteres). SIN nombre de empresa. SIN año.
-- seo_title: Meta título optimizado para CTR (máximo 60 caracteres, puede ser diferente al title)
-- meta_description: Descripción SEO con CTA (150-160 caracteres MÁXIMO)
-- slug: URL amigable en minúsculas con guiones
-- content: HTML empezando por <h2>, SIN <h1>, con párrafos cortos
+⚠️ OPTIMIZACIÓN SEO CRÍTICA (Yoast verde OBLIGATORIO):
+
+1. FOCUS KEYWORD (2-4 palabras):
+   - DEBE aparecer en el slug
+   - DEBE aparecer en el seo_title (idealmente al INICIO)
+   - DEBE aparecer en la meta_description
+   - DEBE aparecer en el primer párrafo (primeras 100 palabras)
+   - DEBE aparecer en al menos 1 subtítulo H2
+   - Densidad: 1-2% del texto total
+
+2. ENLACES EXTERNOS OBLIGATORIOS:
+   - INCLUYE 1-2 enlaces a fuentes de autoridad (Wikipedia, estudios, instituciones oficiales, medios reconocidos)
+   - Formato: <a href="URL" target="_blank" rel="noopener">texto ancla descriptivo</a>
+   - NO enlaces a competidores directos
+
+3. META DESCRIPTION:
+   - MÁXIMO 155 caracteres (NUNCA más, ni un carácter más)
+   - Incluir focus_keyword
+   - Terminar con CTA
+
+4. PÁRRAFOS Y LEGIBILIDAD:
+   - Mantén los párrafos entre 2-4 oraciones
+   - Usa transiciones entre secciones
 
 ⚠️ CAPITALIZACIÓN ESPAÑOLA OBLIGATORIA:
 - SOLO la primera letra del título/subtítulo en mayúscula (+ nombres propios)
@@ -167,7 +178,18 @@ LISTAS:
 
 CONTEXTO TEMPORAL: Hoy es {{dateContext}}.
 
-RESPONDE EN JSON VÁLIDO.`,
+FORMATO DE RESPUESTA JSON (TODOS los campos son OBLIGATORIOS):
+{
+  "title": "Título H1 atractivo (máx 70 chars, SIN nombre empresa, SIN año)",
+  "seo_title": "SEO title (máx 60 chars, EMPIEZA con focus_keyword)",
+  "meta_description": "Meta descripción (MÁXIMO 155 caracteres) con focus_keyword y CTA",
+  "excerpt": "Resumen breve (máx 160 chars) DIFERENTE a meta_description",
+  "focus_keyword": "keyword principal de 2-4 palabras",
+  "slug": "url-con-focus-keyword-sin-espacios",
+  "content": "<h2>Subtítulo con focus_keyword</h2><p>Primer párrafo con focus_keyword en las primeras 100 palabras...</p>..."
+}
+
+RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO.`,
 
   articleUser: `TEMA: {{topic}}
 
@@ -176,33 +198,47 @@ TIPO DE CONTENIDO: {{pillarType}}
 
 Genera un artículo profesional que encaje con este tipo de contenido.
 
-RECUERDA:
-- El contenido HTML NO debe contener <h1> (WordPress lo añade)
-- Empieza el contenido con un <h2> que sea un GANCHO, diferente al título
-- Incluye la keyword del tema en el primer párrafo
-- Añade 1-2 enlaces externos a fuentes de autoridad
+REGLAS OBLIGATORIAS:
+1. El contenido HTML NO debe contener <h1> (WordPress lo añade)
+2. Empieza el contenido con un <h2> que sea un GANCHO, diferente al título
+3. INCLUYE 1-2 enlaces externos a fuentes de autoridad (Wikipedia, estudios, instituciones) - OBLIGATORIO
+4. La meta_description NUNCA puede superar 155 caracteres
+5. El focus_keyword (2-4 palabras) debe aparecer en: slug, seo_title, meta_description, primer párrafo y al menos 1 H2
 
-FORMATO JSON OBLIGATORIO:
+FORMATO JSON OBLIGATORIO (TODOS los campos requeridos):
 {
   "title": "Título H1 atractivo (máx 70 caracteres)",
-  "seo_title": "Meta título para Google (máx 60 caracteres, diferente al title)",
-  "meta_description": "Meta descripción 150-160 caracteres con CTA",
-  "slug": "url-amigable-sin-espacios",
-  "content": "<h2>Subtítulo gancho diferente al título</h2><p>Primer párrafo con keyword...</p>..."
+  "seo_title": "SEO title que EMPIEZA con focus_keyword (máx 60 chars)",
+  "meta_description": "Meta descripción (MÁXIMO 155 chars) con keyword y CTA",
+  "excerpt": "Resumen diferente a meta_description (máx 160 chars)",
+  "focus_keyword": "keyword principal 2-4 palabras",
+  "slug": "url-con-keyword-sin-espacios",
+  "content": "<h2>Subtítulo con keyword</h2><p>Primer párrafo con keyword en las primeras 100 palabras...</p>..."
 }`,
 
   translateCatalan: `Traduce este artículo del español al catalán.
 
 ARTÍCULO:
 Título: {{title}}
+SEO Title: {{seoTitle}}
 Meta: {{meta}}
+Excerpt: {{excerpt}}
+Focus Keyword: {{focusKeyword}}
 Slug: {{slug}}
 Contenido: {{content}}
 
-RESPONDE EN JSON:
+REGLAS DE TRADUCCIÓN:
+- Mantén el focus_keyword traducido al catalán
+- La meta_description NO puede superar 155 caracteres
+- El excerpt debe ser diferente a la meta_description
+
+RESPONDE EN JSON (TODOS los campos obligatorios):
 {
   "title": "Títol en català",
-  "meta_description": "Meta descripció en català",
+  "seo_title": "SEO title en català (màx 60 chars)",
+  "meta_description": "Meta descripció en català (MÀXIM 155 chars)",
+  "excerpt": "Resum en català (màx 160 chars, diferent de meta)",
+  "focus_keyword": "keyword traduïda al català",
   "slug": "url-en-catala",
   "content": "Contingut HTML en català"
 }`,
@@ -1157,7 +1193,10 @@ serve(async (req) => {
         'saas.translate.catalan',
         {
           title: spanishArticle.title,
+          seoTitle: spanishArticle.seo_title || '',
           meta: spanishArticle.meta_description,
+          excerpt: spanishArticle.excerpt || spanishArticle.meta_description,
+          focusKeyword: spanishArticle.focus_keyword || '',
           slug: spanishArticle.slug,
           content: spanishContentWithoutSeo
         },
