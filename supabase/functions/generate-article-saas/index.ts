@@ -178,7 +178,9 @@ REGLAS DE ESTRUCTURA HTML:
    - Usa SINÓNIMOS de la keyword en otras secciones para distribución natural
 
 2. ENLACES EXTERNOS OBLIGATORIOS:
-   - INCLUYE 1-2 enlaces a fuentes de autoridad (Wikipedia, estudios, instituciones oficiales, medios reconocidos)
+   - INCLUYE 2 enlaces a fuentes de autoridad (Wikipedia, estudios, instituciones oficiales, medios reconocidos)
+   - Si conoces la URL EXACTA de un artículo/post/estudio relevante, úsala
+   - Si NO estás seguro de la URL exacta, enlaza SOLO a la homepage del dominio (ej: https://www.aeped.es en vez de inventar rutas)
    - Formato: <a href="URL" target="_blank" rel="noopener">texto ancla descriptivo</a>
    - NO enlaces a competidores directos
 
@@ -235,7 +237,7 @@ Genera un artículo profesional que encaje con este tipo de contenido.
 REGLAS OBLIGATORIAS:
 1. El contenido HTML NO debe contener <h1> (WordPress lo añade)
 2. Empieza el contenido con un <h2> que sea un GANCHO, diferente al título
-3. INCLUYE 1-2 enlaces externos a fuentes de autoridad (Wikipedia, estudios, instituciones) - OBLIGATORIO
+3. INCLUYE 2 enlaces externos a fuentes de autoridad - si no conoces la URL exacta de un artículo, enlaza SOLO a la homepage (ej: https://www.who.int)
 4. La meta_description: máximo 145 caracteres, tono directo, PROHIBIDO usar ! o ? (elimínalos siempre)
 5. El focus_keyword (2-4 palabras) debe aparecer MÍNIMO 5 VECES distribuidas uniformemente
 6. El focus_keyword debe estar en: slug, seo_title (AL INICIO), meta_description, primer párrafo y AL MENOS 2 subtítulos H2/H3
@@ -767,17 +769,37 @@ async function getUsedTopicsForSite(supabaseClient: any, siteId: string, limit: 
 // ==========================================
 // EXTERNAL LINK VERIFICATION
 // ==========================================
+function getOriginUrl(urlString: string): string {
+  try {
+    const url = new URL(urlString);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return urlString;
+  }
+}
+
+function isHomepageUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    // Consider homepage if path is "/" or empty, with no query params
+    return (url.pathname === '/' || url.pathname === '') && !url.search;
+  } catch {
+    return false;
+  }
+}
+
 async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string> {
   if (!htmlContent) return htmlContent;
   
-  // Regex to match external links
+  // Regex to match external links with their attributes
   const linkRegex = /<a\s+([^>]*href="(https?:\/\/[^"]+)"[^>]*)>([^<]*)<\/a>/gi;
-  const matches: Array<{ full: string; url: string; text: string }> = [];
+  const matches: Array<{ full: string; attrs: string; url: string; text: string }> = [];
   
   let match;
   while ((match = linkRegex.exec(htmlContent)) !== null) {
     matches.push({
       full: match[0],
+      attrs: match[1],
       url: match[2],
       text: match[3]
     });
@@ -793,9 +815,15 @@ async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string>
   // Limit to first 10 links to avoid timeout
   const linksToVerify = matches.slice(0, 10);
   let cleanedContent = htmlContent;
-  let brokenCount = 0;
+  let fixedCount = 0;
   
   for (const link of linksToVerify) {
+    // Skip if already a homepage URL - no need to verify
+    if (isHomepageUrl(link.url)) {
+      console.log(`Homepage URL, keeping as-is: ${link.url}`);
+      continue;
+    }
+    
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
@@ -811,20 +839,27 @@ async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string>
       clearTimeout(timeout);
       
       if (response.status === 404 || response.status >= 500) {
-        console.log(`Broken link (${response.status}): ${link.url}`);
-        // Replace link with just the text
-        cleanedContent = cleanedContent.replace(link.full, link.text);
-        brokenCount++;
+        // Deep link broken → fallback to homepage of source
+        const originUrl = getOriginUrl(link.url);
+        console.log(`Broken link (${response.status}): ${link.url} → falling back to ${originUrl}`);
+        
+        // Replace href with origin URL, keep anchor text
+        const newLink = `<a href="${originUrl}" target="_blank" rel="noopener">${link.text}</a>`;
+        cleanedContent = cleanedContent.replace(link.full, newLink);
+        fixedCount++;
       }
     } catch (error) {
-      // Network error, timeout, or other issue - remove the link
-      console.log(`Link verification failed (${error instanceof Error ? error.message : 'unknown'}): ${link.url}`);
-      cleanedContent = cleanedContent.replace(link.full, link.text);
-      brokenCount++;
+      // Network error, timeout, or other issue → fallback to homepage
+      const originUrl = getOriginUrl(link.url);
+      console.log(`Link verification failed (${error instanceof Error ? error.message : 'unknown'}): ${link.url} → falling back to ${originUrl}`);
+      
+      const newLink = `<a href="${originUrl}" target="_blank" rel="noopener">${link.text}</a>`;
+      cleanedContent = cleanedContent.replace(link.full, newLink);
+      fixedCount++;
     }
   }
   
-  console.log(`Link verification complete: ${brokenCount} broken links removed`);
+  console.log(`Link verification complete: ${fixedCount} links fixed to homepage fallback`);
   return cleanedContent;
 }
 
