@@ -1,154 +1,158 @@
 
+## Plan: Optimizar SEO completo en generate-article-saas
 
-## Plan: Aplicar mejoras SEO a MKPro Empresas
+### Problemas detectados
 
-### Diagnóstico confirmado
-
-El artículo https://mkpro.es/asuntos-email-abrir-convertir/ fue generado por **MKPro Empresas** (`generate-article-empresa`), que **NO tiene implementados** los campos SEO que sí están en farmacias y SaaS:
-
-| Campo SEO | MKPro Farmacias | MKPro Empresas | Problema |
-|-----------|-----------------|----------------|----------|
-| `focus_keyword` | SI genera | NO genera | Yoast no puede analizar nada |
-| `seo_title` | SI genera | NO genera | Título SEO no optimizado |
-| `excerpt` | SI genera | NO genera | Sin fallback para meta desc |
-| Keyword en H2 | SI (prompt lo exige) | NO | Yoast marca error |
-| Keyword en intro | SI (prompt lo exige) | NO | Yoast marca error |
-| Keyword en slug | SI (prompt lo exige) | NO | Yoast marca error |
-
-Aunque hayas añadido el snippet PHP de Yoast, los campos SEO nunca se envían porque:
-1. La generación NO los crea
-2. La publicación NO los envía aunque existieran
-
----
+| Problema | Causa raíz | Impacto |
+|----------|-----------|---------|
+| Meta descripcion muy larga | Prompt dice "150-160 MAXIMO" pero no es estricto | Yoast naranja |
+| Sin focus_keyword | El JSON de respuesta NO lo pide | Yoast sin analisis |
+| Sin excerpt | El JSON de respuesta NO lo pide | Fallback a meta_description |
+| Falta enlaces externos | Instruccion poco enfatica | Yoast marca falta de enlaces |
 
 ### Archivos a modificar
 
-| Archivo | Cambios necesarios |
-|---------|-------------------|
-| `supabase/functions/generate-article-empresa/index.ts` | Actualizar prompts para generar `focus_keyword`, `seo_title`, `excerpt` y aplicar reglas SEO |
-| `src/hooks/useArticulosEmpresas.ts` | Añadir campos SEO a la interfaz `ArticleContent` |
-| `src/components/company/WordPressPublishDialogEmpresa.tsx` | Enviar `focus_keyword`, `seo_title`, `excerpt` al publicar |
-
----
+| Archivo | Cambios |
+|---------|---------|
+| `supabase/functions/generate-article-saas/index.ts` | Actualizar FALLBACK_PROMPTS para incluir `focus_keyword`, `excerpt`, limitar meta_description y enfatizar enlaces externos |
 
 ### Cambios detallados
 
-#### 1. Actualizar interfaz `ArticleContent` en `useArticulosEmpresas.ts`
+#### 1. Actualizar `FALLBACK_PROMPTS.articleSystem` (lineas 122-171)
 
-```typescript
-export interface ArticleContent {
-  title: string;
-  seo_title?: string;           // NUEVO
-  meta_description: string;
-  excerpt?: string;              // NUEVO
-  focus_keyword?: string;        // NUEVO
-  slug: string;
-  content: string;
-}
-```
+Modificar la seccion de FORMATO DE RESPUESTA JSON para incluir:
 
-#### 2. Actualizar prompt en `generate-article-empresa/index.ts`
+```javascript
+OPTIMIZACION SEO CRITICA (Yoast verde):
 
-Cambiar el formato de respuesta JSON de:
-```json
+1. FOCUS KEYWORD (2-4 palabras):
+   - DEBE aparecer en el slug
+   - DEBE aparecer en el seo_title (idealmente al INICIO)
+   - DEBE aparecer en la meta_description
+   - DEBE aparecer en el primer parrafo (primeras 100 palabras)
+   - DEBE aparecer en al menos 1 subtitulo H2
+   - Densidad: 1-2% del texto total
+
+2. ENLACES EXTERNOS OBLIGATORIOS:
+   - INCLUYE 1-2 enlaces a fuentes de autoridad (Wikipedia, estudios, instituciones oficiales)
+   - Formato: <a href="URL" target="_blank" rel="noopener">texto ancla</a>
+   - NO enlaces a competidores directos
+
+3. META DESCRIPTION:
+   - MAXIMO 155 caracteres (NUNCA mas, ni un caracter mas)
+   - Incluir focus_keyword
+   - Terminar con CTA
+
+FORMATO DE RESPUESTA JSON:
 {
-  "title": "...",
-  "meta_description": "...",
-  "slug": "...",
-  "content": "..."
-}
-```
-
-A:
-```json
-{
-  "title": "Título H1 (máx 60 caracteres)",
-  "seo_title": "SEO title que EMPIEZA con focus_keyword (máx 60 caracteres)",
-  "meta_description": "Meta descripción 150-160 caracteres con focus_keyword",
-  "excerpt": "Resumen breve (máx 160 caracteres, diferente a meta_description)",
+  "title": "Titulo H1 (max 70 chars, sin nombre empresa, sin año)",
+  "seo_title": "SEO title (max 60 chars, EMPIEZA con focus_keyword)",
+  "meta_description": "Meta descripcion (MAXIMO 155 caracteres) con focus_keyword y CTA",
+  "excerpt": "Resumen breve (max 160 chars) diferente a meta_description",
   "focus_keyword": "keyword principal de 2-4 palabras",
-  "slug": "url-amigable-con-focus-keyword",
-  "content": "<h2>Subtítulo con focus_keyword...</h2><p>Primer párrafo con focus_keyword...</p>"
+  "slug": "url-con-focus-keyword",
+  "content": "<h2>Subtitulo con focus_keyword</h2><p>Primer parrafo con focus_keyword...</p>..."
 }
 ```
 
-Añadir reglas SEO al prompt del sistema:
-```text
-REGLAS SEO CRÍTICAS PARA YOAST (semáforo verde):
+#### 2. Actualizar `FALLBACK_PROMPTS.articleUser` (lineas 172-192)
 
-1. FOCUS KEYWORD (2-4 palabras) DEBE aparecer en:
-   - El slug (URL)
-   - El seo_title (idealmente al INICIO)
-   - La meta_description
-   - El primer párrafo del contenido (primeras 50 palabras)
-   - Al menos 1 subtítulo H2
-   
-2. DENSIDAD DE KEYWORD: 1-2% del texto total
+Reforzar el formato JSON y las reglas:
 
-3. SEO_TITLE: Diferente al H1, optimizado para CTR, max 60 caracteres
+```javascript
+TEMA: {{topic}}
 
-4. EXCERPT: Resumen diferente a meta_description, max 160 caracteres
-```
+TIPO DE CONTENIDO: {{pillarType}}
+{{pillarDescription}}
 
-#### 3. Actualizar `WordPressPublishDialogEmpresa.tsx`
+REGLAS OBLIGATORIAS:
+1. El contenido HTML NO debe contener <h1>
+2. Empieza con un <h2> GANCHO diferente al titulo
+3. INCLUYE 1-2 enlaces externos a fuentes de autoridad (obligatorio)
+4. La meta_description NUNCA puede superar 155 caracteres
+5. El focus_keyword debe aparecer en slug, seo_title, meta_description, primer parrafo y al menos 1 H2
 
-Modificar la llamada a `publishMutation.mutateAsync`:
-
-```typescript
-const result = await publishMutation.mutateAsync({
-  empresa_id: empresaId,
-  title: content.title,
-  content: content.content,
-  slug: lang === "catalan" ? `${content.slug}-ca` : content.slug,
-  status: status === "future" && scheduleDate ? "future" : status,
-  date: status === "future" && scheduleDate ? scheduleDate.toISOString() : undefined,
-  image_url: article.image_url || undefined,
-  image_alt: content.focus_keyword || content.title,  // Usar keyword para alt
-  meta_description: content.meta_description,
-  seo_title: content.seo_title,                       // NUEVO
-  focus_keyword: content.focus_keyword,               // NUEVO
-  excerpt: content.excerpt || content.meta_description, // NUEVO con fallback
-  lang: lang === "catalan" ? "ca" : "es",
-  category_ids: selectedCategoryIds,
-  tag_ids: selectedTagIds,
-});
-```
-
-#### 4. Actualizar `usePublishToWordPressEmpresa.ts` (interfaz)
-
-```typescript
-export interface PublishToWordPressEmpresaInput {
-  // ... campos existentes
-  seo_title?: string;      // NUEVO
-  focus_keyword?: string;  // NUEVO
-  excerpt?: string;        // NUEVO
+FORMATO JSON OBLIGATORIO:
+{
+  "title": "Titulo H1 (max 70 chars)",
+  "seo_title": "SEO title que EMPIEZA con focus_keyword (max 60 chars)",
+  "meta_description": "Meta descripcion (MAXIMO 155 chars) con keyword y CTA",
+  "excerpt": "Resumen diferente a meta_description (max 160 chars)",
+  "focus_keyword": "keyword principal 2-4 palabras",
+  "slug": "url-con-keyword-sin-espacios",
+  "content": "<h2>Subtitulo con keyword</h2><p>Primer parrafo con keyword...</p>..."
 }
 ```
 
----
+#### 3. Actualizar `FALLBACK_PROMPTS.translateCatalan` (lineas 194-208)
+
+Incluir los nuevos campos en la traduccion:
+
+```javascript
+Traduce este articulo del español al catalan.
+
+ARTICULO:
+Titulo: {{title}}
+SEO Title: {{seoTitle}}
+Meta: {{meta}}
+Excerpt: {{excerpt}}
+Focus Keyword: {{focusKeyword}}
+Slug: {{slug}}
+Contenido: {{content}}
+
+RESPONDE EN JSON:
+{
+  "title": "Titol en catala",
+  "seo_title": "SEO title en catala (max 60 chars)",
+  "meta_description": "Meta descripció en catala (MAXIMO 155 chars)",
+  "excerpt": "Resum en catala (max 160 chars)",
+  "focus_keyword": "keyword traduïda al catala",
+  "slug": "url-en-catala",
+  "content": "Contingut HTML en catala"
+}
+```
+
+#### 4. Actualizar la llamada de traduccion (linea 1155-1165)
+
+Pasar los nuevos campos al prompt de traduccion:
+
+```javascript
+const catalanPrompt = await getPrompt(
+  supabase,
+  'saas.translate.catalan',
+  {
+    title: spanishArticle.title,
+    seoTitle: spanishArticle.seo_title || '',
+    meta: spanishArticle.meta_description,
+    excerpt: spanishArticle.excerpt || spanishArticle.meta_description,
+    focusKeyword: spanishArticle.focus_keyword || '',
+    slug: spanishArticle.slug,
+    content: spanishContentWithoutSeo
+  },
+  FALLBACK_PROMPTS.translateCatalan
+);
+```
 
 ### Resultado esperado
 
-Tras aplicar estos cambios:
+Tras estos cambios, los articulos generados tendran:
 
-| Check de Yoast | Estado esperado |
-|----------------|-----------------|
-| Frase clave en alt de imágenes | VERDE (usamos focus_keyword) |
-| Frase clave en la introducción | VERDE (prompt lo exige) |
-| Keyphrase density | VERDE/NARANJA (1-2% target) |
-| Frase clave en el título SEO | VERDE (seo_title empieza con keyword) |
-| Longitud de la frase clave | VERDE (2-4 palabras) |
-| Frase clave en la meta descripción | VERDE (prompt lo exige) |
-| Longitud de la metadescripción | VERDE (snippet PHP + excerpt fallback) |
-| Frase clave en el slug | VERDE (prompt lo exige) |
-| Keyphrase in subheading | VERDE (al menos 1 H2 con keyword) |
-| Frase clave utilizada anteriormente | NARANJA (sin tracking - aceptable) |
+| Campo | Estado |
+|-------|--------|
+| `focus_keyword` | Generado (2-4 palabras) |
+| `seo_title` | Generado (max 60 chars, empieza con keyword) |
+| `meta_description` | Generado (max 155 chars) |
+| `excerpt` | Generado (diferente a meta, max 160 chars) |
+| Enlaces externos | 1-2 en el contenido |
+| Keyword en H2 | Al menos 1 subtitulo |
+| Keyword en intro | En el primer parrafo |
 
----
+### Seccion tecnica
 
-### Nota importante
+Los FALLBACK_PROMPTS se usan cuando no hay prompts personalizados en la tabla `prompts`. La consulta a la base de datos mostro que no hay prompts activos con keys `saas_article_system` o `saas_article_user`, por lo que estos fallbacks son los que se ejecutan actualmente.
 
-Los artículos **ya generados** no se beneficiarán de estos cambios. Solo los **nuevos artículos** generados después de la implementación tendrán los campos SEO completos. Para el artículo actual, tendrías que:
-1. Regenerarlo desde MKPro
-2. O editarlo manualmente en WordPress
-
+La modificacion afecta a:
+- Lineas 122-171: `FALLBACK_PROMPTS.articleSystem`
+- Lineas 172-192: `FALLBACK_PROMPTS.articleUser`  
+- Lineas 194-208: `FALLBACK_PROMPTS.translateCatalan`
+- Lineas 1155-1165: Llamada a getPrompt para traduccion catalan
