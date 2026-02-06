@@ -1,108 +1,59 @@
 
 
-## Auditoría completa de Edge Functions - Problemas y mejoras
+## Plan: Corregir errores de tipos en componentes Radix UI
 
-### PROBLEMAS CRITICOS (funciones que no arrancan)
+### Problema
 
-Se han detectado **4 funciones que usan `serve()` sin importarlo**, lo que causa `ReferenceError: serve is not defined` y la funcion no arranca en absoluto. Este es el **mismo error** que acabamos de arreglar en `regenerate-image`.
+Las versiones de los paquetes Radix UI en `package.json` usan el prefijo `^` (caret), lo que permite que se instalen versiones menores mas recientes automaticamente. Las versiones mas recientes de Radix UI han eliminado `className` de los tipos de sus componentes, lo que rompe todos los componentes shadcn/ui que dependen de pasar `className` como prop.
 
-| Funcion | Tipo | Estado |
-|---|---|---|
-| `support-chatbot` | SaaS | ROTO - `serve()` sin import (linea 168) |
-| `generate-article` | MKPro (protegido) | ROTO - `serve()` sin import (linea 178) |
-| `generate-article-empresa` | MKPro (protegido) | ROTO - `serve()` sin import (linea 740) |
-| `publish-to-wordpress` | MKPro (protegido) | ROTO - `serve()` sin import (linea 27) |
+Esto afecta a **todos** los componentes UI del proyecto: alert-dialog, avatar, label, progress, scroll-area, separator, slider, switch, checkbox, tabs, radio-group, toggle, accordion, context-menu, dropdown-menu, select, toast, tooltip, hover-card, popover, dialog, navigation-menu, collapsible, y menubar.
 
-**Solucion**: Anadir `import { serve } from "https://deno.land/std@0.168.0/http/server.ts";` al inicio de cada archivo, o migrar a `Deno.serve()` (nativo, no requiere import).
+### Solucion
 
-**Nota sobre zona protegida**: Las 3 funciones MKPro estan marcadas como protegidas en las reglas de arquitectura, pero actualmente estan ROTAS y no funcionan. Es necesario arreglar el import para que vuelvan a funcionar. No se cambiara ninguna logica interna.
+Fijar las versiones de todos los paquetes `@radix-ui/*` a versiones exactas compatibles (sin el prefijo `^`), de modo que no se actualicen automaticamente a versiones que rompen la API.
 
----
+### Cambios
 
-### PROBLEMAS DE CORS (inconsistencias en headers)
+**Archivo**: `package.json`
 
-Varias funciones tienen CORS headers incompletos (les faltan `Access-Control-Allow-Methods` y `Access-Control-Max-Age`), y devuelven `Response(null)` en vez de `Response('ok')` en el OPTIONS handler.
+Cambiar todas las dependencias de Radix UI de versiones con `^` a versiones exactas fijadas:
 
-**Funciones con CORS incompleto** (faltan `Allow-Methods` y `Max-Age`):
-- `generate-article` (MKPro)
-- `generate-article-empresa` (MKPro)
-- `publish-to-wordpress` (MKPro)
-- `generate-blog-blooglee`
-- `send-newsletter`
-- `generate-monthly-articles`
-- `generate-scheduler`
-- `register-beta-user`
-
-**Funciones con `Response(null)` en OPTIONS** (deberia ser `Response('ok')`):
-- `generate-article`, `generate-article-empresa`, `publish-to-wordpress` (MKPro)
-- `upload-wordpress-media`, `sync-wordpress-taxonomies`
-- `generate-scheduler`, `generate-blog-blooglee`, `send-newsletter`
-- `update-seo-assets`, `fix-blog-false-claims`, `generate-monthly-articles`
-
-**Funcion con CORS recortado**:
-- `update-seo-assets` - Le faltan los headers `x-supabase-client-platform*` y `x-supabase-client-runtime*`
-- `upload-wordpress-media` - Mismo problema
-
----
-
-### PLAN DE CAMBIOS
-
-#### Paso 1: Arreglar las 4 funciones rotas (import de serve)
-
-Para cada una, anadir al inicio del archivo:
 ```text
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+"@radix-ui/react-accordion": "1.2.2",
+"@radix-ui/react-alert-dialog": "1.1.4",
+"@radix-ui/react-aspect-ratio": "1.1.1",
+"@radix-ui/react-avatar": "1.1.2",
+"@radix-ui/react-checkbox": "1.1.3",
+"@radix-ui/react-collapsible": "1.1.2",
+"@radix-ui/react-context-menu": "2.2.4",
+"@radix-ui/react-dialog": "1.1.4",
+"@radix-ui/react-dropdown-menu": "2.1.4",
+"@radix-ui/react-hover-card": "1.1.4",
+"@radix-ui/react-label": "2.1.1",
+"@radix-ui/react-menubar": "1.1.4",
+"@radix-ui/react-navigation-menu": "1.2.3",
+"@radix-ui/react-popover": "1.1.4",
+"@radix-ui/react-progress": "1.1.1",
+"@radix-ui/react-radio-group": "1.2.2",
+"@radix-ui/react-scroll-area": "1.2.2",
+"@radix-ui/react-select": "2.1.4",
+"@radix-ui/react-separator": "1.1.1",
+"@radix-ui/react-slider": "1.2.2",
+"@radix-ui/react-slot": "1.1.1",
+"@radix-ui/react-switch": "1.1.2",
+"@radix-ui/react-tabs": "1.1.2",
+"@radix-ui/react-toast": "1.2.4",
+"@radix-ui/react-toggle": "1.1.1",
+"@radix-ui/react-toggle-group": "1.1.1",
+"@radix-ui/react-tooltip": "1.1.6",
 ```
 
-Archivos afectados:
-1. `supabase/functions/support-chatbot/index.ts`
-2. `supabase/functions/generate-article/index.ts`
-3. `supabase/functions/generate-article-empresa/index.ts`
-4. `supabase/functions/publish-to-wordpress/index.ts`
+Estas son las ultimas versiones estables que mantienen compatibilidad con `className` en los tipos de componentes (la API que usa shadcn/ui).
 
-#### Paso 2: Estandarizar CORS en funciones SaaS y de marketing
+### Impacto
 
-Actualizar los corsHeaders para incluir `Allow-Methods` y `Max-Age` en:
-1. `supabase/functions/generate-blog-blooglee/index.ts`
-2. `supabase/functions/send-newsletter/index.ts`
-3. `supabase/functions/update-seo-assets/index.ts`
-4. `supabase/functions/upload-wordpress-media/index.ts`
-
-Y cambiar `Response(null)` a `Response('ok')` en el handler OPTIONS de estas mismas funciones.
-
-#### Paso 3: Estandarizar CORS en funciones MKPro (protegidas)
-
-Mismo cambio de corsHeaders y OPTIONS handler en:
-1. `supabase/functions/generate-article/index.ts`
-2. `supabase/functions/generate-article-empresa/index.ts`
-3. `supabase/functions/publish-to-wordpress/index.ts`
-4. `supabase/functions/sync-wordpress-taxonomies/index.ts`
-5. `supabase/functions/generate-monthly-articles/index.ts`
-6. `supabase/functions/generate-scheduler/index.ts`
-7. `supabase/functions/fix-blog-false-claims/index.ts`
-
-**Importante**: Solo se tocan las primeras lineas (corsHeaders) y el handler OPTIONS. No se modifica ninguna logica interna.
-
-#### Paso 4: Redesplegar todas las funciones modificadas
-
----
-
-### FUNCIONES EN BUEN ESTADO (no requieren cambios)
-
-Las siguientes funciones ya tienen la estructura correcta (`Deno.serve`, CORS completos, `Response('ok')`):
-- `generate-article-saas`
-- `publish-to-wordpress-saas`
-- `sync-wordpress-taxonomies-saas`
-- `wordpress-health-check`
-- `regenerate-image` (arreglada recientemente)
-- `subscribe-newsletter`
-- `register-beta-user`
-
----
-
-### RESUMEN DE IMPACTO
-
-- **4 funciones completamente rotas** que no arrancan (mayor prioridad)
-- **11 funciones con CORS suboptimo** que pueden fallar en ciertos navegadores/redes
-- **0 cambios de logica** - solo imports, headers y OPTIONS handler
+- No se modifica ningun componente de codigo
+- No se toca ninguna logica
+- Solo se fijan versiones en `package.json` para evitar que se instalen versiones incompatibles
+- El proyecto volvera a compilar correctamente
 
