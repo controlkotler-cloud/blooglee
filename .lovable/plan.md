@@ -1,22 +1,22 @@
 
 
-## Plan: Corregir errores de tipos en componentes Radix UI
+## Verificación y fijación definitiva de dependencias
 
-### Problema
+### Estado actual
 
-Las versiones de los paquetes Radix UI en `package.json` usan el prefijo `^` (caret), lo que permite que se instalen versiones menores mas recientes automaticamente. Las versiones mas recientes de Radix UI han eliminado `className` de los tipos de sus componentes, lo que rompe todos los componentes shadcn/ui que dependen de pasar `className` como prop.
+- La aplicación **compila y funciona correctamente**. La landing page carga sin errores.
+- No hay errores en consola (solo warnings de `postMessage` propios del entorno de preview, inofensivos).
+- Las versiones de Radix UI instaladas en `node_modules` son las correctas gracias al `package-lock.json`.
 
-Esto afecta a **todos** los componentes UI del proyecto: alert-dialog, avatar, label, progress, scroll-area, separator, slider, switch, checkbox, tabs, radio-group, toggle, accordion, context-menu, dropdown-menu, select, toast, tooltip, hover-card, popover, dialog, navigation-menu, collapsible, y menubar.
+### Problema pendiente
 
-### Solucion
+El `package.json` todavia tiene prefijos `^` en las 27 dependencias de Radix UI. Esto significa que si se borra el lockfile o se ejecuta `npm update`, se instalarian versiones incompatibles automaticamente.
 
-Fijar las versiones de todos los paquetes `@radix-ui/*` a versiones exactas compatibles (sin el prefijo `^`), de modo que no se actualicen automaticamente a versiones que rompen la API.
+### Cambios necesarios
 
-### Cambios
+**Archivo**: `package.json` (lineas 17-43)
 
-**Archivo**: `package.json`
-
-Cambiar todas las dependencias de Radix UI de versiones con `^` a versiones exactas fijadas:
+Eliminar el prefijo `^` de las 27 dependencias `@radix-ui/react-*`:
 
 ```text
 "@radix-ui/react-accordion": "1.2.2",
@@ -48,12 +48,16 @@ Cambiar todas las dependencias de Radix UI de versiones con `^` a versiones exac
 "@radix-ui/react-tooltip": "1.1.6",
 ```
 
-Estas son las ultimas versiones estables que mantienen compatibilidad con `className` en los tipos de componentes (la API que usa shadcn/ui).
+### Otras dependencias revisadas
 
-### Impacto
+Las demas dependencias del proyecto no presentan problemas de compatibilidad:
+- `react`, `react-dom`, `react-router-dom`, `@tanstack/react-query` - Estables con `^`, sin breaking changes conocidos
+- `tailwind-merge`, `clsx`, `class-variance-authority` - APIs estables
+- `sonner`, `vaul`, `cmdk`, `embla-carousel-react` - Sin conflictos detectados
+- `recharts`, `date-fns`, `zod`, `react-hook-form` - APIs estables
 
-- No se modifica ningun componente de codigo
-- No se toca ninguna logica
-- Solo se fijan versiones en `package.json` para evitar que se instalen versiones incompatibles
-- El proyecto volvera a compilar correctamente
+No se necesitan cambios adicionales fuera de fijar las versiones de Radix UI.
 
+### Seccion tecnica
+
+El cambio es puramente declarativo en `package.json`. Al eliminar `^`, npm no resolvera versiones mas recientes al ejecutar `npm install`. El `package-lock.json` se actualizara automaticamente para reflejar las versiones exactas.
