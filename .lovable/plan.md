@@ -1,63 +1,38 @@
 
 
-## Verificación y fijación definitiva de dependencias
+## Integrar Google Analytics en Blooglee
 
-### Estado actual
+### Que se hara
 
-- La aplicación **compila y funciona correctamente**. La landing page carga sin errores.
-- No hay errores en consola (solo warnings de `postMessage` propios del entorno de preview, inofensivos).
-- Las versiones de Radix UI instaladas en `node_modules` son las correctas gracias al `package-lock.json`.
+Insertar la etiqueta de Google Analytics (G-L0545SN8CD) en el archivo `index.html`, justo despues de la apertura del `<head>`, como indica Google.
 
-### Problema pendiente
+### Cambio necesario
 
-El `package.json` todavia tiene prefijos `^` en las 27 dependencias de Radix UI. Esto significa que si se borra el lockfile o se ejecuta `npm update`, se instalarian versiones incompatibles automaticamente.
+**Archivo**: `index.html`
 
-### Cambios necesarios
+Se anadiran las dos lineas del script de Google Tag (gtag.js) inmediatamente despues de `<head>`:
 
-**Archivo**: `package.json` (lineas 17-43)
-
-Eliminar el prefijo `^` de las 27 dependencias `@radix-ui/react-*`:
-
-```text
-"@radix-ui/react-accordion": "1.2.2",
-"@radix-ui/react-alert-dialog": "1.1.4",
-"@radix-ui/react-aspect-ratio": "1.1.1",
-"@radix-ui/react-avatar": "1.1.2",
-"@radix-ui/react-checkbox": "1.1.3",
-"@radix-ui/react-collapsible": "1.1.2",
-"@radix-ui/react-context-menu": "2.2.4",
-"@radix-ui/react-dialog": "1.1.4",
-"@radix-ui/react-dropdown-menu": "2.1.4",
-"@radix-ui/react-hover-card": "1.1.4",
-"@radix-ui/react-label": "2.1.1",
-"@radix-ui/react-menubar": "1.1.4",
-"@radix-ui/react-navigation-menu": "1.2.3",
-"@radix-ui/react-popover": "1.1.4",
-"@radix-ui/react-progress": "1.1.1",
-"@radix-ui/react-radio-group": "1.2.2",
-"@radix-ui/react-scroll-area": "1.2.2",
-"@radix-ui/react-select": "2.1.4",
-"@radix-ui/react-separator": "1.1.1",
-"@radix-ui/react-slider": "1.2.2",
-"@radix-ui/react-slot": "1.1.1",
-"@radix-ui/react-switch": "1.1.2",
-"@radix-ui/react-tabs": "1.1.2",
-"@radix-ui/react-toast": "1.2.4",
-"@radix-ui/react-toggle": "1.1.1",
-"@radix-ui/react-toggle-group": "1.1.1",
-"@radix-ui/react-tooltip": "1.1.6",
+```html
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-L0545SN8CD"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-L0545SN8CD');
+    </script>
+    <meta charset="UTF-8" />
+    ...resto del head existente...
 ```
 
-### Otras dependencias revisadas
+### Alcance
 
-Las demas dependencias del proyecto no presentan problemas de compatibilidad:
-- `react`, `react-dom`, `react-router-dom`, `@tanstack/react-query` - Estables con `^`, sin breaking changes conocidos
-- `tailwind-merge`, `clsx`, `class-variance-authority` - APIs estables
-- `sonner`, `vaul`, `cmdk`, `embla-carousel-react` - Sin conflictos detectados
-- `recharts`, `date-fns`, `zod`, `react-hook-form` - APIs estables
-
-No se necesitan cambios adicionales fuera de fijar las versiones de Radix UI.
+- Es un unico cambio en `index.html`. Al ser una SPA (Single Page Application), esta etiqueta cubre todas las paginas automaticamente.
+- No se necesitan cambios en componentes React ni en el router.
+- No se modifican archivos protegidos de MKPro.
 
 ### Seccion tecnica
 
-El cambio es puramente declarativo en `package.json`. Al eliminar `^`, npm no resolvera versiones mas recientes al ejecutar `npm install`. El `package-lock.json` se actualizara automaticamente para reflejar las versiones exactas.
+Google Analytics en una SPA con React Router registra automaticamente el pageview inicial. Para tracking de navegacion entre rutas (sin recarga de pagina), gtag ya captura los cambios de URL gracias a la configuracion por defecto de GA4 que detecta eventos de `history.pushState`. No se requiere integracion adicional con el router.
+
