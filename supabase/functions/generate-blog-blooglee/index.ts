@@ -788,6 +788,204 @@ async function generateBlogContent(
   return null;
 }
 
+// Slugify a title into a URL-friendly string
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
+    .replace(/\s+/g, '-') // Spaces to hyphens
+    .replace(/-+/g, '-') // Collapse multiple hyphens
+    .replace(/^-|-$/g, '') // Trim hyphens
+    .substring(0, 80);
+}
+
+// Generate excerpt and keywords for a forced topic
+async function generateExcerptAndKeywords(
+  lovableApiKey: string,
+  title: string,
+  category: string,
+  forceLanguage?: string
+): Promise<{ excerpt: string; keywords: string[] }> {
+  const lang = forceLanguage === 'catalan' ? 'catalán' : 'español';
+  const prompt = `Dado este título de artículo de blog: "${title}"
+Audiencia: ${category === 'Empresas' ? 'PYMEs españolas' : 'agencias de marketing digital'}
+Idioma: ${lang}
+
+Genera SOLO este JSON:
+{
+  "excerpt": "Meta description directa de máximo 145 caracteres en ${lang}, sin signos ! ni ?, enfoque en beneficio concreto",
+  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"]
+}`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.5,
+      }),
+    });
+
+    if (!response.ok) {
+      return { excerpt: title.substring(0, 145), keywords: [] };
+    }
+
+    const data = await response.json();
+    const rawContent = data.choices?.[0]?.message?.content || "";
+    const jsonStart = rawContent.indexOf('{');
+    const jsonEnd = rawContent.lastIndexOf('}');
+    if (jsonStart === -1 || jsonEnd === -1) {
+      return { excerpt: title.substring(0, 145), keywords: [] };
+    }
+    const parsed = JSON.parse(rawContent.substring(jsonStart, jsonEnd + 1).replace(/[\x00-\x1F\x7F]/g, ''));
+    
+    let cleanExcerpt = (parsed.excerpt || title)
+      .replace(/[!¡?¿]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (cleanExcerpt.length > 145) {
+      cleanExcerpt = cleanExcerpt.substring(0, 142) + '...';
+    }
+    
+    return { excerpt: cleanExcerpt, keywords: parsed.keywords || [] };
+  } catch {
+    return { excerpt: title.substring(0, 145), keywords: [] };
+  }
+}
+
+// Generate content in Catalan
+async function generateContentCatalan(
+  lovableApiKey: string,
+  metadata: { title: string; topic: string },
+  category: string,
+  currentYear: number,
+  monthName: string
+): Promise<string | null> {
+  const audienceContext = category === 'Empresas' 
+    ? "petites i mitjanes empreses catalanes que volen millorar la seva presència digital"
+    : "agències de màrqueting digital que gestionen contingut per a múltiples clients";
+
+  const CATALAN_MONTH_NAMES = [
+    "Gener", "Febrer", "Març", "Abril", "Maig", "Juny",
+    "Juliol", "Agost", "Setembre", "Octubre", "Novembre", "Desembre"
+  ];
+  const now = new Date();
+  const catalanMonth = CATALAN_MONTH_NAMES[now.getMonth()];
+
+  const prompt = `Ets el millor copywriter de Catalunya, especialitzat en SEO i AEO.
+Escriu un article de blog ÈPIC i COMPLET sobre: "${metadata.title}"
+
+CONTEXT:
+- Data actual: ${catalanMonth} de ${currentYear}
+- Instagram de Blooglee: https://www.instagram.com/blooglee_/
+- Audiència: ${audienceContext}
+
+${BLOOGLEE_DEFINITION}
+
+IMPORTANT: Tot l'article ha de ser en CATALÀ. No barregis castellà.
+
+ESTRUCTURA OBLIGATÒRIA (2500-3500 paraules en Markdown):
+
+1. INTRODUCCIÓ (150-200 paraules)
+   - Dada impactant o pregunta provocadora
+   - Promesa de valor
+
+2. 5-7 SECCIONS H2 (300-500 paraules cadascuna)
+   - Usar ## per a títols
+   - Incloure ### per a subseccions
+   - Al final de seccions importants: 💡 **Clau:** [insight principal]
+   - IMPORTANT: Els títols H2 i H3 han de seguir capitalització catalana (només primera lletra majúscula)
+
+REGLES DE CAPITALITZACIÓ (CATALÀ - MOLT IMPORTANT):
+- Només la primera lletra de títols/subtítols en majúscula (més noms propis)
+- NO usar capitalització tipus anglès (Title Case)
+
+3. 2 TAULES COMPARATIVES mínim (format Markdown)
+
+4. 3+ LLISTES amb bullets (- ítem)
+
+5. DADES ESTADÍSTIQUES (6+ dades percentuals realistes)
+
+6. FAQ (5-7 preguntes en format):
+   ## Preguntes freqüents
+   ### Pregunta 1?
+   Resposta completa.
+
+7. ENLLAÇOS INTERNS (usar Markdown):
+   - [funcionalitats de Blooglee](/features)
+   - [plans i preus](/pricing)
+   - [el nostre blog](/blog)
+   - [Prova Blooglee gratis](/auth)
+
+8. FOOTER FINAL:
+---
+
+**T'ha resultat útil aquest article?**
+
+Segueix-nos a [Instagram](https://www.instagram.com/blooglee_/) per a més consells de màrqueting.
+
+[Prova Blooglee gratis](/auth) i automatitza la generació d'articles per al teu blog WordPress.
+
+IMPORTANT:
+- NO usis JSON, només Markdown pur
+- NO incloguis el títol de l'article a l'inici (ja el tenim)
+- Menciona Blooglee NOMÉS 2-3 vegades i SEMPRE en context de generació de blogs/WordPress
+- MAI inventis funcionalitats de Blooglee que no existeixen
+- El contingut ha de ser EXHAUSTIU i d'alta qualitat
+- Any actual: ${currentYear}
+- TOT en CATALÀ, sense excepció
+
+Escriu l'article complet ara:`;
+
+  try {
+    console.log("Generating CATALAN content for:", metadata.title);
+    
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.8,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Catalan content generation failed:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) return null;
+
+    let cleanContent = content.trim();
+    if (cleanContent.startsWith('```markdown')) {
+      cleanContent = cleanContent.replace(/^```markdown\n?/, '').replace(/\n?```$/, '');
+    } else if (cleanContent.startsWith('```')) {
+      cleanContent = cleanContent.replace(/^```\n?/, '').replace(/\n?```$/, '');
+    }
+
+    const wordCount = cleanContent.split(/\s+/).length;
+    console.log(`Catalan content generated: ${wordCount} words`);
+    return cleanContent;
+  } catch (error) {
+    console.error("Catalan content generation error:", error);
+    return null;
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -806,6 +1004,8 @@ const handler = async (req: Request): Promise<Response> => {
     const rawCategory = body.category || body.audience;
     const force = body.force;
     const forceThematicCategory = body.forceThematicCategory;
+    const forceTopic = body.forceTopic;
+    const forceLanguage = body.forceLanguage;
 
     // Normalize: accept lowercase and capitalize
     const normalizeCategory = (cat: string): string => {
@@ -828,16 +1028,20 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log(`=== Generating PREMIUM blog post for category: ${category} ===`);
+    if (forceTopic) {
+      console.log(`FORCED TOPIC: "${forceTopic}"`);
+      if (forceLanguage) console.log(`FORCED LANGUAGE: ${forceLanguage}`);
+    }
 
     const now = new Date();
 
-    // Check if already generated today for this audience (skip if force=true)
-    if (!force) {
+    // Check if already generated today for this audience (skip if force=true or forceTopic)
+    if (!force && !forceTopic) {
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const { data: existingToday } = await supabase
         .from('blog_posts')
         .select('id')
-        .eq('audience', category.toLowerCase()) // Fixed: use 'audience' not 'category'
+        .eq('audience', category.toLowerCase())
         .gte('published_at', todayStart.toISOString())
         .limit(1);
 
@@ -849,23 +1053,64 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
     } else {
-      console.log("Force mode enabled - skipping daily check");
+      console.log("Force/forceTopic mode enabled - skipping daily check");
     }
 
-    // Get used topics (titles + keywords) to avoid repetition
-    const usedTopics = await getUsedBlogTopics(supabase, category);
-    console.log(`Found ${usedTopics.length} existing topics/keywords to avoid`);
+    let blogData: BlogPostData | null = null;
 
-    // Determine thematic category: use forced, or calculate rotation automatically
-    let effectiveThematicCategory = forceThematicCategory;
-    if (!effectiveThematicCategory) {
-      effectiveThematicCategory = await getNextThematicCategory(supabase, category);
-      console.log(`Auto-rotated thematic category: ${effectiveThematicCategory}`);
+    if (forceTopic) {
+      // === FORCED TOPIC PATH ===
+      console.log("Using FORCED TOPIC path - skipping auto-generation and similarity check");
+      
+      const slug = slugify(forceTopic);
+      const effectiveCategory = forceThematicCategory || normalizeThematicCategory(forceTopic.split(':')[0] || 'Marketing');
+      
+      // Generate excerpt and keywords with AI
+      const { excerpt, keywords } = await generateExcerptAndKeywords(lovableApiKey, forceTopic, category, forceLanguage);
+      console.log(`Excerpt generated: "${excerpt}"`);
+      
+      // Generate content (Catalan or Spanish)
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      const monthName = MONTH_NAMES[currentMonth];
+      
+      let content: string | null = null;
+      if (forceLanguage === 'catalan') {
+        content = await generateContentCatalan(lovableApiKey, { title: forceTopic, topic: forceTopic }, category, currentYear, monthName);
+      } else {
+        content = await generateContent(lovableApiKey, { title: forceTopic, topic: forceTopic }, category, currentYear, monthName);
+      }
+      
+      if (!content) {
+        throw new Error("Failed to generate content for forced topic");
+      }
+      
+      const wordCount = content.split(/\s+/).length;
+      const readMinutes = Math.ceil(wordCount / 200);
+      
+      blogData = {
+        title: forceTopic,
+        slug,
+        excerpt,
+        content,
+        seo_keywords: keywords,
+        read_time: `${readMinutes} min`,
+        thematic_category: effectiveCategory,
+      };
+    } else {
+      // === AUTOMATIC PATH (existing logic) ===
+      const usedTopics = await getUsedBlogTopics(supabase, category);
+      console.log(`Found ${usedTopics.length} existing topics/keywords to avoid`);
+
+      let effectiveThematicCategory = forceThematicCategory;
+      if (!effectiveThematicCategory) {
+        effectiveThematicCategory = await getNextThematicCategory(supabase, category);
+        console.log(`Auto-rotated thematic category: ${effectiveThematicCategory}`);
+      }
+
+      console.log(`Generating with thematicCategory: ${effectiveThematicCategory}`);
+      blogData = await generateBlogContent(lovableApiKey, category, usedTopics, now, effectiveThematicCategory, 3);
     }
-
-    // Generate premium content (with similarity validation and retry)
-    console.log(`Generating with thematicCategory: ${effectiveThematicCategory}`);
-    const blogData = await generateBlogContent(lovableApiKey, category, usedTopics, now, effectiveThematicCategory, 3);
     
     if (!blogData) {
       throw new Error("Failed to generate unique blog content after multiple attempts");
@@ -905,8 +1150,8 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Insert into database with audience (empresas/agencias) and thematic category
-    const audienceValue = category.toLowerCase(); // 'Empresas' -> 'empresas'
+    // Insert into database
+    const audienceValue = category.toLowerCase();
     
     const { data: insertedPost, error: insertError } = await supabase
       .from('blog_posts')
@@ -917,7 +1162,7 @@ const handler = async (req: Request): Promise<Response> => {
         content: blogData.content,
         image_url: imageUrl,
         audience: audienceValue,
-        category: blogData.thematic_category, // Now uses thematic category (SEO, Marketing, etc.)
+        category: blogData.thematic_category,
         author_name: "Generado por Blooglee",
         author_avatar: "https://gqtikajhhggyoiypkbgw.supabase.co/storage/v1/object/public/article-images/blooglee-avatar.png",
         author_role: "IA de Blooglee",
@@ -938,6 +1183,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`  - Words: ${wordCount}`);
     console.log(`  - Audience: ${audienceValue}`);
     console.log(`  - Category: ${insertedPost.category}`);
+    if (forceTopic) console.log(`  - Forced topic: YES`);
+    if (forceLanguage) console.log(`  - Language: ${forceLanguage}`);
 
     return new Response(
       JSON.stringify({
@@ -950,6 +1197,8 @@ const handler = async (req: Request): Promise<Response> => {
           category: insertedPost.category,
           wordCount: wordCount,
           hasAIImage: aiImage?.isAI || false,
+          forcedTopic: !!forceTopic,
+          language: forceLanguage || 'spanish',
         }
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
