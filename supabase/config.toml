@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.register-beta-user]
 verify_jwt = false
+
+[functions.clean-blog-headers]
+verify_jwt = false
