@@ -25,6 +25,25 @@ interface BlogPostData {
 // Thematic categories (separate from audience)
 const THEMATIC_CATEGORIES = ['SEO', 'Marketing', 'Tutoriales', 'Comparativas', 'Producto', 'Tendencias'];
 
+// Post-processing: clean AI-generated content before saving
+function cleanGeneratedContent(content: string): string {
+  let cleaned = content;
+
+  // Remove AI conversational meta-text before --- separator
+  cleaned = cleaned.replace(/^[\s\S]*?(?:Absolutamente|Aquí tienes|Here is|Here's|¡Claro|Por supuesto)[\s\S]*?---\s*\n*/i, '');
+
+  // Remove "Título: ..." lines at the beginning
+  cleaned = cleaned.replace(/^(?:Título\s*:\s*.+\n\s*)+/i, '');
+
+  // Remove duplicate H1 at the beginning
+  cleaned = cleaned.replace(/^#\s+.+\n+/, '');
+
+  // Trim leading blank lines
+  cleaned = cleaned.replace(/^\s*\n+/, '');
+
+  return cleaned;
+}
+
 // ===== DEFINICIÓN RESTRICTIVA DE BLOOGLEE =====
 // Esta definición se incluye en el prompt para evitar que la IA invente funcionalidades
 const BLOOGLEE_DEFINITION = `
@@ -1150,6 +1169,10 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // Clean generated content before saving (prevent duplicate H1, "Título:" lines, AI meta-text)
+    const cleanedContent = cleanGeneratedContent(blogData.content);
+    console.log(`Content cleaned: ${blogData.content.length} -> ${cleanedContent.length} chars`);
+
     // Insert into database
     const audienceValue = category.toLowerCase();
     
@@ -1159,7 +1182,7 @@ const handler = async (req: Request): Promise<Response> => {
         slug: blogData.slug,
         title: blogData.title,
         excerpt: blogData.excerpt,
-        content: blogData.content,
+        content: cleanedContent,
         image_url: imageUrl,
         audience: audienceValue,
         category: blogData.thematic_category,
