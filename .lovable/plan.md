@@ -1,29 +1,25 @@
 
 
-## Lanzar 3 articulos del Hueco 4 (Tendencias)
+## Lanzar 2 articulos en catalan del Hueco 5
 
-Se invocara la edge function `generate-blog-blooglee` tres veces con los siguientes parametros:
+Se invocara la edge function `generate-blog-blooglee` dos veces con `forceLanguage: "catalan"`:
 
-### Articulo 9
-- **forceTopic**: "Google y el contenido IA: que dice realmente Google"
-- **forceThematicCategory**: "Tendencias"
+### Articulo 12
+- **forceTopic**: "Com automatitzar el teu blog en catala amb intelligencia artificial"
+- **forceThematicCategory**: "Tutoriales"
+- **forceLanguage**: "catalan"
 - **category**: "Empresas"
 
-### Articulo 10
-- **forceTopic**: "El futuro del SEO: AEO, SGE y como preparar tu web para la busqueda con IA"
-- **forceThematicCategory**: "Tendencias"
-- **category**: "Empresas"
-
-### Articulo 11
-- **forceTopic**: "Content marketing en Espana: datos y tendencias del mercado hispanohablante"
-- **forceThematicCategory**: "Tendencias"
+### Articulo 13
+- **forceTopic**: "SEO en catala: com posicionar el teu web al mercat catalanoparlant"
+- **forceThematicCategory**: "SEO"
+- **forceLanguage**: "catalan"
 - **category**: "Empresas"
 
 ### Proceso
 
-Las 3 llamadas se lanzaran en paralelo. La generacion tarda entre 30-60 segundos por articulo (puede dar timeout HTTP pero el articulo se genera igualmente en segundo plano gracias a `EdgeRuntime.waitUntil`). Se verificara en base de datos que los 3 posts se han creado correctamente.
+Las 2 llamadas se lanzaran en paralelo. Se verificara en base de datos que los 2 posts se han creado correctamente.
 
 ### Progreso total
 
-Tras esta tanda: 11 de 13 articulos completados. Quedarian pendientes los 2 articulos en catalan del Hueco 5.
-
+Tras esta tanda: **13 de 13 articulos completados**. Plan editorial estrategico finalizado.
