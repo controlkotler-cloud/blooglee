@@ -51,11 +51,17 @@ const LANGUAGE_MAP: Record<string, string> = {
   english: "inglés",
 };
 
-const IMAGE_STYLE_PROMPT = `Create a visually striking social media image in a modern 3D abstract style. 
-Use a gradient color palette of violet (#8B5CF6), fuchsia (#D946EF), and orange (#F97316).
-Include floating 3D geometric elements (spheres, cubes, abstract shapes) with glass/metallic materials.
-The composition should be clean and professional, suitable for social media.
-No text on the image. Ultra high resolution.`;
+const IMAGE_STYLE_PROMPT = `Professional social media image.
+
+STYLE:
+- Abstract, minimal, clean design
+- Primary gradient colors: purple (#8B5CF6) to fuchsia (#D946EF) to coral (#F97316)
+- Soft flowing shapes, smooth gradients, ample negative space
+- NO text, NO logos, NO letters, NO words
+- NO realistic photos, NO complex 3D objects
+- Simple, elegant, modern
+
+FORMAT: Square 1:1 aspect ratio for social media`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -134,7 +140,7 @@ Deno.serve(async (req) => {
     // Generate image
     let imageUrl: string | null = null;
     const topicForImage = customTopic || blogTitle || "digital marketing SEO";
-    const imagePrompt = `${IMAGE_STYLE_PROMPT}\nTopic hint: ${topicForImage}`;
+    const imagePrompt = `${IMAGE_STYLE_PROMPT}\n\nCONCEPT: ${topicForImage}`;
 
     try {
       const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
