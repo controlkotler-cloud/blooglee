@@ -759,6 +759,62 @@ export type Database = {
         }
         Relationships: []
       }
+      social_content: {
+        Row: {
+          blog_post_id: string | null
+          content: string
+          content_type: string
+          created_at: string
+          id: string
+          image_url: string | null
+          language: string
+          media_prompt: string | null
+          metricool_post_id: string | null
+          platform: string
+          scheduled_for: string | null
+          status: string
+          title: string
+        }
+        Insert: {
+          blog_post_id?: string | null
+          content: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          language?: string
+          media_prompt?: string | null
+          metricool_post_id?: string | null
+          platform: string
+          scheduled_for?: string | null
+          status?: string
+          title: string
+        }
+        Update: {
+          blog_post_id?: string | null
+          content?: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          language?: string
+          media_prompt?: string | null
+          metricool_post_id?: string | null
+          platform?: string
+          scheduled_for?: string | null
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_content_blog_post_id_fkey"
+            columns: ["blog_post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_conversations: {
         Row: {
           created_at: string | null

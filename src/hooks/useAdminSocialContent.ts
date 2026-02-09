@@ -1,0 +1,78 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+export interface SocialContent {
+  id: string;
+  blog_post_id: string | null;
+  platform: string;
+  content_type: string;
+  title: string;
+  content: string;
+  media_prompt: string | null;
+  image_url: string | null;
+  status: string;
+  scheduled_for: string | null;
+  metricool_post_id: string | null;
+  language: string;
+  created_at: string;
+}
+
+export function useAdminSocialContent() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ['admin-social-content'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('social_content' as any)
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as SocialContent[];
+    },
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: async (params: {
+      blogPostId?: string;
+      platform: string;
+      contentType: string;
+      language: string;
+      customTopic?: string;
+    }) => {
+      const { data, error } = await supabase.functions.invoke('generate-social-content', {
+        body: params,
+      });
+      if (error) throw error;
+      return data as SocialContent;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-social-content'] });
+      toast({ title: 'Contenido generado', description: 'El contenido social se ha creado correctamente.' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err.message || 'Error al generar contenido', variant: 'destructive' });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('social_content' as any).delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-social-content'] });
+      toast({ title: 'Eliminado' });
+    },
+  });
+
+  return {
+    items,
+    isLoading,
+    generate: generateMutation.mutateAsync,
+    isGenerating: generateMutation.isPending,
+    deleteItem: deleteMutation.mutateAsync,
+  };
+}
