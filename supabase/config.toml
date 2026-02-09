@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.clean-blog-headers]
 verify_jwt = false
+
+[functions.generate-social-content]
+verify_jwt = false

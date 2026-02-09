@@ -9,7 +9,8 @@ import {
   Settings,
   ArrowLeft,
   LogOut,
-  Menu
+  Menu,
+  Share2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ const menuItems = [
   { path: '/admin/invitations', icon: TicketPlus, label: 'Invitaciones' },
   { path: '/admin/surveys', icon: ClipboardList, label: 'Encuestas' },
   { path: '/admin/prompts', icon: Settings, label: 'Prompts' },
+  { path: '/admin/social', icon: Share2, label: 'Social Media' },
 ];
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
