@@ -259,6 +259,27 @@ export function useDeleteArticleSaas() {
 
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
+      // 1. Get image_url before deleting
+      const { data: article } = await supabase
+        .from('articles')
+        .select('image_url')
+        .eq('id', id)
+        .maybeSingle();
+
+      // 2. Delete image from storage if it's in article-images bucket
+      if (article?.image_url && article.image_url.includes('article-images')) {
+        try {
+          const url = new URL(article.image_url);
+          const bucketPath = url.pathname.split('/article-images/')[1];
+          if (bucketPath) {
+            await supabase.storage.from('article-images').remove([decodeURIComponent(bucketPath)]);
+          }
+        } catch (e) {
+          console.warn('Failed to delete image from storage:', e);
+        }
+      }
+
+      // 3. Delete the article row
       const { error } = await supabase
         .from('articles')
         .delete()
