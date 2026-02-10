@@ -101,7 +101,7 @@ const features = [
   {
     icon: ImageIcon,
     title: 'Imágenes incluidas',
-    description: 'Cada artículo incluye una imagen destacada de alta calidad con los créditos del fotógrafo.',
+    description: 'Cada artículo incluye una imagen destacada de alta calidad creada con IA, Unsplash o Pexels.',
     benefits: [
       'Imágenes libres de derechos',
       'Alta resolución',
