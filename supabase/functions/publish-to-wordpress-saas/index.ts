@@ -347,6 +347,41 @@ Deno.serve(async (req) => {
       status: postData2.status,
     };
 
+    // Fire-and-forget: trigger full WordPress sync to update context
+    try {
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      
+      // Get wordpress_config_id for this site
+      const supabaseService = createClient(supabaseUrl, serviceRoleKey);
+      const { data: wpCfg } = await supabaseService
+        .from('wordpress_configs')
+        .select('id')
+        .eq('site_id', body.site_id)
+        .single();
+
+      if (wpCfg?.id) {
+        const syncUrl = `${supabaseUrl}/functions/v1/sync-wordpress-taxonomies-saas`;
+        fetch(syncUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({
+            wordpress_config_id: wpCfg.id,
+            analyze_content: true,
+          }),
+        }).then(res => {
+          console.log(`[sync-after-publish] Response status: ${res.status}`);
+        }).catch(err => {
+          console.error('[sync-after-publish] Error:', err);
+        });
+        console.log('[sync-after-publish] Triggered full WordPress sync for config:', wpCfg.id);
+      }
+    } catch (syncError) {
+      console.error('[sync-after-publish] Non-blocking error:', syncError);
+    }
+
     return new Response(
       JSON.stringify(result),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
