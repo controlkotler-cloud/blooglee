@@ -111,6 +111,10 @@ export function useGenerateArticleSaas() {
       if (!user?.id) throw new Error('No user logged in');
        
        addGenerating(params.siteId);
+       toast.info('Generando artículo... puedes navegar libremente', { 
+         duration: 60000, 
+         id: `gen-${params.siteId}` 
+       });
       
       const { data, error } = await supabase.functions.invoke('generate-article-saas', {
         body: {
@@ -137,6 +141,7 @@ export function useGenerateArticleSaas() {
     },
      onSettled: (_, __, params) => {
        removeGenerating(params.siteId);
+       toast.dismiss(`gen-${params.siteId}`);
      },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['articles'] });

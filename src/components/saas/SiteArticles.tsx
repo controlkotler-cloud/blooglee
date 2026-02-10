@@ -58,17 +58,6 @@ export function SiteArticles({ siteId, siteName, siteSector, onGenerateArticle, 
     return { value: String(year), label: String(year) };
   });
 
-  const handleCopy = (article: Article) => {
-    const content = article.content_spanish;
-    if (!content) {
-      toast.error('No hay contenido para copiar');
-      return;
-    }
-    const textToCopy = `${content.title}\n\n${content.meta_description}\n\n${content.content.replace(/<[^>]*>/g, '')}`;
-    navigator.clipboard.writeText(textToCopy);
-    toast.success('Contenido copiado');
-  };
-
   const handlePublish = (article: Article) => {
     setPublishArticle(article);
   };
@@ -151,7 +140,6 @@ export function SiteArticles({ siteId, siteName, siteSector, onGenerateArticle, 
               key={article.id}
               article={article}
               onView={() => setPreviewArticle(article)}
-              onCopy={() => handleCopy(article)}
               onPublish={() => handlePublish(article)}
               onDelete={() => handleDelete(article)}
             />

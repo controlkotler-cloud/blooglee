@@ -11,6 +11,8 @@ import { Loader2, CalendarIcon, Send, FileText, Clock, ExternalLink, Globe, Chec
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Article, ArticleContent } from "@/hooks/useArticlesSaas";
 import { usePublishToWordPressSaas, type PublishResultSaas } from "@/hooks/useArticlesSaas";
 import { useWordPressConfig } from "@/hooks/useWordPressConfigSaas";
@@ -48,6 +50,7 @@ export function WordPressPublishDialogSaas({
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
+  const queryClient = useQueryClient();
   const { data: wpConfig, isLoading: isLoadingConfig } = useWordPressConfig(siteId);
   const { data: taxonomies, isLoading: isLoadingTaxonomies } = useTaxonomiesSaas(wpConfig?.id);
   const syncMutation = useSyncTaxonomiesSaas();
@@ -141,6 +144,20 @@ export function WordPressPublishDialogSaas({
       }
 
       setPublishResults(results);
+
+      // Save wp_post_url to database if published successfully
+      if (article && results.spanish?.success && results.spanish?.post_url) {
+        try {
+          await supabase
+            .from('articles')
+            .update({ wp_post_url: results.spanish.post_url })
+            .eq('id', article.id);
+          
+          queryClient.invalidateQueries({ queryKey: ['articles'] });
+        } catch (err) {
+          console.error('Error saving wp_post_url:', err);
+        }
+      }
     } catch (error) {
       // Error is handled by the mutation
     } finally {

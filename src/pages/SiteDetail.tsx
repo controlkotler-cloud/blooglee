@@ -11,10 +11,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { ArrowLeft, Globe, MapPin, Loader2, Sparkles, Link2, Lock } from 'lucide-react';
+import { ArrowLeft, Globe, MapPin, Loader2, Sparkles, Link2, Lock, CheckCircle2 } from 'lucide-react';
 import { useSites } from '@/hooks/useSites';
 import { useArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 import { useWordPressConfig } from '@/hooks/useWordPressConfigSaas';
+import { useIsAdmin } from '@/hooks/useProfile';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { SiteArticles } from '@/components/saas/SiteArticles';
 import { SiteSettings } from '@/components/saas/SiteSettings';
@@ -43,6 +44,7 @@ export default function SiteDetail() {
   const currentYear = new Date().getFullYear();
   const { data: articles = [] } = useArticlesSaas(id, currentMonth, currentYear);
   const { data: wpConfig } = useWordPressConfig(id);
+  const { isAdmin } = useIsAdmin();
   
   const generateMutation = useGenerateArticleSaas();
    const { isGenerating: checkGenerating } = useGeneration();
@@ -50,11 +52,18 @@ export default function SiteDetail() {
   const canGenerate = !!wpConfig;
    const isGenerating = site ? checkGenerating(site.id) : false;
 
+  // Check if there's already a published article for the current period
+  const hasPublishedArticle = !isAdmin && articles.some(a => !!a.wp_post_url);
+
   const handleGenerateArticle = () => {
     if (!site) return;
     if (!canGenerate) {
       toast.info('Configura WordPress primero para generar artículos');
       setActiveTab('wordpress');
+      return;
+    }
+    if (hasPublishedArticle) {
+      toast.info('Ya tienes un artículo publicado para este periodo');
       return;
     }
      generateMutation.mutate({ siteId: site.id });
@@ -95,29 +104,37 @@ export default function SiteDetail() {
                 <BloogleeLogo size="md" />
               </div>
 
-              <Button 
-                onClick={handleGenerateArticle} 
-                disabled={isGenerating}
-                className={canGenerate 
-                  ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
-                  : "border-amber-500/50 text-amber-700 hover:bg-amber-50"
-                }
-                variant={canGenerate ? "default" : "outline"}
-              >
-                {isGenerating ? (
-                  <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
-                ) : canGenerate ? (
-                  <Sparkles className="w-4 h-4 sm:mr-2" />
-                ) : (
-                  <Lock className="w-4 h-4 sm:mr-2" />
-                )}
-                <span className="hidden sm:inline">
-                  {isGenerating ? 'Generando...' : canGenerate ? 'Generar artículo' : 'Configura WP primero'}
-                </span>
-                <span className="sm:hidden">
-                  {isGenerating ? '' : canGenerate ? 'Generar' : 'WP'}
-                </span>
-              </Button>
+              {hasPublishedArticle ? (
+                <Badge variant="outline" className="text-emerald-600 border-emerald-500/30 px-3 py-1.5">
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Publicado este periodo</span>
+                  <span className="sm:hidden">Publicado</span>
+                </Badge>
+              ) : (
+                <Button 
+                  onClick={handleGenerateArticle} 
+                  disabled={isGenerating}
+                  className={canGenerate 
+                    ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+                    : "border-amber-500/50 text-amber-700 hover:bg-amber-50"
+                  }
+                  variant={canGenerate ? "default" : "outline"}
+                >
+                  {isGenerating ? (
+                    <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
+                  ) : canGenerate ? (
+                    <Sparkles className="w-4 h-4 sm:mr-2" />
+                  ) : (
+                    <Lock className="w-4 h-4 sm:mr-2" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {isGenerating ? 'Generando...' : canGenerate ? 'Generar artículo' : 'Configura WP primero'}
+                  </span>
+                  <span className="sm:hidden">
+                    {isGenerating ? '' : canGenerate ? 'Generar' : 'WP'}
+                  </span>
+                </Button>
+              )}
             </div>
           </div>
         </header>

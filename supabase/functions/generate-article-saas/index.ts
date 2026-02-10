@@ -1823,6 +1823,67 @@ Deno.serve(async (req) => {
       ).catch(err => console.error("Background email error:", err));
     }
 
+    // Auto-publish to WordPress when scheduled (automated generation)
+    if (isScheduled) {
+      try {
+        const { data: wpConfig } = await supabase
+          .from('wordpress_configs')
+          .select('id')
+          .eq('site_id', siteId)
+          .maybeSingle();
+
+        if (wpConfig && spanishArticle) {
+          console.log("=== AUTO-PUBLISHING TO WORDPRESS ===");
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+          const publishPayload = {
+            site_id: siteId,
+            title: spanishArticle.title,
+            seo_title: spanishArticle.seo_title,
+            content: spanishArticle.content,
+            slug: spanishArticle.slug,
+            status: 'publish',
+            image_url: imageResult?.url || null,
+            image_alt: spanishArticle.title,
+            meta_description: spanishArticle.meta_description,
+            excerpt: spanishArticle.excerpt || spanishArticle.meta_description,
+            focus_keyword: spanishArticle.focus_keyword,
+            lang: 'es',
+          };
+
+          const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress-saas`;
+          fetch(publishUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify(publishPayload),
+          }).then(async (res) => {
+            console.log(`[auto-publish] Response status: ${res.status}`);
+            if (res.ok) {
+              const result = await res.json();
+              if (result.post_url) {
+                // Update article with wp_post_url
+                await supabase
+                  .from('articles')
+                  .update({ wp_post_url: result.post_url })
+                  .eq('id', savedArticle.id);
+                console.log(`[auto-publish] Updated wp_post_url: ${result.post_url}`);
+              }
+            }
+          }).catch(err => {
+            console.error('[auto-publish] Error:', err);
+          });
+        } else {
+          console.log("No WordPress config found or no Spanish content - skipping auto-publish");
+        }
+      } catch (autoPublishError) {
+        console.error("[auto-publish] Non-blocking error:", autoPublishError);
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       article: savedArticle,

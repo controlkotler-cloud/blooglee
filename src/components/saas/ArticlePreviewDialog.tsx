@@ -8,10 +8,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Upload, ExternalLink, ImagePlus, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { Upload, ExternalLink, ImagePlus, Loader2 } from 'lucide-react';
 import type { Article } from '@/hooks/useArticlesSaas';
 import { useRegenerateImageSaas } from '@/hooks/useArticlesSaas';
+import { useIsAdmin } from '@/hooks/useProfile';
 
 interface ArticlePreviewDialogProps {
   article: Article | null;
@@ -30,26 +30,14 @@ export function ArticlePreviewDialog({
 }: ArticlePreviewDialogProps) {
   const [selectedLang, setSelectedLang] = useState<'spanish' | 'catalan'>('spanish');
   const regenerateMutation = useRegenerateImageSaas();
+  const { isAdmin } = useIsAdmin();
 
   if (!article) return null;
 
   const content = selectedLang === 'spanish' ? article.content_spanish : article.content_catalan;
   const hasSpanish = !!article.content_spanish;
   const hasCatalan = !!article.content_catalan;
-
-  const handleCopy = () => {
-    if (!content) return;
-    
-    const textToCopy = `${content.title}\n\n${content.meta_description}\n\n${content.content.replace(/<[^>]*>/g, '')}`;
-    navigator.clipboard.writeText(textToCopy);
-    toast.success('Contenido copiado al portapapeles');
-  };
-
-  const handleCopyHtml = () => {
-    if (!content) return;
-    navigator.clipboard.writeText(content.content);
-    toast.success('HTML copiado al portapapeles');
-  };
+  const isPublished = !!article.wp_post_url;
 
   const handleRegenerateImage = () => {
     if (!article) return;
@@ -92,18 +80,17 @@ export function ArticlePreviewDialog({
             </TabsList>
 
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleCopy}>
-                <Copy className="w-4 h-4 mr-2" />
-                Copiar texto
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleCopyHtml}>
-                <Copy className="w-4 h-4 mr-2" />
-                Copiar HTML
-              </Button>
-              <Button size="sm" onClick={onPublish}>
-                <Upload className="w-4 h-4 mr-2" />
-                Publicar
-              </Button>
+              {!isPublished && (
+                <Button size="sm" onClick={onPublish}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Publicar
+                </Button>
+              )}
+              {isPublished && (
+                <Badge variant="outline" className="text-emerald-600 border-emerald-500/30">
+                  Publicado
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -140,20 +127,22 @@ export function ArticlePreviewDialog({
                       </a>
                     </p>
                   )}
-                  <Button
-                    onClick={handleRegenerateImage}
-                    disabled={isRegeneratingImage}
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs"
-                  >
-                    {isRegeneratingImage ? (
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                    ) : (
-                      <ImagePlus className="w-3 h-3 mr-1" />
-                    )}
-                    Cambiar
-                  </Button>
+                  {(!isPublished || isAdmin) && (
+                    <Button
+                      onClick={handleRegenerateImage}
+                      disabled={isRegeneratingImage}
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs"
+                    >
+                      {isRegeneratingImage ? (
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      ) : (
+                        <ImagePlus className="w-3 h-3 mr-1" />
+                      )}
+                      Cambiar
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
