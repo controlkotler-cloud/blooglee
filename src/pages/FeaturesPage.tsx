@@ -100,7 +100,7 @@ const features = [
   },
   {
     icon: ImageIcon,
-    title: 'Imágenes con créditos incluidos',
+    title: 'Imágenes incluidas',
     description: 'Cada artículo incluye una imagen destacada de alta calidad con los créditos del fotógrafo.',
     benefits: [
       'Imágenes libres de derechos',
