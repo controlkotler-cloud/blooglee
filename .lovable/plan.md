@@ -1,106 +1,70 @@
 
 
-## Reescritura completa del prompt de generacion de articulos SaaS
+## Correcciones al Master Prompt - 4 bugs detectados
 
-### Diagnostico actual
+### Problema 1: WordPress topics no se usan para evitar repeticiones
+**Diagnostico**: Los topics de WordPress SI se cargan (hay 10 topics sincronizados en farmapro), y SI se incluyen en la variable `{{usedTopics}}` del prompt de generacion de tema. El sistema funciona correctamente en el codigo (lineas 1122-1133). Sin embargo, solo se pasan los primeros 5 topics de WP al prompt como "temas recientes del blog" (`wpRecentTopics`), lo cual es poco. Ademas, en la seccion `{{usedTopics}}` solo se muestran 40 de los combinados.
 
-El sistema actual tiene estos problemas fundamentales:
+**Solucion**: Aumentar la visibilidad de los topics WP en el prompt:
+- Cambiar `slice(0, 5)` a `slice(0, 15)` para mostrar mas temas recientes del WP
+- Aumentar el limite de 40 a 60 en la lista combinada de temas a evitar
 
-1. **El prompt de generacion del tema y del articulo son mediocres** - No aprovechan toda la informacion del site (descripcion, audiencia, pilares, temas a evitar, custom_topic)
-2. **Los terminos prohibidos se validan DESPUES de generar** en vez de incluirlos en el prompt. La IA genera 3 veces, las 3 se rechazan, y cae a un fallback estatico
-3. **La traduccion al catalan es literal** - se traduce el texto espanol en vez de generar nativamente en el otro idioma
-4. **El footer SEO es siempre identico** - "Quieres mas consejos? Visita nuestro blog..." repetido en cada articulo
-5. **El custom_topic (directriz tematica) no se usa en el prompt del articulo**, solo en el del tema
+**Archivo**: `supabase/functions/generate-article-saas/index.ts` (linea 1086 y 1137)
 
-### Solucion: Prompt maestro que usa TODA la informacion del site
+---
 
-#### Datos que se usaran (en orden de prioridad):
+### Problema 2: Enlaces externos no funcionan
+**Diagnostico**: Los enlaces externos dependen 100% de la IA. El prompt dice "Si conoces la URL EXACTA, usala. Si NO, enlaza SOLO a la homepage del dominio". El problema es que la IA inventa URLs que no existen. Hay una funcion `verifyAndCleanExternalLinks` (linea 836) que deberia validarlos y reemplazar los rotos por la homepage del dominio, pero necesito verificar si se esta llamando correctamente.
 
-| Dato | Uso en el prompt |
-|------|-----------------|
-| `name` | Primera mencion con enlace a home |
-| `sector` | Contexto sectorial del contenido |
-| `geographic_scope` + `location` | Solo si es local/regional: mencion de localidad para SEO local. Nacional: nada |
-| `description` | Contexto completo del negocio, servicios, propuesta de valor |
-| `custom_topic` | Si tiene contenido: directriz tematica global para orientar TODOS los temas. Si vacio: generacion libre |
-| `tone` | Estilo de escritura (formal, cercano, tecnico, divulgativo) |
-| `target_audience` | A quien va dirigido el contenido |
-| `content_pillars` | Pilar actual de la rotacion (educativo, tendencias, casos, estacional) |
-| `avoid_topics` | Temas PROHIBIDOS incluidos directamente en el prompt para que la IA no los genere |
-| `preferred_length` | Longitud objetivo del articulo |
-| `wordpress_context` | Temas recientes del blog WP + estilo detectado para no repetir |
-| `blog_url` + `instagram_url` | Frase final variada con enlaces |
+**Solucion**: 
+- Verificar que `verifyAndCleanExternalLinks` se ejecuta sobre el contenido final
+- Reforzar el prompt para que la IA use SIEMPRE la homepage del dominio (ej: `https://www.who.int`) en vez de inventar URLs profundas
+- Actualizar el prompt en la BD
 
-#### Cambios tecnicos en `supabase/functions/generate-article-saas/index.ts`:
+**Archivo**: `supabase/functions/generate-article-saas/index.ts` + UPDATE en tabla `prompts`
 
-**Cambio 1: Nuevo prompt de generacion de tema (lineas ~108-140)**
+---
 
-Reescribir `FALLBACK_PROMPTS.topic` para que:
-- Incluya los temas a evitar (`avoid_topics`) directamente en las instrucciones
-- Incluya los terminos prohibidos del sector dentro del prompt (no como validacion posterior)
-- Use el `custom_topic` como directriz tematica si esta rellenado
-- Liste los temas ya usados (Blooglee + WordPress sincronizados) para no repetir
-- Tenga en cuenta la descripcion del negocio para generar temas relevantes
-
-**Cambio 2: Nuevo prompt de generacion de articulo (lineas ~142-255)**
-
-Reescribir `FALLBACK_PROMPTS.articleSystem` y `articleUser` como un unico prompt maestro que incluya:
-
-```text
-Estructura del nuevo prompt:
-
-1. ROL: Eres el mejor redactor de blogs del mundo, especializado en [sector]
-2. EMPRESA: [name] - [description completa]
-3. CONTEXTO GEOGRAFICO: [solo si local: "en [location]"]
-4. AUDIENCIA: [target_audience completo]
-5. TONO: [tone + descripcion detallada]
-6. PILAR DE CONTENIDO: [pillar actual + descripcion]
-7. DIRECTRIZ TEMATICA: [custom_topic si existe]
-8. ESTILO DEL BLOG: [wordpress_context.style_notes si existe]
-9. TEMA DEL ARTICULO: [topic]
-10. LONGITUD: [preferred_length palabras]
-11. REGLAS SEO (Yoast verde obligatorio)
-12. REGLAS DE ENLACES:
-    - Primera mencion de [name] enlaza a [blog_url domain]
-    - 2 enlaces externos a fuentes de autoridad
-    - Frase final VARIADA (no siempre igual) con enlace a [blog_url] y [instagram_url]
-13. TEMAS PROHIBIDOS: [avoid_topics + sector prohibited terms]
-14. FORMATO JSON
+### Problema 3: Frase final usa sector en vez de nombre y muestra URLs en crudo
+**Diagnostico**: El prompt en la BD (lineas 97-103) tiene estos ejemplos:
 ```
+"Para mas consejos de {{sector}}, visita {{blogUrl}}"
+"Si te ha gustado, siguenos en {{instagramUrl}} para mas contenido"
+```
+Dos problemas claros:
+1. Usa `{{sector}}` ("consultoria de marketing para farmacias") en vez de `{{siteName}}` ("farmapro")
+2. Las URLs se muestran como texto plano (https://farmapro.es/blog/) en vez de como enlaces HTML con texto ancla legible ("nuestro blog", "nuestras redes sociales")
 
-**Cambio 3: Generacion nativa en otros idiomas (lineas ~1365-1423)**
+**Solucion**: Reescribir la seccion FRASE FINAL del prompt para:
+- Usar `{{siteName}}` en vez de `{{sector}}`
+- Instruir que los enlaces se presenten con texto ancla descriptivo, NO como URL cruda
+- Ejemplos corregidos:
+  * "Visita el <a href='{{blogUrl}}'>blog de {{siteName}}</a> para mas contenido como este"
+  * "Siguenos en <a href='{{instagramUrl}}'>nuestras redes sociales</a> para estar al dia"
 
-Reemplazar el prompt de traduccion por un prompt de generacion nativa:
-- En vez de "Traduce este articulo", sera "Genera un articulo NATIVO en catalan sobre el mismo tema"
-- Se le pasa el articulo espanol como referencia de contenido pero se le pide que lo escriba como si fuera un redactor nativo catalan
-- Mantiene estructura y datos del espanol pero con expresiones, giros y estilo propios del catalan
+**Archivo**: UPDATE en tabla `prompts` (key `saas.article.system`)
 
-**Cambio 4: Frase final variada (lineas ~1528-1563)**
+---
 
-Eliminar el footer estatico hardcodeado y mover la instruccion al prompt de generacion:
-- La IA generara la frase final como parte del contenido
-- Se le indicara que debe variar: a veces invitar al blog, a veces a redes, a veces ambos
-- Se le daran las URLs reales de blog e instagram para que las incluya
-- Nunca repetir la misma formula de cierre
+### Problema 4: Meta description en espanol truncada con "..."
+**Diagnostico**: En la linea 1488 del codigo, si la meta description supera 145 caracteres se trunca asi:
+```javascript
+spanishArticle.meta_description.substring(0, 142) + '...';
+```
+Esto produce una meta description cortada artificialmente que se ve incompleta.
 
-**Cambio 5: Eliminar validacion post-generacion de terminos prohibidos (lineas ~1131-1214)**
+**Solucion**: Cambiar la logica de truncado para:
+- Genera una metadescripción de 145 caracteres o menos, sin recortar
+- NO anadir "..."
 
-- Los terminos prohibidos ahora van DENTRO del prompt (cambio 1)
-- Eliminar el bucle de 3 intentos con validacion regex
-- Si el tema generado no es valido (vacio o error de API), usar fallback ampliado con filtro de duplicados
-- Ampliar fallbacks a 10+ opciones por categoria
-- Filtrar contra `usedTopics` + `wpTopics` antes de elegir
+**Archivo**: `supabase/functions/generate-article-saas/index.ts` (linea 1488)
 
-### Archivos a modificar
+---
+
+### Resumen de cambios
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/functions/generate-article-saas/index.ts` | Reescritura completa de prompts, eliminacion de validacion post-generacion, generacion nativa multi-idioma, frase final variada |
+| `supabase/functions/generate-article-saas/index.ts` | Linea 1086: slice(0,15). Linea 1137: limite 60. Linea 1488: truncado inteligente por palabra. Verificar llamada a verifyAndCleanExternalLinks |
+| Tabla `prompts` (BD) | UPDATE key `saas.article.system`: reescribir seccion FRASE FINAL con siteName y enlaces HTML con ancla. Reforzar seccion ENLACES EXTERNOS para usar solo homepages |
 
-### Resultado esperado
-
-- Articulos mucho mas relevantes y personalizados para cada site
-- Cero temas duplicados (prohibidos incluidos en el prompt)
-- Catalan nativo, no traducido
-- Frase final variada y natural
-- Toda la informacion del site aprovechada al maximo
