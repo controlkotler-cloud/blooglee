@@ -106,179 +106,224 @@ function cleanMarkdownFromHtml(content: string): string {
 // FALLBACK PROMPTS (used if DB prompt not found)
 // ==========================================
 const FALLBACK_PROMPTS = {
-  topic: `Eres un experto en marketing de contenidos para el sector "{{sector}}".
+  topic: `Eres el mejor estratega de contenido editorial del mundo, especializado en el sector "{{sector}}".
 
 EMPRESA: {{siteName}}
 SECTOR: {{sector}}
 {{description}}
-ÁMBITO: {{scope}}
+ÁMBITO GEOGRÁFICO: {{scope}}
 {{targetAudience}}
 
-TIPO DE CONTENIDO REQUERIDO: {{pillarType}}
+PILAR DE CONTENIDO REQUERIDO: {{pillarType}}
 {{pillarDescription}}
 
 TONO DE VOZ: {{toneType}}
 {{toneDescription}}
+
+{{customTopicDirective}}
 
 {{wpStyleNotes}}
 {{wpRecentTopics}}
 
-CONTEXTO TEMPORAL: Estamos en {{month}} {{year}}, considera estacionalidad si aplica.
+CONTEXTO TEMPORAL: Estamos en {{month}} {{year}}, considera estacionalidad si el pilar lo requiere.
+
 {{usedTopics}}
+
+⛔ TEMAS PROHIBIDOS (NUNCA generar temas que contengan estas palabras o conceptos):
+{{avoidTopicsList}}
+
+⛔ TÉRMINOS PROHIBIDOS DEL SECTOR (NUNCA usar estas palabras en el tema):
+{{prohibitedTerms}}
 
 Genera UN tema de blog que:
 1. Encaje PERFECTAMENTE con el pilar de contenido "{{pillarType}}"
 2. Sea relevante para el sector {{sector}}{{descriptionContext}}
-3. Tenga potencial SEO
-4. Considere la estacionalidad si el pilar es "seasonal"
+3. Tenga potencial SEO real (algo que la gente busca en Google)
+4. Si el pilar es "seasonal", adáptalo a {{month}} {{year}}
 5. NO mencione el nombre de la empresa
-6. Sea DIFERENTE a los temas ya usados
+6. Sea COMPLETAMENTE DIFERENTE a los temas ya usados
 7. NO incluyas el año en el tema (ej: "2026", "este año")
 8. Usa capitalización española (solo inicial mayúscula, no Title Case)
-9. Use el tono indicado
+9. Respeta el tono indicado
+10. NO contenga NINGUNO de los términos prohibidos listados arriba
 
-Responde SOLO con el tema (máx 80 caracteres), sin explicaciones.`,
+Responde SOLO con el tema (máx 80 caracteres), sin explicaciones ni comillas.`,
 
-  articleSystem: `Eres un redactor experto en marketing de contenidos y SEO para el sector {{sector}}.
+  articleSystem: `Eres el mejor redactor de blogs del mundo, especializado en el sector {{sector}}. Escribes artículos que posicionan en Google, enganchen al lector y generen confianza en la marca.
 
-EMPRESA: {{siteName}}
-SECTOR: {{sector}}
+═══════════════════════════════════════
+1. EMPRESA
+═══════════════════════════════════════
+Nombre: {{siteName}}
+Sector: {{sector}}
 {{description}}
-ÁMBITO: {{scope}}
-{{targetAudience}}
 
-TONO DE VOZ: {{toneType}}
-{{toneDescription}}
-
-TIPO DE CONTENIDO: {{pillarType}}
-{{pillarDescription}}
-
-LONGITUD OBJETIVO: {{lengthDescription}}
-
-{{wpStyleNotes}}
-
-TU MISIÓN: Generar un artículo de {{lengthWords}} palabras optimizado para SEO{{descriptionContext}}.
-
-REGLAS DE ESTRUCTURA HTML:
-- ⚠️ NO incluyas <h1> en el contenido - WordPress lo añade automáticamente desde el título
-- El contenido DEBE empezar con un <h2> introductorio DIFERENTE al título H1
-- Ese H2 inicial debe ser un gancho o resumen del tema, NO repetir el título
-
+═══════════════════════════════════════
+2. CONTEXTO GEOGRÁFICO
+═══════════════════════════════════════
 {{geoContext}}
 
-⚠️ OPTIMIZACIÓN SEO CRÍTICA (Yoast verde OBLIGATORIO):
+═══════════════════════════════════════
+3. AUDIENCIA
+═══════════════════════════════════════
+{{targetAudience}}
 
-1. FOCUS KEYWORD (2-4 palabras):
-   - DEBE aparecer MÍNIMO 5 VECES en el texto completo
-   - Distribuir uniformemente: intro, mitad del artículo, y conclusión (NO todo junto)
-   - DEBE aparecer en el seo_title (AL INICIO, primeras palabras)
-   - DEBE aparecer en la meta_description
-   - DEBE aparecer en el primer párrafo (primeras 100 palabras)
-   - DEBE aparecer en AL MENOS 2 subtítulos H2 o H3
-   - Usa SINÓNIMOS de la keyword en otras secciones para distribución natural
+═══════════════════════════════════════
+4. TONO DE VOZ
+═══════════════════════════════════════
+Tipo: {{toneType}}
+{{toneDescription}}
 
-2. ENLACES EXTERNOS OBLIGATORIOS:
-   - INCLUYE 2 enlaces a fuentes de autoridad (Wikipedia, estudios, instituciones oficiales, medios reconocidos)
-   - Si conoces la URL EXACTA de un artículo/post/estudio relevante, úsala
-   - Si NO estás seguro de la URL exacta, enlaza SOLO a la homepage del dominio (ej: https://www.aeped.es en vez de inventar rutas)
-   - Formato: <a href="URL" target="_blank" rel="noopener">texto ancla descriptivo</a>
-   - NO enlaces a competidores directos
-
-3. META DESCRIPTION (REGLAS CRÍTICAS):
-   - MAXIMO 145 caracteres (nunca superar 150)
-   - Incluir focus_keyword de forma natural
-   - ⚠️ PROHIBIDO usar signos de exclamación (!) - NUNCA
-   - ⚠️ PROHIBIDO usar signos de interrogación (?) - NUNCA
-   - Tono directo y profesional
-   - Sin adornos ni frases vacías (evitar "Descubre", "No te pierdas", "Aprende", etc.)
-   - Foco en beneficio concreto o propuesta de valor clara
-   - Ejemplo CORRECTO: "Guía completa para optimizar tu blog WordPress con estrategias SEO probadas y resultados medibles"
-   - Ejemplo INCORRECTO: "¡Descubre cómo optimizar tu blog! ¿Quieres más tráfico?"
-
-4. PÁRRAFOS Y LEGIBILIDAD:
-   - Mantén los párrafos entre 2-4 oraciones
-   - Usa transiciones entre secciones
-
-5. PREGUNTAS PAA (People Also Ask):
-   - INCLUYE 1-2 subtítulos H2 en FORMATO PREGUNTA
-   - Estas preguntas deben ser las que los usuarios buscan en Google sobre el tema
-   - Ejemplos: "¿Por qué...?", "¿Cómo...?", "¿Cuál es...?", "¿Qué significa...?"
-   - Responde la pregunta en el párrafo siguiente (2-4 oraciones directas)
-   - Esto mejora posicionamiento en featured snippets de Google
-
-⚠️ CAPITALIZACIÓN ESPAÑOLA OBLIGATORIA:
-- SOLO la primera letra del título/subtítulo en mayúscula (+ nombres propios)
-
-LISTAS:
-- Si enumeras con dos puntos (:), usa lista HTML (<ul><li>)
-
-CONTEXTO TEMPORAL: Hoy es {{dateContext}}.
-
-FORMATO DE RESPUESTA JSON (TODOS los campos son OBLIGATORIOS):
-{
-  "title": "Título H1 atractivo (máx 70 chars, SIN nombre empresa, SIN año)",
-  "seo_title": "SEO title (máx 60 chars, EMPIEZA con focus_keyword)",
-  "meta_description": "Meta descripción directa (max 145 chars) con focus_keyword, sin ! ni ?",
-  "excerpt": "Resumen breve (máx 160 chars) DIFERENTE a meta_description",
-  "focus_keyword": "keyword principal de 2-4 palabras",
-  "slug": "url-con-focus-keyword-sin-espacios",
-  "content": "<h2>Subtítulo con focus_keyword</h2><p>Primer párrafo con focus_keyword...</p>...<h2>¿Pregunta PAA relevante?</h2><p>Respuesta...</p>"
-}
-
-RESPONDE ÚNICAMENTE CON EL JSON VÁLIDO.`,
-
-  articleUser: `TEMA: {{topic}}
-
-TIPO DE CONTENIDO: {{pillarType}}
+═══════════════════════════════════════
+5. PILAR DE CONTENIDO
+═══════════════════════════════════════
+Tipo: {{pillarType}}
 {{pillarDescription}}
 
-Genera un artículo profesional que encaje con este tipo de contenido.
+═══════════════════════════════════════
+6. DIRECTRIZ TEMÁTICA
+═══════════════════════════════════════
+{{customTopicDirective}}
 
-REGLAS OBLIGATORIAS:
-1. El contenido HTML NO debe contener <h1> (WordPress lo añade)
-2. Empieza el contenido con un <h2> que sea un GANCHO, diferente al título
-3. INCLUYE 2 enlaces externos a fuentes de autoridad - si no conoces la URL exacta de un artículo, enlaza SOLO a la homepage (ej: https://www.who.int)
-4. La meta_description: máximo 145 caracteres, tono directo, PROHIBIDO usar ! o ? (elimínalos siempre)
-5. El focus_keyword (2-4 palabras) debe aparecer MÍNIMO 5 VECES distribuidas uniformemente
-6. El focus_keyword debe estar en: slug, seo_title (AL INICIO), meta_description, primer párrafo y AL MENOS 2 subtítulos H2/H3
-7. INCLUYE 1-2 subtítulos H2 en formato PREGUNTA (¿Por qué...?, ¿Cómo...?, ¿Qué...?) con respuesta directa
+═══════════════════════════════════════
+7. ESTILO DEL BLOG EXISTENTE
+═══════════════════════════════════════
+{{wpStyleNotes}}
 
-FORMATO JSON OBLIGATORIO (TODOS los campos requeridos):
+═══════════════════════════════════════
+8. TEMA DEL ARTÍCULO
+═══════════════════════════════════════
+{{topic}}
+
+═══════════════════════════════════════
+9. LONGITUD
+═══════════════════════════════════════
+{{lengthDescription}} (~{{lengthWords}} palabras)
+
+═══════════════════════════════════════
+10. REGLAS SEO (Yoast verde OBLIGATORIO)
+═══════════════════════════════════════
+
+FOCUS KEYWORD (2-4 palabras):
+- DEBE aparecer MÍNIMO 5 VECES distribuidas: intro, mitad, conclusión
+- DEBE aparecer AL INICIO del seo_title
+- DEBE aparecer en meta_description
+- DEBE aparecer en el primer párrafo (primeras 100 palabras)
+- DEBE aparecer en AL MENOS 2 subtítulos H2 o H3
+- Usa SINÓNIMOS en otras secciones
+
+ESTRUCTURA HTML:
+- ⚠️ NO incluyas <h1> - WordPress lo añade automáticamente
+- Empieza con un <h2> introductorio DIFERENTE al título (gancho/resumen)
+- Párrafos de 2-4 oraciones con transiciones
+- INCLUYE 1-2 subtítulos H2 en FORMATO PREGUNTA (¿Por qué...?, ¿Cómo...?)
+- Si enumeras con dos puntos (:), usa lista HTML (<ul><li>)
+
+META DESCRIPTION:
+- MÁXIMO 145 caracteres
+- Incluir focus_keyword naturalmente
+- ⚠️ PROHIBIDO usar ! ¡ ? ¿
+- Tono directo y profesional, sin frases vacías ("Descubre", "No te pierdas")
+
+CAPITALIZACIÓN ESPAÑOLA:
+- Solo primera letra en mayúscula + nombres propios
+
+═══════════════════════════════════════
+11. REGLAS DE ENLACES
+═══════════════════════════════════════
+
+ENLACE INTERNO (OBLIGATORIO):
+- La PRIMERA vez que menciones "{{siteName}}" en el cuerpo del texto, enlázalo a {{homeUrl}}
+- Formato: <a href="{{homeUrl}}" target="_blank" rel="noopener">{{siteName}}</a>
+
+ENLACES EXTERNOS (2 OBLIGATORIOS):
+- Incluye 2 enlaces a fuentes de autoridad (Wikipedia, instituciones oficiales, estudios, medios reconocidos)
+- Si conoces la URL EXACTA, úsala. Si NO, enlaza SOLO a la homepage del dominio
+- Formato: <a href="URL" target="_blank" rel="noopener">texto ancla descriptivo</a>
+- NO enlaces a competidores directos
+
+FRASE FINAL (OBLIGATORIA Y VARIADA):
+- El artículo debe terminar con una frase final que invite al lector a seguir conectado
+- VARÍA la fórmula de cierre: a veces invita al blog, a veces a las redes, a veces a ambos
+- NO uses siempre la misma frase. Ejemplos de variaciones:
+  * "Si te ha gustado este artículo, síguenos en {{instagramUrl}} para más contenido"
+  * "Encuentra más guías como esta en {{blogUrl}}"
+  * "Descubre más en {{blogUrl}} y no te pierdas nuestras novedades en {{instagramUrl}}"
+  * "Para más consejos de {{sector}}, visita {{blogUrl}}"
+- Incluye los enlaces reales proporcionados arriba
+- Si solo hay blog_url o solo instagram_url, usa solo el que exista
+
+═══════════════════════════════════════
+12. TEMAS Y TÉRMINOS PROHIBIDOS
+═══════════════════════════════════════
+{{avoidTopicsList}}
+{{prohibitedTerms}}
+
+═══════════════════════════════════════
+13. CONTEXTO TEMPORAL
+═══════════════════════════════════════
+Hoy es {{dateContext}}.
+
+═══════════════════════════════════════
+14. FORMATO DE RESPUESTA
+═══════════════════════════════════════
+RESPONDE ÚNICAMENTE con un JSON válido con TODOS estos campos:
 {
-  "title": "Título H1 atractivo (máx 70 caracteres)",
+  "title": "Título H1 atractivo (máx 70 chars, SIN nombre empresa, SIN año)",
   "seo_title": "SEO title que EMPIEZA con focus_keyword (máx 60 chars)",
-  "meta_description": "Descripción directa (max 145 chars) con keyword, sin signos de exclamación",
-  "excerpt": "Resumen diferente a meta_description (máx 160 chars)",
-  "focus_keyword": "keyword principal 2-4 palabras",
-  "slug": "url-con-keyword-sin-espacios",
-  "content": "<h2>Subtítulo con keyword</h2><p>Primer párrafo con keyword...</p>...<h2>¿Pregunta PAA?</h2><p>Respuesta...</p>"
+  "meta_description": "Descripción directa (max 145 chars) con keyword, sin ! ni ?",
+  "excerpt": "Resumen DIFERENTE a meta_description (máx 160 chars)",
+  "focus_keyword": "keyword principal de 2-4 palabras",
+  "slug": "url-con-focus-keyword-sin-espacios",
+  "content": "<h2>Subtítulo gancho con keyword</h2><p>Primer párrafo con keyword...</p>...<h2>¿Pregunta PAA?</h2><p>Respuesta...</p>...<p>Frase final variada con enlaces</p>"
 }`,
 
-  translateCatalan: `Traduce este artículo del español al catalán.
+  articleUser: `Escribe el artículo sobre: {{topic}}
 
-ARTÍCULO:
-Título: {{title}}
+Recuerda:
+- Pilar de contenido: {{pillarType}} → {{pillarDescription}}
+- Longitud: ~{{lengthWords}} palabras
+- Enlaza "{{siteName}}" a {{homeUrl}} en su primera mención
+- 2 enlaces externos a fuentes de autoridad
+- Frase final variada con enlaces a {{blogUrl}} y/o {{instagramUrl}}
+- Focus keyword mínimo 5 veces, en seo_title al inicio, meta_description, primer párrafo y 2+ subtítulos
+- 1-2 H2 en formato pregunta (PAA)
+- NO <h1>, empieza con <h2> gancho diferente al título
+- Meta description: máx 145 chars, sin ! ni ?
+
+RESPONDE SOLO CON JSON VÁLIDO.`,
+
+  nativeCatalan: `Ets el millor redactor de blogs en català del món. Has de generar un article NATIU en català, NO una traducció.
+
+REFERÈNCIA (article en castellà sobre el mateix tema - usa'l com a guia de contingut, NO el tradueixis literalment):
+Títol: {{title}}
 SEO Title: {{seoTitle}}
 Meta: {{meta}}
 Excerpt: {{excerpt}}
 Focus Keyword: {{focusKeyword}}
 Slug: {{slug}}
-Contenido: {{content}}
+Contingut: {{content}}
 
-REGLAS DE TRADUCCIÓN:
-- Mantén el focus_keyword traducido al catalán
-- La meta_description: máximo 145 caracteres, PROHIBIDO usar ! o ?, tono directo
-- El excerpt debe ser diferente a la meta_description
+INSTRUCCIONS:
+- Escriu com un redactor NATIU català: amb expressions, girs i estil propis del català
+- Mantén la mateixa estructura i les mateixes dades/informació que l'article de referència
+- Adapta exemples i expressions al context català si escau
+- NO facis una traducció literal: reescriu cada frase amb naturalitat
+- El focus_keyword ha de ser l'equivalent natural en català
+- La meta_description: màxim 145 caràcters, PROHIBIT usar ! o ?, to directe
+- L'excerpt ha de ser diferent de la meta_description
+- Mantén els enllaços externs iguals
+- Adapta la frase final al català de forma natural
 
-RESPONDE EN JSON (TODOS los campos obligatorios):
+RESPON EN JSON (TOTS els camps obligatoris):
 {
-  "title": "Títol en català",
+  "title": "Títol en català natiu",
   "seo_title": "SEO title en català (màx 60 chars)",
   "meta_description": "Meta descripció directa (max 145 chars), sense ! ni ?",
   "excerpt": "Resum en català (màx 160 chars, diferent de meta)",
-  "focus_keyword": "keyword traduïda al català",
+  "focus_keyword": "keyword natural en català",
   "slug": "url-en-catala",
-  "content": "Contingut HTML en català"
+  "content": "Contingut HTML en català natiu"
 }`,
 
   image: `Generate a professional blog header image.
@@ -1089,12 +1134,22 @@ Deno.serve(async (req) => {
       console.log(`Total topics to avoid: ${allAvoidTopics.length}`);
       
       const usedTopicsSection = allAvoidTopics.length > 0 
-        ? `\n\n⚠️ TEMAS A EVITAR (NO REPETIR NI SIMILARES):\n${allAvoidTopics.slice(0, 40).map((t, i) => `${i+1}. ${t}`).join('\n')}`
+        ? `\n\n⚠️ TEMAS YA USADOS (NO REPETIR NI SIMILARES):\n${allAvoidTopics.slice(0, 40).map((t, i) => `${i+1}. ${t}`).join('\n')}`
         : '';
+
+      // Build avoid topics list for prompt
+      const avoidTopicsListForPrompt = avoidTopics.length > 0
+        ? avoidTopics.map(t => `- ${t}`).join('\n')
+        : '(ninguno especificado)';
 
       // Build prohibited terms string for prompt
       const prohibitedTermsForPrompt = sectorProhibitedTerms.length > 0
-        ? `- ${sectorProhibitedTerms.slice(0, 20).join('\n- ')}`
+        ? sectorProhibitedTerms.slice(0, 20).map(t => `- ${t}`).join('\n')
+        : '(ninguno)';
+
+      // Build custom topic directive
+      const customTopicDirective = site.custom_topic 
+        ? `DIRECTRIZ TEMÁTICA GLOBAL: Todos los temas deben estar orientados hacia "${site.custom_topic}". Úsalo como guía para la temática general.`
         : '';
 
       // Build enriched topic prompt variables
@@ -1107,7 +1162,6 @@ Deno.serve(async (req) => {
         month: monthNameEs,
         year: year.toString(),
         usedTopics: usedTopicsSection,
-        // NEW: Enriched context
         pillarType: currentPillar,
         pillarDescription: pillarDescription,
         toneType: siteTone,
@@ -1115,8 +1169,9 @@ Deno.serve(async (req) => {
         targetAudience: targetAudience ? `AUDIENCIA OBJETIVO: ${targetAudience}` : '',
         wpStyleNotes: wpStyleNotes ? `ESTILO DETECTADO EN SU BLOG: ${wpStyleNotes}` : '',
         wpRecentTopics: wpRecentTopics ? `TEMAS RECIENTES DE SU BLOG: ${wpRecentTopics}` : '',
-        // NEW: Prohibited terms
-        prohibitedTerms: prohibitedTermsForPrompt
+        prohibitedTerms: prohibitedTermsForPrompt,
+        avoidTopicsList: avoidTopicsListForPrompt,
+        customTopicDirective: customTopicDirective,
       };
 
       // Get topic prompt from database with cache
@@ -1127,92 +1182,155 @@ Deno.serve(async (req) => {
         FALLBACK_PROMPTS.topic
       );
 
-      // Maximum retry attempts for topic validation
-      const MAX_TOPIC_ATTEMPTS = 3;
-      let topicAttempt = 0;
-      let validTopic = false;
+      // Single attempt - prohibited terms are now IN the prompt
+      try {
+        const topicResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [{ role: "user", content: topicPrompt }],
+            temperature: 0.85,
+            max_tokens: 100,
+          }),
+        });
 
-      while (!validTopic && topicAttempt < MAX_TOPIC_ATTEMPTS) {
-        topicAttempt++;
-        console.log(`Topic generation attempt ${topicAttempt}/${MAX_TOPIC_ATTEMPTS}`);
-        
-        try {
-          const topicResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
-              messages: [{ role: "user", content: topicPrompt }],
-              temperature: 0.85 + (topicAttempt * 0.1), // Increase temperature on retries
-              max_tokens: 100,
-            }),
-          });
-
-          if (topicResponse.ok) {
-            const topicData = await topicResponse.json();
-            const generatedTopic = topicData.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, "") || '';
-            
-            if (generatedTopic) {
-              // Validate topic doesn't contain prohibited terms
-              const topicLower = generatedTopic.toLowerCase();
-              const containsProhibited = sectorProhibitedTerms.some(term => 
-                topicLower.includes(term.toLowerCase())
-              );
-              
-              // Also check for generic patterns
-              const genericPatterns = [
-                /\b(202\d|2030)\b/, // Years
-                /\b(futuro|future)\b/i,
-                /\b(tendencias?|trends?)\b/i,
-                /\b(digitaliza|transforma)/i,
-                /\b(innovaci[oó]n|disrupt)/i,
-                /\b(inteligencia artificial|ia\s|ai\s)/i
-              ];
-              
-              const containsGenericPattern = genericPatterns.some(pattern => pattern.test(topicLower));
-              
-              if (!containsProhibited && !containsGenericPattern) {
-                topic = generatedTopic;
-                validTopic = true;
-                console.log(`✓ Valid topic generated: "${topic}"`);
-              } else {
-                console.log(`✗ Topic rejected (contains prohibited/generic terms): "${generatedTopic}"`);
-              }
-            }
+        if (topicResponse.ok) {
+          const topicData = await topicResponse.json();
+          const generatedTopic = topicData.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, "") || '';
+          
+          if (generatedTopic && generatedTopic.length > 5 && generatedTopic.length <= 100) {
+            topic = generatedTopic;
+            console.log(`✓ Topic generated: "${topic}"`);
+          } else {
+            console.log(`Topic invalid (empty or wrong length): "${generatedTopic}"`);
           }
-        } catch (error) {
-          console.error(`Topic generation attempt ${topicAttempt} error:`, error);
         }
+      } catch (error) {
+        console.error("Topic generation error:", error);
       }
       
-      // Fallback if all attempts failed - generate a concrete, sector-specific topic
+      // Fallback if generation failed - expanded list with dedup
       if (!topic) {
         const concreteFallbacks: Record<string, string[]> = {
           farmacia: [
             "Cómo organizar el mostrador de dermofarmacia",
             "Consejos para la atención de alergias estacionales",
-            "Guía de productos para el cuidado solar"
+            "Guía de productos para el cuidado solar",
+            "Rutina de cuidado facial recomendada por expertos",
+            "Suplementos nutricionales más consultados",
+            "Cómo elegir el protector solar adecuado",
+            "Primeros auxilios básicos en el hogar",
+            "Alimentación saludable para deportistas amateur",
+            "Cómo prevenir resfriados en invierno",
+            "Guía de hidratación corporal por tipo de piel",
+            "Vitaminas esenciales para cada etapa de la vida",
+            "Consejos para mejorar la calidad del sueño"
+          ],
+          belleza: [
+            "Tendencias en coloración capilar natural",
+            "Cuidado del cabello después del verano",
+            "Guía de cortes según forma del rostro",
+            "Tratamientos capilares sin químicos agresivos",
+            "Cómo mantener el color entre visitas al salón",
+            "Peinados protectores para cabello frágil",
+            "Rutina capilar para cabello rizado",
+            "Aceites naturales para nutrir el cabello",
+            "Cortes de pelo que rejuvenecen",
+            "Cómo elegir el champú adecuado para tu tipo de pelo"
           ],
           marketing: [
             "Estructura de una landing page efectiva",
             "Cómo redactar asuntos de email que abren",
-            "Guía de palabras clave long-tail"
+            "Guía de palabras clave long-tail",
+            "Estrategia de contenido para redes sociales",
+            "Métricas clave para medir tu marketing digital",
+            "Cómo crear un calendario editorial efectivo",
+            "Copywriting persuasivo para páginas de venta",
+            "Automatización de email marketing paso a paso",
+            "Optimización de fichas de Google Business",
+            "Cómo generar reseñas positivas de clientes"
+          ],
+          hosteleria: [
+            "Carta digital y su impacto en el servicio",
+            "Técnicas de fidelización para restaurantes",
+            "Tendencias gastronómicas de temporada",
+            "Cómo gestionar reseñas online de tu restaurante",
+            "Maridajes creativos para sorprender a tus clientes",
+            "Estrategias para reducir el desperdicio alimentario",
+            "Diseño de menú que maximiza ventas",
+            "Experiencia del cliente en hostelería moderna",
+            "Ingredientes de proximidad como valor diferencial",
+            "Cómo fotografiar platos para redes sociales"
+          ],
+          tecnologia: [
+            "Ciberseguridad básica para pequeñas empresas",
+            "Herramientas de productividad para equipos remotos",
+            "Automatización de procesos repetitivos",
+            "Guía de backup y recuperación de datos",
+            "Cómo elegir software de gestión empresarial",
+            "Integración de herramientas digitales en tu negocio",
+            "Protección de datos personales en la empresa",
+            "Workflows automatizados que ahorran tiempo",
+            "Comunicación interna con herramientas digitales",
+            "Gestión de contraseñas segura para equipos"
+          ],
+          salud: [
+            "Hábitos saludables para trabajadores sedentarios",
+            "Guía de estiramientos para la oficina",
+            "Alimentación consciente en el día a día",
+            "Bienestar emocional en el entorno laboral",
+            "Ejercicios de respiración para reducir estrés",
+            "Ergonomía en el puesto de trabajo",
+            "Hidratación adecuada según tu actividad",
+            "Descanso activo durante la jornada laboral",
+            "Rutinas de ejercicio para principiantes",
+            "Cómo crear un espacio de trabajo saludable"
           ],
           default: [
-            "Cómo mejorar la atención al cliente",
-            "Organiza tu espacio de trabajo eficientemente",
-            "Guía para fidelizar a tus clientes"
+            "Cómo mejorar la atención al cliente en tu negocio",
+            "Organiza tu espacio de trabajo para más productividad",
+            "Guía para fidelizar a tus clientes actuales",
+            "Estrategias para diferenciarte de la competencia",
+            "Cómo gestionar el tiempo de forma eficiente",
+            "Comunicación efectiva con tu equipo de trabajo",
+            "Procesos internos que puedes simplificar hoy",
+            "Cómo medir la satisfacción de tus clientes",
+            "Consejos para mejorar tu presencia online",
+            "Pequeños cambios que mejoran la experiencia del cliente",
+            "Planificación estratégica para el próximo trimestre",
+            "Cómo crear una propuesta de valor única"
           ]
         };
         
         const fallbacks = concreteFallbacks[sectorCategory] || concreteFallbacks.default;
-        topic = fallbacks[Math.floor(Math.random() * fallbacks.length)];
-        console.log(`Using concrete fallback topic: "${topic}"`);
+        // Filter against used topics to avoid duplicates
+        const allUsed = new Set([...usedTopics, ...wpTopics].map(t => t.toLowerCase()));
+        const availableFallbacks = fallbacks.filter(f => !allUsed.has(f.toLowerCase()));
+        const finalList = availableFallbacks.length > 0 ? availableFallbacks : fallbacks;
+        topic = finalList[Math.floor(Math.random() * finalList.length)];
+        console.log(`Using fallback topic (filtered): "${topic}"`);
       }
     }
+
+    // Build home URL from blog_url or fallback
+    const homeUrl = site.blog_url 
+      ? (() => { try { const u = new URL(site.blog_url); return `${u.protocol}//${u.host}`; } catch { return site.blog_url; } })()
+      : '#';
+    
+    // Build custom topic directive for article
+    const customTopicDirectiveArticle = site.custom_topic
+      ? `Directriz temática global del cliente: "${site.custom_topic}". El contenido debe alinearse con esta directriz.`
+      : 'Sin directriz temática específica. Genera contenido relevante para el sector.';
+
+    // Build avoid topics list for article
+    const allProhibitedForArticle = [
+      ...(avoidTopics.length > 0 ? avoidTopics.map(t => `- Tema a evitar: ${t}`) : []),
+      ...(sectorProhibitedTerms.length > 0 ? sectorProhibitedTerms.slice(0, 15).map(t => `- Término prohibido: ${t}`) : [])
+    ].join('\n') || '(ninguno)';
 
     // Build system prompt from database with enriched context
     const systemPrompt = await getPrompt(
@@ -1226,15 +1344,23 @@ Deno.serve(async (req) => {
         scope: scope,
         geoContext: geoContext,
         dateContext: dateContext,
-        // NEW: Enriched context
         toneType: siteTone,
         toneDescription: toneDescription,
-        targetAudience: targetAudience ? `AUDIENCIA: ${targetAudience}` : '',
+        targetAudience: targetAudience ? `Audiencia objetivo: ${targetAudience}` : 'Audiencia: público general del sector',
         pillarType: currentPillar,
         pillarDescription: pillarDescription,
         lengthWords: lengthTarget.words.toString(),
         lengthDescription: lengthTarget.description,
-        wpStyleNotes: wpStyleNotes ? `ESTILO A MANTENER: ${wpStyleNotes}` : ''
+        wpStyleNotes: wpStyleNotes ? `Mantener este estilo detectado en su blog: ${wpStyleNotes}` : 'Sin estilo previo detectado.',
+        homeUrl: homeUrl,
+        blogUrl: site.blog_url || '',
+        instagramUrl: site.instagram_url || '',
+        topic: topic,
+        customTopicDirective: customTopicDirectiveArticle,
+        avoidTopicsList: allProhibitedForArticle,
+        prohibitedTerms: sectorProhibitedTerms.length > 0 
+          ? sectorProhibitedTerms.slice(0, 15).map(t => `- ${t}`).join('\n') 
+          : '(ninguno)',
       },
       FALLBACK_PROMPTS.articleSystem
     );
@@ -1246,7 +1372,12 @@ Deno.serve(async (req) => {
       { 
         topic: topic,
         pillarType: currentPillar,
-        pillarDescription: pillarDescription
+        pillarDescription: pillarDescription,
+        siteName: site.name,
+        homeUrl: homeUrl,
+        blogUrl: site.blog_url || '',
+        instagramUrl: site.instagram_url || '',
+        lengthWords: lengthTarget.words.toString(),
       },
       FALLBACK_PROMPTS.articleUser
     );
@@ -1363,9 +1494,9 @@ Deno.serve(async (req) => {
     let catalanArticle = null;
     
     if (site.languages?.includes("catalan")) {
-      console.log("Generating Catalan version...");
+      console.log("Generating NATIVE Catalan version (not translation)...");
       
-      // Get Catalan translation prompt from database
+      // Get native Catalan generation prompt from database
       const catalanPrompt = await getPrompt(
         supabase,
         'saas.translate.catalan',
@@ -1378,7 +1509,7 @@ Deno.serve(async (req) => {
           slug: spanishArticle.slug,
           content: spanishContentWithoutSeo
         },
-        FALLBACK_PROMPTS.translateCatalan
+        FALLBACK_PROMPTS.nativeCatalan
       );
 
       try {
@@ -1391,7 +1522,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             messages: [{ role: "user", content: catalanPrompt }],
-            temperature: 0.3,
+            temperature: 0.5,
             max_tokens: 8000,
           }),
         });
@@ -1407,10 +1538,8 @@ Deno.serve(async (req) => {
             
             const jsonMatch = cleanCatalan.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-              // Clean BOM and zero-width characters
               const cleanedCatalanJson = jsonMatch[0].replace(/[\uFEFF\u200B\u200C\u200D]/g, '');
               
-              // Two-attempt parsing for Catalan too
               try {
                 catalanArticle = JSON.parse(cleanedCatalanJson);
               } catch (firstError) {
@@ -1418,7 +1547,7 @@ Deno.serve(async (req) => {
                 const repairedCatalanJson = escapeControlCharsInsideStrings(cleanedCatalanJson);
               catalanArticle = JSON.parse(repairedCatalanJson);
               }
-              console.log("Catalan article generated successfully");
+              console.log("Native Catalan article generated successfully");
               
               // Clean any markdown from Catalan content
               if (catalanArticle?.content) {
@@ -1524,43 +1653,11 @@ Deno.serve(async (req) => {
     // Add home link to Spanish content (first mention of brand)
     let processedSpanishContent = spanishContentWithoutSeo;
     processedSpanishContent = addHomeLinkToContent(processedSpanishContent, site.name, site.blog_url || null);
-
-    // Add SEO footer with blog/social links to Spanish content
-    console.log("Adding SEO footer links...");
-    const seoLinksEs: string[] = [];
-    if (site.blog_url) {
-      seoLinksEs.push(`<a href="${site.blog_url}" target="_blank" rel="noopener">nuestro blog</a>`);
-    }
-    if (site.instagram_url) {
-      seoLinksEs.push(`<a href="${site.instagram_url}" target="_blank" rel="noopener">nuestras redes sociales</a>`);
-    }
     
-    if (seoLinksEs.length > 0) {
-      const linksTextEs = seoLinksEs.join(' y ');
-      const closingParagraphEs = `<p><strong>¿Quieres más consejos?</strong> Visita ${linksTextEs} para descubrir más contenido de ${site.name}.</p>`;
-      spanishArticle.content = processedSpanishContent + closingParagraphEs;
-      console.log("SEO footer added to Spanish article");
-    } else {
-      spanishArticle.content = processedSpanishContent;
-    }
-
-    // Add SEO footer to Catalan content AFTER translation
-    if (catalanArticle?.content) {
-      const seoLinksCa: string[] = [];
-      if (site.blog_url) {
-        seoLinksCa.push(`<a href="${site.blog_url}" target="_blank" rel="noopener">el nostre blog</a>`);
-      }
-      if (site.instagram_url) {
-        seoLinksCa.push(`<a href="${site.instagram_url}" target="_blank" rel="noopener">les nostres xarxes socials</a>`);
-      }
-      
-      if (seoLinksCa.length > 0) {
-        const linksTextCa = seoLinksCa.join(' i ');
-        const closingParagraphCa = `<p><strong>Vols més consells?</strong> Visita ${linksTextCa} per descobrir més contingut de ${site.name}.</p>`;
-        catalanArticle.content += closingParagraphCa;
-        console.log("SEO footer added to Catalan article");
-      }
-    }
+    // The closing paragraph with blog/social links is now generated by the AI as part of the article
+    // No hardcoded footer needed - the prompt instructs varied closings
+    spanishArticle.content = processedSpanishContent;
+    console.log("Spanish content processed (closing generated by AI)");
 
     // Generate image with AI
     let imageResult = null;
