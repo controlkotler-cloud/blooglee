@@ -1083,7 +1083,7 @@ Deno.serve(async (req) => {
     // WordPress context if available
     const wpContext = site.wordpress_context || null;
     const wpStyleNotes = wpContext?.style_notes || '';
-    const wpRecentTopics = wpContext?.lastTopics?.slice(0, 5).join(', ') || '';
+    const wpRecentTopics = wpContext?.lastTopics?.slice(0, 15).join(', ') || '';
 
     // ==========================================
     // LOAD SECTOR PROHIBITED TERMS
@@ -1134,7 +1134,7 @@ Deno.serve(async (req) => {
       console.log(`Total topics to avoid: ${allAvoidTopics.length}`);
       
       const usedTopicsSection = allAvoidTopics.length > 0 
-        ? `\n\n⚠️ TEMAS YA USADOS (NO REPETIR NI SIMILARES):\n${allAvoidTopics.slice(0, 40).map((t, i) => `${i+1}. ${t}`).join('\n')}`
+        ? `\n\n⚠️ TEMAS YA USADOS (NO REPETIR NI SIMILARES):\n${allAvoidTopics.slice(0, 60).map((t, i) => `${i+1}. ${t}`).join('\n')}`
         : '';
 
       // Build avoid topics list for prompt
@@ -1485,7 +1485,10 @@ Deno.serve(async (req) => {
       // Truncate if over 145 chars
       if (spanishArticle.meta_description.length > 145) {
         console.log(`Meta description too long (${spanishArticle.meta_description.length} chars), truncating to 145`);
-        spanishArticle.meta_description = spanishArticle.meta_description.substring(0, 142) + '...';
+        // Truncate at last full word before 145 chars, no ellipsis
+        const truncated = spanishArticle.meta_description.substring(0, 145);
+        const lastSpace = truncated.lastIndexOf(' ');
+        spanishArticle.meta_description = lastSpace > 100 ? truncated.substring(0, lastSpace) : truncated;
       }
     }
 
