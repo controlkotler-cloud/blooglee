@@ -84,6 +84,93 @@ async function getPrompt(
 }
 
 // ==========================================
+// META DESCRIPTION FIXER - Uses AI to rewrite instead of truncating
+// ==========================================
+async function fixMetaDescription(
+  metaDesc: string,
+  focusKeyword: string,
+  apiKey: string
+): Promise<string> {
+  // Step 1: Always clean punctuation
+  let cleaned = metaDesc
+    .replace(/[!¡?¿]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Step 2: If already valid (≤145 chars, looks complete), return as-is
+  if (cleaned.length <= 145 && cleaned.length >= 50 && /[a-záéíóúàèòç]$/i.test(cleaned)) {
+    return cleaned;
+  }
+
+  // Step 3: If too long or looks cut off, regenerate with AI
+  console.log(`Meta description needs fix: ${cleaned.length} chars, regenerating with AI...`);
+  
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [{
+          role: "user",
+          content: `Reescribe esta meta description para que tenga EXACTAMENTE entre 120 y 140 caracteres. 
+La frase debe ser COMPLETA, con sentido, sin cortes ni puntos suspensivos.
+Incluye la keyword "${focusKeyword}" de forma natural.
+PROHIBIDO usar signos de exclamación (!) o interrogación (?).
+Tono directo y profesional.
+
+Meta description original: "${cleaned}"
+
+Responde SOLO con la nueva meta description, sin comillas ni explicaciones.`
+        }],
+        temperature: 0.3,
+        max_tokens: 200,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      let newMeta = (data.choices?.[0]?.message?.content || '')
+        .replace(/^["']|["']$/g, '')
+        .replace(/[!¡?¿]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      if (newMeta.length >= 50 && newMeta.length <= 145) {
+        console.log(`Meta description regenerated: ${newMeta.length} chars`);
+        return newMeta;
+      }
+      console.log(`Regenerated meta still bad (${newMeta.length} chars), using smart truncation`);
+    }
+  } catch (e) {
+    console.error("Meta description AI fix failed:", e);
+  }
+
+  // Step 4: Last resort - smart truncation that ends at a natural break
+  if (cleaned.length > 145) {
+    // Try to cut at last period before 145
+    const sub = cleaned.substring(0, 145);
+    const lastPeriod = sub.lastIndexOf('.');
+    if (lastPeriod > 80) {
+      return cleaned.substring(0, lastPeriod + 1);
+    }
+    // Try comma
+    const lastComma = sub.lastIndexOf(',');
+    if (lastComma > 80) {
+      return cleaned.substring(0, lastComma);
+    }
+    // Last word boundary
+    const lastSpace = sub.lastIndexOf(' ');
+    return lastSpace > 100 ? cleaned.substring(0, lastSpace) : sub;
+  }
+
+  return cleaned;
+}
+
+// ==========================================
 // MARKDOWN CLEANUP - Remove markdown syntax that slipped into HTML
 // ==========================================
 function cleanMarkdownFromHtml(content: string): string {
@@ -1473,23 +1560,14 @@ Deno.serve(async (req) => {
       console.log("Cleaned markdown from Spanish content");
     }
 
-    // Post-generation validation: clean meta_description
+    // Post-generation validation: fix meta_description with AI if needed
     if (spanishArticle.meta_description) {
-      // Remove exclamations and question marks
-      spanishArticle.meta_description = spanishArticle.meta_description
-        .replace(/[!¡?¿]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-      console.log("Cleaned punctuation from meta_description");
-      
-      // Truncate if over 145 chars
-      if (spanishArticle.meta_description.length > 145) {
-        console.log(`Meta description too long (${spanishArticle.meta_description.length} chars), truncating to 145`);
-        // Truncate at last full word before 145 chars, no ellipsis
-        const truncated = spanishArticle.meta_description.substring(0, 145);
-        const lastSpace = truncated.lastIndexOf(' ');
-        spanishArticle.meta_description = lastSpace > 100 ? truncated.substring(0, lastSpace) : truncated;
-      }
+      spanishArticle.meta_description = await fixMetaDescription(
+        spanishArticle.meta_description,
+        spanishArticle.focus_keyword || topic,
+        LOVABLE_API_KEY!
+      );
+      console.log(`Final Spanish meta_description: ${spanishArticle.meta_description.length} chars`);
     }
 
     // Store Spanish content WITHOUT SEO footer for translation
@@ -1558,16 +1636,14 @@ Deno.serve(async (req) => {
                 console.log("Cleaned markdown from Catalan content");
               }
               
-              // Clean meta_description: remove ! and ? marks
+              // Fix meta_description with AI if needed
               if (catalanArticle?.meta_description) {
-                catalanArticle.meta_description = catalanArticle.meta_description
-                  .replace(/[!¡?¿]/g, '')
-                  .replace(/\s+/g, ' ')
-                  .trim();
-                if (catalanArticle.meta_description.length > 145) {
-                  catalanArticle.meta_description = catalanArticle.meta_description.substring(0, 142) + '...';
-                }
-                console.log("Cleaned punctuation from Catalan meta_description");
+                catalanArticle.meta_description = await fixMetaDescription(
+                  catalanArticle.meta_description,
+                  catalanArticle.focus_keyword || topic,
+                  LOVABLE_API_KEY!
+                );
+                console.log(`Final Catalan meta_description: ${catalanArticle.meta_description.length} chars`);
               }
             }
           }
