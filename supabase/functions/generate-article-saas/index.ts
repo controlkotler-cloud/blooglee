@@ -176,17 +176,33 @@ Responde SOLO con la nueva meta description, sin comillas ni explicaciones.`
 function cleanMarkdownFromHtml(content: string): string {
   if (!content) return content;
   
-  return content
+  // Step 1: Protect HTML tags from markdown processing
+  // Extract all HTML tags and replace with placeholders
+  const tags: string[] = [];
+  let protected_content = content.replace(/<[^>]+>/g, (match) => {
+    tags.push(match);
+    return `__HTML_TAG_${tags.length - 1}__`;
+  });
+  
+  // Step 2: Apply markdown cleanup ONLY on text content (not inside HTML tags)
+  protected_content = protected_content
     // **texto** or __texto__ → <strong>texto</strong>
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/__([^_]+)__/g, '<strong>$1</strong>')
-    // *texto* or _texto_ → <em>texto</em> (not inside strong tags)
+    // *texto* or _texto_ → <em>texto</em>
     .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>')
     .replace(/(?<!_)_([^_\n]+)_(?!_)/g, '<em>$1</em>')
     // ~~texto~~ → <del>texto</del>
     .replace(/~~([^~]+)~~/g, '<del>$1</del>')
     // `codigo` → <code>codigo</code>
     .replace(/`([^`]+)`/g, '<code>$1</code>');
+  
+  // Step 3: Restore original HTML tags
+  protected_content = protected_content.replace(/__HTML_TAG_(\d+)__/g, (_, index) => {
+    return tags[parseInt(index)];
+  });
+  
+  return protected_content;
 }
 
 // ==========================================
