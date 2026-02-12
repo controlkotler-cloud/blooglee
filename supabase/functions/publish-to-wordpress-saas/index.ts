@@ -57,29 +57,58 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create Supabase client with user's token
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
-    // Validate user
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      console.error('Invalid token:', claimsError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+
+    // Parse request body first (needed for scheduler mode check)
+    const body: PublishRequest = await req.json();
+
+    // Determine auth mode: scheduler (service_role) vs user JWT
+    let supabase: any;
+    let userId: string;
+    const isServiceRole = token === supabaseServiceKey;
+
+    if (isServiceRole) {
+      // Scheduler mode: service_role_key was passed, use it directly
+      console.log('[scheduler-mode] Using service_role auth');
+      supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // In scheduler mode, we need to find the user_id from the site
+      const { data: siteData, error: siteError } = await supabase
+        .from('sites')
+        .select('user_id')
+        .eq('id', body.site_id)
+        .single();
+      
+      if (siteError || !siteData) {
+        console.error('Site not found:', siteError);
+        return new Response(
+          JSON.stringify({ error: 'Site not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      userId = siteData.user_id;
+      console.log('[scheduler-mode] Resolved user_id from site:', userId);
+    } else {
+      // User mode: validate JWT
+      supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+
+      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) {
+        console.error('Invalid token:', claimsError);
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      userId = claimsData.claims.sub as string;
     }
 
-    const userId = claimsData.claims.sub as string;
     console.log('User ID:', userId);
-
-    // Parse request body
-    const body: PublishRequest = await req.json();
     console.log('Site ID:', body.site_id);
     console.log('Title:', body.title);
     console.log('Status:', body.status);
@@ -94,12 +123,18 @@ Deno.serve(async (req) => {
     }
 
     // Get WordPress config for this site
-    const { data: wpConfig, error: wpError } = await supabase
+    // In service_role mode, RLS is bypassed so we don't need user_id filter
+    // In user mode, RLS ensures only the user's configs are returned
+    let wpQuery = supabase
       .from('wordpress_configs')
       .select('*')
-      .eq('site_id', body.site_id)
-      .eq('user_id', userId)
-      .maybeSingle();
+      .eq('site_id', body.site_id);
+    
+    if (!isServiceRole) {
+      wpQuery = wpQuery.eq('user_id', userId);
+    }
+    
+    const { data: wpConfig, error: wpError } = await wpQuery.maybeSingle();
 
     if (wpError) {
       console.error('Error fetching WordPress config:', wpError);
