@@ -4,7 +4,6 @@ import { PublicLayout } from '@/components/marketing/PublicLayout';
 import { BlogCard } from '@/components/marketing/BlogCard';
 import { AudienceCards } from '@/components/marketing/AudienceCards';
 import { AudienceHeader } from '@/components/marketing/AudienceHeader';
-import { NewsletterForm } from '@/components/marketing/NewsletterForm';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { SEOHead } from '@/components/seo';
@@ -104,9 +103,7 @@ const BlogIndex = () => {
           <AudienceHeader audience={selectedAudience} />
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12">
-          {/* Main Content */}
-          <div className="lg:col-span-3">
+        <div>
             {/* Thematic Category Filters */}
             <div className="mb-6">
               {/* Mobile: Dropdown */}
@@ -159,9 +156,9 @@ const BlogIndex = () => {
               </div>
             )}
 
-            {/* Blog Grid */}
+            {/* Blog Grid - 3 columns on desktop */}
             {!isLoading && !error && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {paginatedPosts.map((post) => (
                   <BlogCard
                     key={post.slug}
@@ -226,52 +223,43 @@ const BlogIndex = () => {
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Sidebar */}
-          <aside className="lg:col-span-1 space-y-6">
-            {/* Newsletter with audience selection */}
-            <NewsletterForm 
-              variant="sidebar"
-              source="blog"
-            />
-
-            {/* Popular Categories */}
-            <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6">
-              <h3 className="font-display text-lg font-bold mb-4">Categorías populares</h3>
-              <ul className="space-y-3">
-                {Object.entries(categoryCounts).slice(0, 6).map(([cat, count]) => (
-                  <li key={cat}>
-                    <button 
+            {/* Bottom section: Categories + CTA */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
+              {/* Popular Categories */}
+              <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6">
+                <h3 className="font-display text-lg font-bold mb-4">Categorías populares</h3>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(categoryCounts).slice(0, 6).map(([cat, count]) => (
+                    <button
+                      key={cat}
                       onClick={() => handleCategoryChange(cat)}
-                      className={`flex items-center justify-between w-full px-3 py-2 rounded-xl transition-colors text-left ${
-                        selectedCategory === cat 
-                          ? 'bg-violet-100 text-violet-700' 
-                          : 'hover:bg-muted/50 text-foreground/70'
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                        selectedCategory === cat
+                          ? 'bg-violet-100 text-violet-700'
+                          : 'bg-muted/50 text-foreground/70 hover:bg-muted hover:text-foreground'
                       }`}
                     >
-                      <span>{cat}</span>
-                      <span className="text-sm text-foreground/40">{count}</span>
+                      {cat} <span className="text-foreground/40">({count})</span>
                     </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
+                  ))}
+                </div>
+              </div>
 
-            {/* CTA */}
-            <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6">
-              <h3 className="font-display text-lg font-bold mb-2">¿Quieres automatizar tu blog?</h3>
-              <p className="text-foreground/60 text-sm mb-4">
-                Prueba Blooglee gratis y genera artículos profesionales con IA.
-              </p>
-              <Button asChild className="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-90">
-                <Link to="/auth">
-                  Empezar gratis
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Link>
-              </Button>
+              {/* CTA */}
+              <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6 flex flex-col justify-center">
+                <h3 className="font-display text-lg font-bold mb-2">¿Quieres automatizar tu blog?</h3>
+                <p className="text-foreground/60 text-sm mb-4">
+                  Prueba Blooglee gratis y genera artículos profesionales con IA.
+                </p>
+                <Button asChild className="w-full sm:w-auto bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-90">
+                  <Link to="/auth">
+                    Empezar gratis
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Link>
+                </Button>
+              </div>
             </div>
-          </aside>
         </div>
       </div>
     </PublicLayout>
