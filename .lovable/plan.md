@@ -1,52 +1,59 @@
 
 
-## Corregir el post MKPro y el bug crítico en `cleanMarkdownFromHtml`
+## Corregir la generacion fallida de farmapro: JSON truncado por max_tokens insuficiente
 
 ### Problema identificado
 
-El artículo recién generado ("¿Es rentable externalizar la gestión de redes sociales?") tiene todo el contenido HTML corrupto. Los tags HTML como `<h2>`, `<p>`, `<ul>` han sido reemplazados por texto visible como `%%HTML<em>TAG</em>0%%`.
+El scheduler ejecuto correctamente la generacion para farmapro a las 09:00 UTC, pero la Edge Function `generate-article-saas` fallo con este error:
 
-### Causa raíz (Bug critico)
-
-En la Edge Function `generate-article-saas`, la funcion `cleanMarkdownFromHtml` tiene un bug en el formato de los placeholders:
-
-1. **Paso 1**: Extrae todas las etiquetas HTML y las reemplaza con `%%HTML_TAG_0%%`, `%%HTML_TAG_1%%`, etc.
-2. **Paso 2**: Aplica limpieza de markdown, incluyendo la conversion de `_texto_` a `<em>texto</em>` (itálica).
-3. **El bug**: El `_TAG_` dentro del placeholder coincide con el regex de italicas, y se convierte en `<em>TAG</em>`.
-4. **Resultado**: `%%HTML_TAG_0%%` se corrompe a `%%HTML<em>TAG</em>0%%`.
-5. **Paso 3**: El regex de restauracion busca `%%HTML_TAG_(\d+)%%` pero ya no lo encuentra porque esta corrupto.
-6. Todo el HTML del articulo queda destruido y se guarda corrupto en la base de datos.
-
-### Solucion (2 partes)
-
-#### Parte 1: Corregir el bug en la Edge Function
-
-**Archivo**: `supabase/functions/generate-article-saas/index.ts`
-
-Cambiar el formato del placeholder de `%%HTML_TAG_X%%` (que contiene underscores vulnerables) a `%%HTMLTAG-X%%` (con guion, que ningun regex de markdown puede corromper):
-
-```text
-Linea 184: %%HTML_TAG_${tags.length - 1}%%  -->  %%HTMLTAG${tags.length - 1}%%
-Linea 201: /%%HTML_TAG_(\d+)%%/g            -->  /%%HTMLTAG(\d+)%%/g
+```
+SyntaxError: Expected ',' or '}' after property value in JSON at position 12222
+Error: Failed to parse Spanish article JSON
 ```
 
-#### Parte 2: Regenerar el contenido del articulo corrupto
+Esto NO es el bug de placeholders (ese ya esta corregido). Es un problema diferente: **el articulo se trunca porque `max_tokens: 8000` es insuficiente para articulos largos**.
 
-Ejecutar la Edge Function `generate-article-saas` nuevamente para el site MKPro, o actualizar manualmente el campo `content_spanish` del articulo (ID: `0a5d5222-541d-41bf-ad37-130db5cf83a7`) con contenido HTML limpio.
+### Causa raiz
 
-La opcion mas segura es primero desplegar el fix y despues regenerar el articulo para que se genere correctamente.
+- Farmapro tiene `preferred_length: long` (2500 palabras)
+- El contenido HTML de 2500 palabras, envuelto en un objeto JSON con campos como title, seo_title, meta_description, excerpt, slug, focus_keyword y content, puede requerir 12,000-16,000 tokens
+- La funcion usa `max_tokens: 8000` fijo para todos los articulos, sin importar la longitud
+- El modelo genera contenido hasta que llega al limite de tokens, cortando el JSON a mitad, produciendo JSON invalido
+- El sistema de reparacion (escapeControlCharsInsideStrings) no puede arreglar JSON truncado, solo caracteres de control
 
-### Detalles tecnicos
+### Solucion
 
-- **Bug location**: `supabase/functions/generate-article-saas/index.ts`, lineas 176-206
-- **Articulo afectado**: ID `0a5d5222-541d-41bf-ad37-130db5cf83a7`, site MKPro
-- **Titulo del articulo**: "¿Es rentable externalizar la gestion de redes sociales? Un analisis"
-- **Impacto**: Cualquier articulo cuyo contenido HTML pase por `cleanMarkdownFromHtml` queda corrupto si contiene etiquetas HTML (que es siempre, ya que el prompt pide contenido en HTML)
+#### Cambio 1: max_tokens dinamico segun preferred_length
 
-### Secuencia de implementacion
+En `generate-article-saas/index.ts`, cambiar el `max_tokens: 8000` fijo por un valor calculado:
 
-1. Corregir los placeholders en `cleanMarkdownFromHtml` (cambiar underscores por guion)
-2. Desplegar la Edge Function actualizada
-3. Eliminar el articulo corrupto de la base de datos
-4. Notificar al usuario para que regenere el articulo desde el dashboard
+- `short` (800 palabras): 6000 tokens
+- `medium` (1500 palabras): 10000 tokens  
+- `long` (2500 palabras): 16000 tokens
+
+Esto se implementara anadiendo `tokens` al objeto `LENGTH_TARGETS` y usandolo en la llamada a la API.
+
+#### Cambio 2: Retry con deteccion de JSON truncado
+
+Anadir logica para detectar cuando el JSON esta truncado (el error contiene "Expected ',' or '}'" o el contenido no termina en `}`) y reintentar con max_tokens incrementado (+4000).
+
+Maximo un reintento para evitar bucles infinitos.
+
+#### Cambio 3: Aplicar lo mismo a catalan
+
+La generacion en catalan tambien usa `max_tokens: 8000` fijo. Aplicar la misma logica dinamica.
+
+### Archivos afectados
+
+- `supabase/functions/generate-article-saas/index.ts`
+  - Modificar `LENGTH_TARGETS` para incluir tokens recomendados
+  - Actualizar las llamadas a la API de generacion espanol y catalan para usar tokens dinamicos
+  - Anadir retry para JSON truncado
+
+### Secuencia
+
+1. Actualizar LENGTH_TARGETS con campo `maxTokens`
+2. Usar `lengthTarget.maxTokens` en las llamadas a la API
+3. Anadir deteccion de truncamiento + retry
+4. Desplegar la funcion actualizada
 
