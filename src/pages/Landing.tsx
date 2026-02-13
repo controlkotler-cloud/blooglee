@@ -415,7 +415,7 @@ const Landing = () => {
             <p className="text-center text-sm sm:text-base lg:text-lg text-foreground/70">
               <span className="font-semibold text-foreground">Cada artículo incluye:</span>{' '}
               título H1 optimizado, meta descripción, imagen con licencia libre, 
-              estructura de encabezados H2-H3, y slug SEO-friendly. 
+              estructura de encabezados H2-H3, slug SEO-friendly, enlazado interno y enlaces externos. 
               <span className="font-semibold text-emerald-600"> Todo automático.</span>
             </p>
           </div>
