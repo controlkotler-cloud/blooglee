@@ -345,15 +345,15 @@ export function SiteSettings({ site }: SiteSettingsProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="custom_topic">Tema personalizado (opcional)</Label>
+              <Label htmlFor="custom_topic">Enfoque de contenido (opcional)</Label>
               <Textarea
                 id="custom_topic"
-                placeholder="Describe el enfoque temático que quieres para tu contenido..."
+                placeholder="Ej: Consejos prácticos de salud para familias jóvenes, novedades del sector tech..."
                 {...register('custom_topic')}
                 rows={3}
               />
               <p className="text-xs text-muted-foreground">
-                Si lo dejas vacío, generaremos temas automáticamente según tu sector
+                Define la dirección temática de tus artículos. Si lo dejas vacío, la IA elegirá los mejores temas según tu sector y pilares de contenido.
               </p>
             </div>
 
