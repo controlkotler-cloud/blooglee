@@ -1,59 +1,38 @@
 
 
-## Corregir la generacion fallida de farmapro: JSON truncado por max_tokens insuficiente
+## Renombrar "Tema personalizado" a "Enfoque de contenido"
 
-### Problema identificado
+### Decision de nombre
 
-El scheduler ejecuto correctamente la generacion para farmapro a las 09:00 UTC, pero la Edge Function `generate-article-saas` fallo con este error:
+El mejor nombre es **"Enfoque de contenido"** con la descripcion: *"Indica la direccion tematica que quieres para tus articulos"*.
 
-```
-SyntaxError: Expected ',' or '}' after property value in JSON at position 12222
-Error: Failed to parse Spanish article JSON
-```
+**Por que este nombre**:
+- Comunica que es una **direccion estrategica**, no un tema concreto para un solo articulo
+- Es intuitivo para usuarios no tecnicos
+- Refleja exactamente como lo usa la IA: como una directriz global que orienta TODOS los temas generados
+- Es corto y claro
 
-Esto NO es el bug de placeholders (ese ya esta corregido). Es un problema diferente: **el articulo se trunca porque `max_tokens: 8000` es insuficiente para articulos largos**.
+### Cambios a realizar
 
-### Causa raiz
+**Solo cambios de UI** (la columna en base de datos sigue siendo `custom_topic`, sin migracion necesaria):
 
-- Farmapro tiene `preferred_length: long` (2500 palabras)
-- El contenido HTML de 2500 palabras, envuelto en un objeto JSON con campos como title, seo_title, meta_description, excerpt, slug, focus_keyword y content, puede requerir 12,000-16,000 tokens
-- La funcion usa `max_tokens: 8000` fijo para todos los articulos, sin importar la longitud
-- El modelo genera contenido hasta que llega al limite de tokens, cortando el JSON a mitad, produciendo JSON invalido
-- El sistema de reparacion (escapeControlCharsInsideStrings) no puede arreglar JSON truncado, solo caracteres de control
+#### 1. SiteSettings.tsx
+- Label: "Tema personalizado (opcional)" -> "Enfoque de contenido (opcional)"
+- Placeholder: actualizar a algo como *"Ej: Consejos practicos de salud para familias jovenes, novedades del sector tech..."*
+- Texto de ayuda: cambiar *"Si lo dejas vacio, generaremos temas automaticamente segun tu sector"* por *"Define la direccion tematica de tus articulos. Si lo dejas vacio, la IA elegira los mejores temas segun tu sector y pilares de contenido."*
 
-### Solucion
+#### 2. SiteImportExport.tsx
+- Actualizar el mensaje de error y la cabecera CSV si hace referencia a "tema personalizado"
 
-#### Cambio 1: max_tokens dinamico segun preferred_length
-
-En `generate-article-saas/index.ts`, cambiar el `max_tokens: 8000` fijo por un valor calculado:
-
-- `short` (800 palabras): 6000 tokens
-- `medium` (1500 palabras): 10000 tokens  
-- `long` (2500 palabras): 16000 tokens
-
-Esto se implementara anadiendo `tokens` al objeto `LENGTH_TARGETS` y usandolo en la llamada a la API.
-
-#### Cambio 2: Retry con deteccion de JSON truncado
-
-Anadir logica para detectar cuando el JSON esta truncado (el error contiene "Expected ',' or '}'" o el contenido no termina en `}`) y reintentar con max_tokens incrementado (+4000).
-
-Maximo un reintento para evitar bucles infinitos.
-
-#### Cambio 3: Aplicar lo mismo a catalan
-
-La generacion en catalan tambien usa `max_tokens: 8000` fijo. Aplicar la misma logica dinamica.
+#### 3. CompanyForm.tsx (zona MKPro)
+- **NO se modifica** (zona protegida segun las reglas de arquitectura)
 
 ### Archivos afectados
 
-- `supabase/functions/generate-article-saas/index.ts`
-  - Modificar `LENGTH_TARGETS` para incluir tokens recomendados
-  - Actualizar las llamadas a la API de generacion espanol y catalan para usar tokens dinamicos
-  - Anadir retry para JSON truncado
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/saas/SiteSettings.tsx` | Label, placeholder y texto de ayuda |
+| `src/components/saas/SiteImportExport.tsx` | Texto del toast de error |
 
-### Secuencia
-
-1. Actualizar LENGTH_TARGETS con campo `maxTokens`
-2. Usar `lengthTarget.maxTokens` en las llamadas a la API
-3. Anadir deteccion de truncamiento + retry
-4. Desplegar la funcion actualizada
+No se requiere migracion de base de datos ni cambios en Edge Functions (el campo interno sigue siendo `custom_topic`).
 
