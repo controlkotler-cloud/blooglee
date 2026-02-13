@@ -114,7 +114,7 @@ export function SiteImportExport({
       "descripcion",
       "catalan",
       "generacion_automatica",
-      "tema_personalizado",
+      "enfoque_contenido",
       "url_blog",
       "url_instagram"
     ];
@@ -237,7 +237,7 @@ export function SiteImportExport({
         // Validate: if auto_generate is false, custom_topic is required
         const invalidSites = newSites.filter(s => !s.auto_generate && !s.custom_topic);
         if (invalidSites.length > 0) {
-          toast.error(`${invalidSites.length} sitios sin generación automática requieren un tema personalizado`);
+          toast.error(`${invalidSites.length} sitios sin generación automática requieren un enfoque de contenido`);
           return;
         }
 
@@ -348,12 +348,12 @@ export function SiteImportExport({
         <div className="p-3 bg-muted rounded-lg space-y-2">
           <p className="text-xs font-medium">Formato CSV:</p>
           <p className="text-xs text-muted-foreground font-mono">
-            nombre, localidad, sector, descripcion, catalan, generacion_automatica, tema_personalizado, url_blog, url_instagram
+            nombre, localidad, sector, descripcion, catalan, generacion_automatica, enfoque_contenido, url_blog, url_instagram
           </p>
           <ul className="text-xs text-muted-foreground space-y-1 mt-2">
             <li>• <strong>catalan:</strong> sí/no (auto-detectado si no se especifica)</li>
             <li>• <strong>generacion_automatica:</strong> sí/no (por defecto: sí)</li>
-            <li>• <strong>tema_personalizado:</strong> obligatorio si generación es "no"</li>
+            <li>• <strong>enfoque_contenido:</strong> obligatorio si generación es "no"</li>
             <li>• <strong>url_blog, url_instagram:</strong> opcionales</li>
           </ul>
         </div>
