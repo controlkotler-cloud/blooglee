@@ -111,7 +111,7 @@ function cleanMarkdownFromHtml(content: string): string {
   const tags: string[] = [];
   let protected_content = content.replace(/<[^>]+>/g, (match) => {
     tags.push(match);
-    return `__HTML_TAG_${tags.length - 1}__`;
+    return `%%HTML_TAG_${tags.length - 1}%%`;
   });
   
   protected_content = protected_content
@@ -122,7 +122,7 @@ function cleanMarkdownFromHtml(content: string): string {
     .replace(/~~([^~]+)~~/g, '<del>$1</del>')
     .replace(/`([^`]+)`/g, '<code>$1</code>');
   
-  protected_content = protected_content.replace(/__HTML_TAG_(\d+)__/g, (_, index) => {
+  protected_content = protected_content.replace(/%%HTML_TAG_(\d+)%%/g, (_, index) => {
     return tags[parseInt(index)];
   });
   
