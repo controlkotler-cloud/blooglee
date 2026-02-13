@@ -181,7 +181,7 @@ function cleanMarkdownFromHtml(content: string): string {
   const tags: string[] = [];
   let protected_content = content.replace(/<[^>]+>/g, (match) => {
     tags.push(match);
-    return `%%HTML_TAG_${tags.length - 1}%%`;
+    return `%%HTMLTAG-${tags.length - 1}%%`;
   });
   
   // Step 2: Apply markdown cleanup ONLY on text content (not inside HTML tags)
@@ -198,7 +198,7 @@ function cleanMarkdownFromHtml(content: string): string {
     .replace(/`([^`]+)`/g, '<code>$1</code>');
   
   // Step 3: Restore original HTML tags
-  protected_content = protected_content.replace(/%%HTML_TAG_(\d+)%%/g, (_, index) => {
+  protected_content = protected_content.replace(/%%HTMLTAG-(\d+)%%/g, (_, index) => {
     return tags[parseInt(index)];
   });
   
