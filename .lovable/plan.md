@@ -1,40 +1,36 @@
 
-## Eliminar la card de Newsletter del sidebar del Blog y readaptar el layout
 
-### Cambios en `src/pages/BlogIndex.tsx`
+## Restaurar el formato Markdown del post Mailchimp vs ActiveCampaign
 
-**1. Eliminar el sidebar completo y cambiar a layout full-width**
+### Problema
 
-El sidebar actualmente tiene 3 elementos: Newsletter (a eliminar), Categorías populares y CTA. Sin la newsletter, el sidebar queda con solo 2 cards pequeñas que no justifican una columna lateral fija.
+En la corrección anterior, el contenido del post se convirtió a HTML puro (`<h2>`, `<p>`, `<ul>`, `<li>`, etc.). Sin embargo, todos los posts del blog de Blooglee se almacenan en **Markdown** (`##`, `**`, `-`, etc.) y el componente `BlogPost.tsx` se encarga de convertirlos a HTML con las clases de estilo corporativas (gradientes, callouts, tablas con bordes violeta, etc.).
 
-La propuesta es:
+Al estar en HTML crudo, el post pierde:
+- Los estilos de encabezados con tipografía Sora y espaciado
+- Los callouts con gradiente violeta-fucsia (`Clave:`)
+- Las tablas con bordes y colores alternos
+- El formato de listas con estilo corporativo
+- La tabla de contenidos del sidebar (que se genera parseando headings Markdown `##` y `###`)
 
-- Cambiar el grid de `lg:grid-cols-4` (3 contenido + 1 sidebar) a **full-width** para los artículos
-- Mover las **Categorías populares** y el **CTA** a una fila horizontal debajo de la paginación, con un diseño compacto y atractivo
-- Los artículos pasan de ocupar 3/4 a ocupar todo el ancho, mostrando **3 columnas en desktop** (en lugar de 2) para aprovechar el espacio
+### Solución
 
-**2. Nuevo layout propuesto:**
+Actualizar el campo `content` del post en la base de datos (tabla `blog_posts`, slug `mailchimp-activecampaign-comparativa-pymes`) reconvirtiendo todo el HTML a Markdown limpio:
 
-```
-[Header / AudienceCards]
-[Filtros de categoría - pills]
-[Grid de artículos: 1 col mobile / 2 col tablet / 3 col desktop]
-[Paginación]
-[Fila: Categorías populares | CTA "Empezar gratis"]
-```
+- `<h2>...</h2>` a `## ...`
+- `<h3>...</h3>` a `### ...`
+- `<p>...</p>` a texto plano con salto de línea
+- `<ul><li>...</li></ul>` a `- ...`
+- `<strong>...</strong>` a `**...**`
+- `<a href="...">...</a>` a `[...](...)` 
+- Restaurar los callouts `Clave:` al formato `💡 **Clave:** texto`
+- Restaurar las tablas al formato Markdown (`| col1 | col2 |`)
+- Mantener la capitalización en sentence case ya corregida
+- Mantener el contenido limpio sin artefactos de IA
 
-### Detalle técnico
+### Archivos afectados
 
-- Eliminar el import de `NewsletterForm`
-- Eliminar el `<aside>` con el sidebar completo
-- Cambiar el grid principal de `grid-cols-1 lg:grid-cols-4` a simplemente un contenedor sin sidebar
-- Cambiar el grid de artículos de `grid-cols-1 sm:grid-cols-2` a `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` para aprovechar el ancho completo
-- Añadir debajo de la paginación una sección con las categorías populares y el CTA en disposición horizontal (`grid-cols-1 md:grid-cols-2`)
-- Eliminar la referencia a `Mail` en imports si no se usa en otro sitio
+Solo la base de datos: una sentencia `UPDATE` sobre `blog_posts` para reescribir el campo `content` en Markdown.
 
-### Resultado
+No se modifica ningún archivo de codigo.
 
-- La newsletter solo se muestra en el footer (donde ya existe)
-- Los artículos ocupan todo el ancho con 3 columnas en desktop, mejor aprovechamiento del espacio
-- Las categorías populares y el CTA siguen visibles pero integrados al final del contenido
-- El diseño se mantiene coherente para las vistas "todos", "empresas" y "agencias"
