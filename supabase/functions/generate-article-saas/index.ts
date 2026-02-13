@@ -630,10 +630,10 @@ const TONE_DESCRIPTIONS: Record<string, string> = {
   educational: "Tono DIVULGATIVO y accesible: explica conceptos complejos de forma simple, pedagógico."
 };
 
-const LENGTH_TARGETS: Record<string, { words: number; description: string }> = {
-  short: { words: 800, description: "~800 palabras, lectura rápida de 3 minutos" },
-  medium: { words: 1500, description: "~1500 palabras, lectura de 6-7 minutos" },
-  long: { words: 2500, description: "~2500 palabras, guía completa de 10+ minutos" }
+const LENGTH_TARGETS: Record<string, { words: number; description: string; maxTokens: number }> = {
+  short: { words: 800, description: "~800 palabras, lectura rápida de 3 minutos", maxTokens: 6000 },
+  medium: { words: 1500, description: "~1500 palabras, lectura de 6-7 minutos", maxTokens: 10000 },
+  long: { words: 2500, description: "~2500 palabras, guía completa de 10+ minutos", maxTokens: 16000 }
 };
 
 // ==========================================
@@ -1487,51 +1487,30 @@ Deno.serve(async (req) => {
 
     console.log("Generating Spanish article...");
 
-    const spanishResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 8000,
-      }),
-    });
-
-    if (!spanishResponse.ok) {
-      if (spanishResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (spanishResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const errorText = await spanishResponse.text();
-      throw new Error(`Spanish generation failed: ${spanishResponse.status} - ${errorText}`);
+    // Helper to generate Spanish article with a given max_tokens
+    async function generateSpanishWithTokens(tokens: number): Promise<{ content: string; response: Response }> {
+      const resp = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.7,
+          max_tokens: tokens,
+        }),
+      });
+      return { content: '', response: resp };
     }
 
-    const spanishData = await spanishResponse.json();
-    let spanishContent = spanishData.choices?.[0]?.message?.content;
-
-    if (!spanishContent) {
-      throw new Error("No Spanish content generated");
-    }
-
-    // Parse JSON from response using robust two-attempt strategy
-    let spanishArticle;
-    try {
-      let cleanContent = spanishContent
+    // Helper to parse Spanish JSON with robust strategy
+    function parseArticleJson(rawContent: string): any {
+      let cleanContent = rawContent
         .replace(/```json\s*/gi, '')
         .replace(/```\s*/g, '')
         .trim();
@@ -1540,32 +1519,87 @@ Deno.serve(async (req) => {
       const lastBrace = cleanContent.lastIndexOf('}');
       
       if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-        console.error("JSON extraction failed:", { firstBrace, lastBrace, contentLength: cleanContent.length });
         throw new Error("No JSON object found in response");
       }
       
       const jsonString = cleanContent.substring(firstBrace, lastBrace + 1);
-      
-      // Clean BOM and zero-width characters (always safe to remove globally)
       const cleanedJson = jsonString.replace(/[\uFEFF\u200B\u200C\u200D]/g, '');
       
-      // Attempt 1: Parse directly (works for most valid JSON)
       try {
-        spanishArticle = JSON.parse(cleanedJson);
+        return JSON.parse(cleanedJson);
       } catch (firstError) {
         console.log("JSON parse failed on first attempt; applying string-only escaping and retrying");
-        console.log("First error:", (firstError as Error).message);
-        console.log("Raw content preview:", cleanedJson.substring(0, 200));
-        
-        // Attempt 2: Escape control chars ONLY inside string literals
         const repairedJson = escapeControlCharsInsideStrings(cleanedJson);
-        spanishArticle = JSON.parse(repairedJson);
-        console.log("JSON parse succeeded after string-only escaping");
+        return JSON.parse(repairedJson);
       }
-    } catch (e) {
-      console.error("Error parsing Spanish JSON:", e);
-      console.error("Raw content preview:", spanishContent?.substring(0, 500));
-      throw new Error("Failed to parse Spanish article JSON");
+    }
+
+    // Helper to detect truncated JSON
+    function isJsonTruncated(error: unknown, rawContent: string): boolean {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("Expected ',' or '}'") || msg.includes("Unterminated string") || msg.includes("Expected property name")) {
+        return true;
+      }
+      // Check if content doesn't end with closing brace (sign of truncation)
+      const trimmed = rawContent?.trim() || '';
+      if (trimmed.length > 100 && !trimmed.endsWith('}')) {
+        return true;
+      }
+      return false;
+    }
+
+    let currentMaxTokens = lengthTarget.maxTokens;
+    console.log(`Generating Spanish article with max_tokens=${currentMaxTokens} (preferred_length=${preferredLength})...`);
+
+    let spanishArticle;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 2;
+
+    while (attempts < MAX_ATTEMPTS) {
+      attempts++;
+      
+      const { response: spanishResponse } = await generateSpanishWithTokens(currentMaxTokens);
+
+      if (!spanishResponse.ok) {
+        if (spanishResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (spanishResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const errorText = await spanishResponse.text();
+        throw new Error(`Spanish generation failed: ${spanishResponse.status} - ${errorText}`);
+      }
+
+      const spanishData = await spanishResponse.json();
+      const spanishContent = spanishData.choices?.[0]?.message?.content;
+
+      if (!spanishContent) {
+        throw new Error("No Spanish content generated");
+      }
+
+      try {
+        spanishArticle = parseArticleJson(spanishContent);
+        console.log(`Spanish article parsed successfully on attempt ${attempts} with max_tokens=${currentMaxTokens}`);
+        break; // Success
+      } catch (e) {
+        if (attempts < MAX_ATTEMPTS && isJsonTruncated(e, spanishContent)) {
+          const newTokens = currentMaxTokens + 4000;
+          console.warn(`JSON appears truncated (attempt ${attempts}). Retrying with max_tokens=${newTokens}...`);
+          console.warn("Parse error:", (e as Error).message);
+          currentMaxTokens = newTokens;
+          continue;
+        }
+        console.error("Error parsing Spanish JSON:", e);
+        console.error("Raw content preview:", spanishContent?.substring(0, 500));
+        throw new Error("Failed to parse Spanish article JSON");
+      }
     }
 
     console.log("Spanish article generated successfully");
@@ -1620,7 +1654,7 @@ Deno.serve(async (req) => {
             model: "google/gemini-2.5-flash",
             messages: [{ role: "user", content: catalanPrompt }],
             temperature: 0.5,
-            max_tokens: 8000,
+            max_tokens: lengthTarget.maxTokens,
           }),
         });
 
