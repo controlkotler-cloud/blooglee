@@ -374,7 +374,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
               <div>
                 <Label>Imagen destacada</Label>
                 <p className="text-sm text-muted-foreground">
-                  Incluir imagen de Pexels en los artículos
+                  Incluir imagen destacada generada por IA
                 </p>
               </div>
               <Switch
