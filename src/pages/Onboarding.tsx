@@ -178,9 +178,9 @@ export default function Onboarding() {
             {stepTitles[step - 1].title}
           </CardTitle>
           <CardDescription>
-            {step === 1 && 'Cuéntanos sobre tu negocio para generar contenido relevante'}
-            {step === 2 && 'Opcional: ayuda a personalizar tus artículos según tu ubicación'}
-            {step === 3 && 'Configura idiomas y frecuencia de publicación'}
+            {step === 1 && 'Con estos datos, la IA generará artículos relevantes para tu sector y audiencia'}
+            {step === 2 && 'Añade tu ubicación para que los artículos incluyan referencias locales (puedes saltarlo)'}
+            {step === 3 && 'Elige en qué idiomas quieres tus artículos y con qué frecuencia publicarlos'}
           </CardDescription>
           <Progress value={progress} className="mt-4 h-2" />
         </CardHeader>
@@ -190,10 +190,10 @@ export default function Onboarding() {
           {step === 1 && (
             <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-base">Nombre del sitio o negocio *</Label>
+                <Label htmlFor="name" className="text-base">¿Cómo se llama tu negocio? *</Label>
                 <Input
                   id="name"
-                  placeholder="Ej: Farmacia Central, Clínica Dental García..."
+                  placeholder="Ej: Farmacia Central, Clínica García, Mi Tienda Online..."
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="h-12 text-base"
@@ -202,7 +202,7 @@ export default function Onboarding() {
               </div>
               
               <div className="space-y-2">
-                <Label className="text-base">Sector *</Label>
+                <Label className="text-base">¿A qué sector pertenece? *</Label>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {SECTORS.slice(0, 8).map(s => (
                     <button
@@ -248,16 +248,16 @@ export default function Onboarding() {
               )}
               
               <div className="space-y-2">
-                <Label htmlFor="description">Descripción breve (opcional)</Label>
+                <Label htmlFor="description">¿Qué hace especial a tu negocio? (opcional)</Label>
                 <Textarea
                   id="description"
-                  placeholder="Ej: Farmacia especializada en dermocosmética y productos naturales..."
+                  placeholder="Ej: Nos especializamos en dermocosmética natural, atendemos sobre todo a familias jóvenes..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="min-h-[80px] resize-none"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Ayuda a generar artículos más relevantes para tu negocio específico
+                  Cuanto más detalle añadas, más personalizados serán los artículos que genere la IA
                 </p>
               </div>
             </div>
@@ -272,22 +272,22 @@ export default function Onboarding() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="location">Ciudad o región (opcional)</Label>
+                <Label htmlFor="location">¿Dónde está tu negocio? (opcional)</Label>
                 <Input
                   id="location"
-                  placeholder="Ej: Barcelona, Madrid Centro, Valencia..."
+                  placeholder="Ej: Barcelona, Madrid Centro, Sevilla..."
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   className="h-12"
                   autoFocus
                 />
                 <p className="text-xs text-muted-foreground">
-                  Personaliza artículos con referencias locales
+                  La IA mencionará tu zona en los artículos para conectar con tu audiencia local
                 </p>
               </div>
               
               <div className="space-y-2">
-                <Label>Ámbito de tu negocio</Label>
+                <Label>¿A qué área geográfica te diriges?</Label>
                 <div className="grid grid-cols-2 gap-3">
                   {GEOGRAPHIC_SCOPES.map(scope => (
                     <button
