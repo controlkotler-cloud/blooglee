@@ -145,13 +145,22 @@ export function WordPressPublishDialogSaas({
 
       setPublishResults(results);
 
-      // Save wp_post_url to database if published successfully
-      if (article && results.spanish?.success && results.spanish?.post_url) {
+      // Save wp_post_url to database if published successfully (prefer Spanish, fallback to Catalan)
+      const successUrl = 
+        (results.spanish?.success && results.spanish?.post_url) ? results.spanish.post_url :
+        (results.catalan?.success && results.catalan?.post_url) ? results.catalan.post_url :
+        null;
+
+      if (article && successUrl) {
         try {
-          await supabase
+          const { error: updateErr } = await supabase
             .from('articles')
-            .update({ wp_post_url: results.spanish.post_url })
+            .update({ wp_post_url: successUrl })
             .eq('id', article.id);
+          
+          if (updateErr) {
+            console.error('Error saving wp_post_url:', updateErr);
+          }
           
           queryClient.invalidateQueries({ queryKey: ['articles'] });
         } catch (err) {
