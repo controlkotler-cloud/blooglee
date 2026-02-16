@@ -44,6 +44,80 @@ function cleanGeneratedContent(content: string): string {
   return cleaned;
 }
 
+// ==========================================
+// SPANISH CAPITALIZATION ENFORCEMENT
+// ==========================================
+const SPANISH_LOWERCASE_WORDS = new Set([
+  'a', 'al', 'ante', 'bajo', 'con', 'contra', 'de', 'del', 'desde', 'durante',
+  'e', 'el', 'en', 'entre', 'hacia', 'hasta', 'la', 'las', 'lo', 'los',
+  'mediante', 'ni', 'o', 'para', 'pero', 'por', 'que', 'se', 'según', 'sin',
+  'sobre', 'su', 'sus', 'tan', 'tu', 'tus', 'u', 'un', 'una', 'uno', 'unos', 'unas',
+  'y', 'ya', 'como', 'más', 'muy', 'nos', 'es', 'son', 'no', 'si', 'te', 'mi', 'me',
+]);
+
+const PRESERVE_CASE_PATTERNS = /^(SEO|HTML|CSS|API|URL|FAQ|CRM|SaaS|WordPress|Google|Instagram|Facebook|TikTok|LinkedIn|YouTube|iOS|AI|IA|B2B|B2C|KPI|ROI|CMS|PHP|UX|UI|RGPD|LOPD|IVA|Blooglee|etc|vs)$/i;
+
+function enforceSpanishCapitalizationText(text: string): string {
+  if (!text || text.length < 2) return text;
+  const words = text.split(/(\s+)/);
+  let isFirstWord = true;
+  
+  const result = words.map((word) => {
+    if (/^\s+$/.test(word)) return word;
+    if (!word) return word;
+    
+    if (PRESERVE_CASE_PATTERNS.test(word.replace(/[^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]/g, ''))) {
+      isFirstWord = false;
+      return word;
+    }
+    
+    const leadingPunct = word.match(/^([^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]*)/)?.[1] || '';
+    const trailingPunct = word.match(/([^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]*)$/)?.[1] || '';
+    const core = word.slice(leadingPunct.length, word.length - (trailingPunct.length || 0)) || word.slice(leadingPunct.length);
+    
+    if (!core) return word;
+    
+    const isAfterSentenceEnd = leadingPunct.includes('¿') || leadingPunct.includes('¡');
+    
+    if (isFirstWord || isAfterSentenceEnd) {
+      isFirstWord = false;
+      return leadingPunct + core.charAt(0).toUpperCase() + core.slice(1).toLowerCase() + trailingPunct;
+    }
+    
+    isFirstWord = false;
+    
+    if (SPANISH_LOWERCASE_WORDS.has(core.toLowerCase())) {
+      return leadingPunct + core.toLowerCase() + trailingPunct;
+    }
+    
+    return leadingPunct + core.charAt(0).toLowerCase() + core.slice(1).toLowerCase() + trailingPunct;
+  });
+  
+  return result.join('');
+}
+
+function enforceSpanishCapitalizationMarkdown(content: string): string {
+  if (!content) return content;
+  let fixCount = 0;
+  
+  // Fix ## and ### headings in Markdown
+  const fixed = content.replace(/^(#{2,3})\s+(.+)$/gm, (_match, hashes, headingText) => {
+    // Don't touch if it contains markdown links
+    if (/\[.*\]\(.*\)/.test(headingText)) return _match;
+    
+    const cleaned = enforceSpanishCapitalizationText(headingText.trim());
+    if (cleaned !== headingText.trim()) {
+      fixCount++;
+    }
+    return `${hashes} ${cleaned}`;
+  });
+  
+  if (fixCount > 0) {
+    console.log(`Capitalization enforcement: fixed ${fixCount} Markdown headings`);
+  }
+  return fixed;
+}
+
 // ===== VERIFICACIÓN INTELIGENTE DE ENLACES EXTERNOS =====
 function getOriginUrl(urlString: string): string {
   try {
@@ -1293,9 +1367,14 @@ const handler = async (req: Request): Promise<Response> => {
     const cleanedContent = cleanGeneratedContent(blogData.content);
     console.log(`Content cleaned: ${blogData.content.length} -> ${cleanedContent.length} chars`);
 
+    // Enforce Spanish capitalization on title and headings
+    blogData.title = enforceSpanishCapitalizationText(blogData.title);
+    const capitalizedContent = enforceSpanishCapitalizationMarkdown(cleanedContent);
+    console.log("Spanish capitalization enforced on title and headings");
+
     // Verify external links before saving
-    const verifiedContent = await verifyAndCleanExternalLinks(cleanedContent);
-    console.log(`Links verified: ${cleanedContent.length} -> ${verifiedContent.length} chars`);
+    const verifiedContent = await verifyAndCleanExternalLinks(capitalizedContent);
+    console.log(`Links verified: ${capitalizedContent.length} -> ${verifiedContent.length} chars`);
 
     // Insert into database
     const audienceValue = category.toLowerCase();

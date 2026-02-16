@@ -913,6 +913,113 @@ async function getUsedTopicsForSite(supabaseClient: any, siteId: string, limit: 
     return [];
   }
 }
+// ==========================================
+// SPANISH CAPITALIZATION ENFORCEMENT
+// ==========================================
+
+// Words that should stay lowercase in Spanish titles (unless first word)
+const SPANISH_LOWERCASE_WORDS = new Set([
+  'a', 'al', 'ante', 'bajo', 'con', 'contra', 'de', 'del', 'desde', 'durante',
+  'e', 'el', 'en', 'entre', 'hacia', 'hasta', 'la', 'las', 'lo', 'los',
+  'mediante', 'ni', 'o', 'para', 'pero', 'por', 'que', 'se', 'según', 'sin',
+  'sobre', 'su', 'sus', 'tan', 'tu', 'tus', 'u', 'un', 'una', 'uno', 'unos', 'unas',
+  'y', 'ya', 'como', 'más', 'muy', 'nos', 'es', 'son', 'no', 'si', 'te', 'mi', 'me',
+]);
+
+// Words/patterns that should keep their original casing (brands, acronyms, etc.)
+const PRESERVE_CASE_PATTERNS = /^(SEO|HTML|CSS|API|URL|FAQ|CRM|SaaS|WordPress|Google|Instagram|Facebook|TikTok|LinkedIn|YouTube|iOS|AI|IA|B2B|B2C|KPI|ROI|CMS|PHP|UX|UI|RGPD|LOPD|IVA|DNI|NIF|CBD|SPF|LED|OK|etc|vs)$/i;
+
+function enforceSpanishCapitalizationText(text: string): string {
+  if (!text || text.length < 2) return text;
+  
+  // Split into words, preserving whitespace and punctuation
+  const words = text.split(/(\s+)/);
+  let isFirstWord = true;
+  
+  const result = words.map((word) => {
+    // Skip whitespace tokens
+    if (/^\s+$/.test(word)) return word;
+    
+    // Skip empty
+    if (!word) return word;
+    
+    // Preserve brands/acronyms
+    if (PRESERVE_CASE_PATTERNS.test(word.replace(/[^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]/g, ''))) {
+      isFirstWord = false;
+      return word;
+    }
+    
+    // Extract leading punctuation (¿, ¡, ", etc.)
+    const leadingPunct = word.match(/^([^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]*)/)?.[1] || '';
+    const trailingPunct = word.match(/([^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]*)$/)?.[1] || '';
+    const core = word.slice(leadingPunct.length, word.length - (trailingPunct.length || 0)) || word.slice(leadingPunct.length);
+    
+    if (!core) {
+      return word;
+    }
+    
+    // Check if starts after sentence-ending punctuation
+    const isAfterSentenceEnd = leadingPunct.includes('¿') || leadingPunct.includes('¡');
+    
+    if (isFirstWord || isAfterSentenceEnd) {
+      isFirstWord = false;
+      // Capitalize first letter, lowercase rest (unless it's a preserved pattern)
+      return leadingPunct + core.charAt(0).toUpperCase() + core.slice(1).toLowerCase() + trailingPunct;
+    }
+    
+    isFirstWord = false;
+    
+    // Common Spanish lowercase words
+    if (SPANISH_LOWERCASE_WORDS.has(core.toLowerCase())) {
+      return leadingPunct + core.toLowerCase() + trailingPunct;
+    }
+    
+    // Everything else: lowercase (Spanish capitalization rule)
+    return leadingPunct + core.charAt(0).toLowerCase() + core.slice(1).toLowerCase() + trailingPunct;
+  });
+  
+  return result.join('');
+}
+
+function enforceSpanishCapitalizationHtml(htmlContent: string): string {
+  if (!htmlContent) return htmlContent;
+  
+  let fixed = htmlContent;
+  let fixCount = 0;
+  
+  // Fix H2 and H3 tags in HTML
+  fixed = fixed.replace(/<(h[23])([^>]*)>(.*?)<\/\1>/gi, (_match, tag, attrs, innerText) => {
+    // Don't touch if it contains HTML links or other tags (except simple formatting)
+    if (/<a\s/i.test(innerText)) return _match;
+    
+    const cleaned = enforceSpanishCapitalizationText(innerText.replace(/<[^>]+>/g, ''));
+    
+    // Reconstruct with any inline tags preserved
+    if (cleaned !== innerText.replace(/<[^>]+>/g, '')) {
+      fixCount++;
+      // Simple case: no inner HTML tags
+      if (!/<[^>]+>/.test(innerText)) {
+        return `<${tag}${attrs}>${cleaned}</${tag}>`;
+      }
+    }
+    return _match;
+  });
+  
+  if (fixCount > 0) {
+    console.log(`Capitalization enforcement: fixed ${fixCount} HTML headings`);
+  }
+  
+  return fixed;
+}
+
+function enforceSpanishCapitalizationField(text: string): string {
+  if (!text) return text;
+  const fixed = enforceSpanishCapitalizationText(text);
+  if (fixed !== text) {
+    console.log(`Capitalization fix: "${text}" → "${fixed}"`);
+  }
+  return fixed;
+}
 
 // ==========================================
 // EXTERNAL LINK VERIFICATION
@@ -1644,6 +1751,16 @@ Deno.serve(async (req) => {
       spanishArticle.content = cleanMarkdownFromHtml(spanishArticle.content);
       console.log("Cleaned markdown from Spanish content");
     }
+
+    // Enforce Spanish capitalization on titles and headings
+    spanishArticle.title = enforceSpanishCapitalizationField(spanishArticle.title);
+    if (spanishArticle.seo_title) {
+      spanishArticle.seo_title = enforceSpanishCapitalizationField(spanishArticle.seo_title);
+    }
+    if (spanishArticle.content) {
+      spanishArticle.content = enforceSpanishCapitalizationHtml(spanishArticle.content);
+    }
+    console.log("Spanish capitalization enforced on title, seo_title, and headings");
 
     // Post-generation validation: fix meta_description with AI if needed
     if (spanishArticle.meta_description) {
