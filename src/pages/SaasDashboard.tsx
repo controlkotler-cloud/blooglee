@@ -50,7 +50,8 @@ export default function SaasDashboard() {
   const importSitesMutation = useImportSites();
 
   const sitesLimit = profile?.sites_limit ?? 1;
-  const canAddSite = sites.length < sitesLimit;
+  const isAdmin = isSuperAdmin || canAccessMKPro;
+  const canAddSite = isAdmin || sites.length < sitesLimit;
   const plan = (profile?.plan || 'free') as PlanType;
 
   const getArticleCountForSite = (siteId: string) => {
