@@ -438,7 +438,9 @@ SECTOR: {{sector}}
 REQUIREMENTS:
 - Clean, professional photograph
 - Visually related to the topic and sector
-- NO text, NO logos, NO faces
+- NO text, NO logos, NO watermarks, NO faces
+- NEVER invent or show brand names, product labels, or packaging with text on products
+- If products appear, they must be generic/unbranded with NO visible text or logos
 - Suitable for blog header, 16:9 ratio
 - High quality, editorial style
 
