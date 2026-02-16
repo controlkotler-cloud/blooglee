@@ -2083,8 +2083,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Calculate week of month
-    const dayOfMonth = new Date().getDate();
+    // Calculate week of month (reuse dayOfMonth from above)
     const weekOfMonth = Math.ceil(dayOfMonth / 7);
 
     // ==========================================
