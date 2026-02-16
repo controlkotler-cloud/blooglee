@@ -1,0 +1,1 @@
+ALTER TABLE public.social_content ADD COLUMN IF NOT EXISTS blog_post_url text;

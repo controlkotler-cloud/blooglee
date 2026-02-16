@@ -762,6 +762,7 @@ export type Database = {
       social_content: {
         Row: {
           blog_post_id: string | null
+          blog_post_url: string | null
           content: string
           content_type: string
           created_at: string
@@ -777,6 +778,7 @@ export type Database = {
         }
         Insert: {
           blog_post_id?: string | null
+          blog_post_url?: string | null
           content: string
           content_type?: string
           created_at?: string
@@ -792,6 +794,7 @@ export type Database = {
         }
         Update: {
           blog_post_id?: string | null
+          blog_post_url?: string | null
           content?: string
           content_type?: string
           created_at?: string
