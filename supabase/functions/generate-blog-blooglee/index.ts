@@ -1412,6 +1412,29 @@ const handler = async (req: Request): Promise<Response> => {
     if (forceTopic) console.log(`  - Forced topic: YES`);
     if (forceLanguage) console.log(`  - Language: ${forceLanguage}`);
 
+    // Fire-and-forget: generate social media posts for all platforms
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      fetch(`${supabaseUrl}/functions/v1/generate-social-from-blog`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({
+          blogPostId: insertedPost.id,
+          title: insertedPost.title,
+          excerpt: blogData.excerpt,
+          slug: insertedPost.slug,
+          imageUrl: imageUrl,
+          audience: audienceValue,
+        }),
+      }).catch((err: unknown) => console.error("Social generation fire-and-forget error:", err));
+      console.log("  - Social media generation triggered (async)");
+    } catch (socialErr: unknown) {
+      console.error("Failed to trigger social generation:", socialErr);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

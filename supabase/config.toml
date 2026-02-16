@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.cleanup-orphan-images]
 verify_jwt = false
+
+[functions.generate-social-from-blog]
+verify_jwt = false

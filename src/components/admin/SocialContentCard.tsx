@@ -1,4 +1,4 @@
-import { Copy, Trash2, RefreshCw, Instagram, Linkedin, Facebook } from 'lucide-react';
+import { Copy, Trash2, RefreshCw, Instagram, Linkedin, Facebook, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +48,16 @@ export function SocialContentCard({ item, onDelete, onRegenerate, isRegenerating
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground line-clamp-6 whitespace-pre-line">{item.content}</p>
+        {(item as any).blog_post_url && (
+          <a
+            href={(item as any).blog_post_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <ExternalLink className="h-3 w-3" /> Ver post del blog
+          </a>
+        )}
         <div className="flex gap-1.5">
           <Button size="sm" variant="outline" onClick={handleCopy} className="flex-1">
             <Copy className="h-3 w-3 mr-1" /> Copiar
