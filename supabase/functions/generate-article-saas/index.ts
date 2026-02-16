@@ -939,7 +939,6 @@ function isHomepageUrl(urlString: string): boolean {
 async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string> {
   if (!htmlContent) return htmlContent;
   
-  // Regex to match external links with their attributes
   const linkRegex = /<a\s+([^>]*href="(https?:\/\/[^"]+)"[^>]*)>([^<]*)<\/a>/gi;
   const matches: Array<{ full: string; attrs: string; url: string; text: string }> = [];
   
@@ -960,13 +959,14 @@ async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string>
   
   console.log(`Verifying ${matches.length} external links...`);
   
-  // Limit to first 10 links to avoid timeout
   const linksToVerify = matches.slice(0, 10);
   let cleanedContent = htmlContent;
   let fixedCount = 0;
+  let keptCount = 0;
+
+  const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
   
   for (const link of linksToVerify) {
-    // Skip if already a homepage URL - no need to verify
     if (isHomepageUrl(link.url)) {
       console.log(`Homepage URL, keeping as-is: ${link.url}`);
       continue;
@@ -974,40 +974,75 @@ async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string>
     
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      const timeout = setTimeout(() => controller.abort(), 8000);
       
-      const response = await fetch(link.url, {
+      const headResponse = await fetch(link.url, {
         method: 'HEAD',
         signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; LinkChecker/1.0)'
-        }
+        redirect: 'follow',
+        headers: { 'User-Agent': BROWSER_UA }
       });
       
       clearTimeout(timeout);
       
-      if (response.status === 404 || response.status >= 500) {
-        // Deep link broken → fallback to homepage of source
+      if (headResponse.status >= 200 && headResponse.status < 400) {
+        console.log(`Link OK (${headResponse.status}): ${link.url}`);
+        continue;
+      }
+      
+      if (headResponse.status === 404 || headResponse.status === 410) {
         const originUrl = getOriginUrl(link.url);
-        console.log(`Broken link (${response.status}): ${link.url} → falling back to ${originUrl}`);
-        
-        // Replace href with origin URL, keep anchor text
+        console.log(`Broken link (${headResponse.status}): ${link.url} → ${originUrl}`);
         const newLink = `<a href="${originUrl}" target="_blank" rel="noopener">${link.text}</a>`;
         cleanedContent = cleanedContent.replace(link.full, newLink);
         fixedCount++;
+        continue;
       }
-    } catch (error) {
-      // Network error, timeout, or other issue → fallback to homepage
-      const originUrl = getOriginUrl(link.url);
-      console.log(`Link verification failed (${error instanceof Error ? error.message : 'unknown'}): ${link.url} → falling back to ${originUrl}`);
       
-      const newLink = `<a href="${originUrl}" target="_blank" rel="noopener">${link.text}</a>`;
-      cleanedContent = cleanedContent.replace(link.full, newLink);
-      fixedCount++;
+      if (headResponse.status === 403 || headResponse.status === 405) {
+        // HEAD blocked, retry with GET
+        try {
+          const ctrl2 = new AbortController();
+          const t2 = setTimeout(() => ctrl2.abort(), 8000);
+          const getResponse = await fetch(link.url, {
+            method: 'GET',
+            signal: ctrl2.signal,
+            redirect: 'follow',
+            headers: { 'User-Agent': BROWSER_UA }
+          });
+          clearTimeout(t2);
+          // Consume body to avoid resource leak
+          await getResponse.text().catch(() => {});
+          
+          if (getResponse.status === 404 || getResponse.status === 410) {
+            const originUrl = getOriginUrl(link.url);
+            console.log(`Broken link on GET (${getResponse.status}): ${link.url} → ${originUrl}`);
+            const newLink = `<a href="${originUrl}" target="_blank" rel="noopener">${link.text}</a>`;
+            cleanedContent = cleanedContent.replace(link.full, newLink);
+            fixedCount++;
+          } else {
+            console.log(`Link kept after GET retry (${getResponse.status}): ${link.url}`);
+            keptCount++;
+          }
+        } catch {
+          console.log(`GET retry failed, keeping original: ${link.url}`);
+          keptCount++;
+        }
+        continue;
+      }
+      
+      // 500+ or other status → keep original (likely temporary server error)
+      console.log(`Server error (${headResponse.status}), keeping original: ${link.url}`);
+      keptCount++;
+      
+    } catch (error) {
+      // Network error or timeout → KEEP original link
+      console.log(`Network/timeout error, keeping original: ${link.url} (${error instanceof Error ? error.message : 'unknown'})`);
+      keptCount++;
     }
   }
   
-  console.log(`Link verification complete: ${fixedCount} links fixed to homepage fallback`);
+  console.log(`Link verification complete: ${fixedCount} fixed, ${keptCount} kept despite errors`);
   return cleanedContent;
 }
 
