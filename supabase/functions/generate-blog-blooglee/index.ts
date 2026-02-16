@@ -44,6 +44,126 @@ function cleanGeneratedContent(content: string): string {
   return cleaned;
 }
 
+// ===== VERIFICACIÓN INTELIGENTE DE ENLACES EXTERNOS =====
+function getOriginUrl(urlString: string): string {
+  try {
+    const url = new URL(urlString);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return urlString;
+  }
+}
+
+function isHomepageUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    return (url.pathname === '/' || url.pathname === '') && !url.search;
+  } catch {
+    return false;
+  }
+}
+
+async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string> {
+  if (!htmlContent) return htmlContent;
+  
+  const linkRegex = /<a\s+([^>]*href="(https?:\/\/[^"]+)"[^>]*)>([^<]*)<\/a>/gi;
+  const matches: Array<{ full: string; attrs: string; url: string; text: string }> = [];
+  
+  let match;
+  while ((match = linkRegex.exec(htmlContent)) !== null) {
+    matches.push({ full: match[0], attrs: match[1], url: match[2], text: match[3] });
+  }
+  
+  if (matches.length === 0) {
+    console.log("No external links found in content");
+    return htmlContent;
+  }
+  
+  console.log(`Verifying ${matches.length} external links...`);
+  
+  const linksToVerify = matches.slice(0, 10);
+  let cleanedContent = htmlContent;
+  let fixedCount = 0;
+  let keptCount = 0;
+
+  const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  
+  for (const link of linksToVerify) {
+    if (isHomepageUrl(link.url)) {
+      console.log(`Homepage URL, keeping as-is: ${link.url}`);
+      continue;
+    }
+    
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      
+      const headResponse = await fetch(link.url, {
+        method: 'HEAD',
+        signal: controller.signal,
+        redirect: 'follow',
+        headers: { 'User-Agent': BROWSER_UA }
+      });
+      
+      clearTimeout(timeout);
+      
+      if (headResponse.status >= 200 && headResponse.status < 400) {
+        console.log(`Link OK (${headResponse.status}): ${link.url}`);
+        continue;
+      }
+      
+      if (headResponse.status === 404 || headResponse.status === 410) {
+        const originUrl = getOriginUrl(link.url);
+        console.log(`Broken link (${headResponse.status}): ${link.url} → ${originUrl}`);
+        const newLink = `<a href="${originUrl}" target="_blank" rel="noopener">${link.text}</a>`;
+        cleanedContent = cleanedContent.replace(link.full, newLink);
+        fixedCount++;
+        continue;
+      }
+      
+      if (headResponse.status === 403 || headResponse.status === 405) {
+        try {
+          const ctrl2 = new AbortController();
+          const t2 = setTimeout(() => ctrl2.abort(), 8000);
+          const getResponse = await fetch(link.url, {
+            method: 'GET',
+            signal: ctrl2.signal,
+            redirect: 'follow',
+            headers: { 'User-Agent': BROWSER_UA }
+          });
+          clearTimeout(t2);
+          await getResponse.text().catch(() => {});
+          
+          if (getResponse.status === 404 || getResponse.status === 410) {
+            const originUrl = getOriginUrl(link.url);
+            console.log(`Broken link on GET (${getResponse.status}): ${link.url} → ${originUrl}`);
+            const newLink = `<a href="${originUrl}" target="_blank" rel="noopener">${link.text}</a>`;
+            cleanedContent = cleanedContent.replace(link.full, newLink);
+            fixedCount++;
+          } else {
+            console.log(`Link kept after GET retry (${getResponse.status}): ${link.url}`);
+            keptCount++;
+          }
+        } catch {
+          console.log(`GET retry failed, keeping original: ${link.url}`);
+          keptCount++;
+        }
+        continue;
+      }
+      
+      console.log(`Server error (${headResponse.status}), keeping original: ${link.url}`);
+      keptCount++;
+      
+    } catch (error) {
+      console.log(`Network/timeout error, keeping original: ${link.url} (${error instanceof Error ? error.message : 'unknown'})`);
+      keptCount++;
+    }
+  }
+  
+  console.log(`Link verification complete: ${fixedCount} fixed, ${keptCount} kept despite errors`);
+  return cleanedContent;
+}
+
 // ===== DEFINICIÓN RESTRICTIVA DE BLOOGLEE =====
 // Esta definición se incluye en el prompt para evitar que la IA invente funcionalidades
 const BLOOGLEE_DEFINITION = `
@@ -1173,6 +1293,10 @@ const handler = async (req: Request): Promise<Response> => {
     const cleanedContent = cleanGeneratedContent(blogData.content);
     console.log(`Content cleaned: ${blogData.content.length} -> ${cleanedContent.length} chars`);
 
+    // Verify external links before saving
+    const verifiedContent = await verifyAndCleanExternalLinks(cleanedContent);
+    console.log(`Links verified: ${cleanedContent.length} -> ${verifiedContent.length} chars`);
+
     // Insert into database
     const audienceValue = category.toLowerCase();
     
@@ -1182,7 +1306,7 @@ const handler = async (req: Request): Promise<Response> => {
         slug: blogData.slug,
         title: blogData.title,
         excerpt: blogData.excerpt,
-        content: cleanedContent,
+        content: verifiedContent,
         image_url: imageUrl,
         audience: audienceValue,
         category: blogData.thematic_category,
