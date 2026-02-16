@@ -228,7 +228,8 @@ TONO DE VOZ: {{toneType}}
 {{wpStyleNotes}}
 {{wpRecentTopics}}
 
-CONTEXTO TEMPORAL: Estamos en {{month}} {{year}}, considera estacionalidad si el pilar lo requiere.
+CONTEXTO TEMPORAL: Hoy es {{dayOfMonth}} de {{month}} de {{year}}.
+⚠️ RESTRICCIÓN TEMPORAL: Solo mencionar eventos que AÚN NO hayan ocurrido. Si un evento ya pasó este mes, está PROHIBIDO.
 
 {{usedTopics}}
 
@@ -242,7 +243,7 @@ Genera UN tema de blog que:
 1. Encaje PERFECTAMENTE con el pilar de contenido "{{pillarType}}"
 2. Sea relevante para el sector {{sector}}{{descriptionContext}}
 3. Tenga potencial SEO real (algo que la gente busca en Google)
-4. Si el pilar es "seasonal", adáptalo a {{month}} {{year}}
+4. Si el pilar es "seasonal", adáptalo al periodo POSTERIOR al {{dayOfMonth}} de {{month}} {{year}}
 5. NO mencione el nombre de la empresa
 6. Sea COMPLETAMENTE DIFERENTE a los temas ya usados
 7. NO incluyas el año en el tema (ej: "2026", "este año")
@@ -1293,7 +1294,9 @@ Deno.serve(async (req) => {
 
     const monthNameEs = MONTH_NAMES_ES[month - 1];
     const monthNameCa = MONTH_NAMES_CA[month - 1];
-    const dateContext = `${monthNameEs} ${year}`;
+    const today = new Date();
+    const dayOfMonth = today.getDate();
+    const dateContext = `${dayOfMonth} de ${monthNameEs} ${year}`;
     
     const { geoContext, locationInfo } = buildGeoContext(site);
     const sectorCategory = detectSectorCategory(site.sector);
@@ -1408,6 +1411,7 @@ Deno.serve(async (req) => {
         scope: scope,
         month: monthNameEs,
         year: year.toString(),
+        dayOfMonth: dayOfMonth.toString(),
         usedTopics: usedTopicsSection,
         pillarType: currentPillar,
         pillarDescription: pillarDescription,
