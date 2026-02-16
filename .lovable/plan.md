@@ -1,68 +1,103 @@
+# Generacion automatica de Social Media con cada Blog Post de Blooglee
 
+## Resumen
 
-## Mejorar verificacion de enlaces externos en todo el SaaS de Blooglee
+Cada vez que se genere un blog post de Blooglee (para Empresas o Agencias), el sistema creara automaticamente posts adaptados para Instagram, LinkedIn, Facebook y TikTok. Se reutilizara la imagen destacada del blog, recortandola con IA al formato optimo de cada red social, y se generara el mejor copy posible incluyendo el enlace al post.
 
-### Situacion actual
+## Cambios necesarios
 
-| Edge Function | Verificacion de enlaces | Zona |
-|---|---|---|
-| `generate-article-saas` | Si, pero demasiado agresiva (elimina enlaces validos) | SaaS |
-| `generate-blog-blooglee` | No tiene ninguna verificacion | SaaS |
-| `generate-article` | No tiene (zona MKPro protegida, no se toca) | MKPro |
-| `generate-article-empresa` | No tiene (zona MKPro protegida, no se toca) | MKPro |
+### 1. Modificar `generate-blog-blooglee` (Edge Function)
 
-### Cambios a realizar
+Despues de insertar el blog post en la base de datos (linea ~1401), anadir una llamada asincrona a una nueva funcion `generate-social-from-blog` que:
 
-#### 1. `generate-article-saas/index.ts` - Mejorar la funcion existente (lineas 939-1012)
+- Reciba el `blog_post_id`, titulo, excerpt, slug, imagen destacada y audiencia
+- Genere contenido social para las 4 plataformas en paralelo
+- No bloquee la respuesta del blog (fire-and-forget)
 
-Reescribir `verifyAndCleanExternalLinks` con logica mas inteligente:
+### 2. Crear nueva Edge Function `generate-social-from-blog`
 
-- **User-Agent realista**: Cambiar `LinkChecker/1.0` por un User-Agent de navegador real para evitar bloqueos
-- **Timeout de 5s a 8s**: Mas margen para sitios lentos
-- **Si HEAD falla con error de red/timeout**: MANTENER el enlace original (no reemplazar)
-- **Si HEAD devuelve 403/405**: Reintentar con GET (muchos sitios bloquean HEAD pero aceptan GET)
-- **Si HEAD o GET devuelve 404/410**: Reemplazar con homepage (enlace realmente roto)
-- **Cualquier otro error de red**: Mantener el enlace original tal cual
+Esta funcion:
+
+**Recibe:** `{ blogPostId, title, excerpt, slug, imageUrl, audience }`
+
+**Para cada plataforma (Instagram, LinkedIn, Facebook, TikTok):**
+
+a) **Imagen adaptada:** Usa `google/gemini-2.5-flash-image` para recortar/adaptar la imagen destacada del blog al formato optimo:
+
+- Instagram: 1080x1350 (4:5)
+- LinkedIn: 1080x1350 (4:5)
+- Facebook: 1080x1350 (4:5)
+- TikTok: 1080x1920 (9:16)
+
+b) **Copy optimizado:** Genera el texto adaptado al tono de cada plataforma con `google/gemini-2.5-flash`:
+
+- Instagram: 150-250 palabras, emojis moderados, CTA visual, sin hashtags, incluye enlace en bio mention
+- LinkedIn: 200-400 palabras, tono profesional, datos, CTA, incluye enlace directo al post
+- Facebook: 100-250 palabras, conversacional, pregunta final, enlace directo
+- TikTok: guion por escenas (30-60s), gancho fuerte, CTA
+
+c) **Enlace del post:** `https://blooglee.com/blog/{slug}` incluido en el copy
+
+d) **Guarda** cada post en la tabla `social_content` con estado `draft`
+
+### 3. Anadir columna `blog_post_url` a `social_content`
+
+Para almacenar la URL directa del blog post asociado y facilitar la futura integracion con Metricool.
+
+### 4. Configuracion en `config.toml`
+
+Registrar la nueva funcion `generate-social-from-blog` con `verify_jwt = false`.
+
+### 5. Panel Admin: actualizar vista
+
+Anadir el enlace al blog post en el `SocialContentCard` para que se vea la URL del post original.
+
+---
+
+## Detalles tecnicos
+
+### Flujo de ejecucion
 
 ```text
-LOGICA ACTUAL (agresiva):
-  HEAD request 
-    -> status 404 o 500+: reemplazar con homepage
-    -> error de red/timeout: reemplazar con homepage  <-- PROBLEMA
-
-LOGICA NUEVA (inteligente):
-  HEAD request
-    -> status 200-399: mantener enlace original
-    -> status 404/410: reemplazar con homepage
-    -> status 403/405: reintentar con GET
-      -> GET 404/410: reemplazar con homepage
-      -> GET ok o error: mantener enlace original
-    -> status 500+: mantener enlace original (error temporal del servidor)
-    -> error de red/timeout: MANTENER enlace original
+generate-blog-blooglee
+  |
+  +-- Inserta blog_post en BD
+  |
+  +-- Fire-and-forget: POST a generate-social-from-blog
+       |
+       +-- Para cada plataforma (paralelo):
+            |-- Adaptar imagen (AI image edit)
+            |-- Generar copy (AI text)
+            |-- Subir imagen a article-images/social/{platform}/
+            |-- Insertar en social_content
 ```
 
-#### 2. `generate-blog-blooglee/index.ts` - Anadir verificacion de enlaces
+### Prompt de copy social
 
-Copiar la funcion mejorada `verifyAndCleanExternalLinks` (y sus helpers `getOriginUrl`, `isHomepageUrl`) al archivo del blog de Blooglee.
+Cada plataforma tendra un prompt especializado que incluye:
 
-Aplicarla al contenido antes de guardarlo en la base de datos, justo despues de `cleanGeneratedContent` (linea 1173):
+- Contexto del articulo (titulo, excerpt)
+- URL del post: `https://blooglee.com/blog/{slug}`
+- Audiencia (empresas o agencias) para ajustar tono
+- Instrucciones de formato especificas por plataforma
+- Prohibicion explicita de hashtags
+- Identidad Blooglee
 
-```text
-const cleanedContent = cleanGeneratedContent(blogData.content);
-const verifiedContent = await verifyAndCleanExternalLinks(cleanedContent);  // NUEVO
-// Usar verifiedContent en el insert
-```
+### Recorte de imagen con IA
 
-### Archivos afectados
+Se usara el modelo `google/gemini-2.5-flash-image` en modo edicion, enviando la imagen original del blog con la instruccion de recortarla al aspect ratio de cada plataforma, manteniendo la estetica y sin anadir texto.
 
-| Archivo | Cambio |
-|---|---|
-| `supabase/functions/generate-article-saas/index.ts` | Reescribir `verifyAndCleanExternalLinks` (lineas 939-1012) |
-| `supabase/functions/generate-blog-blooglee/index.ts` | Anadir funciones `getOriginUrl`, `isHomepageUrl`, `verifyAndCleanExternalLinks` y aplicar antes del insert |
+### Metricool (fase posterior)
 
-### Resultado esperado
+La estructura queda preparada para la integracion futura con Metricool. Los campos `scheduled_for` y `metricool_post_id` ya existen en la tabla. La integracion requerira configurar los secretos `METRICOOL_USER_TOKEN`, `METRICOOL_USER_ID` y `METRICOOL_BLOG_ID`.
 
-- Los enlaces externos generados por la IA se mantendran intactos salvo que el servidor confirme explicitamente un 404
-- Los sitios que bloquean bots (403) o no responden a HEAD ya no perderan sus enlaces
-- El blog de Blooglee tambien tendra proteccion contra enlaces rotos
-- Las funciones de MKPro no se modifican (zona protegida)
+## Archivos afectados
+
+
+| Archivo                                                 | Cambio                                            |
+| ------------------------------------------------------- | ------------------------------------------------- |
+| `supabase/functions/generate-social-from-blog/index.ts` | NUEVO - Funcion principal                         |
+| `supabase/functions/generate-blog-blooglee/index.ts`    | Anadir fire-and-forget post-insercion             |
+| `supabase/config.toml`                                  | Registrar nueva funcion                           |
+| `src/components/admin/SocialContentCard.tsx`            | Mostrar enlace al blog post                       |
+| Migracion SQL                                           | Anadir columna `blog_post_url` a `social_content` |
