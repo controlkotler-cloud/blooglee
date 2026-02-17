@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.serve-sitemap]
 verify_jwt = false
+
+[functions.serve-rss]
+verify_jwt = false
