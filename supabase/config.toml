@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.generate-social-from-blog]
 verify_jwt = false
+
+[functions.schedule-metricool-post]
+verify_jwt = false

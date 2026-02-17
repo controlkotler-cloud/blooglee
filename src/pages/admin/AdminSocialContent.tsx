@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminSocialContent() {
-  const { items, isLoading, generate, isGenerating, deleteItem } = useAdminSocialContent();
+  const { items, isLoading, generate, isGenerating, deleteItem, scheduleToMetricool, isScheduling } = useAdminSocialContent();
   const [platformFilter, setPlatformFilter] = useState<string>('all');
 
   const filtered = platformFilter === 'all'
@@ -73,7 +73,9 @@ export default function AdminSocialContent() {
                     item={item}
                     onDelete={deleteItem}
                     onRegenerate={handleRegenerate}
+                    onSchedule={(id) => scheduleToMetricool({ socialContentId: id })}
                     isRegenerating={isGenerating}
+                    isScheduling={isScheduling}
                   />
                 ))}
               </div>
