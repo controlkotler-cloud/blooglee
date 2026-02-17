@@ -184,8 +184,11 @@ Disallow: /api/
 # ARCHIVOS DE DESCUBRIMIENTO
 # ===========================================
 
-# Sitemap principal
-Sitemap: https://blooglee.com/sitemap.xml
+# Sitemap dinámico (generado desde base de datos)
+Sitemap: https://gqtikajhhggyoiypkbgw.supabase.co/functions/v1/serve-sitemap
+
+# Sitemap estático (fallback)
+# Sitemap: https://blooglee.com/sitemap.xml
 
 # Archivos para LLMs
 # llms.txt: https://blooglee.com/llms.txt
