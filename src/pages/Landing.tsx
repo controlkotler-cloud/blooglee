@@ -197,7 +197,7 @@ const Landing = () => {
               {/* CTA Buttons - Stacked on mobile */}
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start mb-8 sm:mb-12">
                 <Link 
-                  to="/auth" 
+                  to="/waitlist" 
                   className="group relative px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-semibold text-white text-base sm:text-lg overflow-hidden shadow-2xl shadow-violet-500/30 hover:shadow-violet-500/50 transition-shadow"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400" />
@@ -439,7 +439,7 @@ const Landing = () => {
 
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                 <Link 
-                  to="/auth" 
+                  to="/waitlist" 
                   className="group px-6 sm:px-8 lg:px-10 py-3.5 sm:py-4 lg:py-5 rounded-full font-bold text-violet-600 text-base sm:text-lg bg-white hover:bg-white/90 transition-all shadow-2xl flex items-center justify-center gap-2"
                 >
                   Empezar gratis ahora

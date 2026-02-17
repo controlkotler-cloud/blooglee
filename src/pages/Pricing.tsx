@@ -305,7 +305,7 @@ const Pricing = () => {
 
                     {/* CTA */}
                     <Link
-                      to="/auth"
+                      to="/waitlist"
                       className={`w-full py-3 px-6 rounded-xl font-semibold text-center transition-all duration-300 flex items-center justify-center gap-2 group/btn ${
                         plan.popular
                           ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:shadow-lg hover:shadow-violet-500/25 hover:-translate-y-0.5"

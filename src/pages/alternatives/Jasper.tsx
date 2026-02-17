@@ -145,7 +145,7 @@ export default function JasperComparison() {
           </p>
           <div className="flex justify-center">
             <Button asChild size="lg" className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400 hover:opacity-90">
-              <Link to="/auth">
+              <Link to="/waitlist">
                 Probar Blooglee gratis
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>

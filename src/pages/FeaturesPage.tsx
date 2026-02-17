@@ -117,7 +117,7 @@ const FeaturesPage = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild size="lg" className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400 hover:opacity-90">
-              <Link to="/auth">
+              <Link to="/waitlist">
                 Empieza gratis
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
@@ -221,7 +221,7 @@ const FeaturesPage = () => {
               Empieza gratis hoy y descubre cómo Blooglee puede transformar tu estrategia de contenido.
             </p>
             <Button asChild size="lg" className="bg-white text-violet-600 hover:bg-white/90">
-              <Link to="/auth">
+              <Link to="/waitlist">
                 Crear cuenta gratis
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>

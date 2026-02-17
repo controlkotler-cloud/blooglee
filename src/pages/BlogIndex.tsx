@@ -234,7 +234,7 @@ const BlogIndex = () => {
                 </p>
               </div>
               <Button asChild className="w-full sm:w-auto shrink-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-90">
-                <Link to="/auth">
+                <Link to="/waitlist">
                   Empezar gratis
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>

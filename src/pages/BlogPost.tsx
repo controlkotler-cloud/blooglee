@@ -410,7 +410,7 @@ const BlogPost = () => {
                   Genera artículos profesionales con IA y publícalos directamente en WordPress.
                 </p>
                 <Button asChild size="lg" className="bg-white text-violet-600 hover:bg-white/90">
-                  <Link to="/auth">
+                  <Link to="/waitlist">
                     Prueba Blooglee gratis
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Link>
