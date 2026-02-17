@@ -31,31 +31,29 @@ Deno.serve(async (req) => {
       });
     }
 
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // Check superadmin role
-    const userId = claimsData.claims.sub as string;
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
     const { data: roleData } = await supabaseAdmin
       .from('user_roles')
       .select('role')
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .in('role', ['superadmin', 'admin'])
       .maybeSingle();
 
@@ -111,10 +109,16 @@ Deno.serve(async (req) => {
     
     const timezone = scheduledTimezone || 'Europe/Madrid';
 
-    // Format datetime for Metricool: "YYYY-MM-DDTHH:mm:ss"
-    const formatDateTime = (d: Date) => {
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+    // Format datetime for Metricool in the target timezone
+    const formatInTimezone = (d: Date, tz: string) => {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: tz,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false,
+      }).formatToParts(d);
+      const get = (type: string) => parts.find(p => p.type === type)?.value || '00';
+      return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:00`;
     };
 
     // Build provider-specific config
@@ -123,11 +127,11 @@ Deno.serve(async (req) => {
     // Build the Metricool post body
     const postBody: Record<string, any> = {
       publicationDate: {
-        dateTime: formatDateTime(publishDate),
+        dateTime: formatInTimezone(publishDate, timezone),
         timezone,
       },
       creationDate: {
-        dateTime: formatDateTime(now),
+        dateTime: formatInTimezone(now, timezone),
         timezone,
       },
       text: item.content,
@@ -145,11 +149,7 @@ Deno.serve(async (req) => {
       postBody.facebookData = { type: 'POST' };
     }
     if (network === 'instagram') {
-      postBody.instagramData = { autoPublish: true };
-      // Instagram needs type: if image, it's a post
-      if (item.image_url) {
-        postBody.instagramData.type = 'POST';
-      }
+      postBody.instagramData = { autoPublish: true, type: 'POST' };
     }
     if (network === 'linkedin') {
       postBody.linkedinData = { type: 'POST' };
