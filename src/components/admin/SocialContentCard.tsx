@@ -45,7 +45,7 @@ export function SocialContentCard({ item, onDelete, onRegenerate, onSchedule, is
     <Card className="overflow-hidden">
       {item.image_url && (
         <div className="aspect-square max-h-48 overflow-hidden">
-          <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+          <img src={item.image_url} alt={item.title} loading="lazy" className="w-full h-full object-cover" />
         </div>
       )}
       <CardHeader className="pb-2">

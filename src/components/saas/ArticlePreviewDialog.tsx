@@ -107,6 +107,7 @@ export function ArticlePreviewDialog({
                   <img
                     src={article.image_url}
                     alt={content?.title || article.topic}
+                    loading="lazy"
                     className="w-full max-h-64 object-cover rounded-lg"
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
