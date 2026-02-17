@@ -3,7 +3,7 @@ import { Sparkles, FileText, Globe, Zap, Check } from 'lucide-react';
 import bloogleeLogo from '@/assets/blooglee-logo.png';
 
 const mockArticles = [
-  { title: "10 tendencias de belleza para 2024", status: "published", lang: "ES" },
+  { title: "10 tendencias de belleza para 2026", status: "published", lang: "ES" },
   { title: "Cómo cuidar tu piel en invierno", status: "generating", lang: "ES" },
   { title: "Els millors tractaments facials", status: "draft", lang: "CA" },
 ];
@@ -52,7 +52,7 @@ export function ProductMockup() {
       {/* Floating mockup */}
       <div className="mockup-float">
         {/* Browser window frame */}
-        <div className="glass-card-strong rounded-2xl overflow-hidden">
+        <div className="glass-card-strong rounded-2xl overflow-hidden" style={{ boxShadow: 'none' }}>
           {/* Browser header */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 bg-muted/30">
             <div className="flex gap-1.5">
@@ -63,7 +63,7 @@ export function ProductMockup() {
             <div className="flex-1 mx-4">
               <div className="bg-background/80 rounded-lg px-3 py-1.5 text-xs text-muted-foreground flex items-center justify-center gap-2">
                 <Globe className="w-3 h-3" />
-                <span>app.blooglee.com/dashboard</span>
+                <span>blooglee.com/dashboard</span>
               </div>
             </div>
           </div>
