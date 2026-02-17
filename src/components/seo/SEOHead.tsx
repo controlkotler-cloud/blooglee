@@ -1,4 +1,5 @@
 import { Helmet } from 'react-helmet-async';
+import { useLocation } from 'react-router-dom';
 
 interface SEOHeadProps {
   title?: string;
@@ -29,13 +30,16 @@ export const SEOHead = ({
   article,
   noIndex = false,
 }: SEOHeadProps) => {
+  const location = useLocation();
+  
   const fullTitle = title 
     ? `${title} | ${SITE_NAME}` 
     : `${SITE_NAME} - Blog en piloto automático con IA`;
   
+  // Use explicit canonicalUrl if provided, otherwise auto-detect from current route
   const fullCanonicalUrl = canonicalUrl 
     ? `${BASE_URL}${canonicalUrl}` 
-    : undefined;
+    : `${BASE_URL}${location.pathname}`;
 
   return (
     <Helmet>
@@ -46,8 +50,7 @@ export const SEOHead = ({
       <meta name="description" content={description} />
       <meta name="keywords" content={keywords} />
       
-      {/* Canonical */}
-      {fullCanonicalUrl && <link rel="canonical" href={fullCanonicalUrl} />}
+      <link rel="canonical" href={fullCanonicalUrl} />
       
       {/* Robots */}
       {noIndex && <meta name="robots" content="noindex, nofollow" />}
@@ -58,8 +61,7 @@ export const SEOHead = ({
       <meta property="og:type" content={ogType} />
       <meta property="og:image" content={ogImage} />
       <meta property="og:site_name" content={SITE_NAME} />
-      <meta property="og:locale" content="es_ES" />
-      {fullCanonicalUrl && <meta property="og:url" content={fullCanonicalUrl} />}
+      <meta property="og:url" content={fullCanonicalUrl} />
       
       {/* Article specific */}
       {ogType === 'article' && article && (
@@ -84,12 +86,8 @@ export const SEOHead = ({
       <meta name="twitter:site" content="@Blooglee" />
       
       {/* Hreflang */}
-      {fullCanonicalUrl && (
-        <>
-          <link rel="alternate" hrefLang="es" href={fullCanonicalUrl} />
-          <link rel="alternate" hrefLang="x-default" href={fullCanonicalUrl} />
-        </>
-      )}
+      <link rel="alternate" hrefLang="es" href={fullCanonicalUrl} />
+      <link rel="alternate" hrefLang="x-default" href={fullCanonicalUrl} />
     </Helmet>
   );
 };
