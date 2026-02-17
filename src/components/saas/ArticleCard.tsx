@@ -38,6 +38,7 @@ export function ArticleCard({
           <img
             src={article.image_url}
             alt={title}
+            loading="lazy"
             className="w-full h-full object-cover"
           />
         ) : (

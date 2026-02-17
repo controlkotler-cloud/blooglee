@@ -247,10 +247,9 @@ const BlogPost = () => {
 
               <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-foreground/60 mb-6">
                 <div className="flex items-center gap-3">
-                  <img 
+                <img 
                     src={post.author.avatar} 
                     alt={`Foto de ${post.author.name}`}
-                    loading="lazy"
                     className="w-10 h-10 rounded-full object-cover"
                   />
                   <div>
@@ -276,7 +275,6 @@ const BlogPost = () => {
               <img 
                 src={post.image} 
                 alt={`Imagen destacada: ${post.title}`}
-                loading="lazy"
                 className="w-full h-full object-cover"
               />
             </div>
