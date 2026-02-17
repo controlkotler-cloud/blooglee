@@ -4,7 +4,7 @@ import DOMPurify from 'dompurify';
 import { PublicLayout } from '@/components/marketing/PublicLayout';
 import { BlogCard } from '@/components/marketing/BlogCard';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, ArrowLeft, ArrowRight, Share2, Twitter, Linkedin, Facebook, Copy, Loader2 } from 'lucide-react';
+import { Calendar, Clock, ArrowLeft, ArrowRight, Share2, Linkedin, Facebook, Copy, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SEOHead, BlogPostingSchema, BreadcrumbSchema } from '@/components/seo';
 import { useBlogPost, useRelatedPosts } from '@/hooks/useBlogPosts';
@@ -308,16 +308,7 @@ const BlogPost = () => {
                   <span className="font-medium">Comparte este artículo</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" asChild>
-                    <a 
-                      href={`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTitle}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="Compartir en Twitter"
-                    >
-                      <Twitter className="w-4 h-4" />
-                    </a>
-                  </Button>
+                  {/* Social share removed Twitter */}
                   <Button variant="outline" size="icon" asChild>
                     <a 
                       href={`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`}
@@ -438,7 +429,7 @@ const BlogPost = () => {
                 </p>
                 <Button asChild variant="secondary" size="sm" className="w-full bg-white text-violet-600 hover:bg-white/90">
                   <a 
-                    href="https://www.instagram.com/blooglee_/" 
+                    href="https://www.instagram.com/blooglee_" 
                     target="_blank" 
                     rel="noopener noreferrer"
                   >
