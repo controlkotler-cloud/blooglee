@@ -16,6 +16,33 @@ interface PlatformConfig {
 
 const BLOG_URL_BASE = "https://blooglee.com/blog/";
 
+const BLOOGLEE_SOCIAL_SYSTEM_PROMPT = `Eres el community manager de Blooglee, una plataforma de automatización de blogs con IA desde Barcelona.
+
+IDENTIDAD DE MARCA:
+- Blooglee genera artículos SEO optimizados y los publica en WordPress automáticamente.
+- Precio desde 15 €/mes. Hecho en Barcelona.
+- Web: blooglee.com | Instagram: @blooglee_
+
+REGLAS ABSOLUTAS DE COMUNICACIÓN:
+1. SIEMPRE tutear: "tú" (singular) y "vosotros" (plural). NUNCA "usted/ustedes". Sin excepciones.
+2. Español nativo de España. Expresiones naturales permitidas: "echar un vistazo", "ir al grano", "sin complicaciones", "currar", "mola" (con moderación), "basta con", "te lo cuento".
+3. PROHIBIDO: anglicismos innecesarios (performar, engagement, insights, leverage, awareness, storytelling), superlativos vacíos (revolucionario, disruptivo, game-changer), mayúsculas agresivas en frases enteras, más de 3 emojis seguidos, frases que suenen a traducción del inglés.
+4. Estructura de cada post: Gancho (primera línea impactante) > Contexto > Valor concreto > CTA suave.
+5. Cada post debe aportar valor real aunque el lector no conozca Blooglee.
+6. Pilares de contenido: Educativo (40%), Producto (25%), Social Proof (20%), Comunidad (15%).
+
+HASHTAGS DE MARCA (rotar, no usar todos a la vez): #Blooglee #TuBlogEnPilotoAutomático #BlogConIA #HechoEnBarcelona
+HASHTAGS DE COMUNIDAD (rotar según temática): #SEOenEspañol #MarketingDeContenidos #BloggingTips #PYMEdigital #NegocioLocal #EmprendedoresEspaña #CrecimientoOrgánico
+
+CHECKLIST INTERNA (verificar antes de entregar):
+- ¿Usa tú/vosotros? ¿No hay ni un "usted"?
+- ¿Suena a español de España natural?
+- ¿La primera línea engancha?
+- ¿Aporta valor o es solo autopromoción?
+- ¿CTA suave y natural?
+- ¿Emojis puntuales (2-3 max)?
+- ¿Ninguna frase suena a traducción del inglés?`;
+
 function buildPlatformConfigs(slug: string, audience: string): PlatformConfig[] {
   const postUrl = `${BLOG_URL_BASE}${slug}`;
   const audienceContext = audience === "empresas"
@@ -27,69 +54,78 @@ function buildPlatformConfigs(slug: string, audience: string): PlatformConfig[] 
       platform: "instagram",
       aspectInstruction: "Crop this image to a 4:5 portrait aspect ratio (1080x1350). Keep the main subject centered. Do NOT add any text, logos, or overlays.",
       storagePath: "social/instagram/",
-      copyPrompt: `Genera un post de Instagram en español para Blooglee.
-Blooglee es una plataforma de generación automática de artículos SEO para blogs.
+      copyPrompt: `Genera un post de Instagram en español de España (tuteo, vosotros) para Blooglee.
 Audiencia: ${audienceContext}.
 
-Reglas:
+TONO: Amigo que sabe de marketing y te lo explica fácil. Visual y didáctico.
+
+FORMATO:
 - 150-250 palabras
-- Emojis moderados (3-5 max)
-- Tono cercano y visual
-- CTA al final invitando a leer el artículo completo
-- Menciona "enlace en bio" para dirigir al artículo
-- SIN hashtags
-- Formato: texto plano listo para copiar y pegar
+- Emojis moderados: 2-3 máximo, puntuales y con intención
+- Estructura: gancho visual > contexto breve > valor práctico > CTA suave
+- CTA: invitar a guardar, comentar o visitar "enlace en bio"
+- Menciona que el artículo completo está en "enlace en bio"
+- HASHTAGS AL FINAL: 3-5 hashtags. Siempre #Blooglee + 2-4 de comunidad rotando
+- Formato: texto plano listo para copiar y pegar, sin markdown
 - URL del artículo (para referencia interna): ${postUrl}`,
     },
     {
       platform: "linkedin",
       aspectInstruction: "Crop this image to a 4:5 portrait aspect ratio (1080x1350). Keep the main subject centered. Do NOT add any text, logos, or overlays.",
       storagePath: "social/linkedin/",
-      copyPrompt: `Genera un post de LinkedIn en español para Blooglee.
-Blooglee es una plataforma de generación automática de artículos SEO para blogs.
+      copyPrompt: `Genera un post de LinkedIn en español de España (tuteo, vosotros) para Blooglee.
 Audiencia: ${audienceContext}.
 
-Reglas:
+TONO: Colega experto tomando un café contigo. Profesional pero cercano, sin corporativismo vacío.
+
+FORMATO:
 - 200-400 palabras
-- Tono profesional pero accesible
-- Incluye datos o estadísticas relevantes cuando sea posible
-- CTA al final con enlace directo al artículo
-- SIN hashtags
-- Usa saltos de línea para buena legibilidad
+- Sin emojis o máximo 1-2 muy puntuales
+- Incluye datos, estadísticas o ejemplos concretos
+- Saltos de línea generosos (una idea por párrafo)
+- Estructura: gancho con dato/pregunta > desarrollo con valor > conclusión > CTA con pregunta abierta
+- HASHTAGS AL FINAL: 2-3 hashtags. #Blooglee + 1-2 de nicho profesional
 - Incluye el enlace al artículo: ${postUrl}
-- Formato: texto plano listo para copiar y pegar`,
+- Formato: texto plano listo para copiar y pegar, sin markdown`,
     },
     {
       platform: "facebook",
       aspectInstruction: "Crop this image to a 4:5 portrait aspect ratio (1080x1350). Keep the main subject centered. Do NOT add any text, logos, or overlays.",
       storagePath: "social/facebook/",
-      copyPrompt: `Genera un post de Facebook en español para Blooglee.
-Blooglee es una plataforma de generación automática de artículos SEO para blogs.
+      copyPrompt: `Genera un post de Facebook en español de España (tuteo, vosotros) para Blooglee.
 Audiencia: ${audienceContext}.
 
-Reglas:
+TONO: Vecino que te explica las cosas con paciencia. Cercano, explicativo, como si fuera la primera vez.
+
+FORMATO:
 - 100-250 palabras
-- Tono conversacional y amigable
-- Termina con una pregunta para fomentar interacción
-- SIN hashtags
+- Emojis moderados: 2-3 máximo
+- Usa historias o situaciones reales ("¿Te ha pasado que...?")
+- Estructura: gancho cotidiano > explicación sencilla > valor práctico > pregunta abierta al final
+- HASHTAGS AL FINAL: 2-3 hashtags. #Blooglee + 1-2 relevantes
 - Incluye el enlace al artículo: ${postUrl}
-- Formato: texto plano listo para copiar y pegar`,
+- Formato: texto plano listo para copiar y pegar, sin markdown`,
     },
     {
       platform: "tiktok",
       aspectInstruction: "Crop this image to a 9:16 vertical aspect ratio (1080x1920). Keep the main subject centered. Do NOT add any text, logos, or overlays.",
       storagePath: "social/tiktok/",
-      copyPrompt: `Genera un guion de TikTok/Reel de 30-60 segundos en español para Blooglee.
-Blooglee es una plataforma de generación automática de artículos SEO para blogs.
+      copyPrompt: `Genera un copy de marketing para TikTok en español de España (tuteo, vosotros) para Blooglee.
+IMPORTANTE: NO generes un guion de vídeo con escenas. Genera un COPY de marketing directo.
 Audiencia: ${audienceContext}.
 
-Reglas:
-- Formato estructurado por escenas
-- Cada escena con: duración, texto en pantalla, narración
-- Gancho fuerte en los primeros 3 segundos
-- CTA al final dirigiendo al artículo: ${postUrl}
-- SIN hashtags
-- Formato: lista de escenas numeradas`,
+TONO: Colega que va al grano. Informal, directo, con energía. Humor sutil permitido.
+
+FORMATO:
+- 100-200 palabras
+- Copy de marketing directo, NO guion de vídeo, NO escenas numeradas
+- Gancho fortísimo en la primera frase
+- Ritmo rápido, frases cortas
+- Emojis: 2-4 máximo
+- CTA tipo "link en bio" o "síguenos para más"
+- SIN hashtags (no funcionan en TikTok)
+- Menciona el artículo completo en el enlace en bio
+- Formato: texto plano listo para copiar y pegar, sin markdown`,
     },
   ];
 }
@@ -107,7 +143,7 @@ async function adaptImage(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
+        model: "google/gemini-3-pro-image-preview",
         messages: [
           {
             role: "user",
@@ -155,7 +191,7 @@ async function generateCopy(
       messages: [
         {
           role: "system",
-          content: "Eres un experto en social media marketing. Generas contenido adaptado para cada plataforma social. Nunca incluyes hashtags.",
+          content: BLOOGLEE_SOCIAL_SYSTEM_PROMPT,
         },
         {
           role: "user",
@@ -222,7 +258,7 @@ async function processPlatform(
       blog_post_id: blogPostId,
       blog_post_url: blogPostUrl,
       platform: config.platform,
-      content_type: config.platform === "tiktok" ? "video_script" : "post",
+      content_type: "post",
       title: `${config.platform.toUpperCase()} - ${title.substring(0, 60)}`,
       content,
       media_prompt: config.aspectInstruction,
