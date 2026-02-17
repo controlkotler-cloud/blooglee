@@ -66,7 +66,7 @@ const ContactPage = () => {
     <PublicLayout>
       <SEOHead 
         title="Contacto"
-        description="Contacta con el equipo de Blooglee. Estamos en Barcelona, España. Soporte técnico, información general y colaboraciones."
+        description="Contacta con Blooglee. Resolvemos tus dudas sobre automatización de blogs con IA para WordPress. Respuesta en menos de 24h."
         canonicalUrl="/contact"
         keywords="contacto Blooglee, soporte técnico, atención cliente, Barcelona"
       />

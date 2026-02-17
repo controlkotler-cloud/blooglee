@@ -102,7 +102,7 @@ export default function Agencias() {
     <PublicLayout>
       <SEOHead 
         title="Blog Automático para Agencias de Marketing"
-        description="Automatiza la producción de contenido para tus clientes. Gestiona hasta 10 sitios, white-label incluido. Reduce costes operativos un 70%."
+        description="Automatiza el blog de tus clientes con Blooglee. Gestiona múltiples webs WordPress desde un dashboard. Ideal para agencias de marketing digital."
         canonicalUrl="/para/agencias-marketing"
         keywords="contenido agencias marketing, automatizar blogs clientes, white-label blog, producción contenido agencias"
       />

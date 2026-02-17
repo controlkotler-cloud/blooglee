@@ -67,7 +67,7 @@ export default function JasperComparison() {
     <PublicLayout>
       <SEOHead 
         title="Blooglee vs Jasper - Comparativa Completa 2026"
-        description="Compara Blooglee con Jasper: precios, publicación WordPress, imágenes y curva de aprendizaje. Descubre cuál es mejor para tu blog."
+        description="Blooglee vs Jasper: comparativa en español. Automatización de blogs WordPress con IA, precios y funcionalidades frente a frente."
         canonicalUrl="/alternativas/jasper"
         keywords="Blooglee vs Jasper, alternativa Jasper, comparativa Jasper AI, herramienta blog IA"
       />

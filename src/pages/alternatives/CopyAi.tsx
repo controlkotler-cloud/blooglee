@@ -66,7 +66,7 @@ export default function CopyAiComparison() {
     <PublicLayout>
       <SEOHead 
         title="Blooglee vs Copy.ai - Comparativa Completa 2026"
-        description="Compara Blooglee con Copy.ai: artículos largos vs textos cortos, SEO, WordPress y más. Descubre cuál es mejor para tu blog."
+        description="Blooglee vs Copy.ai: ¿cuál genera mejor contenido en español? Comparativa de funcionalidades, precios y publicación en WordPress."
         canonicalUrl="/alternativas/copy-ai"
         keywords="Blooglee vs Copy.ai, alternativa Copy.ai, comparativa Copy.ai, herramienta blog IA"
       />

@@ -68,7 +68,7 @@ const BlogIndex = () => {
     <PublicLayout>
       <SEOHead 
         title="Blog"
-        description="Aprende sobre SEO, marketing de contenidos y cómo automatizar tu estrategia digital con Blooglee. Artículos y tutoriales."
+        description="Blog de Blooglee: guías de SEO, marketing de contenidos, automatización y estrategias digitales para empresas y agencias. +60 artículos gratuitos."
         canonicalUrl="/blog"
         keywords="blog SEO, marketing contenidos, automatización blog, tutoriales WordPress, estrategia digital"
       />

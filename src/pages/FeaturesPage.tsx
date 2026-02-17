@@ -94,7 +94,7 @@ const comparison = [{
 }];
 const FeaturesPage = () => {
   return <PublicLayout>
-      <SEOHead title="Características" description="Descubre las funcionalidades de Blooglee: generación de contenido con IA, publicación en WordPress, SEO automático, múltiples idiomas y más." canonicalUrl="/features" keywords="características Blooglee, generación IA, WordPress automático, SEO automático, contenido multiidioma" />
+      <SEOHead title="Características" description="Descubre las funcionalidades de Blooglee: generación de artículos con IA, publicación automática en WordPress, SEO incluido y soporte multi-idioma. Prueba gratis." canonicalUrl="/features" keywords="características Blooglee, generación IA, WordPress automático, SEO automático, contenido multiidioma" />
       <FAQSchema faqs={featuresFAQs} />
       {/* Hero Section */}
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16">

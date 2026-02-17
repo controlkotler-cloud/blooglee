@@ -65,7 +65,7 @@ export default function AlternativesIndex() {
     <PublicLayout>
       <SEOHead 
         title="Alternativas a Blooglee - Comparativa de Herramientas"
-        description="Compara Blooglee con NextBlog, Jasper y Copy.ai. Descubre cuál es la mejor herramienta de generación de contenido con IA para tu blog WordPress."
+        description="Compara Blooglee vs Jasper, Copy.ai y NextBlog. Descubre por qué Blooglee es la mejor alternativa para automatizar blogs WordPress en español."
         canonicalUrl="/alternativas"
         keywords="alternativas Blooglee, Blooglee vs, comparativa herramientas IA, blog automático alternativas"
       />

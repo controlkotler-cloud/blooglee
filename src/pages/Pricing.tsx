@@ -149,7 +149,7 @@ const Pricing = () => {
     <PublicLayout>
       <SEOHead 
         title="Precios y Planes"
-        description="Planes flexibles de Blooglee desde 0€/mes. 1 mes gratis para todos. Free, Starter, Pro y Agencia. Sin permanencia, cancela cuando quieras."
+        description="Planes desde 0€/mes. Genera artículos con IA para tu blog WordPress. Plan Free, Starter (19€) y Pro (49€). Sin permanencia. Empieza gratis hoy."
         canonicalUrl="/pricing"
         keywords="precios Blooglee, planes blog automático, suscripción contenido IA, tarifas WordPress automático"
       />

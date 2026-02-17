@@ -103,7 +103,7 @@ export default function Autonomos() {
     <PublicLayout>
       <SEOHead 
         title="Blog Profesional para Autónomos"
-        description="Crea un blog profesional para tu negocio sin dedicar horas. Desde 19€/mes, genera contenido que atrae clientes y mejora tu visibilidad local."
+        description="Blog profesional sin esfuerzo para autónomos. Genera artículos con IA optimizados para SEO y publica en WordPress automáticamente."
         canonicalUrl="/para/autonomos"
         keywords="blog autónomo, marketing autónomos, SEO freelance, visibilidad negocio local"
       />
