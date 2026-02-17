@@ -15,9 +15,7 @@ import {
   Palette
 } from 'lucide-react';
 import { ProductMockup } from '@/components/saas/ProductMockup';
-import { LiquidBlobs } from '@/components/saas/LiquidBlobs';
-import { PublicNavbar } from '@/components/marketing/PublicNavbar';
-import { PublicFooter } from '@/components/marketing/PublicFooter';
+import { PublicLayout } from '@/components/marketing/PublicLayout';
 import { SEOHead, FAQSchema, SoftwareAppSchema } from '@/components/seo';
 
 // FAQs ampliadas para AEO - Optimizadas para ChatGPT, Claude, Perplexity
@@ -153,23 +151,16 @@ const stats = [
 
 const Landing = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-fuchsia-50/50 to-orange-50/30 overflow-hidden">
+    <PublicLayout>
       <SEOHead 
         canonicalUrl="/"
         description="Blooglee genera artículos de blog con IA y los publica en WordPress automáticamente. Prueba gratis: 1 sitio + 1 artículo. Ideal para empresas y agencias de marketing. 🇪🇸"
         keywords="blog automático, generación contenido IA, WordPress, marketing contenidos, SEO, artículos automáticos, Blooglee, alternativa NextBlog"
       />
       <FAQSchema faqs={landingFAQs} />
-      
       <SoftwareAppSchema />
-      {/* LIQUID BLOBS BACKGROUND */}
-      <LiquidBlobs variant="hero" />
-
-      {/* Unified Navigation */}
-      <PublicNavbar />
-
       {/* Hero Section - Mobile First */}
-      <section className="relative pt-28 pb-12 sm:pt-32 sm:pb-16 lg:pt-44 lg:pb-24 px-4 sm:px-6">
+      <section className="relative pb-12 sm:pb-16 lg:pt-16 lg:pb-24 px-4 sm:px-6">
         <div className="container-custom relative z-10">
           <div className="flex flex-col lg:grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
             {/* Left - Content */}
@@ -473,9 +464,7 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Unified Footer */}
-      <PublicFooter />
-    </div>
+    </PublicLayout>
   );
 };
 
