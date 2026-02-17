@@ -256,8 +256,10 @@ Responde SOLO con el tema (máx 80 caracteres), sin explicaciones ni comillas.`,
 
   articleSystem: `Eres el mejor redactor de blogs del mundo, especializado en el sector {{sector}}. Escribes artículos que posicionan en Google, enganchen al lector y generen confianza en la marca.
 
+⚠️ REGLA FUNDAMENTAL: Toda la información de configuración (empresa, audiencia, tono, directriz temática, descripción) es CONTEXTO INTERNO para ti como redactor. NUNCA copies ni parafrasees estos datos en el artículo. El lector NUNCA debe percibir que hay un briefing detrás. Simplemente escribe contenido natural que RESUENE con el contexto dado.
+
 ═══════════════════════════════════════
-1. EMPRESA
+1. EMPRESA (contexto interno)
 ═══════════════════════════════════════
 Nombre: {{siteName}}
 Sector: {{sector}}
@@ -287,7 +289,7 @@ Tipo: {{pillarType}}
 {{pillarDescription}}
 
 ═══════════════════════════════════════
-6. DIRECTRIZ TEMÁTICA
+6. DIRECTRIZ TEMÁTICA (contexto interno - NO copiar en el texto)
 ═══════════════════════════════════════
 {{customTopicDirective}}
 
@@ -1306,8 +1308,8 @@ Deno.serve(async (req) => {
 
     // Build prompt variables
     const sector = site.sector || "servicios profesionales";
-    const description = site.description ? `DESCRIPCIÓN: ${site.description}` : '';
-    const descriptionContext = site.description ? `, teniendo en cuenta que la empresa es: ${site.description}` : '';
+    const description = site.description ? `DESCRIPCIÓN DEL NEGOCIO (contexto interno, NO copiar en el texto): ${site.description}` : '';
+    const descriptionContext = site.description ? `, teniendo en cuenta el contexto del negocio (sin mencionarlo explícitamente)` : '';
     const scope = site.geographic_scope === "national" ? "Nacional (España)" : (site.location || "General");
 
     // ==========================================
@@ -1401,7 +1403,7 @@ Deno.serve(async (req) => {
 
       // Build custom topic directive
       const customTopicDirective = site.custom_topic 
-        ? `DIRECTRIZ TEMÁTICA GLOBAL: Todos los temas deben estar orientados hacia "${site.custom_topic}". Úsalo como guía para la temática general.`
+        ? `ENFOQUE TEMÁTICO (contexto interno, NO usar literalmente): El cliente quiere contenido orientado hacia "${site.custom_topic}". Genera un tema que encaje con este enfoque de forma natural, sin repetir la frase del cliente.`
         : '';
 
       // Build enriched topic prompt variables
@@ -1576,7 +1578,7 @@ Deno.serve(async (req) => {
     
     // Build custom topic directive for article
     const customTopicDirectiveArticle = site.custom_topic
-      ? `Directriz temática global del cliente: "${site.custom_topic}". El contenido debe alinearse con esta directriz.`
+      ? `Enfoque temático del cliente (contexto interno para orientar el contenido, NO copiar literalmente en el texto): "${site.custom_topic}". Usa esto como brújula para el enfoque general, pero redacta de forma natural sin repetir esta frase.`
       : 'Sin directriz temática específica. Genera contenido relevante para el sector.';
 
     // Build avoid topics list for article
@@ -1599,7 +1601,7 @@ Deno.serve(async (req) => {
         dateContext: dateContext,
         toneType: siteTone,
         toneDescription: toneDescription,
-        targetAudience: targetAudience ? `Audiencia objetivo: ${targetAudience}` : 'Audiencia: público general del sector',
+        targetAudience: targetAudience ? `Perfil de la audiencia (contexto interno para adaptar tono y enfoque, NUNCA mencionar en el texto): ${targetAudience}` : 'Audiencia: público general del sector',
         pillarType: currentPillar,
         pillarDescription: pillarDescription,
         lengthWords: lengthTarget.words.toString(),
