@@ -16,10 +16,19 @@ const platformToNetwork: Record<string, string> = {
   tiktok: 'tiktok',
 };
 
-/** Normalize an image URL via Metricool to get a hosted copy URL */
-async function normalizeMedia(imageUrl: string, metricoolToken: string): Promise<string | null> {
+/**
+ * Normalize an image URL via Metricool so it gets hosted on their servers.
+ * IMPORTANT: blogId and userId are required for all Metricool API endpoints.
+ * Returns the Metricool-hosted URL string.
+ */
+async function normalizeMedia(
+  imageUrl: string,
+  metricoolToken: string,
+  blogId: string,
+  userId: string
+): Promise<string | null> {
   try {
-    const normalizeUrl = `${METRICOOL_API_BASE}/actions/normalize/image/url?url=${encodeURIComponent(imageUrl)}`;
+    const normalizeUrl = `${METRICOOL_API_BASE}/actions/normalize/image/url?url=${encodeURIComponent(imageUrl)}&blogId=${blogId}&userId=${userId}`;
     console.log(`[schedule-metricool-post] Normalizing image: ${imageUrl.substring(0, 100)}`);
     
     const resp = await fetch(normalizeUrl, {
@@ -32,14 +41,10 @@ async function normalizeMedia(imageUrl: string, metricoolToken: string): Promise
     
     if (!resp.ok) return null;
     
-    // The normalize endpoint returns the hosted URL (plain text or JSON)
-    try {
-      const data = JSON.parse(text);
-      return data?.url || data?.mediaId || data?.id || null;
-    } catch {
-      // Response is the normalized URL as plain text
-      return text.trim() || null;
-    }
+    // The normalize endpoint returns the hosted URL as plain text
+    // (per Swagger: produces text/plain, returns string)
+    const normalizedUrl = text.trim();
+    return normalizedUrl || null;
   } catch (err) {
     console.error('[schedule-metricool-post] Normalize error:', err);
     return null;
@@ -167,7 +172,7 @@ Deno.serve(async (req) => {
       hasNotReadNotes: false,
     };
 
-    // Platform-specific data (always include even if empty)
+    // Platform-specific data
     if (network === 'facebook') {
       postBody.facebookData = { type: 'POST' };
     }
@@ -181,16 +186,16 @@ Deno.serve(async (req) => {
       postBody.tiktokData = {};
     }
 
-    // Normalize media via Metricool API to get hosted URL
+    // Normalize media via Metricool API (pass blogId and userId as required)
     if (item.image_url) {
-      const normalizedUrl = await normalizeMedia(item.image_url, metricoolToken);
+      const normalizedUrl = await normalizeMedia(item.image_url, metricoolToken, metricoolBlogId, metricoolUserId);
       if (normalizedUrl) {
-        // Use the normalized URL - Metricool expects { url: "..." } format
-        postBody.media = [{ url: normalizedUrl }];
+        // Per Metricool docs: media is an array of URL strings from their servers
+        postBody.media = [normalizedUrl];
         console.log(`[schedule-metricool-post] Using normalized URL: ${normalizedUrl.substring(0, 100)}`);
       } else {
-        // Fallback: try with original URL
-        postBody.media = [{ url: item.image_url }];
+        // Fallback: try with original URL directly
+        postBody.media = [item.image_url];
         console.log(`[schedule-metricool-post] Normalize failed, using original URL fallback`);
       }
     }
@@ -242,7 +247,7 @@ Deno.serve(async (req) => {
           let retryResult;
           try { retryResult = JSON.parse(retryText); } catch { retryResult = { raw: retryText }; }
           
-          const retryPostId = retryResult?.id || retryResult?.postId || null;
+          const retryPostId = retryResult?.data?.id || retryResult?.id || retryResult?.postId || null;
           await supabaseAdmin
             .from('social_content')
             .update({
@@ -264,7 +269,6 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Both attempts failed
         let retryResult;
         try { retryResult = JSON.parse(retryText); } catch { retryResult = { raw: retryText }; }
         
@@ -288,7 +292,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const metricoolPostId = metricoolResult?.id || metricoolResult?.postId || null;
+    const metricoolPostId = metricoolResult?.data?.id || metricoolResult?.id || metricoolResult?.postId || null;
     
     await supabaseAdmin
       .from('social_content')
