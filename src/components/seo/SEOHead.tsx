@@ -84,6 +84,10 @@ export const SEOHead = ({
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={ogImage} />
       
+      {/* OG extras */}
+      <meta property="og:site_name" content={SITE_NAME} />
+      <meta property="og:locale" content="es_ES" />
+      
       {/* Hreflang */}
       <link rel="alternate" hrefLang="es" href={fullCanonicalUrl} />
       <link rel="alternate" hrefLang="x-default" href={fullCanonicalUrl} />

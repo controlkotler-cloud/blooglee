@@ -159,7 +159,7 @@ const BlogIndex = () => {
             {/* Blog Grid - 3 columns on desktop */}
             {!isLoading && !error && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {paginatedPosts.map((post) => (
+                {paginatedPosts.map((post, index) => (
                   <BlogCard
                     key={post.slug}
                     slug={post.slug}
@@ -169,6 +169,7 @@ const BlogIndex = () => {
                     date={post.date}
                     readTime={post.readTime}
                     category={post.category}
+                    priority={currentPage === 1 && index < 2}
                   />
                 ))}
               </div>
