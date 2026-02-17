@@ -128,7 +128,7 @@ export default function Ecommerce() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Button asChild size="lg" className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400 hover:opacity-90">
-              <Link to="/auth">
+              <Link to="/waitlist">
                 Probar gratis
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
@@ -288,7 +288,7 @@ export default function Ecommerce() {
               Prueba Blooglee gratis y genera tu primera guía de compra.
             </p>
             <Button asChild size="lg" className="bg-white text-violet-600 hover:bg-white/90">
-              <Link to="/auth">
+              <Link to="/waitlist">
                 Empezar gratis
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>

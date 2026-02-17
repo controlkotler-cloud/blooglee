@@ -216,7 +216,7 @@ export default function Resources() {
               Prueba Blooglee gratis y genera tu primer artículo en menos de 5 minutos.
             </p>
             <Button asChild size="lg" className="bg-white text-violet-600 hover:bg-white/90">
-              <Link to="/auth">
+              <Link to="/waitlist">
                 Crear cuenta gratis
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
