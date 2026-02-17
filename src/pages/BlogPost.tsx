@@ -40,6 +40,48 @@ const extractHeadings = (content: string): { id: string; text: string; level: nu
   return headings;
 };
 
+// Auto-inject internal links for SEO (max 3, only first occurrence)
+const INTERNAL_LINK_RULES = [
+  { pattern: /\bWordPress\b/i, href: '/features', anchor: 'WordPress' },
+  { pattern: /\bagencias?\b/i, href: '/para/agencias-marketing', anchor: 'agencias de marketing' },
+  { pattern: /\b(?:clínicas?|salud)\b/i, href: '/para/clinicas', anchor: 'clínicas' },
+  { pattern: /\b(?:ecommerce|tiendas?\s+online)\b/i, href: '/para/tiendas-online', anchor: 'tiendas online' },
+  { pattern: /\b(?:precios|planes)\b/i, href: '/pricing', anchor: 'planes y precios' },
+];
+
+const injectInternalLinks = (html: string): string => {
+  let linksAdded = 0;
+  const maxLinks = 3;
+  let result = html;
+
+  for (const rule of INTERNAL_LINK_RULES) {
+    if (linksAdded >= maxLinks) break;
+    // Only match text inside <p> tags, not inside existing <a> tags or HTML attributes
+    const pTagRegex = /(<p[^>]*>)([\s\S]*?)(<\/p>)/g;
+    let modified = false;
+    result = result.replace(pTagRegex, (match, open, inner, close) => {
+      if (modified || linksAdded >= maxLinks) return match;
+      // Skip if this paragraph already contains a link to the same href
+      if (inner.includes(`href="${rule.href}"`)) return match;
+      // Replace only the first occurrence, ensuring it's not inside an <a> tag
+      const replaced = inner.replace(rule.pattern, (m: string) => {
+        if (modified) return m;
+        // Check we're not inside an existing <a> tag by counting open/close tags before this position
+        const beforeMatch = inner.substring(0, inner.indexOf(m));
+        const openAs = (beforeMatch.match(/<a /g) || []).length;
+        const closeAs = (beforeMatch.match(/<\/a>/g) || []).length;
+        if (openAs > closeAs) return m; // Inside an <a> tag
+        modified = true;
+        linksAdded++;
+        return `<a href="${rule.href}" class="text-violet-600 hover:text-violet-700 underline decoration-violet-300 hover:decoration-violet-500 transition-colors font-medium" data-internal="true">${rule.anchor}</a>`;
+      });
+      return `${open}${replaced}${close}`;
+    });
+  }
+
+  return result;
+};
+
 // Parse markdown content with rich formatting support
 const parseContent = (content: string): string => {
   let html = content;
@@ -153,7 +195,7 @@ const BlogPost = () => {
   const { data: relatedPosts = [] } = useRelatedPosts(
     slug || '', 
     post?.category || 'SEO', 
-    2
+    3
   );
 
   // Extract headings for ToC
@@ -163,7 +205,9 @@ const BlogPost = () => {
 
   // Parse content with IDs
   const parsedContent = useMemo(() => {
-    return post ? parseContent(post.content) : '';
+    if (!post) return '';
+    const html = parseContent(post.content);
+    return injectInternalLinks(html);
   }, [post]);
 
   // Loading state
@@ -334,6 +378,27 @@ const BlogPost = () => {
               </div>
             </div>
 
+            {/* Related Posts - before CTA */}
+            {relatedPosts.length > 0 && (
+              <div className="mb-8">
+                <h2 className="font-display text-2xl font-bold mb-6">Artículos relacionados</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  {relatedPosts.map((relatedPost) => (
+                    <BlogCard
+                      key={relatedPost.slug}
+                      slug={relatedPost.slug}
+                      title={relatedPost.title}
+                      excerpt={relatedPost.excerpt}
+                      image={relatedPost.image}
+                      date={relatedPost.date}
+                      readTime={relatedPost.readTime}
+                      category={relatedPost.category}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* CTA */}
             <div className="relative overflow-hidden rounded-2xl p-6 sm:p-8 text-center mb-12">
               <div className="absolute inset-0 bg-gradient-to-br from-violet-500 via-fuchsia-500 to-orange-400" />
@@ -352,27 +417,6 @@ const BlogPost = () => {
                 </Button>
               </div>
             </div>
-
-            {/* Related Posts */}
-            {relatedPosts.length > 0 && (
-              <div>
-                <h2 className="font-display text-2xl font-bold mb-6">Artículos relacionados</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {relatedPosts.map((relatedPost) => (
-                    <BlogCard
-                      key={relatedPost.slug}
-                      slug={relatedPost.slug}
-                      title={relatedPost.title}
-                      excerpt={relatedPost.excerpt}
-                      image={relatedPost.image}
-                      date={relatedPost.date}
-                      readTime={relatedPost.readTime}
-                      category={relatedPost.category}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Sidebar - Dynamic Table of Contents */}
