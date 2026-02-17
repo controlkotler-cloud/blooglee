@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
-import { Mail, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { Mail, Linkedin, Instagram, Facebook, Music } from 'lucide-react';
 import { NewsletterForm } from './NewsletterForm';
 
 const footerLinks = {
@@ -29,9 +29,10 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { icon: Twitter, href: '#', label: 'Twitter' },
-  { icon: Linkedin, href: '#', label: 'LinkedIn' },
-  { icon: Instagram, href: 'https://www.instagram.com/blooglee_/', label: 'Instagram' },
+  { icon: Instagram, href: 'https://www.instagram.com/blooglee_', label: 'Instagram' },
+  { icon: Linkedin, href: 'https://linkedin.com/company/blooglee', label: 'LinkedIn' },
+  { icon: Facebook, href: 'https://www.facebook.com/blooglee.ia/', label: 'Facebook' },
+  { icon: Music, href: 'https://www.tiktok.com/@blooglee', label: 'TikTok' },
 ];
 
 export const PublicFooter = () => {

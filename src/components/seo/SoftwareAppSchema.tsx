@@ -30,9 +30,10 @@ export const SoftwareAppSchema = ({
       url: 'https://blooglee.com',
       logo: 'https://blooglee.com/favicon.png',
       sameAs: [
-        'https://twitter.com/Blooglee',
-        'https://instagram.com/blooglee',
+        'https://www.instagram.com/blooglee_/',
         'https://linkedin.com/company/blooglee',
+        'https://www.facebook.com/blooglee.ia/',
+        'https://www.tiktok.com/@blooglee',
       ],
     },
     publisher: {

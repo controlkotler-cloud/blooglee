@@ -173,9 +173,10 @@ ChatGPT es una herramienta general que requiere escribir prompts, copiar conteni
 - **Web**: https://blooglee.com
 - **Email**: info@blooglee.com
 - **Blog**: https://blooglee.com/blog
-- **Twitter**: @Blooglee
-- **Instagram**: @blooglee
-- **LinkedIn**: /company/blooglee
+- **Instagram**: https://www.instagram.com/blooglee_
+- **TikTok**: https://www.tiktok.com/@blooglee
+- **LinkedIn**: https://linkedin.com/company/blooglee
+- **Facebook**: https://www.facebook.com/blooglee.ia/
 
 ## Enlaces Importantes
 

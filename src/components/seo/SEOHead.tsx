@@ -78,12 +78,8 @@ export const SEOHead = ({
         </>
       )}
       
-      {/* Twitter Card */}
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={fullTitle} />
-      <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={ogImage} />
-      <meta name="twitter:site" content="@Blooglee" />
+      {/* Social Meta Tags */}
+      <meta property="og:image:alt" content="Blooglee - Blog automático con IA" />
       
       {/* Hreflang */}
       <link rel="alternate" hrefLang="es" href={fullCanonicalUrl} />

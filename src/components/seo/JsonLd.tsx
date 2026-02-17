@@ -13,9 +13,10 @@ export const OrganizationSchema = ({ type = 'Organization' }: OrganizationSchema
     logo: 'https://blooglee.com/favicon.png',
     description: 'Plataforma de generación automática de contenido para blogs WordPress con IA',
     sameAs: [
-      'https://twitter.com/Blooglee',
+      'https://www.instagram.com/blooglee_',
       'https://linkedin.com/company/blooglee',
-      'https://instagram.com/blooglee',
+      'https://www.facebook.com/blooglee.ia/',
+      'https://www.tiktok.com/@blooglee',
     ],
     address: {
       '@type': 'PostalAddress',

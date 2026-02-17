@@ -165,9 +165,7 @@ const Pricing = () => {
           </div>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold mb-4 sm:mb-6">
-            <span className="text-aurora">Elige tu plan</span>
-            <br />
-            <span className="text-foreground">y empieza a publicar</span>
+            <span className="text-aurora">Elige tu plan y empieza a publicar</span>
           </h1>
 
           <p className="text-base sm:text-lg text-foreground/70 max-w-2xl mx-auto mb-8 sm:mb-10">
