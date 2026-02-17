@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -69,8 +70,11 @@ export function useAdminSocialContent() {
     },
   });
 
+  const [schedulingId, setSchedulingId] = useState<string | null>(null);
+
   const scheduleMutation = useMutation({
     mutationFn: async (params: { socialContentId: string; scheduledDate?: string; scheduledTimezone?: string }) => {
+      setSchedulingId(params.socialContentId);
       const { data, error } = await supabase.functions.invoke('schedule-metricool-post', {
         body: params,
       });
@@ -78,10 +82,12 @@ export function useAdminSocialContent() {
       return data;
     },
     onSuccess: (data: any) => {
+      setSchedulingId(null);
       queryClient.invalidateQueries({ queryKey: ['admin-social-content'] });
       toast({ title: '✅ Programado en Metricool', description: `Post programado en ${data?.platform || 'la red social'}` });
     },
     onError: (err: any) => {
+      setSchedulingId(null);
       toast({ title: 'Error en Metricool', description: err.message || 'No se pudo programar', variant: 'destructive' });
     },
   });
@@ -93,6 +99,6 @@ export function useAdminSocialContent() {
     isGenerating: generateMutation.isPending,
     deleteItem: deleteMutation.mutateAsync,
     scheduleToMetricool: scheduleMutation.mutateAsync,
-    isScheduling: scheduleMutation.isPending,
+    schedulingId,
   };
 }
