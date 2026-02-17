@@ -9,7 +9,6 @@ const corsHeaders = {
 
 const METRICOOL_API_BASE = 'https://app.metricool.com/api';
 
-// Map our platform names to Metricool network names
 const platformToNetwork: Record<string, string> = {
   instagram: 'instagram',
   linkedin: 'linkedin',
@@ -17,13 +16,42 @@ const platformToNetwork: Record<string, string> = {
   tiktok: 'tiktok',
 };
 
+/** Normalize an image URL via Metricool to get a mediaId */
+async function normalizeMedia(imageUrl: string, metricoolToken: string): Promise<string | null> {
+  try {
+    const normalizeUrl = `${METRICOOL_API_BASE}/actions/normalize/image/url?url=${encodeURIComponent(imageUrl)}`;
+    console.log(`[schedule-metricool-post] Normalizing image: ${imageUrl.substring(0, 100)}`);
+    
+    const resp = await fetch(normalizeUrl, {
+      method: 'GET',
+      headers: { 'X-Mc-Auth': metricoolToken },
+    });
+    
+    const text = await resp.text();
+    console.log(`[schedule-metricool-post] Normalize response (${resp.status}): ${text.substring(0, 300)}`);
+    
+    if (!resp.ok) return null;
+    
+    try {
+      const data = JSON.parse(text);
+      // The response may contain a mediaId or id
+      return data?.mediaId || data?.id || data?.media_id || null;
+    } catch {
+      // If response is plain text, it might be the mediaId itself
+      return text.trim() || null;
+    }
+  } catch (err) {
+    console.error('[schedule-metricool-post] Normalize error:', err);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Auth check
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -49,7 +77,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check superadmin role
     const { data: roleData } = await supabaseAdmin
       .from('user_roles')
       .select('role')
@@ -71,7 +98,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch the social content item
     const { data: item, error: fetchError } = await supabaseAdmin
       .from('social_content')
       .select('*')
@@ -101,7 +127,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build the publication date - default to 1 hour from now if not specified
     const now = new Date();
     const publishDate = scheduledDate 
       ? new Date(scheduledDate) 
@@ -109,7 +134,6 @@ Deno.serve(async (req) => {
     
     const timezone = scheduledTimezone || 'Europe/Madrid';
 
-    // Format datetime for Metricool in the target timezone
     const formatInTimezone = (d: Date, tz: string) => {
       const parts = new Intl.DateTimeFormat('en-CA', {
         timeZone: tz,
@@ -121,10 +145,9 @@ Deno.serve(async (req) => {
       return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:00`;
     };
 
-    // Build provider-specific config
     const provider: Record<string, any> = { network };
 
-    // Build the Metricool post body
+    // Build the post body
     const postBody: Record<string, any> = {
       publicationDate: {
         dateTime: formatInTimezone(publishDate, timezone),
@@ -144,7 +167,7 @@ Deno.serve(async (req) => {
       hasNotReadNotes: false,
     };
 
-    // Add platform-specific data
+    // Platform-specific data (always include even if empty)
     if (network === 'facebook') {
       postBody.facebookData = { type: 'POST' };
     }
@@ -158,18 +181,22 @@ Deno.serve(async (req) => {
       postBody.tiktokData = {};
     }
 
-    // Add media if available
+    // Normalize media via Metricool API to get mediaId
     if (item.image_url) {
-      postBody.media = [{
-        url: item.image_url,
-        type: 'IMAGE',
-      }];
+      const mediaId = await normalizeMedia(item.image_url, metricoolToken);
+      if (mediaId) {
+        postBody.media = [{ mediaId }];
+        console.log(`[schedule-metricool-post] Using mediaId: ${mediaId}`);
+      } else {
+        // Fallback: try with raw URL format
+        postBody.media = [{ url: item.image_url, type: 'IMAGE' }];
+        console.log(`[schedule-metricool-post] Normalize failed, using raw URL fallback`);
+      }
     }
 
     console.log(`[schedule-metricool-post] Scheduling ${network} post for ${formatInTimezone(publishDate, timezone)} ${timezone}`);
     console.log(`[schedule-metricool-post] Post body:`, JSON.stringify(postBody).substring(0, 500));
 
-    // Call Metricool API
     const metricoolUrl = `${METRICOOL_API_BASE}/v2/scheduler/posts?blogId=${metricoolBlogId}&userId=${metricoolUserId}`;
 
     const metricoolResponse = await fetch(metricoolUrl, {
@@ -193,6 +220,63 @@ Deno.serve(async (req) => {
     }
 
     if (!metricoolResponse.ok) {
+      // If failed with media, retry without media
+      if (item.image_url && metricoolResponse.status === 500) {
+        console.log(`[schedule-metricool-post] Retrying WITHOUT media...`);
+        delete postBody.media;
+        
+        const retryResponse = await fetch(metricoolUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Mc-Auth': metricoolToken,
+          },
+          body: JSON.stringify(postBody),
+        });
+
+        const retryText = await retryResponse.text();
+        console.log(`[schedule-metricool-post] Retry response (${retryResponse.status}): ${retryText.substring(0, 500)}`);
+
+        if (retryResponse.ok) {
+          let retryResult;
+          try { retryResult = JSON.parse(retryText); } catch { retryResult = { raw: retryText }; }
+          
+          const retryPostId = retryResult?.id || retryResult?.postId || null;
+          await supabaseAdmin
+            .from('social_content')
+            .update({
+              status: 'scheduled',
+              scheduled_for: publishDate.toISOString(),
+              metricool_post_id: retryPostId ? String(retryPostId) : null,
+            })
+            .eq('id', socialContentId);
+
+          return new Response(JSON.stringify({
+            success: true,
+            platform: network,
+            scheduled_for: publishDate.toISOString(),
+            metricool_post_id: retryPostId,
+            note: 'Published without image (media normalization issue)',
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Both attempts failed
+        let retryResult;
+        try { retryResult = JSON.parse(retryText); } catch { retryResult = { raw: retryText }; }
+        
+        return new Response(JSON.stringify({ 
+          error: 'Metricool API error (with and without media)', 
+          status: retryResponse.status,
+          details: retryResult,
+        }), {
+          status: retryResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       return new Response(JSON.stringify({ 
         error: 'Metricool API error', 
         status: metricoolResponse.status,
@@ -203,7 +287,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update social_content status and metricool_post_id
     const metricoolPostId = metricoolResult?.id || metricoolResult?.postId || null;
     
     await supabaseAdmin
