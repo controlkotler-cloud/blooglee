@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
       }];
     }
 
-    console.log(`[schedule-metricool-post] Scheduling ${network} post for ${formatDateTime(publishDate)} ${timezone}`);
+    console.log(`[schedule-metricool-post] Scheduling ${network} post for ${formatInTimezone(publishDate, timezone)} ${timezone}`);
     console.log(`[schedule-metricool-post] Post body:`, JSON.stringify(postBody).substring(0, 500));
 
     // Call Metricool API
