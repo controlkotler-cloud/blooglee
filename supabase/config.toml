@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.schedule-metricool-post]
 verify_jwt = false
+
+[functions.serve-sitemap]
+verify_jwt = false
