@@ -216,6 +216,7 @@ SECTOR: {{sector}}
 {{description}}
 ÁMBITO GEOGRÁFICO: {{scope}}
 {{targetAudience}}
+⚠️ La audiencia es CONTEXTO INTERNO: adapta el tema para que sea relevante e interesante para ese perfil, pero NUNCA menciones la audiencia en el tema.
 
 PILAR DE CONTENIDO REQUERIDO: {{pillarType}}
 {{pillarDescription}}
@@ -268,9 +269,10 @@ Sector: {{sector}}
 {{geoContext}}
 
 ═══════════════════════════════════════
-3. AUDIENCIA
+3. AUDIENCIA (CONTEXTO INTERNO - NO MENCIONAR EN EL TEXTO)
 ═══════════════════════════════════════
 {{targetAudience}}
+⚠️ REGLA CRÍTICA: La audiencia es CONTEXTO INTERNO para adaptar el tono, vocabulario, ejemplos y enfoque del artículo. NUNCA menciones la audiencia explícitamente en el texto (no escribas "nuestro público objetivo", "las mujeres de X edad", "los profesionales de Y"). El lector NUNCA debe sentir que el artículo describe a quién va dirigido. Simplemente escribe contenido que RESUENE con esa audiencia de forma natural.
 
 ═══════════════════════════════════════
 4. TONO DE VOZ
@@ -1417,7 +1419,7 @@ Deno.serve(async (req) => {
         pillarDescription: pillarDescription,
         toneType: siteTone,
         toneDescription: toneDescription,
-        targetAudience: targetAudience ? `AUDIENCIA OBJETIVO: ${targetAudience}` : '',
+        targetAudience: targetAudience ? `Perfil de la audiencia (NO mencionar en el texto, solo usar como contexto): ${targetAudience}` : 'Audiencia general',
         wpStyleNotes: wpStyleNotes ? `ESTILO DETECTADO EN SU BLOG: ${wpStyleNotes}` : '',
         wpRecentTopics: wpRecentTopics ? `TEMAS RECIENTES DE SU BLOG: ${wpRecentTopics}` : '',
         prohibitedTerms: prohibitedTermsForPrompt,
