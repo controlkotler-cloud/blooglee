@@ -44,6 +44,12 @@ function formatDate(dateString: string): string {
   return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
+function calculateReadTime(content: string): string {
+  const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+  const minutes = Math.max(1, Math.ceil(wordCount / 200));
+  return `${minutes} min`;
+}
+
 function transformPost(post: BlogPost): FormattedBlogPost {
   return {
     slug: post.slug,
@@ -52,7 +58,7 @@ function transformPost(post: BlogPost): FormattedBlogPost {
     content: post.content,
     image: post.image_url || "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&h=400&fit=crop",
     date: formatDate(post.published_at),
-    readTime: post.read_time,
+    readTime: calculateReadTime(post.content),
     category: post.category,
     author: {
       name: post.author_name,
