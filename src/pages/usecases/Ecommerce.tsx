@@ -98,7 +98,7 @@ export default function Ecommerce() {
     <PublicLayout>
       <SEOHead 
         title="Blog Automático para Tiendas Online"
-        description="Aumenta las ventas de tu e-commerce con contenido SEO. Guías de compra, comparativas y contenido de temporada que convierte visitantes en clientes."
+        description="Blog automático para ecommerce. Genera artículos de producto con IA y atrae tráfico orgánico a tu tienda online WordPress."
         canonicalUrl="/para/tiendas-online"
         keywords="blog ecommerce, contenido tienda online, SEO WooCommerce, marketing contenidos ecommerce"
       />

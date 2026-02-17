@@ -92,7 +92,7 @@ export default function Clinicas() {
     <PublicLayout>
       <SEOHead 
         title="Blog Automático para Clínicas"
-        description="Genera artículos de blog para tu clínica médica o estética con IA. Atrae pacientes con contenido SEO optimizado. Resultados: +340% tráfico orgánico."
+        description="Blog automático para clínicas y centros de salud. Genera artículos médicos con IA optimizados para SEO. Atrae pacientes con contenido profesional."
         canonicalUrl="/para/clinicas"
         keywords="blog clínica, contenido clínica estética, marketing clínicas, SEO clínicas médicas, atraer pacientes"
       />

@@ -68,7 +68,7 @@ export default function NextBlogComparison() {
     <PublicLayout>
       <SEOHead 
         title="Blooglee vs NextBlog.ai - Comparativa Completa 2026"
-        description="Compara Blooglee con NextBlog.ai: precios, características, idiomas y cumplimiento RGPD. Descubre la mejor alternativa española para tu blog WordPress."
+        description="Blooglee vs NextBlog: comparativa detallada. Descubre las diferencias en funcionalidades, precios y publicación automática en WordPress."
         canonicalUrl="/alternativas/nextblog"
         keywords="Blooglee vs NextBlog, alternativa NextBlog español, comparativa NextBlog, blog automático España"
       />

@@ -95,7 +95,7 @@ export default function HowItWorks() {
     <PublicLayout>
       <SEOHead 
         title="Cómo Funciona Blooglee"
-        description="Descubre cómo Blooglee genera y publica artículos automáticamente en WordPress. 4 pasos simples: conecta, configura, genera y publica."
+        description="Conecta tu WordPress, la IA genera artículos con SEO optimizado y publícalos en un clic. Así de fácil funciona Blooglee."
         canonicalUrl="/como-funciona"
         keywords="cómo funciona Blooglee, tutorial Blooglee, publicar WordPress IA, automatizar blog"
       />

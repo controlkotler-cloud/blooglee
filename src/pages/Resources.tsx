@@ -76,7 +76,7 @@ export default function Resources() {
     <PublicLayout>
       <SEOHead 
         title="Centro de Recursos - Guías, Plantillas y Descargables"
-        description="Descarga gratis calendarios editoriales, checklists SEO, plantillas de contenido y guías de marketing. Recursos prácticos para tu estrategia de blog."
+        description="Recursos gratuitos de Blooglee: guías de SEO, plantillas de marketing de contenidos y herramientas para automatizar tu blog WordPress."
         canonicalUrl="/recursos"
         keywords="recursos content marketing, calendario editorial 2026, checklist SEO, plantillas blog, guías marketing digital"
       />

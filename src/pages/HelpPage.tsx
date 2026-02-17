@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/accordion';
 import { ArrowLeft, HelpCircle, Mail, MessageSquare } from 'lucide-react';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
+import { SEOHead } from '@/components/seo';
 
 const faqs = [
   {
@@ -58,6 +59,11 @@ export default function HelpPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead 
+        title="Centro de Ayuda"
+        description="Centro de ayuda de Blooglee. Tutoriales, guías paso a paso y respuestas a las preguntas más frecuentes sobre automatización de blogs con IA."
+        noIndex
+      />
       {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
