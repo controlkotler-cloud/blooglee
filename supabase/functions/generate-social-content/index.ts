@@ -35,14 +35,15 @@ Reglas:
 - SIN hashtags
 - Formato: texto plano listo para copiar y pegar`,
 
-  tiktok: `Genera un guion de TikTok/Reel de 30-60 segundos en {language}.
+  tiktok: `Genera un copy para TikTok en {language}.
 Reglas:
-- Formato estructurado por escenas
-- Cada escena con: duración, texto en pantalla, narración
-- Gancho fuerte en los primeros 3 segundos
-- CTA al final
+- 100-200 palabras
+- Tono dinámico, directo y atractivo
+- Gancho fuerte en la primera frase para captar atención
+- Usa emojis con moderación (2-4 max)
+- CTA al final invitando a seguir o comentar
 - SIN hashtags
-- Formato JSON array de escenas: [{"scene": 1, "duration": "0-3s", "screen_text": "...", "narration": "...", "visual": "..."}]`,
+- Formato: texto plano listo para copiar y pegar`,
 };
 
 const LANGUAGE_MAP: Record<string, string> = {
@@ -51,7 +52,7 @@ const LANGUAGE_MAP: Record<string, string> = {
   english: "inglés",
 };
 
-const IMAGE_STYLE_PROMPT = `Professional social media image.
+const IMAGE_STYLE_PROMPT_SQUARE = `Professional social media image.
 
 STYLE:
 - Abstract, minimal, clean design
@@ -62,6 +63,18 @@ STYLE:
 - Simple, elegant, modern
 
 FORMAT: Square 1:1 aspect ratio for social media`;
+
+const IMAGE_STYLE_PROMPT_VERTICAL = `Professional social media image for TikTok/Reels.
+
+STYLE:
+- Abstract, minimal, clean design
+- Primary gradient colors: purple (#8B5CF6) to fuchsia (#D946EF) to coral (#F97316)
+- Soft flowing shapes, smooth gradients, ample negative space
+- NO text, NO logos, NO letters, NO words
+- NO realistic photos, NO complex 3D objects
+- Simple, elegant, modern, vertical composition
+
+FORMAT: Vertical 9:16 aspect ratio for TikTok/Reels`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -140,7 +153,9 @@ Deno.serve(async (req) => {
     // Generate image
     let imageUrl: string | null = null;
     const topicForImage = customTopic || blogTitle || "digital marketing SEO";
-    const imagePrompt = `${IMAGE_STYLE_PROMPT}\n\nCONCEPT: ${topicForImage}`;
+    const isVertical = platform === 'tiktok';
+    const imageStylePrompt = isVertical ? IMAGE_STYLE_PROMPT_VERTICAL : IMAGE_STYLE_PROMPT_SQUARE;
+    const imagePrompt = `${imageStylePrompt}\n\nCONCEPT: ${topicForImage}`;
 
     try {
       const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

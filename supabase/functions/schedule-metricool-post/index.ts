@@ -16,7 +16,7 @@ const platformToNetwork: Record<string, string> = {
   tiktok: 'tiktok',
 };
 
-/** Normalize an image URL via Metricool to get a mediaId */
+/** Normalize an image URL via Metricool to get a hosted copy URL */
 async function normalizeMedia(imageUrl: string, metricoolToken: string): Promise<string | null> {
   try {
     const normalizeUrl = `${METRICOOL_API_BASE}/actions/normalize/image/url?url=${encodeURIComponent(imageUrl)}`;
@@ -32,12 +32,12 @@ async function normalizeMedia(imageUrl: string, metricoolToken: string): Promise
     
     if (!resp.ok) return null;
     
+    // The normalize endpoint returns the hosted URL (plain text or JSON)
     try {
       const data = JSON.parse(text);
-      // The response may contain a mediaId or id
-      return data?.mediaId || data?.id || data?.media_id || null;
+      return data?.url || data?.mediaId || data?.id || null;
     } catch {
-      // If response is plain text, it might be the mediaId itself
+      // Response is the normalized URL as plain text
       return text.trim() || null;
     }
   } catch (err) {
@@ -181,16 +181,17 @@ Deno.serve(async (req) => {
       postBody.tiktokData = {};
     }
 
-    // Normalize media via Metricool API to get mediaId
+    // Normalize media via Metricool API to get hosted URL
     if (item.image_url) {
-      const mediaId = await normalizeMedia(item.image_url, metricoolToken);
-      if (mediaId) {
-        postBody.media = [{ mediaId }];
-        console.log(`[schedule-metricool-post] Using mediaId: ${mediaId}`);
+      const normalizedUrl = await normalizeMedia(item.image_url, metricoolToken);
+      if (normalizedUrl) {
+        // Use the normalized URL - Metricool expects { url: "..." } format
+        postBody.media = [{ url: normalizedUrl }];
+        console.log(`[schedule-metricool-post] Using normalized URL: ${normalizedUrl.substring(0, 100)}`);
       } else {
-        // Fallback: try with raw URL format
-        postBody.media = [{ url: item.image_url, type: 'IMAGE' }];
-        console.log(`[schedule-metricool-post] Normalize failed, using raw URL fallback`);
+        // Fallback: try with original URL
+        postBody.media = [{ url: item.image_url }];
+        console.log(`[schedule-metricool-post] Normalize failed, using original URL fallback`);
       }
     }
 
