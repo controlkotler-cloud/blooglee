@@ -162,8 +162,14 @@ Deno.serve(async (req) => {
       ? `Adapta el siguiente artículo de blog para redes sociales:\n\n${blogContent}`
       : `Tema: ${customTopic || "Marketing digital y SEO"}`;
 
-    // Generate text content
-    const textResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Prepare image prompt
+    const topicForImage = customTopic || blogTitle || "digital marketing SEO";
+    const isVertical = platform === 'tiktok';
+    const imageStylePrompt = isVertical ? IMAGE_STYLE_PROMPT_VERTICAL : IMAGE_STYLE_PROMPT_SQUARE;
+    const imagePrompt = `${imageStylePrompt}\n\nCONCEPT: ${topicForImage}`;
+
+    // Generate text AND image IN PARALLEL to avoid timeout
+    const textPromise = fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -177,6 +183,24 @@ Deno.serve(async (req) => {
         ],
       }),
     });
+
+    const imagePromise = fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-pro-image-preview",
+        messages: [{ role: "user", content: imagePrompt }],
+        modalities: ["image", "text"],
+      }),
+    }).catch(err => {
+      console.error("Image generation error (non-fatal):", err);
+      return null;
+    });
+
+    const [textResponse, imageResponse] = await Promise.all([textPromise, imagePromise]);
 
     if (!textResponse.ok) {
       const errText = await textResponse.text();
@@ -192,28 +216,10 @@ Deno.serve(async (req) => {
       ? `${platform.toUpperCase()} - ${blogTitle.substring(0, 60)}`
       : `${platform.toUpperCase()} - ${(customTopic || "Post").substring(0, 60)}`;
 
-    // Generate image
+    // Process image result
     let imageUrl: string | null = null;
-    const topicForImage = customTopic || blogTitle || "digital marketing SEO";
-    const isVertical = platform === 'tiktok';
-    const imageStylePrompt = isVertical ? IMAGE_STYLE_PROMPT_VERTICAL : IMAGE_STYLE_PROMPT_SQUARE;
-    const imagePrompt = `${imageStylePrompt}\n\nCONCEPT: ${topicForImage}`;
-
     try {
-      const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-pro-image-preview",
-          messages: [{ role: "user", content: imagePrompt }],
-          modalities: ["image", "text"],
-        }),
-      });
-
-      if (imageResponse.ok) {
+      if (imageResponse && imageResponse.ok) {
         const imageData = await imageResponse.json();
         const base64Url = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
         
@@ -233,7 +239,7 @@ Deno.serve(async (req) => {
         }
       }
     } catch (imgErr) {
-      console.error("Image generation error (non-fatal):", imgErr);
+      console.error("Image upload error (non-fatal):", imgErr);
     }
 
     // Save to database
