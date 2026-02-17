@@ -16,6 +16,7 @@ export interface SocialContent {
   metricool_post_id: string | null;
   language: string;
   created_at: string;
+  blog_post_url?: string | null;
 }
 
 export function useAdminSocialContent() {
@@ -68,11 +69,30 @@ export function useAdminSocialContent() {
     },
   });
 
+  const scheduleMutation = useMutation({
+    mutationFn: async (params: { socialContentId: string; scheduledDate?: string; scheduledTimezone?: string }) => {
+      const { data, error } = await supabase.functions.invoke('schedule-metricool-post', {
+        body: params,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-social-content'] });
+      toast({ title: '✅ Programado en Metricool', description: `Post programado en ${data?.platform || 'la red social'}` });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error en Metricool', description: err.message || 'No se pudo programar', variant: 'destructive' });
+    },
+  });
+
   return {
     items,
     isLoading,
     generate: generateMutation.mutateAsync,
     isGenerating: generateMutation.isPending,
     deleteItem: deleteMutation.mutateAsync,
+    scheduleToMetricool: scheduleMutation.mutateAsync,
+    isScheduling: scheduleMutation.isPending,
   };
 }
