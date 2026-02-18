@@ -29,6 +29,7 @@ export function OnboardingWizard() {
     currentStep,
     stepData,
     isLoading,
+    siteId,
     saveStepData,
     nextStep,
     prevStep,
@@ -61,7 +62,13 @@ export function OnboardingWizard() {
         />
       )}
       {currentStep === 2 && (
-        <ToneStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} />
+        <ToneStep
+          onNext={nextStep}
+          onBack={prevStep}
+          saveStepData={saveStepData}
+          stepData={stepData}
+          siteId={siteId}
+        />
       )}
       {currentStep === 3 && (
         <MoodStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} />
