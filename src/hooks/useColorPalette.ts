@@ -3,6 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 
 type ExtractionStatus = 'idle' | 'extracting' | 'done' | 'failed';
 
+/** Parse comma-separated hex string into array */
+function parsePalette(raw: string | null | undefined): string[] {
+  if (!raw || !raw.includes('#')) return [];
+  return raw.split(',').map(c => c.trim()).filter(c => /^#[0-9a-fA-F]{6}$/.test(c));
+}
+
 export function useColorPalette() {
   const [extractionStatus, setExtractionStatus] = useState<ExtractionStatus>('idle');
   const [colors, setColors] = useState<string[]>([]);
@@ -44,13 +50,27 @@ export function useColorPalette() {
         .eq('id', siteId)
         .single();
 
-      const palette = data?.color_palette as unknown as string[] | null;
+      const raw = data?.color_palette as string | null;
 
-      if (palette && Array.isArray(palette) && palette.length > 0) {
-        setColors(palette);
-        setExtractionStatus('done');
-        stopPolling();
-        return;
+      // color_palette is now a comma-separated hex string
+      // Empty string means extraction completed but found no colors
+      if (raw !== null && raw !== undefined) {
+        const palette = parsePalette(raw);
+        if (palette.length > 0) {
+          setColors(palette);
+          setExtractionStatus('done');
+          stopPolling();
+          return;
+        }
+        // If raw is empty string or has no valid hex, extraction is done with no results
+        if (raw === '' || (raw && !raw.includes('#'))) {
+          // Could be empty result or legacy preset — check elapsed time
+          if (elapsed >= POLL_INTERVAL * 2) {
+            setExtractionStatus('done');
+            stopPolling();
+            return;
+          }
+        }
       }
 
       if (elapsed >= MAX_WAIT) {
