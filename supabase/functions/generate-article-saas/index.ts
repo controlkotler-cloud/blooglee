@@ -299,9 +299,10 @@ Tipo: {{pillarType}}
 {{wpStyleNotes}}
 
 ═══════════════════════════════════════
-8. TEMA DEL ARTÍCULO
+8. TEMA DEL ARTÍCULO (OBLIGATORIO)
 ═══════════════════════════════════════
 {{topic}}
+⚠️ REGLA CRÍTICA: El artículo DEBE tratar EXACTAMENTE sobre este tema. El título (title) debe ser este tema tal cual o una variación MUY cercana (puedes ajustar ligeramente la redacción para SEO, pero el significado debe ser idéntico). NUNCA generes un artículo sobre un tema diferente al indicado aquí.
 
 ═══════════════════════════════════════
 9. LONGITUD
@@ -381,7 +382,7 @@ Cuando el tema sea estacional o ligado a una fecha concreta, especifica en el ar
 ═══════════════════════════════════════
 RESPONDE ÚNICAMENTE con un JSON válido con TODOS estos campos:
 {
-  "title": "Título H1 atractivo (máx 70 chars, SIN nombre empresa, SIN año)",
+  "title": "DEBE ser el tema indicado en la sección 8 (o variación mínima, máx 70 chars, SIN nombre empresa, SIN año)",
   "seo_title": "SEO title que EMPIEZA con focus_keyword (máx 60 chars)",
   "meta_description": "Descripción directa (max 145 chars) con keyword, sin ! ni ?",
   "excerpt": "Resumen en tono conversacional del contenido del artículo, como si le contaras a alguien de qué va el post. Diferente a la meta_description. Máx 160 chars.",
@@ -390,7 +391,9 @@ RESPONDE ÚNICAMENTE con un JSON válido con TODOS estos campos:
   "content": "<h2>Subtítulo gancho con keyword</h2><p>Primer párrafo con keyword...</p>...<h2>¿Pregunta PAA?</h2><p>Respuesta...</p>...<p>Frase final variada con enlaces</p>"
 }`,
 
-  articleUser: `Escribe el artículo sobre: {{topic}}
+  articleUser: `Escribe el artículo sobre EXACTAMENTE este tema: "{{topic}}"
+
+⚠️ El título (title) del JSON DEBE ser este tema o una variación mínima. NO inventes otro tema diferente.
 
 Recuerda:
 - Pilar de contenido: {{pillarType}} → {{pillarDescription}}
