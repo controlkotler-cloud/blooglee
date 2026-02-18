@@ -254,7 +254,7 @@ Genera UN tema de blog que:
 
 Responde SOLO con el tema (máx 80 caracteres), sin explicaciones ni comillas.`,
 
-  articleSystem: `Eres el mejor redactor de blogs del mundo, especializado en el sector {{sector}}. Escribes artículos que posicionan en Google, enganchen al lector y generen confianza en la marca.
+  articleSystem: `Eres un redactor especializado en marketing de contenidos para el sector {{sector}}. Tu objetivo es producir artículos que posicionen en Google, generen confianza en la marca y sean leídos hasta el final por la audiencia objetivo. Escribes con rigor, sin inventar datos ni URLs, y adaptas el tono y el enfoque al perfil del lector en cada artículo.
 
 ⚠️ REGLA FUNDAMENTAL: Toda la información de configuración (empresa, audiencia, tono, directriz temática, descripción) es CONTEXTO INTERNO para ti como redactor. NUNCA copies ni parafrasees estos datos en el artículo. El lector NUNCA debe percibir que hay un briefing detrás. Simplemente escribe contenido natural que RESUENE con el contexto dado.
 
@@ -313,7 +313,8 @@ Tipo: {{pillarType}}
 ═══════════════════════════════════════
 
 FOCUS KEYWORD (2-4 palabras):
-- DEBE aparecer MÍNIMO 5 VECES distribuidas: intro, mitad, conclusión
+- La focus_keyword debe aparecer entre 5 y 7 veces en el artículo. No superes ese número para evitar keyword stuffing.
+- Si no se proporciona una focus_keyword, elige tú una de 2-4 palabras con búsqueda real en Google España para el sector y el tema del artículo. Prioriza keywords informacionales o transaccionales con intención clara. Evita keywords demasiado genéricas (ej: 'farmacia sabadell') o demasiado largas.
 - DEBE aparecer AL INICIO del seo_title
 - DEBE aparecer en meta_description
 - DEBE aparecer en el primer párrafo (primeras 100 palabras)
@@ -345,10 +346,12 @@ ENLACE INTERNO (OBLIGATORIO):
 - Formato: <a href="{{homeUrl}}" target="_blank" rel="noopener">{{siteName}}</a>
 
 ENLACES EXTERNOS (2 OBLIGATORIOS):
-- Incluye 2 enlaces a fuentes de autoridad (Wikipedia, instituciones oficiales, estudios, medios reconocidos)
-- Si conoces la URL EXACTA, úsala. Si NO, enlaza SOLO a la homepage del dominio
-- Formato: <a href="URL" target="_blank" rel="noopener">texto ancla descriptivo</a>
-- NO enlaces a competidores directos
+- Incluye 2 enlaces a fuentes de autoridad relevantes para el sector
+- Enlaza SIEMPRE al dominio raíz o sección principal del sitio, NUNCA a artículos o URLs específicas que no puedas verificar con certeza
+- Prioriza: asociaciones profesionales del sector, organismos oficiales, medios especializados de referencia
+- PROHIBIDO: Wikipedia genérica, competidores directos, URLs inventadas
+- El sistema verificará los enlaces y reemplazará los rotos
+- Formato: <a href='URL' target='_blank' rel='noopener'>texto ancla descriptivo</a>
 
 FRASE FINAL (OBLIGATORIA Y VARIADA):
 - El artículo debe terminar con una frase final que invite al lector a seguir conectado
@@ -371,6 +374,7 @@ FRASE FINAL (OBLIGATORIA Y VARIADA):
 13. CONTEXTO TEMPORAL
 ═══════════════════════════════════════
 Hoy es {{dateContext}}.
+Cuando el tema sea estacional o ligado a una fecha concreta, especifica en el artículo cuándo ocurre ese evento para que el lector entienda el horizonte temporal (ej: 'el Día del Padre, que este año cae el 19 de marzo...').
 
 ═══════════════════════════════════════
 14. FORMATO DE RESPUESTA
@@ -380,7 +384,7 @@ RESPONDE ÚNICAMENTE con un JSON válido con TODOS estos campos:
   "title": "Título H1 atractivo (máx 70 chars, SIN nombre empresa, SIN año)",
   "seo_title": "SEO title que EMPIEZA con focus_keyword (máx 60 chars)",
   "meta_description": "Descripción directa (max 145 chars) con keyword, sin ! ni ?",
-  "excerpt": "Resumen DIFERENTE a meta_description (máx 160 chars)",
+  "excerpt": "Resumen en tono conversacional del contenido del artículo, como si le contaras a alguien de qué va el post. Diferente a la meta_description. Máx 160 chars.",
   "focus_keyword": "keyword principal de 2-4 palabras",
   "slug": "url-con-focus-keyword-sin-espacios",
   "content": "<h2>Subtítulo gancho con keyword</h2><p>Primer párrafo con keyword...</p>...<h2>¿Pregunta PAA?</h2><p>Respuesta...</p>...<p>Frase final variada con enlaces</p>"
@@ -1579,7 +1583,7 @@ Deno.serve(async (req) => {
     // Build custom topic directive for article
     const customTopicDirectiveArticle = site.custom_topic
       ? `Enfoque temático del cliente (contexto interno para orientar el contenido, NO copiar literalmente en el texto): "${site.custom_topic}". Usa esto como brújula para el enfoque general, pero redacta de forma natural sin repetir esta frase.`
-      : 'Sin directriz temática específica. Genera contenido relevante para el sector.';
+      : `Sin directriz temática específica. Elige el tema más oportuno para la fecha actual y el sector ${sector}, priorizando búsquedas frecuentes con intención informacional o de consulta práctica. El tema debe ser concreto, no genérico.`;
 
     // Build avoid topics list for article
     const allProhibitedForArticle = [
