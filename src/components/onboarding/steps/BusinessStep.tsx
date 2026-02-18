@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useColorPalette } from '@/hooks/useColorPalette';
 import type { OnboardingStepData } from '@/hooks/useOnboarding';
 
 const SECTORS = [
@@ -40,6 +41,7 @@ interface BusinessStepProps {
 export function BusinessStep({ onNext, saveStepData, createProgress, initialData }: BusinessStepProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { triggerExtraction } = useColorPalette();
 
   const [businessName, setBusinessName] = useState(initialData?.business_name ?? '');
   const [sector, setSector] = useState(initialData?.sector ?? '');
@@ -91,10 +93,15 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
       };
       await saveStepData('step1', stepData);
 
-      // 4. Refresh sites cache
+      // 4. Trigger color extraction in background (fire-and-forget)
+      if (websiteUrl.trim()) {
+        triggerExtraction(websiteUrl.trim(), site.id);
+      }
+
+      // 5. Refresh sites cache
       await queryClient.refetchQueries({ queryKey: ['sites', user.id] });
 
-      // 5. Advance
+      // 6. Advance
       onNext();
     } catch (err: any) {
       console.error('Error in BusinessStep:', err);
