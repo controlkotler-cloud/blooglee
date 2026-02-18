@@ -32,6 +32,7 @@ export function OnboardingWizard() {
     saveStepData,
     nextStep,
     prevStep,
+    createProgress,
     completeWizard,
   } = useOnboarding();
 
@@ -52,7 +53,12 @@ export function OnboardingWizard() {
       <ProgressBar currentStep={progressPoint} totalSteps={5} />
 
       {currentStep === 1 && (
-        <BusinessStep onNext={nextStep} saveStepData={saveStepData} />
+        <BusinessStep
+          onNext={nextStep}
+          saveStepData={saveStepData}
+          createProgress={createProgress}
+          initialData={stepData.step1}
+        />
       )}
       {currentStep === 2 && (
         <ToneStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} />
