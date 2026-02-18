@@ -17,6 +17,7 @@ import HelpPage from "./pages/HelpPage";
 import KnowledgeArticle from "./pages/KnowledgeArticle";
 import MKPro from "./pages/MKPro";
 import Onboarding from "./pages/Onboarding";
+import { OnboardingWizard } from "./components/onboarding/OnboardingWizard";
 import Auth from "./pages/Auth";
 import Waitlist from "./pages/Waitlist";
 import NotFound from "./pages/NotFound";
@@ -154,6 +155,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Onboarding />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/onboarding/wizard"
+            element={
+              <ProtectedRoute>
+                <OnboardingWizard />
               </ProtectedRoute>
             }
           />
