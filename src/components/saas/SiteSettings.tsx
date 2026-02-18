@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Loader2, Save, Trash2, Clock, Calendar } from 'lucide-react';
 import { ContentProfileCard } from './ContentProfileCard';
+import { PaletteSelector } from './PaletteSelector';
 import { useUpdateSite, useDeleteSite, type Site } from '@/hooks/useSites';
 
 const DAYS_OF_WEEK = [
@@ -84,14 +85,6 @@ const MOOD_OPTIONS = [
   { value: 'calm_and_trustworthy', label: 'Natural y tranquilo', icon: '🌿' },
 ];
 
-/** Parse color_palette string (comma-separated hex or legacy preset) into array */
-function parsePaletteColors(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  if (raw.includes('#')) {
-    return raw.split(',').map(c => c.trim()).filter(c => /^#[0-9a-fA-F]{6}$/.test(c));
-  }
-  return []; // legacy preset string — treat as empty
-}
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio').max(100),
@@ -409,62 +402,11 @@ export function SiteSettings({ site }: SiteSettingsProps) {
 
             {watchedIncludeImage && (
               <div className="space-y-4 pt-2 border-t">
-                {/* Color palette — visual hex swatches */}
-                <div className="space-y-2">
-                  <Label>Paleta de colores de tu marca</Label>
-                  {(() => {
-                    const paletteColors = parsePaletteColors(watch('color_palette'));
-
-                    if (paletteColors.length === 0) {
-                      return (
-                        <p className="text-sm text-muted-foreground py-2">
-                          Sin paleta detectada — introduce la URL de tu web en <strong>Información básica</strong> para extraerla automáticamente.
-                        </p>
-                      );
-                    }
-
-                    return (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          {paletteColors.map((hex, i) => (
-                            <div key={i} className="flex flex-col items-center gap-1 group relative">
-                              <div
-                                className="w-7 h-7 rounded border border-border shadow-sm"
-                                style={{ backgroundColor: hex }}
-                              />
-                              <span className="text-[10px] text-muted-foreground font-mono">{hex}</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newColors = paletteColors.filter((_, j) => j !== i);
-                                  setValue('color_palette', newColors.join(',') || '', { shouldDirty: true });
-                                }}
-                                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                          {/* Add color picker */}
-                          <label className="flex flex-col items-center gap-1 cursor-pointer" title="Añadir color">
-                            <div className="w-7 h-7 rounded border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground text-sm hover:border-violet-400 transition-colors">
-                              +
-                            </div>
-                            <span className="text-[10px] text-muted-foreground">Añadir</span>
-                            <input
-                              type="color"
-                              className="sr-only"
-                              onChange={(e) => {
-                                const newColors = [...paletteColors, e.target.value];
-                                setValue('color_palette', newColors.join(','), { shouldDirty: true });
-                              }}
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
+                <PaletteSelector
+                  value={watch('color_palette')}
+                  onChange={(v) => setValue('color_palette', v, { shouldDirty: true })}
+                  mood={watch('mood')}
+                />
 
                 {/* Mood — visual select */}
                 <div className="space-y-2">
