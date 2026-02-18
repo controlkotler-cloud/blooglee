@@ -10,6 +10,7 @@ import type { ArticleContent } from '@/hooks/useArticlesSaas';
 
 interface ArticleReadyStepProps {
   onFinish: () => void;
+  onConnectWordPress?: () => void;
   stepData?: OnboardingStepData;
   siteId?: string;
 }
@@ -24,7 +25,7 @@ const CHECKLIST_ITEMS = [
   { step_key: 'auto_publish', status: 'pending' },
 ];
 
-export function ArticleReadyStep({ onFinish, stepData, siteId }: ArticleReadyStepProps) {
+export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteId }: ArticleReadyStepProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [article, setArticle] = useState<{
@@ -81,11 +82,11 @@ export function ArticleReadyStep({ onFinish, stepData, siteId }: ArticleReadySte
       }
     }
 
-    await onFinish();
-
-    if (goToWordPress) {
-      navigate(`/site/${siteId}?tab=wordpress`);
+    if (goToWordPress && onConnectWordPress) {
+      // Stay in the wizard, advance to WordPress step
+      onConnectWordPress();
     } else {
+      await onFinish();
       navigate('/dashboard');
     }
   };

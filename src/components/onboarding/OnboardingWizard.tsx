@@ -9,6 +9,7 @@ import { MoodStep } from './steps/MoodStep';
 import { TopicStep } from './steps/TopicStep';
 import { GeneratingStep } from './steps/GeneratingStep';
 import { ArticleReadyStep } from './steps/ArticleReadyStep';
+import { WordPressOnboardingStep } from './steps/WordPressOnboardingStep';
 import { track } from '@/lib/analytics';
 
 const STEP_NAMES: Record<number, string> = {
@@ -18,15 +19,16 @@ const STEP_NAMES: Record<number, string> = {
   4: 'topic',
   5: 'generating',
   6: 'article_ready',
+  7: 'wordpress_setup',
 };
 
 /**
- * Maps internal steps (1-6) to progress bar points (1-5):
+ * Maps internal steps (1-7) to progress bar points (1-5):
  * step 1 → point 1 (Negocio)
  * step 2,3 → point 2 (Estilo) — tono + mood visual
  * step 4 → point 3 (Tema)
  * step 5 → point 4 (Generando)
- * step 6 → point 5 (¡Listo!)
+ * step 6,7 → point 5 (¡Listo!)
  */
 function mapStepToProgressPoint(step: number): number {
   if (step <= 1) return 1;
@@ -147,7 +149,22 @@ export function OnboardingWizard() {
         />
       )}
       {currentStep === 6 && (
-        <ArticleReadyStep onFinish={handleCompleteWizard} stepData={stepData} siteId={siteId} />
+        <ArticleReadyStep
+          onFinish={handleCompleteWizard}
+          onConnectWordPress={() => {
+            // Advance to step 7 (WordPress setup) without completing the wizard yet
+            nextStep();
+          }}
+          stepData={stepData}
+          siteId={siteId}
+        />
+      )}
+      {currentStep === 7 && (
+        <WordPressOnboardingStep
+          onFinish={handleCompleteWizard}
+          stepData={stepData}
+          siteId={siteId}
+        />
       )}
     </OnboardingLayout>
   );
