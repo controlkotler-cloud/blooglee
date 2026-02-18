@@ -88,7 +88,12 @@ export function OnboardingWizard() {
         <TopicStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} />
       )}
       {currentStep === 5 && (
-        <GeneratingStep onNext={nextStep} />
+        <GeneratingStep
+          onNext={nextStep}
+          saveStepData={saveStepData}
+          stepData={stepData}
+          siteId={siteId}
+        />
       )}
       {currentStep === 6 && (
         <ArticleReadyStep onFinish={completeWizard} />
