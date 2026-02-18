@@ -38,6 +38,8 @@ export interface Site {
   content_pillars: string[];
   avoid_topics: string[];
   preferred_length: string | null;
+  color_palette: string | null;
+  mood: string | null;
   wordpress_context: WordPressContext | null;
   last_pillar_index: number;
   created_at: string;
@@ -67,6 +69,8 @@ export interface SiteInput {
   content_pillars?: string[];
   avoid_topics?: string[];
   preferred_length?: string | null;
+  color_palette?: string | null;
+  mood?: string | null;
 }
 
 export function useSites() {

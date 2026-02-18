@@ -77,6 +77,20 @@ function utcToLocal(utcHour: number): number {
   return Math.floor(local);
 }
 
+const COLOR_PALETTE_OPTIONS = [
+  { value: 'warm neutrals', label: 'Neutros cálidos' },
+  { value: 'cool whites and blues', label: 'Blancos y azules' },
+  { value: 'earthy greens', label: 'Verdes naturales' },
+  { value: 'soft pastels', label: 'Pasteles suaves' },
+];
+
+const MOOD_OPTIONS = [
+  { value: 'warm and welcoming', label: 'Cercano y cálido' },
+  { value: 'clean and clinical', label: 'Profesional y limpio' },
+  { value: 'energetic and vibrant', label: 'Dinámico y activo' },
+  { value: 'calm and natural', label: 'Natural y tranquilo' },
+];
+
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio').max(100),
   sector: z.string().optional(),
@@ -101,6 +115,9 @@ const formSchema = z.object({
   content_pillars: z.array(z.string()).min(1),
   avoid_topics: z.string().optional(),
   preferred_length: z.string(),
+  // Image style fields
+  color_palette: z.string(),
+  mood: z.string(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -149,6 +166,8 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       content_pillars: site.content_pillars || ['educational', 'trends', 'seasonal'],
       avoid_topics: (site.avoid_topics || []).join(', '),
       preferred_length: site.preferred_length || 'medium',
+      color_palette: site.color_palette || 'warm neutrals',
+      mood: site.mood || 'warm and welcoming',
     },
   });
 
@@ -216,6 +235,9 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       content_pillars: data.content_pillars,
       avoid_topics: avoidTopicsArray,
       preferred_length: data.preferred_length || null,
+      // Image style fields
+      color_palette: data.color_palette || 'warm neutrals',
+      mood: data.mood || 'warm and welcoming',
     });
   };
 
@@ -382,6 +404,47 @@ export function SiteSettings({ site }: SiteSettingsProps) {
                 onCheckedChange={(checked) => setValue('include_featured_image', checked, { shouldDirty: true })}
               />
             </div>
+
+            {watchedIncludeImage && (
+              <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t">
+                <div className="space-y-2">
+                  <Label>Paleta de colores de tu marca</Label>
+                  <Select
+                    value={watch('color_palette')}
+                    onValueChange={(v) => setValue('color_palette', v, { shouldDirty: true })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COLOR_PALETTE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Estilo visual de tus imágenes</Label>
+                  <Select
+                    value={watch('mood')}
+                    onValueChange={(v) => setValue('mood', v, { shouldDirty: true })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MOOD_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
