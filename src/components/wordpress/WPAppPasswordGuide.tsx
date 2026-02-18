@@ -13,32 +13,63 @@ export function WPAppPasswordGuide({ siteUrl, onBack, onContinue }: WPAppPasswor
   const [showHelp, setShowHelp] = useState(false);
   const profileUrl = `${siteUrl.replace(/\/+$/, '')}/wp-admin/profile.php`;
 
+  const wpAdminUrl = `${siteUrl.replace(/\/+$/, '')}/wp-admin/`;
+  const totalSteps = 5;
+
   const steps = [
     {
       number: 1,
-      title: 'Abre tu WordPress en otra pestaña',
+      title: 'Entra en tu WordPress',
       content: (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Haz clic en este enlace. Se abrirá tu WordPress en una nueva pestaña:
+            Haz clic en este enlace para abrir tu WordPress en una nueva pestaña:
           </p>
           <Button variant="outline" asChild className="w-full">
-            <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+            <a href={wpAdminUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="w-4 h-4 mr-2" />
               Abrir mi WordPress →
+            </a>
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Si te pide usuario y contraseña, entra con tus datos habituales de WordPress.
+          </p>
+        </div>
+      ),
+    },
+    {
+      number: 2,
+      title: 'Ve a tu perfil de usuario',
+      content: (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Una vez dentro de WordPress, ve al menú lateral izquierdo:
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Haz clic en <strong className="text-foreground">"Usuarios"</strong> y después en{' '}
+            <strong className="text-foreground">"Perfil"</strong>.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            También puedes ir directamente:
+          </p>
+          <Button variant="outline" size="sm" asChild className="w-full">
+            <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Ir directamente a mi perfil →
             </a>
           </Button>
         </div>
       ),
     },
     {
-      number: 2,
+      number: 3,
       title: "Baja hasta 'Contraseñas de aplicación'",
       content: (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            En tu perfil de WordPress, baja hasta encontrar la sección que dice{' '}
-            <strong>"Contraseñas de aplicación"</strong> (suele estar cerca del final).
+            En tu perfil, baja con el scroll hasta encontrar la sección{' '}
+            <strong className="text-foreground">"Contraseñas de aplicación"</strong>.
+            Suele estar bastante abajo, cerca del final de la página.
           </p>
           <button
             onClick={() => setShowHelp(!showHelp)}
@@ -62,8 +93,8 @@ export function WPAppPasswordGuide({ siteUrl, onBack, onContinue }: WPAppPasswor
       ),
     },
     {
-      number: 3,
-      title: "Escribe 'Blooglee' como nombre",
+      number: 4,
+      title: 'Crea la contraseña',
       content: (
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">
@@ -77,16 +108,19 @@ export function WPAppPasswordGuide({ siteUrl, onBack, onContinue }: WPAppPasswor
       ),
     },
     {
-      number: 4,
+      number: 5,
       title: 'Copia la contraseña generada',
       content: (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            WordPress te mostrará una contraseña.{' '}
-            <strong className="text-foreground">IMPORTANTE: Cópiala ahora</strong>, porque no podrás verla de nuevo.
+            WordPress te mostrará una contraseña nueva.{' '}
+            <strong className="text-foreground">¡IMPORTANTE! Cópiala ahora</strong> porque no podrás verla de nuevo.
           </p>
           <p className="text-xs text-muted-foreground font-mono bg-muted px-3 py-2 rounded-md text-center tracking-widest">
             XXXX XXXX XXXX XXXX XXXX XXXX
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Cópiala y pégala en el campo de abajo.
           </p>
         </div>
       ),
@@ -124,7 +158,7 @@ export function WPAppPasswordGuide({ siteUrl, onBack, onContinue }: WPAppPasswor
               </div>
               <div className="flex-1 pt-1.5 space-y-2">
                 <p className="text-sm font-medium text-foreground">
-                  Paso {step.number} de 4: {step.title}
+                  Paso {step.number} de {totalSteps}: {step.title}
                 </p>
                 {step.content}
               </div>
