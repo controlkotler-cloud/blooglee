@@ -15,13 +15,14 @@ import { useProfile, useIsMKProAdmin, useIsSuperAdmin } from '@/hooks/useProfile
 import { useSites, useImportSites } from '@/hooks/useSites';
 import { useAllArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 import { useWordPressConfigsBatch } from '@/hooks/useWordPressConfigSaas';
-import { useOnboardingTour } from '@/hooks/useOnboardingTour';
+// Old driver.js tour disabled — replaced by new wizard + checklist flow
+// import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { useChecklist } from '@/hooks/useChecklist';
 import { SiteCard } from '@/components/saas/SiteCard';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { PlanBadge, type PlanType } from '@/components/saas/PlanBadge';
 import { SiteImportExport } from '@/components/saas/SiteImportExport';
-import { OnboardingTour } from '@/components/saas/OnboardingTour';
+// import { OnboardingTour } from '@/components/saas/OnboardingTour';
 import { SetupChecklist } from '@/components/setup/SetupChecklist';
 import { toast } from 'sonner';
 import { useGeneration } from '@/contexts/GenerationContext';
@@ -34,8 +35,8 @@ export default function SaasDashboard() {
   const { isSuperAdmin } = useIsSuperAdmin();
   const { data: sites = [], isLoading: loadingSites } = useSites();
   
-  // Onboarding tour
-  const { shouldShowTour, completeTour } = useOnboardingTour();
+  // Old onboarding tour disabled
+  // const { shouldShowTour, completeTour } = useOnboardingTour();
   
    // Global generation state
    const { isGenerating } = useGeneration();
@@ -88,14 +89,7 @@ export default function SaasDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Onboarding Tour */}
-      {shouldShowTour && sites.length > 0 && (
-        <OnboardingTour
-          hasWordPressConfigured={hasWordPressOnFirstSite}
-          onComplete={completeTour}
-          onConfigureWordPress={() => navigate(`/site/${firstSite?.id}?tab=wordpress`)}
-        />
-      )}
+      {/* Old OnboardingTour (driver.js) disabled — replaced by wizard + checklist */}
 
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
