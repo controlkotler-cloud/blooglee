@@ -46,9 +46,9 @@ export const ProtectedRoute = ({ children, requireSuperAdmin = false }: Protecte
       return;
     }
 
-    // Regular users without sites go to onboarding wizard
+    // Regular users without sites go to onboarding
     if (sites?.length === 0 && location.pathname !== '/onboarding' && location.pathname !== '/onboarding/wizard') {
-      navigate('/onboarding/wizard', { replace: true });
+      navigate('/onboarding', { replace: true });
     }
   }, [session, loading, loadingSites, loadingRoles, loadingSuperAdmin, sites, isMKProAdmin, isAdmin, isSuperAdmin, superAdminCheck, requireSuperAdmin, navigate, location.pathname]);
 

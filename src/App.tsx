@@ -16,7 +16,6 @@ import BillingPage from "./pages/BillingPage";
 import HelpPage from "./pages/HelpPage";
 import KnowledgeArticle from "./pages/KnowledgeArticle";
 import MKPro from "./pages/MKPro";
-import Onboarding from "./pages/Onboarding";
 import { OnboardingWizard } from "./components/onboarding/OnboardingWizard";
 import Auth from "./pages/Auth";
 import Waitlist from "./pages/Waitlist";
@@ -154,7 +153,7 @@ const App = () => (
             path="/onboarding"
             element={
               <ProtectedRoute>
-                <Onboarding />
+                <OnboardingWizard />
               </ProtectedRoute>
             }
           />
