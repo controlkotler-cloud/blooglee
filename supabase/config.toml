@@ -1,1 +1,4 @@
 project_id = "czccftspeoenzgzgeqyb"
+
+[functions.extract-color-palette]
+verify_jwt = false
