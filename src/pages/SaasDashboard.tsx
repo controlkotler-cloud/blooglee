@@ -15,14 +15,11 @@ import { useProfile, useIsMKProAdmin, useIsSuperAdmin } from '@/hooks/useProfile
 import { useSites, useImportSites } from '@/hooks/useSites';
 import { useAllArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 import { useWordPressConfigsBatch } from '@/hooks/useWordPressConfigSaas';
-// Old driver.js tour disabled — replaced by new wizard + checklist flow
-// import { useOnboardingTour } from '@/hooks/useOnboardingTour';
 import { useChecklist } from '@/hooks/useChecklist';
 import { SiteCard } from '@/components/saas/SiteCard';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { PlanBadge, type PlanType } from '@/components/saas/PlanBadge';
 import { SiteImportExport } from '@/components/saas/SiteImportExport';
-// import { OnboardingTour } from '@/components/saas/OnboardingTour';
 import { SetupChecklist } from '@/components/setup/SetupChecklist';
 import { toast } from 'sonner';
 import { useGeneration } from '@/contexts/GenerationContext';

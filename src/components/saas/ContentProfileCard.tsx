@@ -27,14 +27,6 @@ const LENGTH_OPTIONS = [
   { value: 'long', label: 'Largo (~2500 palabras)', description: 'SEO intensivo, guías completas' },
 ];
 
-interface ContentProfileFormData {
-  tone: string;
-  target_audience: string;
-  content_pillars: string[];
-  avoid_topics: string;
-  preferred_length: string;
-}
-
 interface ContentProfileCardProps {
   watch: UseFormWatch<any>;
   setValue: UseFormSetValue<any>;
