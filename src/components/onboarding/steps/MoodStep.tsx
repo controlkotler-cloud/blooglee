@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowRight, ArrowLeft, Check, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { track } from '@/lib/analytics';
 import type { OnboardingStepData } from '@/hooks/useOnboarding';
 
 const MOODS = [
@@ -86,6 +87,11 @@ export function MoodStep({
     try {
       const data = { mood, use_brand_colors: hasColors ? useBrandColors : false };
       await saveStepData('step2b', data);
+
+      track('onboarding_mood_selected', {
+        mood,
+        pre_selected: mood === recommendedMood,
+      });
 
       if (siteId) {
         await supabase

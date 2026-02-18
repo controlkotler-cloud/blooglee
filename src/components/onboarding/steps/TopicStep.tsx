@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowRight, ArrowLeft, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { track } from '@/lib/analytics';
 import type { OnboardingStepData } from '@/hooks/useOnboarding';
 
 const TOPIC_EMOJIS = ['📋', '🌿', '💊'];
@@ -111,6 +112,7 @@ export function TopicStep({ onNext, onBack, saveStepData, stepData }: TopicStepP
         topic_options: topics,
       };
       await saveStepData('step3', data);
+      track('onboarding_topic_selected', { type: customMode ? 'custom' : 'suggested' });
       onNext();
     } catch (err) {
       console.error('Error in TopicStep:', err);

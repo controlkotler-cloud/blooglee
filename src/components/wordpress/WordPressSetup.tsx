@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpsertWordPressConfig } from '@/hooks/useWordPressConfigSaas';
+import { track } from '@/lib/analytics';
 import { WPIntro } from './WPIntro';
 import { WPUrlCheck } from './WPUrlCheck';
 import { WPAppPasswordGuide } from './WPAppPasswordGuide';
@@ -32,10 +33,13 @@ export function WordPressSetup({ siteId, onClose, onComplete }: WordPressSetupPr
   const [isVerifying, setIsVerifying] = useState(false);
   const [lastCredentials, setLastCredentials] = useState<{ username: string; appPassword: string } | null>(null);
   const upsertConfig = useUpsertWordPressConfig();
+  const attemptCountRef = useRef(0);
+  const wpStartTimeRef = useRef(Date.now());
 
   const handleCredentialsSubmit = async (username: string, appPassword: string) => {
     setIsVerifying(true);
     setLastCredentials({ username, appPassword });
+    attemptCountRef.current += 1;
 
     try {
       const { data, error } = await supabase.functions.invoke('test-wordpress-auth', {
@@ -58,6 +62,19 @@ export function WordPressSetup({ siteId, onClose, onComplete }: WordPressSetupPr
           message: JSON.stringify({ url: verifiedUrl, user_role: result.user_role, error_type: result.error_type }),
           raw_response: result as any,
         } as any);
+      }
+
+      // Track auth attempt
+      if (result.authenticated && result.can_publish) {
+        track('wp_auth_attempt', { result: 'success' });
+        track('wp_connection_completed', {
+          total_attempts: attemptCountRef.current,
+          duration_seconds: Math.round((Date.now() - wpStartTimeRef.current) / 1000),
+        });
+      } else if (result.error_type === 'no_permissions') {
+        track('wp_auth_attempt', { result: 'permissions_error' });
+      } else {
+        track('wp_auth_attempt', { result: 'auth_failed' });
       }
 
       // If success, save credentials

@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useColorPalette } from '@/hooks/useColorPalette';
 import { OnboardingLayout } from './OnboardingLayout';
@@ -8,6 +9,16 @@ import { MoodStep } from './steps/MoodStep';
 import { TopicStep } from './steps/TopicStep';
 import { GeneratingStep } from './steps/GeneratingStep';
 import { ArticleReadyStep } from './steps/ArticleReadyStep';
+import { track } from '@/lib/analytics';
+
+const STEP_NAMES: Record<number, string> = {
+  1: 'business',
+  2: 'tone',
+  3: 'mood',
+  4: 'topic',
+  5: 'generating',
+  6: 'article_ready',
+};
 
 /**
  * Maps internal steps (1-6) to progress bar points (1-5):
@@ -38,7 +49,47 @@ export function OnboardingWizard() {
     completeWizard,
   } = useOnboarding();
 
+  const wizardStartRef = useRef<number>(Date.now());
+  const trackedStartRef = useRef(false);
+  const prevStepRef = useRef<number | null>(null);
+
   const { colors, extractionStatus } = useColorPalette();
+
+  // Track wizard started (once)
+  useEffect(() => {
+    if (!isLoading && !trackedStartRef.current) {
+      trackedStartRef.current = true;
+      track('onboarding_wizard_started');
+    }
+  }, [isLoading]);
+
+  // Track step completion when step changes
+  useEffect(() => {
+    if (isLoading || prevStepRef.current === null) {
+      prevStepRef.current = currentStep;
+      return;
+    }
+    const prev = prevStepRef.current;
+    prevStepRef.current = currentStep;
+    if (currentStep > prev) {
+      track('onboarding_step_completed', { step: prev, step_name: STEP_NAMES[prev] ?? `step_${prev}` });
+    }
+  }, [currentStep, isLoading]);
+
+  // Track color palette extraction results
+  useEffect(() => {
+    if (extractionStatus === 'done' && colors.length > 0) {
+      track('onboarding_color_palette_extracted', { colors_count: colors.length, source: 'firecrawl' });
+    } else if (extractionStatus === 'failed') {
+      track('onboarding_color_palette_failed', { reason: 'firecrawl_error' });
+    }
+  }, [extractionStatus, colors.length]);
+
+  const handleCompleteWizard = async () => {
+    const totalDuration = Math.round((Date.now() - wizardStartRef.current) / 1000);
+    track('onboarding_wizard_completed', { total_duration_seconds: totalDuration });
+    await completeWizard();
+  };
 
   if (isLoading) {
     return (
@@ -96,7 +147,7 @@ export function OnboardingWizard() {
         />
       )}
       {currentStep === 6 && (
-        <ArticleReadyStep onFinish={completeWizard} stepData={stepData} siteId={siteId} />
+        <ArticleReadyStep onFinish={handleCompleteWizard} stepData={stepData} siteId={siteId} />
       )}
     </OnboardingLayout>
   );

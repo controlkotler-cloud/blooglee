@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { track } from '@/lib/analytics';
 import type { OnboardingStepData } from '@/hooks/useOnboarding';
 
 const TONES = [
@@ -84,6 +85,11 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
     try {
       const data = { tone, audience: audience.trim() };
       await saveStepData('step2', data);
+
+      // Track if audience was skipped
+      if (!audience.trim()) {
+        track('onboarding_step_skipped', { step: 2, field: 'audience' });
+      }
 
       // Update site tone + target_audience
       if (siteId) {
