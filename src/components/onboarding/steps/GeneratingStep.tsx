@@ -75,9 +75,11 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
 
       if (error) throw error;
 
-      const articleId = data?.articleId || data?.article_id || data?.id;
+      const articleId = data?.article?.id || data?.articleId || data?.article_id || data?.id;
       if (articleId) {
         await saveStepData('step5', { article_id: articleId });
+      } else {
+        console.warn('No article ID returned from generation', data);
       }
 
       const durationSeconds = Math.round((Date.now() - startTime) / 1000);
