@@ -85,7 +85,7 @@ export function OnboardingWizard() {
         />
       )}
       {currentStep === 4 && (
-        <TopicStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} />
+        <TopicStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} />
       )}
       {currentStep === 5 && (
         <GeneratingStep onNext={nextStep} />
