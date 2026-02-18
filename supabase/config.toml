@@ -2,3 +2,6 @@ project_id = "czccftspeoenzgzgeqyb"
 
 [functions.extract-color-palette]
 verify_jwt = false
+
+[functions.suggest-topics]
+verify_jwt = false
