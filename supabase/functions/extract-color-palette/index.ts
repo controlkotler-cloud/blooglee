@@ -246,20 +246,12 @@ async function saveData(siteId: string, data: ExtractedData) {
     update.instagram_url = data.socialLink;
   }
 
-  // Blog URL — update if we found a more specific one
-  if (data.blogUrl && site?.blog_url) {
-    try {
-      const userDomain = new URL(site.blog_url).hostname;
-      const blogDomain = new URL(data.blogUrl).hostname;
-      if (userDomain === blogDomain && data.blogUrl !== site.blog_url) {
-        update.blog_url = data.blogUrl;
-      }
-    } catch {
-      // If user's blog_url isn't a valid URL, set the extracted one
-      update.blog_url = data.blogUrl;
-    }
-  } else if (data.blogUrl && !site?.blog_url) {
+  // Blog URL — always prefer the extracted blog-specific URL over the homepage
+  // The user enters a homepage URL in the wizard (saved to blog_url initially).
+  // If we found a real blog path (/blog, /noticias, etc.), overwrite with that.
+  if (data.blogUrl) {
     update.blog_url = data.blogUrl;
+    console.log('[extract] Overwriting blog_url with extracted blog path:', data.blogUrl);
   }
 
   // Keywords → custom_topic
