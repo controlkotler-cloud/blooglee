@@ -438,22 +438,30 @@ RESPON EN JSON (TOTS els camps obligatoris):
   "content": "Contingut HTML en català natiu"
 }`,
 
-  image: `Generate a professional blog header image.
+  image: `Generate a professional blog header image for a {{sector}} business.
 
 TOPIC: "{{topic}}"
-SECTOR: {{sector}}
 {{description}}
 
-REQUIREMENTS:
-- Clean, professional photograph
-- Visually related to the topic and sector
-- NO text, NO logos, NO watermarks, NO faces
-- NEVER invent or show brand names, product labels, or packaging with text on products
-- If products appear, they must be generic/unbranded with NO visible text or logos
-- Suitable for blog header, 16:9 ratio
-- High quality, editorial style
+COMPOSITION: {{composition_style}}
 
-Generate an image that a {{sector}} business would use for their blog.`
+MOOD: {{mood}}
+
+COLOR PALETTE: Use {{color_palette}} tones throughout the image.
+
+VISUAL STYLE GUIDELINES:
+- Editorial photography style, high quality
+- The composition must feel intentional and varied, not generic
+- Lighting should match the mood specified above
+- Colors must align with the palette specified above
+
+STRICT REQUIREMENTS:
+- NO text of any kind
+- NO logos, NO watermarks
+- NO human faces
+- All products must be completely generic and unbranded
+- No visible text, labels or packaging on any product
+- Suitable for blog header, 16:9 ratio`
 };
 
 // ==========================================
@@ -1965,6 +1973,16 @@ Deno.serve(async (req) => {
       
       const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
       
+      // Random composition style selection
+      const COMPOSITION_STYLES = [
+        "flat lay with relevant objects from the sector",
+        "close-up macro detail of a key element",
+        "minimalist composition with one strong focal point and negative space",
+        "environmental wide shot showing the context or setting",
+      ];
+      const compositionStyle = COMPOSITION_STYLES[Math.floor(Math.random() * COMPOSITION_STYLES.length)];
+      console.log("Selected composition style:", compositionStyle);
+      
       // Get image prompt from database
       const imagePrompt = await getPrompt(
         supabase,
@@ -1972,7 +1990,10 @@ Deno.serve(async (req) => {
         {
           topic: topic,
           sector: sector,
-          description: site.description ? `CONTEXT: ${site.description}` : ''
+          description: site.description ? `CONTEXT: ${site.description}` : '',
+          composition_style: compositionStyle,
+          color_palette: site.color_palette || 'warm neutrals',
+          mood: site.mood || 'warm and welcoming',
         },
         FALLBACK_PROMPTS.image
       );

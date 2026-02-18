@@ -674,6 +674,7 @@ export type Database = {
           auto_generate: boolean
           avoid_topics: string[] | null
           blog_url: string | null
+          color_palette: string | null
           content_pillars: string[] | null
           created_at: string
           custom_topic: string | null
@@ -685,6 +686,7 @@ export type Database = {
           languages: string[]
           last_pillar_index: number | null
           location: string | null
+          mood: string | null
           name: string
           preferred_length: string | null
           publish_day_of_month: number | null
@@ -703,6 +705,7 @@ export type Database = {
           auto_generate?: boolean
           avoid_topics?: string[] | null
           blog_url?: string | null
+          color_palette?: string | null
           content_pillars?: string[] | null
           created_at?: string
           custom_topic?: string | null
@@ -714,6 +717,7 @@ export type Database = {
           languages?: string[]
           last_pillar_index?: number | null
           location?: string | null
+          mood?: string | null
           name: string
           preferred_length?: string | null
           publish_day_of_month?: number | null
@@ -732,6 +736,7 @@ export type Database = {
           auto_generate?: boolean
           avoid_topics?: string[] | null
           blog_url?: string | null
+          color_palette?: string | null
           content_pillars?: string[] | null
           created_at?: string
           custom_topic?: string | null
@@ -743,6 +748,7 @@ export type Database = {
           languages?: string[]
           last_pillar_index?: number | null
           location?: string | null
+          mood?: string | null
           name?: string
           preferred_length?: string | null
           publish_day_of_month?: number | null
