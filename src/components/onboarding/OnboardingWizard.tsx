@@ -96,7 +96,7 @@ export function OnboardingWizard() {
         />
       )}
       {currentStep === 6 && (
-        <ArticleReadyStep onFinish={completeWizard} />
+        <ArticleReadyStep onFinish={completeWizard} stepData={stepData} siteId={siteId} />
       )}
     </OnboardingLayout>
   );
