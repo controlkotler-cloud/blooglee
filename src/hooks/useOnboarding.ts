@@ -83,7 +83,20 @@ export function useOnboarding(siteId?: string) {
 
         if (mountedRef.current) {
           if (data && data.length > 0) {
-            setProgress(data[0] as unknown as OnboardingProgress);
+            const record = data[0] as unknown as OnboardingProgress;
+            // If resuming an incomplete wizard without a specific siteId,
+            // reset to step 1 so the user starts fresh
+            if (!siteId && !record.wizard_completed && record.current_step > 1) {
+              record.current_step = 1;
+              record.step_data = {};
+              // Persist the reset
+              supabase
+                .from('onboarding_progress')
+                .update({ current_step: 1, step_data: {} } as any)
+                .eq('id', record.id)
+                .then();
+            }
+            setProgress(record);
           } else {
             setProgress(null);
           }
