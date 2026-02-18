@@ -2,13 +2,21 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChecklist } from '@/hooks/useChecklist';
 import { useProfile } from '@/hooks/useProfile';
-import { useSites, type Site } from '@/hooks/useSites';
+import { useSites, useUpdateSite, type Site } from '@/hooks/useSites';
 import { useAllArticlesSaas, type ArticleContent } from '@/hooks/useArticlesSaas';
 import { useWordPressConfigsBatch } from '@/hooks/useWordPressConfigSaas';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { SetupProgress } from './SetupProgress';
 import { ChecklistItem } from './ChecklistItem';
+import { FirstPublishStep } from './FirstPublishStep';
+import { ContentProfileStep } from './ContentProfileStep';
+import { AutoPublishStep } from './AutoPublishStep';
 import { WordPressSetup } from '@/components/wordpress/WordPressSetup';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, PartyPopper } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { toast } from 'sonner';
 
 const TONE_LABELS: Record<string, string> = {
   friendly: 'Cercano',
@@ -25,14 +33,18 @@ const MOOD_LABELS: Record<string, string> = {
   'calm and natural': 'Natural',
 };
 
+type ActiveStep = null | 'wordpress_connect' | 'first_publish' | 'content_profile' | 'auto_publish';
+
 interface SetupChecklistProps {
   site: Site;
 }
 
 export function SetupChecklist({ site }: SetupChecklistProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: profile } = useProfile();
-  const [showWPSetup, setShowWPSetup] = useState(false);
+  const updateSiteMutation = useUpdateSite();
+  const [activeStep, setActiveStep] = useState<ActiveStep>(null);
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
@@ -58,9 +70,19 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
 
   if (isLoading || checklistItems.length === 0) return null;
 
-  const getItemConfig = (stepKey: string) => {
-    const isCurrent = nextPending === stepKey;
+  // Check if all steps are completed
+  const allComplete = checklistItems.every(i => i.status === 'completed');
 
+  const markChecklistComplete = async () => {
+    if (!user?.id) return;
+    await supabase
+      .from('onboarding_progress')
+      .update({ checklist_completed: true })
+      .eq('user_id', user.id)
+      .eq('site_id', site.id);
+  };
+
+  const getItemConfig = (stepKey: string) => {
     switch (stepKey) {
       case 'business_setup':
         return {
@@ -86,16 +108,18 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
       case 'wordpress_connect':
         return {
           title: 'Conectar tu WordPress',
-          description: 'Sin esto, no podemos publicar en tu blog. Tarda unos 5 minutos.',
-          actionLabel: 'Conectar WordPress →',
-          onAction: () => setShowWPSetup(true),
+          description: hasWordPress
+            ? 'WordPress conectado ✓'
+            : 'Sin esto, no podemos publicar en tu blog. Tarda unos 5 minutos.',
+          actionLabel: hasWordPress ? 'Configurar' : 'Conectar WordPress →',
+          onAction: () => setActiveStep('wordpress_connect'),
         };
       case 'first_publish':
         return {
           title: 'Publicar tu primer artículo',
           description: 'Publica el artículo que hemos generado.',
           actionLabel: 'Publicar →',
-          onAction: () => navigate(`/site/${site.id}`),
+          onAction: () => setActiveStep('first_publish'),
           disabled: !hasWordPress,
         };
       case 'content_profile':
@@ -103,36 +127,148 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
           title: 'Personalizar tu contenido',
           description: 'Ajusta los temas y el estilo de tus artículos.',
           actionLabel: 'Personalizar',
-          onAction: () => navigate(`/site/${site.id}?tab=settings`),
+          onAction: () => setActiveStep('content_profile'),
         };
       case 'auto_publish':
         return {
           title: 'Activar publicación automática',
           description: 'Blooglee publicará artículos por ti.',
           actionLabel: 'Activar →',
-          onAction: () => navigate(`/site/${site.id}?tab=settings`),
+          onAction: () => setActiveStep('auto_publish'),
           disabled: !hasWordPress,
         };
       default:
-        return {
-          title: stepKey,
-          description: '',
-        };
+        return { title: stepKey, description: '' };
     }
   };
 
-  // If showing WordPress setup, render that instead
-  if (showWPSetup) {
+  // Render active step sub-screens
+  if (activeStep === 'wordpress_connect') {
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
         <WordPressSetup
           siteId={site.id}
-          onClose={() => setShowWPSetup(false)}
+          onClose={() => setActiveStep(null)}
           onComplete={() => {
-            setShowWPSetup(false);
+            setActiveStep(null);
             updateStep('wordpress_connect', 'completed');
           }}
         />
+      </div>
+    );
+  }
+
+  if (activeStep === 'first_publish') {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto">
+        <FirstPublishStep
+          siteId={site.id}
+          onComplete={() => {
+            updateStep('first_publish', 'completed');
+            setActiveStep(null);
+          }}
+          onBack={() => setActiveStep(null)}
+        />
+      </div>
+    );
+  }
+
+  if (activeStep === 'content_profile') {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto">
+        <ContentProfileStep
+          site={site}
+          onSave={async (data) => {
+            // Update site with content profile data
+            await updateSiteMutation.mutateAsync({
+              id: site.id,
+              content_pillars: data.content_pillars,
+              avoid_topics: data.avoid_topics,
+              // notes go to target_audience as additional context
+              target_audience: data.notes || site.target_audience || undefined,
+            });
+            updateStep('content_profile', 'completed', { content_pillars: data.content_pillars, avoid_topics: data.avoid_topics });
+            toast.success('Perfil de contenido guardado');
+            setActiveStep(null);
+          }}
+          onSkip={() => {
+            updateStep('content_profile', 'completed');
+            setActiveStep(null);
+          }}
+          onBack={() => setActiveStep(null)}
+        />
+      </div>
+    );
+  }
+
+  if (activeStep === 'auto_publish') {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto">
+        <AutoPublishStep
+          onActivate={async (config) => {
+            // Map frequency to sites table format
+            const frequencyMap: Record<string, string> = {
+              weekly: 'weekly',
+              biweekly: 'biweekly',
+              fortnightly: 'fortnightly',
+              monthly: 'monthly',
+            };
+
+            await updateSiteMutation.mutateAsync({
+              id: site.id,
+              publish_frequency: frequencyMap[config.frequency] ?? 'weekly',
+              publish_day_of_week: config.dayOfWeek,
+              publish_hour_utc: config.hourUtc,
+              auto_generate: true,
+              include_featured_image: config.includeFeaturedImage,
+            });
+
+            updateStep('auto_publish', 'completed', {
+              frequency: config.frequency,
+              review_mode: config.reviewMode,
+            });
+
+            // Check if all steps are now completed
+            const pendingAfter = checklistItems.filter(
+              i => i.status === 'pending' && i.step_key !== 'auto_publish'
+            );
+            if (pendingAfter.length === 0) {
+              await markChecklistComplete();
+            }
+
+            toast.success('Publicación automática activada');
+            // Don't go back — the component shows its own success state
+          }}
+          onBack={() => setActiveStep(null)}
+        />
+      </div>
+    );
+  }
+
+  // Celebration banner when all complete
+  if (allComplete) {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto animate-in fade-in duration-500">
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-6 text-center space-y-4">
+            <PartyPopper className="w-12 h-12 mx-auto text-primary" />
+            <h2 className="text-xl font-display font-bold text-foreground">
+              🎉 ¡Todo configurado! Blooglee está trabajando para ti.
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Tu blog se actualizará automáticamente. Puedes ver y gestionar tus artículos desde el dashboard.
+            </p>
+            <Button
+              onClick={async () => {
+                await markChecklistComplete();
+                // Force a page reload to show normal dashboard
+                window.location.reload();
+              }}
+            >
+              Ir al dashboard →
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
