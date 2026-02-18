@@ -16,13 +16,15 @@ import { useSites, useImportSites } from '@/hooks/useSites';
 import { useAllArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 import { useWordPressConfigsBatch } from '@/hooks/useWordPressConfigSaas';
 import { useOnboardingTour } from '@/hooks/useOnboardingTour';
+import { useChecklist } from '@/hooks/useChecklist';
 import { SiteCard } from '@/components/saas/SiteCard';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { PlanBadge, type PlanType } from '@/components/saas/PlanBadge';
 import { SiteImportExport } from '@/components/saas/SiteImportExport';
 import { OnboardingTour } from '@/components/saas/OnboardingTour';
+import { SetupChecklist } from '@/components/setup/SetupChecklist';
 import { toast } from 'sonner';
- import { useGeneration } from '@/contexts/GenerationContext';
+import { useGeneration } from '@/contexts/GenerationContext';
 
 export default function SaasDashboard() {
   const navigate = useNavigate();
@@ -46,6 +48,11 @@ export default function SaasDashboard() {
   const siteIds = sites.map(s => s.id);
   const { data: wpConfigsMap = {} } = useWordPressConfigsBatch(siteIds);
 
+  // Checklist: show setup view if wizard done but checklist incomplete
+  const firstSiteId = sites[0]?.id;
+  const { isChecklistComplete, checklistItems, isLoading: loadingChecklist } = useChecklist(firstSiteId);
+  const showChecklist = sites.length > 0 && checklistItems.length > 0 && !isChecklistComplete;
+
   const generateMutation = useGenerateArticleSaas();
   const importSitesMutation = useImportSites();
 
@@ -66,7 +73,7 @@ export default function SaasDashboard() {
      await signOut();
   };
 
-  const isLoading = loadingProfile || loadingSites;
+  const isLoading = loadingProfile || loadingSites || loadingChecklist;
 
   if (isLoading) {
     return (
@@ -163,78 +170,84 @@ export default function SaasDashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Tus sitios</h2>
-          <Button 
-            onClick={() => navigate('/onboarding')} 
-            disabled={!canAddSite}
-            title={!canAddSite ? `Límite de ${sitesLimit} sitios alcanzado` : undefined}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Añadir sitio
-          </Button>
-        </div>
-
-        {sites.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Globe className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium mb-2">No tienes sitios todavía</h3>
-              <p className="text-muted-foreground mb-4">
-                Crea tu primer sitio para empezar a generar artículos automáticamente
-              </p>
-              <Button onClick={() => navigate('/onboarding')}>
-                <Plus className="w-4 h-4 mr-2" />
-                Crear mi primer sitio
-              </Button>
-            </CardContent>
-          </Card>
+        {showChecklist ? (
+          <SetupChecklist site={sites[0]} />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {sites.map((site, index) => (
-              <SiteCard
-                key={site.id}
-                site={site}
-                articleCount={getArticleCountForSite(site.id)}
-                hasWordPress={!!wpConfigsMap[site.id]}
-                onGenerateArticle={() => handleGenerateArticle(site.id)}
-                onViewArticles={() => navigate(`/site/${site.id}`)}
-                onConfigureWordPress={() => navigate(`/site/${site.id}?tab=wordpress`)}
-                onEdit={() => navigate(`/site/${site.id}?tab=settings`)}
-                onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
-                 isGenerating={isGenerating(site.id)}
-                isFirstSite={index === 0}
-              />
-            ))}
-          </div>
-        )}
-
-        {!canAddSite && (
-          <Card className="mt-6 border-primary/20 bg-primary/5">
-            <CardContent className="py-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium">Has alcanzado el límite de sitios</p>
-                <p className="text-sm text-muted-foreground">
-                  Actualiza tu plan para gestionar más sitios
-                </p>
-              </div>
-              <Button variant="default" onClick={() => navigate('/billing')}>
-                Actualizar plan
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">Tus sitios</h2>
+              <Button 
+                onClick={() => navigate('/onboarding')} 
+                disabled={!canAddSite}
+                title={!canAddSite ? `Límite de ${sitesLimit} sitios alcanzado` : undefined}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Añadir sitio
               </Button>
-            </CardContent>
-          </Card>
-        )}
+            </div>
 
-        {/* Import/Export section - Solo para plan Agency */}
-        {plan === 'agency' && (
-          <div className="mt-6">
-            <SiteImportExport
-              sites={sites}
-              articles={articles}
-              sitesLimit={sitesLimit}
-              onImportSites={(sitesToImport) => importSitesMutation.mutate(sitesToImport)}
-            />
-          </div>
+            {sites.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Globe className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-medium mb-2">No tienes sitios todavía</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Crea tu primer sitio para empezar a generar artículos automáticamente
+                  </p>
+                  <Button onClick={() => navigate('/onboarding')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Crear mi primer sitio
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {sites.map((site, index) => (
+                  <SiteCard
+                    key={site.id}
+                    site={site}
+                    articleCount={getArticleCountForSite(site.id)}
+                    hasWordPress={!!wpConfigsMap[site.id]}
+                    onGenerateArticle={() => handleGenerateArticle(site.id)}
+                    onViewArticles={() => navigate(`/site/${site.id}`)}
+                    onConfigureWordPress={() => navigate(`/site/${site.id}?tab=wordpress`)}
+                    onEdit={() => navigate(`/site/${site.id}?tab=settings`)}
+                    onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
+                    isGenerating={isGenerating(site.id)}
+                    isFirstSite={index === 0}
+                  />
+                ))}
+              </div>
+            )}
+
+            {!canAddSite && (
+              <Card className="mt-6 border-primary/20 bg-primary/5">
+                <CardContent className="py-4 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Has alcanzado el límite de sitios</p>
+                    <p className="text-sm text-muted-foreground">
+                      Actualiza tu plan para gestionar más sitios
+                    </p>
+                  </div>
+                  <Button variant="default" onClick={() => navigate('/billing')}>
+                    Actualizar plan
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Import/Export section - Solo para plan Agency */}
+            {plan === 'agency' && (
+              <div className="mt-6">
+                <SiteImportExport
+                  sites={sites}
+                  articles={articles}
+                  sitesLimit={sitesLimit}
+                  onImportSites={(sitesToImport) => importSitesMutation.mutate(sitesToImport)}
+                />
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>
