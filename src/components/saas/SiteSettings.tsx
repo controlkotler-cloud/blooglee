@@ -77,19 +77,21 @@ function utcToLocal(utcHour: number): number {
   return Math.floor(local);
 }
 
-const COLOR_PALETTE_OPTIONS = [
-  { value: 'warm neutrals', label: 'Neutros cálidos' },
-  { value: 'cool whites and blues', label: 'Blancos y azules' },
-  { value: 'earthy greens', label: 'Verdes naturales' },
-  { value: 'soft pastels', label: 'Pasteles suaves' },
+const MOOD_OPTIONS = [
+  { value: 'warm_and_welcoming', label: 'Cercano y cálido', icon: '🌅' },
+  { value: 'clean_and_clinical', label: 'Profesional y limpio', icon: '🏢' },
+  { value: 'energetic', label: 'Dinámico y activo', icon: '⚡' },
+  { value: 'calm_and_trustworthy', label: 'Natural y tranquilo', icon: '🌿' },
 ];
 
-const MOOD_OPTIONS = [
-  { value: 'warm and welcoming', label: 'Cercano y cálido' },
-  { value: 'clean and clinical', label: 'Profesional y limpio' },
-  { value: 'energetic and vibrant', label: 'Dinámico y activo' },
-  { value: 'calm and natural', label: 'Natural y tranquilo' },
-];
+/** Parse color_palette string (comma-separated hex or legacy preset) into array */
+function parsePaletteColors(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  if (raw.includes('#')) {
+    return raw.split(',').map(c => c.trim()).filter(c => /^#[0-9a-fA-F]{6}$/.test(c));
+  }
+  return []; // legacy preset string — treat as empty
+}
 
 const formSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio').max(100),
@@ -166,8 +168,8 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       content_pillars: site.content_pillars || ['educational', 'trends', 'seasonal'],
       avoid_topics: (site.avoid_topics || []).join(', '),
       preferred_length: site.preferred_length || 'medium',
-      color_palette: site.color_palette || 'warm neutrals',
-      mood: site.mood || 'warm and welcoming',
+      color_palette: site.color_palette || '',
+      mood: site.mood || 'warm_and_welcoming',
     },
   });
 
@@ -236,8 +238,8 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       avoid_topics: avoidTopicsArray,
       preferred_length: data.preferred_length || null,
       // Image style fields
-      color_palette: data.color_palette || 'warm neutrals',
-      mood: data.mood || 'warm and welcoming',
+      color_palette: data.color_palette || null,
+      mood: data.mood || null,
     });
   };
 
@@ -406,25 +408,65 @@ export function SiteSettings({ site }: SiteSettingsProps) {
             </div>
 
             {watchedIncludeImage && (
-              <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t">
+              <div className="space-y-4 pt-2 border-t">
+                {/* Color palette — visual hex swatches */}
                 <div className="space-y-2">
                   <Label>Paleta de colores de tu marca</Label>
-                  <Select
-                    value={watch('color_palette')}
-                    onValueChange={(v) => setValue('color_palette', v, { shouldDirty: true })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COLOR_PALETTE_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {(() => {
+                    const paletteColors = parsePaletteColors(watch('color_palette'));
+
+                    if (paletteColors.length === 0) {
+                      return (
+                        <p className="text-sm text-muted-foreground py-2">
+                          Sin paleta detectada — introduce la URL de tu web en <strong>Información básica</strong> para extraerla automáticamente.
+                        </p>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {paletteColors.map((hex, i) => (
+                            <div key={i} className="flex flex-col items-center gap-1 group relative">
+                              <div
+                                className="w-7 h-7 rounded border border-border shadow-sm"
+                                style={{ backgroundColor: hex }}
+                              />
+                              <span className="text-[10px] text-muted-foreground font-mono">{hex}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newColors = paletteColors.filter((_, j) => j !== i);
+                                  setValue('color_palette', newColors.join(',') || '', { shouldDirty: true });
+                                }}
+                                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          {/* Add color picker */}
+                          <label className="flex flex-col items-center gap-1 cursor-pointer" title="Añadir color">
+                            <div className="w-7 h-7 rounded border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground text-sm hover:border-violet-400 transition-colors">
+                              +
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">Añadir</span>
+                            <input
+                              type="color"
+                              className="sr-only"
+                              onChange={(e) => {
+                                const newColors = [...paletteColors, e.target.value];
+                                setValue('color_palette', newColors.join(','), { shouldDirty: true });
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
+
+                {/* Mood — visual select */}
                 <div className="space-y-2">
                   <Label>Estilo visual de tus imágenes</Label>
                   <Select
@@ -437,7 +479,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
                     <SelectContent>
                       {MOOD_OPTIONS.map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
+                          {opt.icon} {opt.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
