@@ -99,10 +99,14 @@
 
   html {
     font-family: var(--font-body);
+    overflow-x: hidden;
+    overscroll-behavior: none;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
+    overflow-x: hidden;
+    overscroll-behavior: none;
   }
 
   h1, h2, h3, h4, h5, h6 {
