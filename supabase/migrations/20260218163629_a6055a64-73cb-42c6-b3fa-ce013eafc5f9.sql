@@ -1,0 +1,1 @@
+ALTER TABLE public.sites ALTER COLUMN mood SET DEFAULT NULL;
