@@ -1,4 +1,5 @@
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { useColorPalette } from '@/hooks/useColorPalette';
 import { OnboardingLayout } from './OnboardingLayout';
 import { ProgressBar } from './ProgressBar';
 import { BusinessStep } from './steps/BusinessStep';
@@ -37,6 +38,8 @@ export function OnboardingWizard() {
     completeWizard,
   } = useOnboarding();
 
+  const { colors, extractionStatus } = useColorPalette();
+
   if (isLoading) {
     return (
       <OnboardingLayout>
@@ -71,7 +74,15 @@ export function OnboardingWizard() {
         />
       )}
       {currentStep === 3 && (
-        <MoodStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} />
+        <MoodStep
+          onNext={nextStep}
+          onBack={prevStep}
+          saveStepData={saveStepData}
+          stepData={stepData}
+          siteId={siteId}
+          colors={colors}
+          extractionStatus={extractionStatus}
+        />
       )}
       {currentStep === 4 && (
         <TopicStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} />
