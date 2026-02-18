@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChecklist } from '@/hooks/useChecklist';
 import { useProfile } from '@/hooks/useProfile';
@@ -6,6 +7,7 @@ import { useAllArticlesSaas, type ArticleContent } from '@/hooks/useArticlesSaas
 import { useWordPressConfigsBatch } from '@/hooks/useWordPressConfigSaas';
 import { SetupProgress } from './SetupProgress';
 import { ChecklistItem } from './ChecklistItem';
+import { WordPressSetup } from '@/components/wordpress/WordPressSetup';
 import { MessageCircle } from 'lucide-react';
 
 const TONE_LABELS: Record<string, string> = {
@@ -30,6 +32,7 @@ interface SetupChecklistProps {
 export function SetupChecklist({ site }: SetupChecklistProps) {
   const navigate = useNavigate();
   const { data: profile } = useProfile();
+  const [showWPSetup, setShowWPSetup] = useState(false);
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
@@ -40,6 +43,7 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
     checklistItems,
     progressPercentage,
     getNextPendingStep,
+    updateStep,
     isLoading,
   } = useChecklist(site.id);
 
@@ -84,7 +88,7 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
           title: 'Conectar tu WordPress',
           description: 'Sin esto, no podemos publicar en tu blog. Tarda unos 5 minutos.',
           actionLabel: 'Conectar WordPress →',
-          onAction: () => navigate(`/site/${site.id}?tab=wordpress`),
+          onAction: () => setShowWPSetup(true),
         };
       case 'first_publish':
         return {
@@ -116,6 +120,22 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
         };
     }
   };
+
+  // If showing WordPress setup, render that instead
+  if (showWPSetup) {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto">
+        <WordPressSetup
+          siteId={site.id}
+          onClose={() => setShowWPSetup(false)}
+          onComplete={() => {
+            setShowWPSetup(false);
+            updateStep('wordpress_connect', 'completed');
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
