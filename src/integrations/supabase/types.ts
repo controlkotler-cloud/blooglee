@@ -485,6 +485,91 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_checklist: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          site_id: string
+          status: string | null
+          step_key: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          site_id: string
+          status?: string | null
+          step_key: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          site_id?: string
+          status?: string | null
+          step_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_checklist_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onboarding_progress: {
+        Row: {
+          checklist_completed: boolean | null
+          created_at: string | null
+          current_step: number | null
+          id: string
+          site_id: string
+          step_data: Json | null
+          updated_at: string | null
+          user_id: string
+          wizard_completed: boolean | null
+        }
+        Insert: {
+          checklist_completed?: boolean | null
+          created_at?: string | null
+          current_step?: number | null
+          id?: string
+          site_id: string
+          step_data?: Json | null
+          updated_at?: string | null
+          user_id: string
+          wizard_completed?: boolean | null
+        }
+        Update: {
+          checklist_completed?: boolean | null
+          created_at?: string | null
+          current_step?: number | null
+          id?: string
+          site_id?: string
+          step_data?: Json | null
+          updated_at?: string | null
+          user_id?: string
+          wizard_completed?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_progress_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_surveys: {
         Row: {
           id: string
@@ -698,6 +783,7 @@ export type Database = {
           target_audience: string | null
           tone: string | null
           updated_at: string
+          use_brand_colors: boolean | null
           user_id: string
           wordpress_context: Json | null
         }
@@ -729,6 +815,7 @@ export type Database = {
           target_audience?: string | null
           tone?: string | null
           updated_at?: string
+          use_brand_colors?: boolean | null
           user_id: string
           wordpress_context?: Json | null
         }
@@ -760,6 +847,7 @@ export type Database = {
           target_audience?: string | null
           tone?: string | null
           updated_at?: string
+          use_brand_colors?: boolean | null
           user_id?: string
           wordpress_context?: Json | null
         }
@@ -1019,6 +1107,47 @@ export type Database = {
             foreignKeyName: "wordpress_configs_site_id_fkey"
             columns: ["site_id"]
             isOneToOne: true
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wordpress_diagnostics: {
+        Row: {
+          check_type: string
+          checked_at: string | null
+          id: string
+          message: string | null
+          raw_response: Json | null
+          site_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          check_type: string
+          checked_at?: string | null
+          id?: string
+          message?: string | null
+          raw_response?: Json | null
+          site_id: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          check_type?: string
+          checked_at?: string | null
+          id?: string
+          message?: string | null
+          raw_response?: Json | null
+          site_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wordpress_diagnostics_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
             referencedRelation: "sites"
             referencedColumns: ["id"]
           },
