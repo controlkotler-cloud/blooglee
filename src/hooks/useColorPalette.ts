@@ -3,10 +3,23 @@ import { supabase } from '@/integrations/supabase/client';
 
 type ExtractionStatus = 'idle' | 'extracting' | 'done' | 'failed';
 
-/** Parse comma-separated hex string into array */
+/** Parse comma-separated hex string into array, handling the 'extracted:' marker */
 function parsePalette(raw: string | null | undefined): string[] {
   if (!raw || !raw.includes('#')) return [];
-  return raw.split(',').map(c => c.trim()).filter(c => /^#[0-9a-fA-F]{6}$/.test(c));
+  // Remove 'extracted:' prefix if present
+  const cleaned = raw.replace(/^extracted:/, '');
+  if (!cleaned) return [];
+  return cleaned.split(',').map(c => c.trim()).filter(c => /^#[0-9a-fA-F]{6}$/.test(c));
+}
+
+/** Check if value indicates extraction has completed */
+function isExtractionDone(raw: string | null | undefined): boolean {
+  if (!raw) return false;
+  // 'extracted:' means extraction ran but found no colors
+  if (raw.startsWith('extracted:')) return true;
+  // Contains hex colors = extraction done with results
+  if (raw.includes('#')) return true;
+  return false;
 }
 
 export function useColorPalette() {
@@ -27,17 +40,21 @@ export function useColorPalette() {
     setExtractionStatus('extracting');
     setColors([]);
 
+    console.log('[useColorPalette] Triggering extraction for:', url, 'site:', siteId);
+
     // Fire-and-forget: invoke edge function
     supabase.functions.invoke('extract-color-palette', {
       body: { url, site_id: siteId },
+    }).then((res) => {
+      console.log('[useColorPalette] Edge function response:', res.data);
     }).catch((err) => {
-      console.error('Color extraction invoke error:', err);
+      console.error('[useColorPalette] Edge function error:', err);
     });
 
     // Poll sites table for color_palette updates
     let elapsed = 0;
     const POLL_INTERVAL = 3000;
-    const MAX_WAIT = 30000;
+    const MAX_WAIT = 45000;
 
     stopPolling();
 
@@ -52,28 +69,17 @@ export function useColorPalette() {
 
       const raw = data?.color_palette as string | null;
 
-      // color_palette is now a comma-separated hex string
-      // Empty string means extraction completed but found no colors
-      if (raw !== null && raw !== undefined) {
+      if (isExtractionDone(raw)) {
         const palette = parsePalette(raw);
-        if (palette.length > 0) {
-          setColors(palette);
-          setExtractionStatus('done');
-          stopPolling();
-          return;
-        }
-        // If raw is empty string or has no valid hex, extraction is done with no results
-        if (raw === '' || (raw && !raw.includes('#'))) {
-          // Could be empty result or legacy preset — check elapsed time
-          if (elapsed >= POLL_INTERVAL * 2) {
-            setExtractionStatus('done');
-            stopPolling();
-            return;
-          }
-        }
+        setColors(palette);
+        setExtractionStatus('done');
+        stopPolling();
+        console.log('[useColorPalette] Extraction complete, colors:', palette);
+        return;
       }
 
       if (elapsed >= MAX_WAIT) {
+        console.log('[useColorPalette] Polling timed out');
         setExtractionStatus('failed');
         stopPolling();
       }
