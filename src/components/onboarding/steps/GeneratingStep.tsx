@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { RefreshCw } from 'lucide-react';
+import { track } from '@/lib/analytics';
 import type { OnboardingStepData } from '@/hooks/useOnboarding';
 
 const TIPS = [
@@ -58,6 +59,8 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
 
   const generateArticle = async () => {
     setStatus('generating');
+    const startTime = Date.now();
+    track('onboarding_article_generation_started');
 
     try {
       const now = new Date();
@@ -76,6 +79,12 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
       if (articleId) {
         await saveStepData('step5', { article_id: articleId });
       }
+
+      const durationSeconds = Math.round((Date.now() - startTime) / 1000);
+      track('onboarding_article_generation_completed', {
+        duration_seconds: durationSeconds,
+        word_count: data?.word_count ?? 0,
+      });
 
       setStatus('done');
       setTimeout(() => onNext(), 1200);

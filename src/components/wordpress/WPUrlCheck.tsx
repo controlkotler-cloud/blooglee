@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { ArrowLeft, Loader2, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { track } from '@/lib/analytics';
 
 interface WPUrlCheckProps {
   siteId: string;
@@ -75,8 +76,13 @@ export function WPUrlCheck({ siteId, onBack, onContinue, onSkip }: WPUrlCheckPro
 
       if (checkResult.is_wordpress && checkResult.api_rest_active) {
         setStatus('success');
+        track('wp_url_check', { result: 'success' });
+      } else if (checkResult.is_wordpress && !checkResult.api_rest_active) {
+        setStatus('error');
+        track('wp_url_check', { result: 'api_disabled' });
       } else {
         setStatus('error');
+        track('wp_url_check', { result: 'not_wordpress' });
       }
     } catch {
       setResult({ is_wordpress: false, api_rest_active: false, ssl_valid: false, detected_plugins: [], site_name: '', permalink_structure: '', error_type: 'not_found' });

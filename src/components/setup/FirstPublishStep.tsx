@@ -9,6 +9,7 @@ import { usePublishToWordPressSaas } from '@/hooks/useArticlesSaas';
 import type { Article, ArticleContent } from '@/hooks/useArticlesSaas';
 import { Loader2, ExternalLink, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { track } from '@/lib/analytics';
 
 interface FirstPublishStepProps {
   siteId: string;
@@ -107,6 +108,13 @@ export function FirstPublishStep({ siteId, onComplete, onBack }: FirstPublishSte
       });
 
       if (result.success && result.post_url) {
+        // Track first article published
+        const profile = await supabase.from('profiles').select('created_at').eq('user_id', user!.id).single();
+        const daysSinceReg = profile.data?.created_at
+          ? Math.round((Date.now() - new Date(profile.data.created_at).getTime()) / 86400000)
+          : 0;
+        track('first_article_published', { days_since_registration: daysSinceReg, publish_type: publishOption });
+
         // Update article with wp_post_url
         await supabase
           .from('articles')

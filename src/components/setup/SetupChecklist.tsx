@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChecklist } from '@/hooks/useChecklist';
 import { useProfile } from '@/hooks/useProfile';
@@ -12,6 +12,7 @@ import { ChecklistItem } from './ChecklistItem';
 import { FirstPublishStep } from './FirstPublishStep';
 import { ContentProfileStep } from './ContentProfileStep';
 import { AutoPublishStep } from './AutoPublishStep';
+import { track } from '@/lib/analytics';
 import { WordPressSetup } from '@/components/wordpress/WordPressSetup';
 import { MessageCircle, PartyPopper } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,14 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
   const { data: profile } = useProfile();
   const updateSiteMutation = useUpdateSite();
   const [activeStep, setActiveStep] = useState<ActiveStep>(null);
+  const stepStartTimeRef = useRef<number>(0);
+  const checklistStartTimeRef = useRef<number>(Date.now());
+
+  const openStep = (step: ActiveStep) => {
+    stepStartTimeRef.current = Date.now();
+    if (step) track('checklist_step_started', { step });
+    setActiveStep(step);
+  };
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
@@ -112,14 +121,14 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
             ? 'WordPress conectado ✓'
             : 'Sin esto, no podemos publicar en tu blog. Tarda unos 5 minutos.',
           actionLabel: hasWordPress ? 'Configurar' : 'Conectar WordPress →',
-          onAction: () => setActiveStep('wordpress_connect'),
+          onAction: () => openStep('wordpress_connect'),
         };
       case 'first_publish':
         return {
           title: 'Publicar tu primer artículo',
           description: 'Publica el artículo que hemos generado.',
           actionLabel: 'Publicar →',
-          onAction: () => setActiveStep('first_publish'),
+          onAction: () => openStep('first_publish'),
           disabled: !hasWordPress,
         };
       case 'content_profile':
@@ -127,14 +136,14 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
           title: 'Personalizar tu contenido',
           description: 'Ajusta los temas y el estilo de tus artículos.',
           actionLabel: 'Personalizar',
-          onAction: () => setActiveStep('content_profile'),
+          onAction: () => openStep('content_profile'),
         };
       case 'auto_publish':
         return {
           title: 'Activar publicación automática',
           description: 'Blooglee publicará artículos por ti.',
           actionLabel: 'Activar →',
-          onAction: () => setActiveStep('auto_publish'),
+          onAction: () => openStep('auto_publish'),
           disabled: !hasWordPress,
         };
       default:
@@ -152,6 +161,7 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
           onComplete={() => {
             setActiveStep(null);
             updateStep('wordpress_connect', 'completed');
+            track('checklist_step_completed', { step: 'wordpress_connect', duration_seconds: Math.round((Date.now() - stepStartTimeRef.current) / 1000) });
           }}
         />
       </div>
@@ -227,6 +237,7 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
               frequency: config.frequency,
               review_mode: config.reviewMode,
             });
+            track('checklist_step_completed', { step: 'auto_publish', duration_seconds: Math.round((Date.now() - stepStartTimeRef.current) / 1000) });
 
             // Check if all steps are now completed
             const pendingAfter = checklistItems.filter(
@@ -234,6 +245,7 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
             );
             if (pendingAfter.length === 0) {
               await markChecklistComplete();
+              track('checklist_completed', { total_duration_seconds: Math.round((Date.now() - checklistStartTimeRef.current) / 1000) });
             }
 
             toast.success('Publicación automática activada');
