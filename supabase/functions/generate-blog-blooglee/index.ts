@@ -1332,8 +1332,8 @@ const handler = async (req: Request): Promise<Response> => {
     const wordCount = blogData.content.split(/\s+/).length;
     console.log(`Content ready: "${blogData.title}" (${wordCount} words)`);
 
-    // Generate AI image with Blooglee aesthetics
-    let imageUrl = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200&h=630&fit=crop";
+    // Generate AI image with Blooglee aesthetics (with retry)
+    let imageUrl: string | null = null;
     
     const aiImage = await generateAIImage(lovableApiKey, blogData.title, category);
     
@@ -1343,24 +1343,67 @@ const handler = async (req: Request): Promise<Response> => {
         imageUrl = storedUrl;
         console.log("✓ AI image generated and stored");
       } else {
-        console.log("AI image storage failed, using Unsplash fallback");
-        if (unsplashKey) {
-          const unsplashUrl = await fetchUnsplashImage(
-            category === 'Empresas' ? "business digital marketing technology" : "creative agency team marketing",
-            unsplashKey
-          );
-          if (unsplashUrl) imageUrl = unsplashUrl;
-        }
+        console.log("AI image storage failed, retrying AI generation...");
       }
     } else {
-      console.log("AI image generation failed, using Unsplash fallback");
-      if (unsplashKey) {
-        const unsplashUrl = await fetchUnsplashImage(
-          category === 'Empresas' ? "business digital marketing technology" : "marketing agency creative",
-          unsplashKey
-        );
-        if (unsplashUrl) imageUrl = unsplashUrl;
+      console.log("AI image attempt 1 failed, retrying with simplified prompt in 2s...");
+    }
+
+    // Retry AI generation if first attempt failed
+    if (!imageUrl) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const retryImage = await generateAIImage(lovableApiKey, `Blog header about ${blogData.title}. Abstract digital art, purple-fuchsia-coral gradient.`, category);
+      if (retryImage?.isAI && retryImage.url) {
+        const storedUrl = await uploadImageToStorage(supabase, retryImage.url, blogData.slug);
+        if (storedUrl) {
+          imageUrl = storedUrl;
+          console.log("✓ AI image generated on retry and stored");
+        }
       }
+    }
+
+    // Contextual Unsplash fallback
+    if (!imageUrl && unsplashKey) {
+      console.log("AI failed after 2 attempts, falling back to contextual Unsplash...");
+      // Generate contextual query with AI
+      let unsplashQuery = category === 'Empresas' ? "business digital marketing technology" : "creative agency team marketing";
+      try {
+        const queryResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${lovableApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [{
+              role: "user",
+              content: `Generate a short Unsplash search query (3-5 English words) for a blog header image about: "${blogData.title}". Return ONLY the query. Focus on abstract or conceptual imagery.`
+            }],
+          }),
+        });
+        if (queryResponse.ok) {
+          const queryData = await queryResponse.json();
+          const generated = queryData.choices?.[0]?.message?.content?.trim();
+          if (generated && generated.length > 3 && generated.length < 80) {
+            unsplashQuery = generated;
+            console.log("AI-generated Unsplash query:", unsplashQuery);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to generate contextual Unsplash query:", e);
+      }
+      
+      const unsplashUrl = await fetchUnsplashImage(unsplashQuery, unsplashKey);
+      if (unsplashUrl) {
+        imageUrl = unsplashUrl;
+        console.log("Image from contextual Unsplash search");
+      }
+    }
+
+    // No static fallback — prefer no image over irrelevant image
+    if (!imageUrl) {
+      console.log("All image sources failed. Blog post will be saved without image.");
     }
 
     // Clean generated content before saving (prevent duplicate H1, "Título:" lines, AI meta-text)
