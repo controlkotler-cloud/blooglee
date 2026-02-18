@@ -1,200 +1,80 @@
 
-# Plan: Análisis Automático de Web en Onboarding
+# Plan: Mejorar el sistema de fallback de imagenes cuando falla la IA
 
-## Objetivo
+## El problema actual
 
-Permitir que el usuario pegue la URL de su web en el onboarding y Blooglee extraiga automáticamente: sector, descripción, ubicación, tono, audiencia, keywords y pilares de contenido. El usuario revisa y confirma antes de crear el sitio.
+Cuando la generacion de imagen con IA falla (que ocurre con cierta frecuencia segun los logs), el sistema cae en este flujo:
 
----
+1. Intenta generar imagen con IA (google/gemini-3-pro-image-preview) -- FALLA
+2. Busca en Unsplash con `sectorContext.fallbackQuery` -- pero el sector "farmacia" no existe en `SECTOR_IMAGE_CONTEXTS`, asi que usa el query generico `"professional business success modern"` -- resultado: chica delante de un ordenador
+3. Si Unsplash tambien falla, usa `FALLBACK_IMAGES` hardcodeadas (3 fotos genericas de oficina)
 
-## Fase 1: Backend — Edge Function `analyze-website-saas`
+El resultado: imagenes completamente irrelevantes para el contenido del articulo.
 
-### Qué hace
-1. Recibe `{ url: string }` del frontend (requiere JWT auth)
-2. Usa **Firecrawl** (conector) para scraping → markdown + branding
-3. Envía el markdown a **Gemini 2.5 Flash** con un prompt estructurado
-4. Devuelve JSON tipado:
+## Solucion propuesta (3 mejoras)
 
-```json
-{
-  "business_name": "Farmacia Central",
-  "sector": "farmacia",
-  "description": "Farmacia especializada en dermocosmética natural...",
-  "location": "Barcelona",
-  "geographic_scope": "local",
-  "tone": "professional",
-  "target_audience": "Familias jóvenes preocupadas por la salud natural",
-  "content_pillars": ["educational", "seasonal", "trends"],
-  "suggested_keywords": ["dermocosmética natural", "farmacia Barcelona"],
-  "languages_detected": ["spanish", "catalan"],
-  "confidence": 0.85
-}
-```
+### 1. Reintentar la generacion con IA antes de ir a Unsplash
 
-### Archivos
-- `supabase/functions/analyze-website-saas/index.ts`
-
-### Dependencias
-- Conector Firecrawl (verificar si está vinculado)
-- Secret `LOVABLE_API_KEY` (ya existe)
-
----
-
-## Fase 2: UI — Rediseño del Onboarding
-
-### Nuevo flujo (4 pasos en vez de 3)
+En lugar de abandonar la IA al primer fallo, implementar hasta 2 reintentos con el modelo de imagen. Esto reduce drasticamente la probabilidad de caer en Unsplash.
 
 ```
-Paso 0 (NUEVO): "¿Tienes web?"
-   ├─ Sí → Input URL + botón "Analizar" → loading animado → preview resultados
-   └─ No / Saltar → Flujo manual actual (paso 1)
-
-Paso 1: "Tu negocio" (pre-rellenado si hubo análisis)
-Paso 2: "Ubicación" (pre-rellenado)
-Paso 3: "Preferencias" (idiomas y frecuencia, pre-rellenado)
+Intento 1: google/gemini-3-pro-image-preview (actual)
+   |-- fallo --> Intento 2: mismo modelo, prompt simplificado
+                    |-- fallo --> Unsplash contextual (mejorado)
+                                    |-- fallo --> sin imagen (mejor que una mala)
 ```
 
-### Diseño del Paso 0 — Pantalla de análisis
+### 2. Completar SECTOR_IMAGE_CONTEXTS con los sectores que faltan
 
-#### Layout
-- Card centrada como el resto del onboarding (max-w-2xl)
-- Logo Blooglee arriba
-- Título gradient: **"¿Tu negocio tiene web?"**
-- Subtítulo: "Pega la URL y analizaremos tu web para configurar todo automáticamente"
+Anadir entradas para `farmacia` y otros sectores detectados por `detectSectorCategory` que no tienen contexto de imagen. Esto mejora las busquedas Unsplash cuando se usan como fallback.
 
-#### Componentes
-1. **Input URL** con icono Globe, estilo `input-aurora`
-   - Placeholder: "https://www.tunegocio.com"
-   - Validación: formato URL válido
-2. **Botón "Analizar mi web ✨"** con gradiente Blooglee (violet→fuchsia→orange)
-   - Estado loading: shimmer animation + texto "Analizando tu web..."
-3. **Link "Prefiero hacerlo manual →"** debajo, estilo sutil muted
+Sectores que faltan en el mapa:
+- `farmacia` (se detecta pero no tiene contexto de imagen)
 
-#### Estado de carga (mientras analiza ~10-15s)
-- Reemplaza el formulario por una animación de progreso:
-  - Icono Search animado con pulse
-  - Steps secuenciales con checkmarks:
-    1. ✅ "Conectando con tu web..."
-    2. ✅ "Leyendo contenido..."
-    3. ⏳ "Analizando con IA..."
-    4. ○ "Preparando tu configuración..."
-  - Texto inferior: "Esto suele tardar unos 10-15 segundos"
+### 3. Usar el topic del articulo como query de Unsplash (en vez del fallback generico)
 
-#### Resultado del análisis (preview antes de continuar)
-- Card con resumen visual de lo detectado:
-  - **Nombre**: texto grande con el nombre detectado
-  - **Sector**: badge con emoji + sector
-  - **Ubicación**: badge con pin + ciudad
-  - **Tono**: badge descriptivo
-  - **Keywords**: chips/tags con las keywords sugeridas (scrollable horizontal)
-  - **Confianza**: indicador visual si confidence > 0.7
-- Botón principal: "¡Perfecto, continuar! ✨" → pasa al paso 1 con datos pre-rellenados
-- Link secundario: "Quiero ajustar algunos datos" → pasa al paso 1 con campos editables
+Cuando se cae a Unsplash, generar un query contextual con IA basado en el topic y sector del articulo, en lugar de usar el `fallbackQuery` generico del sector. Similar a lo que ya hace `regenerate-image`.
 
-### Refactoring de Onboarding.tsx (423 líneas → componentes)
+### 4. Eliminar las FALLBACK_IMAGES estaticas -- preferir "sin imagen" a "imagen mala"
 
-| Archivo | Contenido |
-|---------|-----------|
-| `src/components/saas/onboarding/OnboardingCard.tsx` | Card wrapper con logo, step indicators, progress bar |
-| `src/components/saas/onboarding/WebAnalysisStep.tsx` | Paso 0: input URL + estados loading/resultado |
-| `src/components/saas/onboarding/BusinessInfoStep.tsx` | Paso 1: nombre, sector, descripción |
-| `src/components/saas/onboarding/LocationStep.tsx` | Paso 2: ubicación y ámbito geográfico |
-| `src/components/saas/onboarding/PreferencesStep.tsx` | Paso 3: idiomas y frecuencia |
-| `src/components/saas/onboarding/AnalysisResultPreview.tsx` | Preview de resultados del análisis |
-| `src/components/saas/onboarding/AnalysisLoadingState.tsx` | Animación de carga del análisis |
-| `src/components/saas/onboarding/constants.ts` | SECTORS, GEOGRAPHIC_SCOPES, PUBLISH_FREQUENCIES |
-| `src/hooks/useWebsiteAnalysis.ts` | Hook para llamar a la Edge Function |
-| `src/pages/Onboarding.tsx` | Orquestador ligero: estado global + navegación |
+Si todo falla (IA x2 + Unsplash contextual), es mejor guardar el articulo sin imagen que entregar una foto de oficina genérica a un cliente de farmacia. El articulo sigue siendo valido y el cliente puede regenerar la imagen manualmente desde el dashboard.
 
----
+## Cambios tecnicos
 
-## Fase 3: Integración de datos
+### Archivo: `supabase/functions/generate-article-saas/index.ts`
 
-### Mapeo análisis → formulario
-| Campo análisis | Campo formulario | Notas |
-|----------------|-----------------|-------|
-| `business_name` | `name` | Pre-rellena input |
-| `sector` | `sector` | Mapea a SECTORS enum, o "otro" + customSector |
-| `description` | `description` | Pre-rellena textarea |
-| `location` | `location` | Pre-rellena input |
-| `geographic_scope` | `geographicScope` | Selecciona botón correspondiente |
-| `languages_detected` | `languages` | Pre-selecciona checkboxes |
-
-### Campos enriquecidos (guardados al crear el sitio)
-| Campo análisis | Campo en tabla `sites` | Acción |
-|----------------|----------------------|--------|
-| `tone` | `tone` | Pasar a useCreateSite |
-| `target_audience` | `target_audience` | Pasar a useCreateSite |
-| `content_pillars` | `content_pillars` | Pasar a useCreateSite |
-| `suggested_keywords` | (no hay columna) | Guardar en description o ignorar por ahora |
-
-Verificar que `useCreateSite` acepta tone, target_audience y content_pillars. Si no, extender el mutation.
-
----
-
-## Fase 4: Prompt de análisis
-
-### System Prompt
-```
-Eres un analista experto en marketing digital y SEO español. Analizas páginas web y extraes información estructurada sobre el negocio.
-
-REGLAS:
-- Responde SOLO en JSON válido, sin markdown ni explicaciones
-- Si no puedes determinar un campo con confianza, usa null
-- El sector debe mapearse a uno de: farmacia, clinica_dental, clinica_estetica, fisioterapia, psicologia, nutricion, veterinaria, abogados, arquitectura, inmobiliaria, restaurante, hotel, gimnasio, ecommerce, tecnologia, marketing, consultoria, otro
-- El tono debe ser: formal, casual, technical, educational
-- Los pilares deben ser de: educational, trends, cases, seasonal, opinion
-- Las keywords deben ser términos reales de búsqueda SEO en español, no genéricos
-- geographic_scope: local, regional, national, international
-- Detecta idiomas presentes: spanish, catalan
-- confidence: 0.0-1.0 según cuánta información pudiste extraer
+**A. Anadir `farmacia` a `SECTOR_IMAGE_CONTEXTS`** (linea ~661):
+```typescript
+farmacia: {
+  examples: ["pharmacy shelves products wellness", "natural health supplements herbs", "wellness lifestyle healthy products"],
+  prohibitedTerms: ["pills closeup", "medicine bottles", "hospital", "surgery", "syringes", "blood"],
+  fallbackQuery: "pharmacy wellness natural health products"
+},
 ```
 
-### User Prompt
-```
-Analiza esta página web y extrae la información del negocio:
+**B. Modificar el bloque de imagen** (lineas ~1971-2112):
+- Reintento de IA: si el primer intento falla, esperar 2 segundos y reintentar con un prompt simplificado
+- Si la IA falla x2, generar un query contextual con IA para Unsplash (usando topic + sector, como hace `regenerate-image`)
+- Si Unsplash falla, guardar el articulo sin imagen (`imageResult = null`) en vez de usar `FALLBACK_IMAGES`
+- Eliminar el array `FALLBACK_IMAGES` (o dejarlo solo como ultimo recurso extremo)
 
-URL: {{url}}
+**C. Mantener intacto `regenerate-image/index.ts`** (zona protegida MKPro) -- no se toca.
 
-CONTENIDO:
-{{markdown_content}}
+### Archivo: `supabase/functions/generate-blog-blooglee/index.ts`
 
-Responde con este JSON:
-{
-  "business_name": "string",
-  "sector": "string",
-  "description": "string (2-3 frases: qué hace y qué lo diferencia)",
-  "location": "string | null",
-  "geographic_scope": "string",
-  "tone": "string",
-  "target_audience": "string",
-  "content_pillars": ["3 pilares recomendados"],
-  "suggested_keywords": ["5-8 keywords SEO"],
-  "languages_detected": ["idiomas"],
-  "confidence": number
-}
-```
+Aplicar la misma logica de reintento de IA si esta funcion tambien usa el mismo patron de fallback (verificar).
 
----
+## Lo que NO cambia
 
-## Orden de implementación
+- La UI del dashboard (no hay cambios de frontend)
+- La base de datos (no hay migraciones)
+- El prompt de imagen (ya se actualizo antes)
+- Las edge functions protegidas de MKPro
+- El flujo de regeneracion manual (`regenerate-image`)
 
-1. ✅ Verificar/vincular conector Firecrawl → `connect` tool
-2. Crear Edge Function `analyze-website-saas`
-3. Crear hook `useWebsiteAnalysis.ts`
-4. Extraer constantes a `constants.ts`
-5. Crear componentes de cada paso del onboarding
-6. Crear `WebAnalysisStep` + `AnalysisLoadingState` + `AnalysisResultPreview`
-7. Refactorizar `Onboarding.tsx` como orquestador
-8. Extender `useCreateSite` para campos enriquecidos si necesario
-9. Testing end-to-end
+## Resultado esperado
 
----
-
-## Notas técnicas
-- Firecrawl: usar `formats: ['markdown']`, `onlyMainContent: true`
-- Timeout: ~10-15s → UX de loading con steps es crítica
-- Fallback: si Firecrawl o IA falla → mensaje amigable + flujo manual
-- El paso 0 es **100% opcional** — el usuario siempre puede saltar
-- Rate limiting: protegido por JWT, no necesita extra
-- No se modifica ninguna tabla de BD (los campos ya existen en `sites`)
+- Los articulos tendran imagen generada por IA en la gran mayoria de casos (2 intentos)
+- Si la IA falla definitivamente, la busqueda en Unsplash sera contextual (basada en el topic real, no en un query generico)
+- Si todo falla, el articulo se guarda sin imagen en vez de con una foto irrelevante
+- El cliente puede regenerar la imagen desde el preview del articulo
