@@ -17,6 +17,7 @@ interface CheckResult {
   api_rest_active: boolean;
   detected_plugins: string[];
   site_name: string;
+  permalink_structure: string;
   error_type: string | null;
 }
 
@@ -26,6 +27,7 @@ export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }
   const [showNoPanel, setShowNoPanel] = useState(false);
   const [detection, setDetection] = useState<DetectionStatus>('idle');
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
+  const [detectedWpUrl, setDetectedWpUrl] = useState<string | null>(null);
 
   // Auto-detect WordPress from blogUrl on mount
   useEffect(() => {
@@ -45,6 +47,11 @@ export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }
         }
         const result = data as CheckResult;
         setCheckResult(result);
+        // Use the permalink_structure (detected WP root URL) if available
+        if (result.is_wordpress && result.api_rest_active && result.permalink_structure) {
+          const detectedRoot = result.permalink_structure.replace(/\/+$/, '');
+          setDetectedWpUrl(detectedRoot);
+        }
         setDetection(result.is_wordpress && result.api_rest_active ? 'detected' : 'not_detected');
       })
       .catch(() => {
@@ -55,8 +62,8 @@ export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }
   }, [blogUrl]);
 
   // WordPress auto-detected
-  if (detection === 'detected' && checkResult && blogUrl) {
-    const normalizedUrl = blogUrl.trim().replace(/\/+$/, '').replace(/^(?!https?:\/\/)/, 'https://');
+  if (detection === 'detected' && checkResult && (detectedWpUrl || blogUrl)) {
+    const wpRootUrl = detectedWpUrl || blogUrl!.trim().replace(/\/+$/, '').replace(/^(?!https?:\/\/)/, 'https://');
     return (
       <div className="space-y-6 animate-in fade-in duration-300">
         <div className="text-center space-y-2">
@@ -91,7 +98,7 @@ export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }
             <Button
               onClick={() => {
                 if (onWordPressDetected) {
-                  onWordPressDetected(normalizedUrl);
+                  onWordPressDetected(wpRootUrl);
                 } else {
                   onHasWordPress();
                 }
