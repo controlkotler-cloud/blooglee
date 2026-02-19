@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { track } from '@/lib/analytics';
 
 interface WPUrlCheckProps {
   siteId: string;
+  initialUrl?: string;
   onBack: () => void;
   onContinue: (url: string) => void;
   onSkip: () => void;
@@ -26,12 +27,19 @@ interface CheckResult {
 
 type CheckStatus = 'idle' | 'checking' | 'success' | 'error';
 
-export function WPUrlCheck({ siteId, onBack, onContinue, onSkip }: WPUrlCheckProps) {
+export function WPUrlCheck({ siteId, initialUrl, onBack, onContinue, onSkip }: WPUrlCheckProps) {
   const { user } = useAuth();
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(initialUrl?.replace(/^https?:\/\//, '') || '');
   const [status, setStatus] = useState<CheckStatus>('idle');
   const [result, setResult] = useState<CheckResult | null>(null);
 
+  // Auto-check if initialUrl was provided
+  useEffect(() => {
+    if (initialUrl && url && status === 'idle') {
+      handleCheck();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const normalizeUrl = (input: string): string => {
     let u = input.trim().replace(/\/+$/, '');
     if (!u.startsWith('http')) {
@@ -128,7 +136,7 @@ export function WPUrlCheck({ siteId, onBack, onContinue, onSkip }: WPUrlCheckPro
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="text-center space-y-2">
         <h2 className="text-xl font-display font-bold text-foreground">
-          ¿Cuál es la dirección de tu web?
+          {initialUrl ? 'Verificando tu WordPress' : '¿Cuál es la dirección de tu web?'}
         </h2>
       </div>
 
