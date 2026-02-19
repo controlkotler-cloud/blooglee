@@ -3,6 +3,7 @@ import { useOnboarding } from '@/hooks/useOnboarding';
 import { useColorPalette } from '@/hooks/useColorPalette';
 import { OnboardingLayout } from './OnboardingLayout';
 import { ProgressBar } from './ProgressBar';
+import { StepTransition } from './StepTransition';
 import { BusinessStep } from './steps/BusinessStep';
 import { ToneStep } from './steps/ToneStep';
 import { MoodStep } from './steps/MoodStep';
@@ -15,27 +16,10 @@ import { WordPressOnboardingStep } from './steps/WordPressOnboardingStep';
 import { track } from '@/lib/analytics';
 
 const STEP_NAMES: Record<number, string> = {
-  1: 'business',
-  2: 'tone',
-  3: 'mood',
-  4: 'content_prefs',
-  5: 'scheduling',
-  6: 'topic',
-  7: 'generating',
-  8: 'article_ready',
-  9: 'wordpress_setup',
+  1: 'business', 2: 'tone', 3: 'mood', 4: 'content_prefs',
+  5: 'scheduling', 6: 'topic', 7: 'generating', 8: 'article_ready', 9: 'wordpress_setup',
 };
 
-/**
- * Maps internal steps (1-9) to progress bar points (1-7):
- * step 1 → point 1 (Negocio)
- * step 2,3 → point 2 (Estilo)
- * step 4 → point 3 (Contenido)
- * step 5 → point 4 (Publicación)
- * step 6 → point 5 (Tema)
- * step 7 → point 6 (Generando)
- * step 8,9 → point 7 (¡Listo!)
- */
 function mapStepToProgressPoint(step: number): number {
   if (step <= 1) return 1;
   if (step <= 3) return 2;
@@ -48,20 +32,14 @@ function mapStepToProgressPoint(step: number): number {
 
 export function OnboardingWizard() {
   const {
-    currentStep,
-    stepData,
-    isLoading,
-    siteId,
-    saveStepData,
-    nextStep,
-    prevStep,
-    createProgress,
-    completeWizard,
+    currentStep, stepData, isLoading, siteId,
+    saveStepData, nextStep, prevStep, createProgress, completeWizard,
   } = useOnboarding();
 
   const wizardStartRef = useRef<number>(Date.now());
   const trackedStartRef = useRef(false);
   const prevStepRef = useRef<number | null>(null);
+  const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
 
   const { colors, extractionStatus } = useColorPalette();
 
@@ -73,7 +51,7 @@ export function OnboardingWizard() {
     }
   }, [isLoading]);
 
-  // Track step completion when step changes
+  // Track step completion + direction
   useEffect(() => {
     if (isLoading || prevStepRef.current === null) {
       prevStepRef.current = currentStep;
@@ -81,12 +59,12 @@ export function OnboardingWizard() {
     }
     const prev = prevStepRef.current;
     prevStepRef.current = currentStep;
+    setDirection(currentStep > prev ? 'forward' : 'backward');
     if (currentStep > prev) {
       track('onboarding_step_completed', { step: prev, step_name: STEP_NAMES[prev] ?? `step_${prev}` });
     }
   }, [currentStep, isLoading]);
 
-  // Track color palette extraction results
   useEffect(() => {
     if (extractionStatus === 'done' && colors.length > 0) {
       track('onboarding_color_palette_extracted', { colors_count: colors.length, source: 'firecrawl' });
@@ -113,82 +91,37 @@ export function OnboardingWizard() {
 
   const progressPoint = mapStepToProgressPoint(currentStep);
 
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return <BusinessStep onNext={nextStep} saveStepData={saveStepData} createProgress={createProgress} initialData={stepData.step1} />;
+      case 2:
+        return <ToneStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} siteId={siteId} />;
+      case 3:
+        return <MoodStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} siteId={siteId} colors={colors} extractionStatus={extractionStatus} />;
+      case 4:
+        return <ContentPrefsStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} siteId={siteId} />;
+      case 5:
+        return <SchedulingStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} siteId={siteId} />;
+      case 6:
+        return <TopicStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} />;
+      case 7:
+        return <GeneratingStep onNext={nextStep} saveStepData={saveStepData} stepData={stepData} siteId={siteId} />;
+      case 8:
+        return <ArticleReadyStep onFinish={handleCompleteWizard} onConnectWordPress={() => nextStep()} stepData={stepData} siteId={siteId} />;
+      case 9:
+        return <WordPressOnboardingStep onFinish={handleCompleteWizard} stepData={stepData} siteId={siteId} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <OnboardingLayout>
       <ProgressBar currentStep={progressPoint} totalSteps={7} />
-
-      {currentStep === 1 && (
-        <BusinessStep
-          onNext={nextStep}
-          saveStepData={saveStepData}
-          createProgress={createProgress}
-          initialData={stepData.step1}
-        />
-      )}
-      {currentStep === 2 && (
-        <ToneStep
-          onNext={nextStep}
-          onBack={prevStep}
-          saveStepData={saveStepData}
-          stepData={stepData}
-          siteId={siteId}
-        />
-      )}
-      {currentStep === 3 && (
-        <MoodStep
-          onNext={nextStep}
-          onBack={prevStep}
-          saveStepData={saveStepData}
-          stepData={stepData}
-          siteId={siteId}
-          colors={colors}
-          extractionStatus={extractionStatus}
-        />
-      )}
-      {currentStep === 4 && (
-        <ContentPrefsStep
-          onNext={nextStep}
-          onBack={prevStep}
-          saveStepData={saveStepData}
-          stepData={stepData}
-          siteId={siteId}
-        />
-      )}
-      {currentStep === 5 && (
-        <SchedulingStep
-          onNext={nextStep}
-          onBack={prevStep}
-          saveStepData={saveStepData}
-          stepData={stepData}
-          siteId={siteId}
-        />
-      )}
-      {currentStep === 6 && (
-        <TopicStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} />
-      )}
-      {currentStep === 7 && (
-        <GeneratingStep
-          onNext={nextStep}
-          saveStepData={saveStepData}
-          stepData={stepData}
-          siteId={siteId}
-        />
-      )}
-      {currentStep === 8 && (
-        <ArticleReadyStep
-          onFinish={handleCompleteWizard}
-          onConnectWordPress={() => nextStep()}
-          stepData={stepData}
-          siteId={siteId}
-        />
-      )}
-      {currentStep === 9 && (
-        <WordPressOnboardingStep
-          onFinish={handleCompleteWizard}
-          stepData={stepData}
-          siteId={siteId}
-        />
-      )}
+      <StepTransition stepKey={currentStep} direction={direction}>
+        {renderStep()}
+      </StepTransition>
     </OnboardingLayout>
   );
 }

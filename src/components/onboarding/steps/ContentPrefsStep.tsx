@@ -66,7 +66,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
   };
 
   return (
-    <div className="space-y-4 sm:space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
+    <div className="space-y-4 sm:space-y-5">
       {/* Header */}
       <div className="text-center space-y-2 mb-4 sm:mb-6">
         <h2 className="text-xl sm:text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
