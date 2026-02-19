@@ -99,8 +99,8 @@ export function TopicStep({ onNext, onBack, saveStepData, stepData }: TopicStepP
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
       {/* Header */}
-      <div className="text-center space-y-2 mb-6">
-        <h2 className="text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
+      <div className="text-center space-y-2 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
           Elige el tema de tu primer artículo
         </h2>
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
@@ -130,13 +130,13 @@ export function TopicStep({ onNext, onBack, saveStepData, stepData }: TopicStepP
                     key={idx}
                     type="button"
                     onClick={() => handleSelectTopic(idx)}
-                    className={`w-full flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all duration-200 min-h-[80px] ${
+                    className={`w-full flex items-start gap-3 p-3 sm:p-4 rounded-xl border-2 text-left transition-all duration-200 min-h-[60px] sm:min-h-[80px] ${
                       isSelected
                         ? 'border-primary bg-primary/5 shadow-md'
                         : 'border-border hover:border-primary/40 hover:shadow-sm'
                     }`}
                   >
-                    <span className="text-[28px] mt-0.5">{TOPIC_EMOJIS[idx] ?? '📝'}</span>
+                    <span className="text-[24px] sm:text-[28px] mt-0.5 shrink-0">{TOPIC_EMOJIS[idx] ?? '📝'}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold leading-snug text-foreground">{topic.title}</p>
                       <p className="text-xs text-muted-foreground mt-1 leading-snug">{topic.description}</p>
@@ -154,13 +154,13 @@ export function TopicStep({ onNext, onBack, saveStepData, stepData }: TopicStepP
               <button
                 type="button"
                 onClick={handleCustomMode}
-                className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 border-dashed text-left transition-all duration-200 ${
+                className={`w-full flex items-center gap-3 p-3 sm:p-4 rounded-xl border-2 border-dashed text-left transition-all duration-200 min-h-[48px] ${
                   customMode
                     ? 'border-primary bg-primary/5'
                     : 'border-border hover:border-primary/40'
                 }`}
               >
-                <Pencil className="w-5 h-5 text-muted-foreground" />
+                <Pencil className="w-5 h-5 text-muted-foreground shrink-0" />
                 <span className="text-sm text-muted-foreground">✏️ Prefiero escribir mi propio tema...</span>
               </button>
 
@@ -172,7 +172,7 @@ export function TopicStep({ onNext, onBack, saveStepData, stepData }: TopicStepP
                     value={customTopic}
                     onChange={(e) => setCustomTopic(e.target.value)}
                     maxLength={150}
-                    className="text-base h-11 rounded-lg"
+                    className="text-base h-12 sm:h-11 rounded-lg"
                   />
                 </div>
               )}

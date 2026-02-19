@@ -109,10 +109,10 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
+    <div className="space-y-4 sm:space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
       {/* Header */}
-      <div className="text-center space-y-2 mb-6">
-        <h2 className="text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
+      <div className="text-center space-y-2 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
           Cuéntanos sobre tu negocio
         </h2>
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
@@ -131,7 +131,7 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
           placeholder="Ej: Farmacia López"
           value={businessName}
           onChange={(e) => setBusinessName(e.target.value)}
-          className="h-11 text-base rounded-lg"
+          className="h-12 sm:h-11 text-base rounded-lg"
           maxLength={100}
           autoFocus
         />
@@ -144,7 +144,7 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
           ¿A qué se dedica tu negocio? <span className="text-destructive">*</span>
         </Label>
         <Select value={sector} onValueChange={setSector}>
-          <SelectTrigger className="h-11 text-base rounded-lg">
+          <SelectTrigger className="h-12 sm:h-11 text-base rounded-lg">
             <SelectValue placeholder="Selecciona un sector..." />
           </SelectTrigger>
           <SelectContent>
@@ -161,7 +161,7 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
             placeholder="Describe tu sector"
             value={customSector}
             onChange={(e) => setCustomSector(e.target.value)}
-            className="h-11 mt-2 animate-in fade-in duration-200 rounded-lg"
+            className="h-12 sm:h-11 mt-2 animate-in fade-in duration-200 rounded-lg text-base"
             maxLength={60}
           />
         )}
@@ -178,7 +178,7 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
           placeholder="Ej: Logroño, La Rioja"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          className="h-11 text-base rounded-lg"
+          className="h-12 sm:h-11 text-base rounded-lg"
           maxLength={100}
         />
       </div>
@@ -197,7 +197,7 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
                 key={s.value}
                 type="button"
                 onClick={() => setScope(s.value)}
-                className={`flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all duration-200 ${
+                className={`flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all duration-200 min-h-[48px] ${
                   isSelected
                     ? 'border-primary bg-primary/5 shadow-sm'
                     : 'border-border hover:border-primary/40 hover:shadow-sm'
@@ -225,7 +225,7 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
           placeholder="Ej: www.farmacialopez.es"
           value={websiteUrl}
           onChange={(e) => setWebsiteUrl(e.target.value)}
-          className="h-11 text-base rounded-lg"
+          className="h-12 sm:h-11 text-base rounded-lg"
           maxLength={200}
         />
         <p className="text-[13px] text-muted-foreground">

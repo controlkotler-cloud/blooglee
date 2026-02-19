@@ -70,8 +70,8 @@ export function MoodStep({
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
       {/* Header */}
-      <div className="text-center space-y-2 mb-6">
-        <h2 className="text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
+      <div className="text-center space-y-2 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
           ¿Qué estilo visual quieres para tus imágenes?
         </h2>
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
@@ -91,26 +91,28 @@ export function MoodStep({
                 key={m.value}
                 type="button"
                 onClick={() => setMood(m.value)}
-                className={`relative flex flex-col items-start gap-1.5 p-4 rounded-xl border-2 text-left transition-all duration-200 min-h-[130px] ${
+                className={`relative flex flex-row sm:flex-col items-start gap-3 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 text-left transition-all duration-200 min-h-[60px] sm:min-h-[130px] ${
                   isSelected
                     ? 'border-primary bg-primary/5 shadow-md'
                     : 'border-border hover:border-primary/40 hover:shadow-sm'
                 }`}
               >
                 {isRecommended && (
-                  <span className="absolute top-2.5 left-2.5 flex items-center gap-1 text-[11px] font-semibold text-white bg-gradient-to-r from-violet-500 to-fuchsia-500 px-2.5 py-0.5 rounded-full">
+                  <span className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-white bg-gradient-to-r from-violet-500 to-fuchsia-500 px-2 sm:px-2.5 py-0.5 rounded-full">
                     <Check className="w-3 h-3" />
                     Recomendado
                   </span>
                 )}
                 {isSelected && !isRecommended && (
-                  <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                  <span className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                     <Check className="w-3 h-3 text-primary-foreground" />
                   </span>
                 )}
-                <span className="text-[28px] mb-1 mt-1">{m.icon}</span>
-                <span className="text-sm font-semibold text-foreground">{m.label}</span>
-                <span className="text-xs text-muted-foreground leading-snug">{m.desc}</span>
+                <span className="text-[28px] shrink-0 mt-3 sm:mt-1 sm:mb-1">{m.icon}</span>
+                <div className="flex-1 min-w-0 mt-1 sm:mt-0">
+                  <span className="text-sm font-semibold text-foreground block">{m.label}</span>
+                  <span className="text-xs text-muted-foreground leading-snug block">{m.desc}</span>
+                </div>
               </button>
             );
           })}
@@ -131,7 +133,7 @@ export function MoodStep({
           <div className="flex items-center gap-3 flex-wrap">
             {colors.map((hex) => (
               <div key={hex} className="flex flex-col items-center gap-1">
-                <div className="w-6 h-6 rounded border border-border" style={{ backgroundColor: hex }} />
+                <div className="w-9 h-9 sm:w-6 sm:h-6 rounded border border-border" style={{ backgroundColor: hex }} />
                 <span className="text-[10px] text-muted-foreground font-mono">{hex}</span>
               </div>
             ))}

@@ -98,30 +98,30 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
   };
 
   return (
-    <div className="relative space-y-6 animate-in fade-in duration-500 py-2">
+    <div className="relative space-y-5 sm:space-y-6 animate-in fade-in duration-500 py-2">
       <ConfettiParticles />
 
       {/* Celebration header */}
-      <div className="relative z-10 text-center space-y-3">
-        <div className="text-5xl animate-in zoom-in duration-500">🎉</div>
-        <h2 className="text-2xl font-display font-bold text-foreground">
+      <div className="relative z-10 text-center space-y-2 sm:space-y-3">
+        <div className="text-4xl sm:text-5xl animate-in zoom-in duration-500">🎉</div>
+        <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">
           ¡Tu primer artículo está listo!
         </h2>
         {content?.title && (
-          <p className="text-base font-medium text-foreground italic max-w-lg mx-auto">
+          <p className="text-sm sm:text-base font-medium text-foreground italic max-w-lg mx-auto leading-snug">
             &ldquo;{content.title}&rdquo;
           </p>
         )}
         {wordCount > 0 && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             📝 {wordCount.toLocaleString()} palabras · ⏱️ {readTime} min de lectura
           </p>
         )}
       </div>
 
       {/* Article preview */}
-      <ScrollArea className="relative z-10 h-[320px] rounded-xl border border-border bg-card p-1">
-        <div className="p-4 space-y-4">
+      <ScrollArea className="relative z-10 h-[260px] sm:h-[320px] rounded-xl border border-border bg-card p-1">
+        <div className="p-3 sm:p-4 space-y-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
@@ -140,7 +140,7 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
       </ScrollArea>
 
       {/* CTA */}
-      <div className="relative z-10 space-y-3 pt-2">
+      <div className="relative z-10 space-y-3 pt-1 sm:pt-2">
         <Button
           onClick={handleComplete}
           className="w-full h-12 text-base font-semibold bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white gap-2 rounded-lg shadow-md"
@@ -149,7 +149,7 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
           <Rocket className="w-5 h-5" />
           Conectar WordPress y publicar
         </Button>
-        <p className="text-xs text-center text-muted-foreground">
+        <p className="text-xs text-center text-muted-foreground py-2 sm:py-0">
           No te preocupes, nada se publicará hasta que tú lo decidas.
         </p>
       </div>

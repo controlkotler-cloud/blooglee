@@ -105,16 +105,16 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 py-4">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500 py-2 sm:py-4">
       {/* Header */}
       <div className="text-center space-y-3">
         <p className="text-3xl">✨</p>
-        <h2 className="text-xl font-display font-bold text-foreground">
+        <h2 className="text-lg sm:text-xl font-display font-bold text-foreground">
           {status === 'done' ? '¡Artículo generado!' : status === 'error' ? 'Algo ha fallado' : 'Estamos escribiendo tu artículo...'}
         </h2>
         {status === 'generating' && (
           <>
-            <p className="text-lg font-semibold text-foreground italic max-w-md mx-auto">
+            <p className="text-base sm:text-lg font-semibold text-foreground italic max-w-md mx-auto leading-snug">
               &ldquo;{topic}&rdquo;
             </p>
             <p className="text-xs text-muted-foreground">
@@ -125,7 +125,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
       </div>
 
       {/* Central content */}
-      <div className="rounded-xl bg-muted/50 border border-border p-6 min-h-[200px] flex flex-col items-center justify-center gap-5">
+      <div className="rounded-xl bg-muted/50 border border-border p-4 sm:p-6 min-h-[180px] sm:min-h-[200px] flex flex-col items-center justify-center gap-5">
         {status === 'generating' && (
           <>
             {/* Skeleton writing effect */}
@@ -171,7 +171,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
       {/* Rotating tips */}
       {status === 'generating' && (
         <div className="h-10 flex items-center justify-center">
-          <p className={`text-sm text-muted-foreground text-center transition-opacity duration-400 ${tipVisible ? 'opacity-100' : 'opacity-0'}`}>
+          <p className={`text-xs sm:text-sm text-muted-foreground text-center transition-opacity duration-400 ${tipVisible ? 'opacity-100' : 'opacity-0'}`}>
             {TIPS[tipIndex]}
           </p>
         </div>
