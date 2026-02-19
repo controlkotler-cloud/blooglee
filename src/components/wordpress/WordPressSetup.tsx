@@ -126,6 +126,7 @@ export function WordPressSetup({ siteId, onClose, onComplete }: WordPressSetupPr
       {currentSubStep === 'url_check' && (
         <WPUrlCheck
           siteId={siteId}
+          initialUrl={blogUrl}
           onBack={() => setCurrentSubStep('intro')}
           onContinue={(url) => {
             setVerifiedUrl(url);
