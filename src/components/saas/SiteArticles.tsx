@@ -120,19 +120,22 @@ export function SiteArticles({ siteId, siteName, siteSector, onGenerateArticle, 
 
       {/* Articles grid or empty state */}
       {articles.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-medium mb-2">Sin artículos</h3>
-            <p className="text-muted-foreground mb-4">
-              No hay artículos para {months.find(m => m.value === selectedMonth)?.label} {selectedYear}
-            </p>
-            <Button onClick={onGenerateArticle} disabled={isGenerating}>
-              <Sparkles className="w-4 h-4 mr-2" />
-              Generar primer artículo
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col items-center py-16 px-4">
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-5">
+            <FileText className="w-10 h-10 text-primary/40" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">
+            Aún no has generado artículos{siteName ? ` para ${siteName}` : ''}
+          </h3>
+          <p className="text-sm text-muted-foreground text-center max-w-sm mb-6">
+            Genera tu primer artículo optimizado para SEO con un solo clic.
+            {!siteName ? ` No hay artículos para ${months.find(m => m.value === selectedMonth)?.label} ${selectedYear}.` : ''}
+          </p>
+          <Button onClick={onGenerateArticle} disabled={isGenerating} size="lg">
+            <Sparkles className="w-4 h-4 mr-2" />
+            Generar tu primer artículo →
+          </Button>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {articles.map((article) => (
