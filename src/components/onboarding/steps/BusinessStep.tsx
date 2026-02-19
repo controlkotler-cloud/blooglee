@@ -134,6 +134,8 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
           className="h-12 sm:h-11 text-base rounded-lg"
           maxLength={100}
           autoFocus
+          autoComplete="off"
+          data-1p-ignore
         />
       </div>
 
