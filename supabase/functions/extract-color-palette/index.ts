@@ -32,12 +32,15 @@ Deno.serve(async (req) => {
 
     let html = '';
 
-    // === STRATEGY 1: Try Firecrawl ===
+    // === STRATEGY 1: Try Firecrawl with branding format for accurate colors ===
     const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
+    let brandingData: any = null;
+    
     if (firecrawlKey) {
+      // 1a. Try branding format first (extracts colors from logo/header accurately)
       try {
-        console.log('[extract] Trying Firecrawl...');
-        const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        console.log('[extract] Trying Firecrawl branding format...');
+        const brandingResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${firecrawlKey}`,
@@ -45,22 +48,54 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             url: formattedUrl,
-            formats: ['html'],
+            formats: ['branding', 'html'],
             onlyMainContent: false,
             waitFor: 3000,
           }),
         });
 
-        const scrapeData = await scrapeResponse.json();
+        const brandingResult = await brandingResponse.json();
 
-        if (scrapeResponse.ok && scrapeData.success) {
-          html = scrapeData.data?.html || scrapeData.html || '';
-          console.log('[extract] Firecrawl OK, HTML length:', html.length);
+        if (brandingResponse.ok && brandingResult.success) {
+          brandingData = brandingResult.data?.branding || brandingResult.branding || null;
+          html = brandingResult.data?.html || brandingResult.html || '';
+          console.log('[extract] Firecrawl OK, HTML length:', html.length, 'branding:', !!brandingData);
+          if (brandingData?.colors) {
+            console.log('[extract] Branding colors:', JSON.stringify(brandingData.colors));
+          }
         } else {
-          console.warn('[extract] Firecrawl failed:', scrapeData.error || scrapeData.code || 'unknown');
+          console.warn('[extract] Firecrawl branding failed:', brandingResult.error || brandingResult.code || 'unknown');
         }
       } catch (err) {
-        console.warn('[extract] Firecrawl error:', err.message);
+        console.warn('[extract] Firecrawl branding error:', err.message);
+      }
+
+      // 1b. If branding didn't return HTML, try plain HTML scrape
+      if (!html && firecrawlKey) {
+        try {
+          console.log('[extract] Trying Firecrawl HTML-only fallback...');
+          const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${firecrawlKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              url: formattedUrl,
+              formats: ['html'],
+              onlyMainContent: false,
+              waitFor: 3000,
+            }),
+          });
+
+          const scrapeData = await scrapeResponse.json();
+          if (scrapeResponse.ok && scrapeData.success) {
+            html = scrapeData.data?.html || scrapeData.html || '';
+            console.log('[extract] Firecrawl HTML fallback OK, length:', html.length);
+          }
+        } catch (err) {
+          console.warn('[extract] Firecrawl HTML fallback error:', err.message);
+        }
       }
     } else {
       console.log('[extract] No FIRECRAWL_API_KEY, skipping Firecrawl');
@@ -134,8 +169,39 @@ Deno.serve(async (req) => {
     }
 
     // === EXTRACT DATA ===
-    const combinedContent = html + '\n' + externalCss;
-    const colors = html ? extractColorsFromHtml(combinedContent) : [];
+    // Priority 1: Use Firecrawl branding colors (most accurate - from logo/header)
+    let colors: string[] = [];
+    if (brandingData?.colors) {
+      const brandColors = brandingData.colors;
+      const colorValues = [
+        brandColors.primary,
+        brandColors.secondary,
+        brandColors.accent,
+        brandColors.background,
+        brandColors.textPrimary,
+        brandColors.textSecondary,
+      ].filter(Boolean);
+      
+      for (const colorVal of colorValues) {
+        const hex = extractHexFromValue(colorVal);
+        if (hex && !isBlackWhiteGray(hex)) {
+          colors.push(hex);
+        }
+      }
+      console.log('[extract] Branding colors extracted:', colors.length, colors.join(', '));
+    }
+    
+    // Priority 2: Fall back to CSS parsing if branding didn't yield enough colors
+    if (colors.length < 3 && html) {
+      const combinedContent = html + '\n' + externalCss;
+      const cssColors = extractColorsFromHtml(combinedContent);
+      // Merge, avoiding duplicates
+      for (const c of cssColors) {
+        if (!colors.includes(c)) colors.push(c);
+      }
+      colors = colors.slice(0, 6);
+    }
+    
     let description = html ? extractDescription(html) : undefined;
     const socialLink = html ? extractSocialLink(html) : undefined;
     const blogUrl = html ? extractBlogUrl(html, formattedUrl) : undefined;

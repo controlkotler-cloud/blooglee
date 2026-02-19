@@ -241,7 +241,7 @@ export function WordPressTroubleshootPanel({
   // ── Not connected: troubleshoot ──
   const troubleshootItems = [
     { icon: Shield, title: 'Wordfence bloquea', description: 'Añadir excepciones al firewall', snippetId: 'wordfence-whitelist' },
-    { icon: Globe, title: 'Polylang/WPML', description: 'Soporte API para idiomas', snippetId: 'polylang-api-support' },
+    { icon: Globe, title: 'Polylang / WPML', description: 'Configurar publicación en varios idiomas', snippetId: 'polylang-api-support' },
     { icon: Key, title: 'Sin contraseñas de app', description: 'Habilitar en wp-config.php', snippetId: 'force-app-passwords' },
     { icon: Shield, title: 'iThemes Security', description: 'Reactivar API REST', snippetId: 'ithemes-api-enable' },
   ];
