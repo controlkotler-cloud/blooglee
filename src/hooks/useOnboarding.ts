@@ -62,6 +62,10 @@ export function useOnboarding(siteId?: string) {
 
   // Wrapper to keep ref in sync with state
   const setProgress = useCallback((updater: OnboardingProgress | null | ((prev: OnboardingProgress | null) => OnboardingProgress | null)) => {
+    if (typeof updater !== 'function') {
+      // Direct value: update ref immediately so subsequent sync reads see it
+      progressRef.current = updater;
+    }
     setProgressState(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       progressRef.current = next;
@@ -164,9 +168,13 @@ export function useOnboarding(siteId?: string) {
     if (!current) return;
 
     const newStepData = { ...current.step_data, [stepKey]: data };
+    const updated = { ...current, step_data: newStepData };
 
-    // Optimistic update
-    setProgress(prev => prev ? { ...prev, step_data: newStepData } : null);
+    // Update ref immediately so subsequent sync calls (e.g. nextStep) see latest data
+    progressRef.current = updated;
+
+    // Optimistic state update
+    setProgress(updated);
 
     // Persist
     const { error } = await supabase
