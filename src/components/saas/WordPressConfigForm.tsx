@@ -32,8 +32,16 @@ const formSchema = z.object({
     .url('Introduce una URL válida')
     .transform((url) => {
       let normalized = url.trim();
+      // Remove common paths that aren't part of the WP root
       normalized = normalized.replace(/\/wp-admin\/?$/, '');
       normalized = normalized.replace(/\/+$/, '');
+      // Strip blog/news subpaths - we need the WP root, not the blog page
+      try {
+        const u = new URL(normalized);
+        normalized = u.origin;
+      } catch {
+        // keep as-is if URL parsing fails
+      }
       return normalized;
     }),
   wp_username: z.string().min(1, 'El usuario es obligatorio'),
@@ -446,7 +454,7 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
                 ) : (
                   <>
                     <RefreshCw className="w-4 h-4 mr-2" />
-                    Sincronizar categorías
+                    Sincronizar
                   </>
                 )}
               </Button>
