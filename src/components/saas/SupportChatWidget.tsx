@@ -1,6 +1,8 @@
 import { useState, createContext, useContext, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 import { SupportChatDialog } from './SupportChatDialog';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ErrorContext {
   code?: number | string;
@@ -20,14 +22,20 @@ const ChatContext = createContext<ChatContextValue | null>(null);
 export function useChatWidget() {
   const context = useContext(ChatContext);
   if (!context) {
-    throw new Error('useChatWidget must be used within SupportChatProvider');
+    // Return a no-op when outside the provider (public pages)
+    return { openChat: () => {}, closeChat: () => {}, isOpen: false };
   }
   return context;
 }
 
+// Hidden routes where Bloobot should not appear
+const HIDDEN_ROUTES = ['/onboarding', '/auth', '/mkpro'];
+
 export function SupportChatProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [errorContext, setErrorContext] = useState<ErrorContext | undefined>();
+  const { user } = useAuth();
+  const location = useLocation();
 
   const openChat = useCallback((context?: ErrorContext) => {
     setErrorContext(context);
@@ -38,14 +46,19 @@ export function SupportChatProvider({ children }: { children: React.ReactNode })
     setIsOpen(false);
   }, []);
 
+  // Don't render the widget on hidden routes or for unauthenticated users
+  const shouldShow = user && !HIDDEN_ROUTES.some(r => location.pathname.startsWith(r));
+
   return (
     <ChatContext.Provider value={{ openChat, closeChat, isOpen }}>
       {children}
-      <SupportChatWidget 
-        isOpen={isOpen} 
-        onOpenChange={setIsOpen}
-        errorContext={errorContext}
-      />
+      {shouldShow && (
+        <SupportChatWidget 
+          isOpen={isOpen} 
+          onOpenChange={setIsOpen}
+          errorContext={errorContext}
+        />
+      )}
     </ChatContext.Provider>
   );
 }
