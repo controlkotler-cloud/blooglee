@@ -57,7 +57,8 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
     businessName.trim().length > 0 &&
     finalSector.length > 0 &&
     location.trim().length > 0 &&
-    scope.length > 0;
+    scope.length > 0 &&
+    websiteUrl.trim().length > 0;
 
   const handleNext = async () => {
     if (!canProceed || !user?.id) return;
@@ -215,7 +216,7 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
       <div className="space-y-2">
         <Label htmlFor="website-url" className="flex items-center gap-2 text-sm font-medium">
           <Link2 className="w-4 h-4 text-violet-500" />
-          URL de tu web <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
+          URL de tu web <span className="text-destructive">*</span>
         </Label>
         <Input
           id="website-url"
@@ -226,7 +227,7 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
           maxLength={200}
         />
         <p className="text-xs text-muted-foreground">
-          Si tienes web, la usaremos para adaptar las imágenes a los colores de tu marca.
+          Analizaremos tu web para extraer los colores de tu marca y datos clave de tu negocio.
         </p>
       </div>
 
