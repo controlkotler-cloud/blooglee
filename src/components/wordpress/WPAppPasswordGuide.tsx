@@ -62,12 +62,24 @@ export function WPAppPasswordGuide({ siteUrl, onBack, onContinue }: WPAppPasswor
           </button>
           {showHelp && (
             <Card className="border-amber-500/30 bg-amber-50/50 dark:bg-amber-900/10">
-              <CardContent className="p-3">
+              <CardContent className="p-3 space-y-2">
                 <p className="text-xs text-muted-foreground">
-                  Puede que tu hosting o un plugin de seguridad la haya desactivado.
-                  Contacta a tu hosting o desactiva temporalmente plugins de seguridad
-                  como <strong>Wordfence</strong> o <strong>iThemes Security</strong>.
+                  Puede que tu hosting o un plugin de seguridad la haya desactivado. Estos son los casos más comunes:
                 </p>
+                <ul className="text-xs text-muted-foreground space-y-1.5 list-none">
+                  <li>
+                    <strong className="text-foreground">Wordfence:</strong> Ve a Wordfence → Firewall → Manage Firewall y desactiva la regla "Application Passwords".{' '}
+                    <a href="/help/wordfence-bloquea-claves" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                      Ver guía paso a paso →
+                    </a>
+                  </li>
+                  <li>
+                    <strong className="text-foreground">iThemes / Solid Security:</strong> Ve a Security → Settings → WordPress Tweaks y asegúrate de que "Application Passwords" esté habilitado.
+                  </li>
+                  <li>
+                    <strong className="text-foreground">Tu hosting:</strong> Algunos hostings (como SiteGround o WP Engine) desactivan esta función. Contacta a su soporte y pide que habiliten las "Application Passwords" de WordPress.
+                  </li>
+                </ul>
               </CardContent>
             </Card>
           )}
