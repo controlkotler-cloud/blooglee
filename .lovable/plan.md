@@ -1,103 +1,82 @@
 
-# Auditoria y Limpieza del SaaS Blooglee
 
-## Resumen
+## Plan: Completar el perfil del site durante el onboarding
 
-Tras revisar el proyecto completo (frontend, hooks, Edge Functions y base de datos), he identificado **archivos muertos**, **componentes sin usar** y **Edge Functions huerfanas** que se pueden eliminar de forma segura para reducir el peso del proyecto y mejorar la mantenibilidad.
+### Situacion actual
+El onboarding tiene 7 pasos internos (Business, Tone, Mood, Topic, Generating, ArticleReady, WordPress) mapeados a 5 puntos en la barra de progreso. Faltan configuraciones importantes que obligan al usuario a ir a Configuracion despues.
 
----
+### Campos que faltan
+1. **Idiomas** (languages) - seleccion de catalan + aviso sobre Polylang
+2. **Imagen destacada** (include_featured_image) - con explicacion
+3. **Publicacion automatica** (auto_generate) - si/no
+4. **Programacion** (publish_frequency, publish_day_of_week, publish_hour_utc) - con restricciones por plan
+5. **Temas a evitar** (avoid_topics) - campo libre
+6. **Tono de voz** - ya se pregunta en el paso 2 (ToneStep), no requiere cambios
 
-## 1. Archivos Frontend que se pueden ELIMINAR
+### Propuesta: 2 nuevos pasos
 
-### Paginas muertas (sin ruta en App.tsx)
+Se crearan 2 nuevos componentes step que se insertaran entre MoodStep y TopicStep:
 
-| Archivo | Razon |
-|---------|-------|
-| `src/pages/Index.tsx` | Pagina MKPro legacy duplicada. MKPro.tsx es la copia activa usada en la ruta `/mkpro`. Index.tsx no se importa en ningun sitio. |
-| `src/pages/Onboarding.tsx` (423 lineas) | Onboarding viejo de 3 pasos. Reemplazado por `OnboardingWizard`. No se importa en App.tsx ni en ningun otro archivo. |
+**Paso 4 (nuevo): ContentPrefsStep** - "Personaliza tu contenido"
+- Idiomas: checkbox para catalan (+ card de aviso amarilla si selecciona catalan: "Necesitaras el plugin Polylang instalado en tu WordPress para gestionar contenido en dos idiomas")
+- Imagen destacada: switch con explicacion breve ("La imagen destacada aparece en la cabecera de tu post y en redes sociales. Si tu tema de WordPress no la muestra, desactivala.")
+- Temas a evitar: textarea con placeholder contextualizado por sector (ej. farmacia: "Ej: medicamentos con receta, diagnosticos medicos")
 
-### Componentes sin importar
+**Paso 5 (nuevo): SchedulingStep** - "Programacion de articulos"
+- Auto-publicar: switch ("Cuando se genere un articulo, se publicara automaticamente en tu WordPress sin necesidad de revision")
+- Frecuencia: radio group (mensual, quincenal, semanal) con aviso si el plan es Starter/Free y selecciona semanal ("Para publicar semanalmente necesitas el plan Pro")
+- Dia preferido de la semana: select
+- Hora preferida: select (convertida a UTC al guardar)
 
-| Archivo | Razon |
-|---------|-------|
-| `src/components/saas/ContentProfileCard.tsx` | Cero importaciones en todo el proyecto. |
-| `src/components/marketing/AudienceTabs.tsx` | Cero importaciones en todo el proyecto. |
+### Nueva estructura del wizard
 
-### Hooks comentados / sin uso real
+| Paso interno | Componente | Progreso |
+|---|---|---|
+| 1 | BusinessStep | 1 - Negocio |
+| 2 | ToneStep | 2 - Estilo |
+| 3 | MoodStep | 2 - Estilo |
+| 4 | ContentPrefsStep (NUEVO) | 3 - Contenido |
+| 5 | SchedulingStep (NUEVO) | 4 - Publicacion |
+| 6 | TopicStep | 5 - Tema |
+| 7 | GeneratingStep | 6 - Generando |
+| 8 | ArticleReadyStep | 7 - Listo! |
+| 9 | WordPressOnboardingStep | 7 - Listo! |
 
-| Archivo | Razon |
-|---------|-------|
-| `src/hooks/useOnboardingTour.ts` | Solo aparece comentado en SaasDashboard.tsx (`// import`). El tour con driver.js fue reemplazado por el wizard + checklist. |
-| `src/components/saas/OnboardingTour.tsx` | Mismo caso: solo aparece comentado. |
+La barra de progreso pasa de 5 a 7 puntos con las etiquetas: Negocio, Estilo, Contenido, Publicacion, Tema, Generando, Listo!
 
-### Datos estaticos potencialmente muertos
+### Archivos a modificar
 
-| Archivo | Razon |
-|---------|-------|
-| `src/data/blogPosts.ts` | Cero importaciones. Los blog posts ahora se leen de la tabla `blog_posts` de la BD via `useBlogPosts`. Este archivo era el listado estatico original. |
+1. **Crear** `src/components/onboarding/steps/ContentPrefsStep.tsx`
+   - Seccion idiomas: checkbox catalan + card amarilla con icono de aviso si esta activo
+   - Seccion imagen destacada: switch + texto explicativo
+   - Seccion temas a evitar: textarea con placeholder por sector
+   - Guarda en `sites`: languages, include_featured_image, avoid_topics
+   - Guarda en stepData: `step_content_prefs`
 
----
+2. **Crear** `src/components/onboarding/steps/SchedulingStep.tsx`
+   - Switch auto-publicar (auto_generate)
+   - Radio group frecuencia (monthly/biweekly/weekly) con restriccion por plan (consulta profiles.plan)
+   - Select dia de la semana y hora (conversion local a UTC)
+   - Guarda en `sites`: auto_generate, publish_frequency, publish_day_of_week, publish_hour_utc
+   - Guarda en stepData: `step_scheduling`
 
-## 2. Edge Functions que se pueden ELIMINAR
+3. **Modificar** `src/components/onboarding/OnboardingWizard.tsx`
+   - Importar los 2 nuevos componentes
+   - Actualizar renderizado: pasos 4 y 5 son los nuevos, 6-9 son los antiguos 4-7
+   - Actualizar `STEP_NAMES` y `mapStepToProgressPoint` para 9 pasos / 7 puntos
 
-| Funcion | Razon |
-|---------|-------|
-| `clean-blog-headers/` | Cero referencias en frontend ni en otras Edge Functions. Funcion de mantenimiento puntual ya ejecutada. |
-| `fix-blog-false-claims/` | Cero referencias en ningun sitio. Funcion de correccion puntual ya ejecutada. |
+4. **Modificar** `src/components/onboarding/ProgressBar.tsx`
+   - Actualizar `STEP_LABELS` a 7 elementos: Negocio, Estilo, Contenido, Publicacion, Tema, Generando, Listo!
 
-**Nota:** `cleanup-orphan-images/` y `update-seo-assets/` SI se usan (la primera es autonoma, la segunda se llama desde `generate-monthly-articles`), asi que NO se eliminan.
+5. **Modificar** `src/hooks/useOnboarding.ts`
+   - Actualizar la interfaz `OnboardingStepData` para incluir `step_content_prefs` y `step_scheduling`
 
-**Nota sobre `serve-rss/` y `serve-sitemap/`:** Aunque no se invocan desde el frontend, son funciones que responden a peticiones externas (bots, lectores RSS). NO se eliminan.
+### Detalles de UX
 
----
+- Todos los campos nuevos tienen valores por defecto razonables (espanol activado, imagen destacada activada, auto-publicar activado, frecuencia mensual)
+- Cada seccion tiene una breve explicacion contextualizada
+- El placeholder de "temas a evitar" cambia segun el sector
+- La card de aviso de Polylang solo aparece si se activa catalan
+- La restriccion de frecuencia muestra un badge con enlace a /pricing si el plan no permite esa frecuencia
+- Todos los valores se persisten directamente en la tabla `sites` al avanzar al siguiente paso
 
-## 3. Base de datos: tablas OK
-
-Todas las tablas actuales tienen uso activo:
-- Las tablas MKPro (`farmacias`, `empresas`, `articulos`, `articulos_empresas`, `wordpress_sites`, `wordpress_taxonomies`, `wordpress_site_default_taxonomies`) se usan desde MKPro.tsx y las Edge Functions protegidas.
-- `wordpress_diagnostics` se usa desde el flujo de WordPress (WPUrlCheck, WordPressSetup).
-- `pending_surveys` se usa desde useAdminSurveys.
-- `sector_contexts` se usa desde regenerate-image.
-
-**No hay tablas huerfanas que eliminar.**
-
----
-
-## 4. Detalle tecnico de los cambios
-
-### Paso 1: Eliminar archivos frontend muertos
-- Borrar `src/pages/Index.tsx` (531 lineas de codigo MKPro duplicado)
-- Borrar `src/pages/Onboarding.tsx` (423 lineas del onboarding viejo)
-- Borrar `src/data/blogPosts.ts` (datos estaticos reemplazados por BD)
-- Borrar `src/components/saas/ContentProfileCard.tsx`
-- Borrar `src/components/marketing/AudienceTabs.tsx`
-- Borrar `src/components/saas/OnboardingTour.tsx`
-- Borrar `src/hooks/useOnboardingTour.ts`
-
-### Paso 2: Limpiar imports comentados
-- En `src/pages/SaasDashboard.tsx`: eliminar las 2 lineas comentadas que referencian OnboardingTour y useOnboardingTour.
-
-### Paso 3: Eliminar Edge Functions muertas
-- Borrar `supabase/functions/clean-blog-headers/`
-- Borrar `supabase/functions/fix-blog-false-claims/`
-- Eliminar las funciones desplegadas en el backend con la herramienta de borrado.
-
----
-
-## 5. Lo que NO se toca (zona protegida MKPro)
-
-Conforme a las reglas de arquitectura, NO se modifica nada en:
-- `src/components/pharmacy/*`
-- `src/components/company/*`
-- Hooks MKPro (`useFarmacias`, `useArticulos`, `useEmpresas`, etc.)
-- Edge Functions MKPro (`generate-article/`, `generate-article-empresa/`, etc.)
-- `src/pages/MKPro.tsx`
-
----
-
-## Impacto estimado
-
-- ~1.000 lineas de codigo muerto eliminadas
-- 2 Edge Functions innecesarias menos en produccion
-- 7 archivos frontend eliminados
-- Sin cambios funcionales: nada se rompe porque ninguno de estos archivos esta referenciado
