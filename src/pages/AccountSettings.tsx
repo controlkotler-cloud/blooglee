@@ -427,7 +427,7 @@ export default function AccountSettings() {
               <Label>Notificaciones por email</Label>
               {[
                 { key: 'article_published' as const, label: 'Avisarme cuando un artículo se publique automáticamente' },
-                { key: 'pre_publish_review' as const, label: 'Avisarme antes de publicar (si tengo revisión activada)' },
+                { key: 'pre_publish_review' as const, label: 'Avisarme cuando un artículo esté listo para publicar (sitios sin publicación automática)' },
                 { key: 'weekly_summary' as const, label: 'Resumen semanal de actividad' },
                 { key: 'product_updates' as const, label: 'Novedades y actualizaciones de Blooglee' },
               ].map(({ key, label }) => (
