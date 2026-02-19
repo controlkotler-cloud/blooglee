@@ -21,7 +21,7 @@ import { SiteArticles } from '@/components/saas/SiteArticles';
 import { SiteSettings } from '@/components/saas/SiteSettings';
 import { SiteActivityLog } from '@/components/saas/SiteActivityLog';
 import { WordPressConfigForm } from '@/components/saas/WordPressConfigForm';
-import { SupportChatProvider } from '@/components/saas/SupportChatWidget';
+
 import { toast } from 'sonner';
 import { useGeneration } from '@/contexts/GenerationContext';
 
@@ -109,7 +109,6 @@ export default function SiteDetail() {
   };
 
   return (
-    <SupportChatProvider>
       <div className="min-h-screen bg-background">
         {/* Header */}
         <header className="border-b bg-card">
@@ -239,6 +238,5 @@ export default function SiteDetail() {
           </Tabs>
         </main>
       </div>
-    </SupportChatProvider>
   );
 }

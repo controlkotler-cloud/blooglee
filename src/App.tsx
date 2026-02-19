@@ -6,7 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
- import { GenerationProvider } from "@/contexts/GenerationContext";
+import { GenerationProvider } from "@/contexts/GenerationContext";
+import { SupportChatProvider } from "@/components/saas/SupportChatWidget";
 import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
 import SaasDashboard from "./pages/SaasDashboard";
@@ -66,6 +67,7 @@ const App = () => (
            <Toaster />
            <Sonner />
       <BrowserRouter>
+        <SupportChatProvider>
         <ScrollToTop />
         <Routes>
           {/* Public routes */}
@@ -236,6 +238,7 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </SupportChatProvider>
       </BrowserRouter>
          </TooltipProvider>
        </GenerationProvider>
