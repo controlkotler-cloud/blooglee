@@ -27,6 +27,7 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
   const queryClient = useQueryClient();
   const [phase, setPhase] = useState<Phase>('setup');
   const [publishUrl, setPublishUrl] = useState<string | null>(null);
+  const [skipAvailable, setSkipAvailable] = useState(false);
 
   const articleId = stepData?.step5?.article_id as string | undefined;
   const { data: wpConfig } = useWordPressConfig(siteId || '');
@@ -140,6 +141,7 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
         <WordPressSetup
           siteId={siteId}
           onComplete={handleSetupComplete}
+          onClose={handleGoToDashboard}
         />
       </div>
     );
