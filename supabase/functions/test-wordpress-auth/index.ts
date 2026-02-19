@@ -65,16 +65,20 @@ Deno.serve(async (req) => {
 
         clearTimeout(timeout);
 
-        // If we get a non-404 response, use it
-        if (res.status !== 404) {
-          meResponse = res;
-          usedBaseUrl = baseUrl;
-          break;
+        // Check content-type to ensure we got a JSON response (not an HTML page)
+        const contentType = res.headers.get('content-type') ?? '';
+        const isJson = contentType.includes('application/json');
+
+        if (res.status === 404 || !isJson) {
+          // Not a valid WP REST API response, try next URL
+          await res.text();
+          console.log(`[test-wordpress-auth] Skipping ${baseUrl} (status=${res.status}, ct=${contentType})`);
+          continue;
         }
 
-        // If 404, consume body and try next URL
-        await res.text();
-        console.log(`[test-wordpress-auth] 404 at ${baseUrl}/wp-json/..., trying next`);
+        meResponse = res;
+        usedBaseUrl = baseUrl;
+        break;
       } catch (err) {
         console.error(`[test-wordpress-auth] Fetch error for ${baseUrl}:`, err);
       }
