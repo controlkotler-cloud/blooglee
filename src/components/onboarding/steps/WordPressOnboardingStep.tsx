@@ -46,6 +46,27 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
 
     track('onboarding_wp_connected');
     queryClient.invalidateQueries({ queryKey: ['wordpress-config'] });
+
+    // Auto-sync taxonomies and content analysis after first connection
+    try {
+      const { data: freshConfig } = await supabase
+        .from('wordpress_configs')
+        .select('id')
+        .eq('site_id', siteId!)
+        .single();
+
+      if (freshConfig?.id) {
+        // Fire and forget - don't block the user
+        supabase.functions.invoke('sync-wordpress-taxonomies-saas', {
+          body: { wordpress_config_id: freshConfig.id, analyze_content: true },
+        }).then(() => {
+          queryClient.invalidateQueries({ queryKey: ['wordpress-taxonomies-saas'] });
+        }).catch(err => console.error('Auto-sync error (non-blocking):', err));
+      }
+    } catch (err) {
+      console.error('Failed to start auto-sync:', err);
+    }
+
     setPhase('connected');
   };
 
