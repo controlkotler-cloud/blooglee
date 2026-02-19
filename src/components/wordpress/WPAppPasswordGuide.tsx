@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface WPAppPasswordGuideProps {
   siteUrl: string;
@@ -11,11 +11,6 @@ interface WPAppPasswordGuideProps {
 
 export function WPAppPasswordGuide({ siteUrl, onBack, onContinue }: WPAppPasswordGuideProps) {
   const [showHelp, setShowHelp] = useState(false);
-  const origin = (() => {
-    try { return new URL(siteUrl).origin; } catch { return siteUrl.replace(/\/+$/, ''); }
-  })();
-  const profileUrl = `${origin}/wp-admin/profile.php`;
-  const wpAdminUrl = `${origin}/wp-admin/`;
   const totalSteps = 5;
 
   const steps = [
@@ -23,18 +18,12 @@ export function WPAppPasswordGuide({ siteUrl, onBack, onContinue }: WPAppPasswor
       number: 1,
       title: 'Entra en tu WordPress',
       content: (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Haz clic en este enlace para abrir tu WordPress en una nueva pestaña:
+            Abre una nueva pestaña e inicia sesión en el panel de administración de tu WordPress como lo haces habitualmente.
           </p>
-          <Button variant="outline" asChild className="w-full">
-            <a href={wpAdminUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Abrir mi WordPress →
-            </a>
-          </Button>
           <p className="text-xs text-muted-foreground">
-            Si te pide usuario y contraseña, entra con tus datos habituales de WordPress.
+            Normalmente accedes desde <strong className="text-foreground font-mono">tudominio.com/wp-admin</strong>, pero si tu hosting tiene otra dirección de acceso, usa la que utilices siempre.
           </p>
         </div>
       ),
@@ -43,7 +32,7 @@ export function WPAppPasswordGuide({ siteUrl, onBack, onContinue }: WPAppPasswor
       number: 2,
       title: 'Ve a tu perfil de usuario',
       content: (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
             Una vez dentro de WordPress, ve al menú lateral izquierdo:
           </p>
@@ -51,15 +40,6 @@ export function WPAppPasswordGuide({ siteUrl, onBack, onContinue }: WPAppPasswor
             Haz clic en <strong className="text-foreground">"Usuarios"</strong> y después en{' '}
             <strong className="text-foreground">"Perfil"</strong>.
           </p>
-          <p className="text-xs text-muted-foreground">
-            También puedes ir directamente:
-          </p>
-          <Button variant="outline" size="sm" asChild className="w-full">
-            <a href={profileUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Ir directamente a mi perfil →
-            </a>
-          </Button>
         </div>
       ),
     },
