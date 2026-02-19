@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -50,6 +50,7 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
   const [scope, setScope] = useState(initialData?.scope ?? '');
   const [websiteUrl, setWebsiteUrl] = useState(initialData?.website_url ?? '');
   const [isSaving, setIsSaving] = useState(false);
+  const submittingRef = useRef(false);
 
   const finalSector = sector === 'otro' ? customSector.trim() : sector;
 
@@ -61,7 +62,8 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
     websiteUrl.trim().length > 0;
 
   const handleNext = async () => {
-    if (!canProceed || !user?.id) return;
+    if (!canProceed || !user?.id || submittingRef.current) return;
+    submittingRef.current = true;
     setIsSaving(true);
 
     try {
@@ -109,6 +111,7 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
       toast.error('Error al guardar los datos. Inténtalo de nuevo.');
     } finally {
       setIsSaving(false);
+      submittingRef.current = false;
     }
   };
 
