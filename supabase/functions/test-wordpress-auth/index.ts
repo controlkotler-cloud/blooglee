@@ -125,7 +125,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    const userData = await meResponse.json();
+    // Safely parse response - WordPress may return HTML (login page) even with 200
+    const responseText = await meResponse.text();
+    let userData: Record<string, unknown>;
+    try {
+      userData = JSON.parse(responseText);
+    } catch {
+      console.error('[test-wordpress-auth] Response is not JSON:', responseText.substring(0, 300));
+      const contentType = meResponse.headers.get('content-type') ?? '';
+      const isLoginRedirect = contentType.includes('text/html') || responseText.includes('<!doctype') || responseText.includes('<html');
+      const result: TestAuthResponse = {
+        authenticated: false,
+        can_publish: false,
+        user_role: '',
+        site_title: '',
+        error_type: isLoginRedirect ? 'auth_failed' : 'auth_failed',
+      };
+      return new Response(JSON.stringify(result), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const roles: string[] = userData.roles ?? [];
     const capabilities: Record<string, boolean> = userData.capabilities ?? {};
