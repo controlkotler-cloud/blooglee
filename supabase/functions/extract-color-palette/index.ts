@@ -323,7 +323,7 @@ async function extractWithAI(
     parts.push('"description": una frase de 1-2 líneas que resuma qué hace este negocio, su sector y su propuesta de valor. Máximo 200 caracteres. En español.');
   }
   if (needsKeywords) {
-    parts.push('"keywords": entre 3 y 8 palabras clave del negocio separadas por comas, en español. Deben ser términos que describan el sector, los servicios o productos principales.');
+    parts.push('"keywords": entre 3 y 8 palabras clave del negocio separadas por comas, en español. Deben ser términos que describan el sector, los servicios o productos principales. NO incluyas nombres de ciudades, localidades, direcciones ni ubicaciones geográficas.');
   }
 
   const prompt = `Analiza el contenido de esta web (${url}) y extrae la siguiente información en formato JSON:
