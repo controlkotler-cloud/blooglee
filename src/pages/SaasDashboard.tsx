@@ -12,7 +12,7 @@ import {
 import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, ArrowLeftRight, Shield, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useIsMKProAdmin, useIsSuperAdmin } from '@/hooks/useProfile';
-import { useSites, useImportSites } from '@/hooks/useSites';
+import { useSites } from '@/hooks/useSites';
 import { useAllArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 import { useAllArticlesForUser } from '@/hooks/useAllArticlesForUser';
 import { useWordPressConfigsBatch } from '@/hooks/useWordPressConfigSaas';
@@ -23,7 +23,7 @@ import { SitesTableView } from '@/components/saas/SitesTableView';
 import { AgencyStatsBanner } from '@/components/saas/AgencyStatsBanner';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { PlanBadge, type PlanType } from '@/components/saas/PlanBadge';
-import { SiteImportExport } from '@/components/saas/SiteImportExport';
+
 import { SetupChecklist } from '@/components/setup/SetupChecklist';
 import { toast } from 'sonner';
 import { useGeneration } from '@/contexts/GenerationContext';
@@ -52,7 +52,7 @@ export default function SaasDashboard() {
   const showChecklist = sites.length > 0 && checklistItems.length > 0 && !isChecklistComplete;
 
   const generateMutation = useGenerateArticleSaas();
-  const importSitesMutation = useImportSites();
+  
 
   const sitesLimit = profile?.sites_limit ?? 1;
   const isAdmin = isSuperAdmin || canAccessMKPro;
@@ -440,16 +440,6 @@ export default function SaasDashboard() {
               </Card>
             )}
 
-            {plan === 'agency' && (
-              <div className="mt-6">
-                <SiteImportExport
-                  sites={sites}
-                  articles={monthArticles}
-                  sitesLimit={sitesLimit}
-                  onImportSites={(sitesToImport) => importSitesMutation.mutate(sitesToImport)}
-                />
-              </div>
-            )}
           </>
         )}
       </main>
