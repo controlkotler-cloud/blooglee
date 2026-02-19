@@ -146,7 +146,7 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
             <div className="flex-1">
               <p className="text-sm font-semibold text-foreground">Siguiente paso: conectar tu WordPress</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Tranquilo, nada se publicará hasta que tú lo decidas.
+                No te preocupes, nada se publicará hasta que tú lo decidas.
               </p>
             </div>
             <Button
