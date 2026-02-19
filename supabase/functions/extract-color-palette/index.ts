@@ -136,10 +136,28 @@ Deno.serve(async (req) => {
     // === EXTRACT DATA ===
     const combinedContent = html + '\n' + externalCss;
     const colors = html ? extractColorsFromHtml(combinedContent) : [];
-    const description = html ? extractDescription(html) : undefined;
+    let description = html ? extractDescription(html) : undefined;
     const socialLink = html ? extractSocialLink(html) : undefined;
     const blogUrl = html ? extractBlogUrl(html, formattedUrl) : undefined;
-    const keywords = html ? extractKeywords(html) : undefined;
+    let keywords = html ? extractKeywords(html) : undefined;
+
+    // === AI ENRICHMENT: generate description/keywords if meta tags were missing ===
+    if (html && (!description || !keywords)) {
+      try {
+        console.log('[extract] Meta tags missing (description:', !!description, ', keywords:', !!keywords, ') — using AI');
+        const aiResult = await extractWithAI(html, formattedUrl, !description, !keywords);
+        if (!description && aiResult.description) {
+          description = aiResult.description;
+          console.log('[extract] AI description:', description?.substring(0, 80));
+        }
+        if (!keywords && aiResult.keywords) {
+          keywords = aiResult.keywords;
+          console.log('[extract] AI keywords:', keywords?.substring(0, 80));
+        }
+      } catch (err) {
+        console.warn('[extract] AI enrichment failed:', err.message);
+      }
+    }
 
     console.log('[extract] Results — colors:', colors.length, 'description:', !!description, 'social:', !!socialLink, 'blog:', !!blogUrl, 'keywords:', !!keywords);
     if (colors.length > 0) console.log('[extract] Colors:', colors.join(', '));
@@ -270,6 +288,87 @@ async function saveData(siteId: string, data: ExtractedData) {
     } else {
       console.log('[extract] Saved:', Object.keys(update).join(', '));
     }
+  }
+}
+
+// =========================================
+// AI-POWERED EXTRACTION (Gemini Flash)
+// =========================================
+
+async function extractWithAI(
+  html: string,
+  url: string,
+  needsDescription: boolean,
+  needsKeywords: boolean,
+): Promise<{ description?: string; keywords?: string }> {
+  const apiKey = Deno.env.get('LOVABLE_API_KEY');
+  if (!apiKey) {
+    console.warn('[extract] No LOVABLE_API_KEY, skipping AI enrichment');
+    return {};
+  }
+
+  // Strip scripts/styles and take a reasonable chunk of visible text
+  const visibleText = html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, 6000);
+
+  if (visibleText.length < 50) return {};
+
+  const parts: string[] = [];
+  if (needsDescription) {
+    parts.push('"description": una frase de 1-2 líneas que resuma qué hace este negocio, su sector y su propuesta de valor. Máximo 200 caracteres. En español.');
+  }
+  if (needsKeywords) {
+    parts.push('"keywords": entre 3 y 8 palabras clave del negocio separadas por comas, en español. Deben ser términos que describan el sector, los servicios o productos principales.');
+  }
+
+  const prompt = `Analiza el contenido de esta web (${url}) y extrae la siguiente información en formato JSON:
+
+{
+  ${parts.join(',\n  ')}
+}
+
+Contenido de la web:
+${visibleText}
+
+Responde SOLO con el JSON, sin markdown ni explicaciones.`;
+
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash-lite',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+    }),
+  });
+
+  if (!response.ok) {
+    console.warn('[extract] AI response status:', response.status);
+    return {};
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content || '';
+
+  // Parse JSON from response (strip fences if present)
+  const cleaned = content.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
+  try {
+    const parsed = JSON.parse(cleaned);
+    return {
+      description: typeof parsed.description === 'string' ? parsed.description.substring(0, 250) : undefined,
+      keywords: typeof parsed.keywords === 'string' ? parsed.keywords.substring(0, 300) : undefined,
+    };
+  } catch {
+    console.warn('[extract] Failed to parse AI JSON:', cleaned.substring(0, 100));
+    return {};
   }
 }
 
