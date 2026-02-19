@@ -26,6 +26,11 @@ const QUICK_ACTIONS = [
   { icon: Globe, label: 'Configuración de idiomas', message: 'Necesito ayuda configurando los idiomas para publicar en español y catalán' },
 ];
 
+const SUPPORT_LINKS = [
+  { icon: MessageSquare, label: 'Hablar por WhatsApp', href: 'https://wa.me/34600000000?text=Hola%2C%20necesito%20ayuda%20con%20Blooglee', external: true },
+  { icon: Send, label: 'Enviar email', href: 'mailto:soporte@blooglee.com?subject=Soporte%20Blooglee', external: true },
+];
+
 export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChatDialogProps) {
   const { messages, isLoading, error, sendMessage, clearMessages } = useSupportChat();
   const [input, setInput] = useState('');
@@ -142,6 +147,25 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
                       {action.label}
                     </span>
                   </button>
+                ))}
+              </div>
+
+              {/* Direct support links */}
+              <div className="pt-3 border-t space-y-1.5">
+                <p className="text-xs text-muted-foreground font-medium mb-2">¿Prefieres contacto directo?</p>
+                {SUPPORT_LINKS.map((link, index) => (
+                  <a
+                    key={index}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/50 transition-colors text-left group"
+                  >
+                    <link.icon className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                      {link.label}
+                    </span>
+                  </a>
                 ))}
               </div>
             </>

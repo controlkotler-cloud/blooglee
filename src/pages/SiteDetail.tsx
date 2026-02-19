@@ -11,7 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { ArrowLeft, Globe, MapPin, Loader2, Sparkles, Link2, Lock, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Globe, MapPin, Loader2, Sparkles, Link2, Lock, CheckCircle2, AlertTriangle, History } from 'lucide-react';
 import { useSites } from '@/hooks/useSites';
 import { useArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 import { useWordPressConfig } from '@/hooks/useWordPressConfigSaas';
@@ -19,10 +19,11 @@ import { useIsAdmin } from '@/hooks/useProfile';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { SiteArticles } from '@/components/saas/SiteArticles';
 import { SiteSettings } from '@/components/saas/SiteSettings';
+import { SiteActivityLog } from '@/components/saas/SiteActivityLog';
 import { WordPressConfigForm } from '@/components/saas/WordPressConfigForm';
 import { SupportChatProvider } from '@/components/saas/SupportChatWidget';
 import { toast } from 'sonner';
- import { useGeneration } from '@/contexts/GenerationContext';
+import { useGeneration } from '@/contexts/GenerationContext';
 
 export default function SiteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -31,7 +32,6 @@ export default function SiteDetail() {
   const initialTab = searchParams.get('tab') || 'articles';
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  // Update tab when URL changes
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab) setActiveTab(tab);
@@ -47,12 +47,11 @@ export default function SiteDetail() {
   const { isAdmin } = useIsAdmin();
   
   const generateMutation = useGenerateArticleSaas();
-   const { isGenerating: checkGenerating } = useGeneration();
+  const { isGenerating: checkGenerating } = useGeneration();
   
   const canGenerate = !!wpConfig;
-   const isGenerating = site ? checkGenerating(site.id) : false;
+  const isGenerating = site ? checkGenerating(site.id) : false;
 
-  // Check if there's already a published article for the current period
   const hasPublishedArticle = !isAdmin && articles.some(a => !!a.wp_post_url);
 
   const handleGenerateArticle = () => {
@@ -66,7 +65,7 @@ export default function SiteDetail() {
       toast.info('Ya tienes un artículo publicado para este periodo');
       return;
     }
-     generateMutation.mutate({ siteId: site.id });
+    generateMutation.mutate({ siteId: site.id });
   };
 
   if (loadingSites) {
@@ -86,6 +85,29 @@ export default function SiteDetail() {
     );
   }
 
+  // WP status indicator
+  const renderWpStatus = () => {
+    if (wpConfig) {
+      return (
+        <Badge variant="outline" className="text-emerald-600 border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20">
+          <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+          WordPress conectado
+        </Badge>
+      );
+    }
+    return (
+      <Badge
+        variant="outline"
+        className="text-amber-600 border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/40 transition-colors"
+        onClick={() => setActiveTab('wordpress')}
+      >
+        <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
+        Sin WordPress
+        <span className="ml-1.5 text-[11px] opacity-70">Conectar →</span>
+      </Badge>
+    );
+  };
+
   return (
     <SupportChatProvider>
       <div className="min-h-screen bg-background">
@@ -104,37 +126,41 @@ export default function SiteDetail() {
                 <BloogleeLogo size="md" />
               </div>
 
-              {hasPublishedArticle ? (
-                <Badge variant="outline" className="text-emerald-600 border-emerald-500/30 px-3 py-1.5">
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Publicado este periodo</span>
-                  <span className="sm:hidden">Publicado</span>
-                </Badge>
-              ) : (
-                <Button 
-                  onClick={handleGenerateArticle} 
-                  disabled={isGenerating}
-                  className={canGenerate 
-                    ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
-                    : "border-amber-500/50 text-amber-700 hover:bg-amber-50"
-                  }
-                  variant={canGenerate ? "default" : "outline"}
-                >
-                  {isGenerating ? (
-                    <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
-                  ) : canGenerate ? (
-                    <Sparkles className="w-4 h-4 sm:mr-2" />
-                  ) : (
-                    <Lock className="w-4 h-4 sm:mr-2" />
-                  )}
-                  <span className="hidden sm:inline">
-                    {isGenerating ? 'Generando...' : canGenerate ? 'Generar artículo' : 'Configura WP primero'}
-                  </span>
-                  <span className="sm:hidden">
-                    {isGenerating ? '' : canGenerate ? 'Generar' : 'WP'}
-                  </span>
-                </Button>
-              )}
+              <div className="flex items-center gap-3">
+                {renderWpStatus()}
+
+                {hasPublishedArticle ? (
+                  <Badge variant="outline" className="text-emerald-600 border-emerald-500/30 px-3 py-1.5">
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">Publicado este periodo</span>
+                    <span className="sm:hidden">Publicado</span>
+                  </Badge>
+                ) : (
+                  <Button 
+                    onClick={handleGenerateArticle} 
+                    disabled={isGenerating}
+                    className={canGenerate 
+                      ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+                      : "border-amber-500/50 text-amber-700 hover:bg-amber-50"
+                    }
+                    variant={canGenerate ? "default" : "outline"}
+                  >
+                    {isGenerating ? (
+                      <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
+                    ) : canGenerate ? (
+                      <Sparkles className="w-4 h-4 sm:mr-2" />
+                    ) : (
+                      <Lock className="w-4 h-4 sm:mr-2" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {isGenerating ? 'Generando...' : canGenerate ? 'Generar artículo' : 'Configura WP primero'}
+                    </span>
+                    <span className="sm:hidden">
+                      {isGenerating ? '' : canGenerate ? 'Generar' : 'WP'}
+                    </span>
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </header>
@@ -170,12 +196,6 @@ export default function SiteDetail() {
                     {site.location}
                   </Badge>
                 )}
-                {wpConfig && (
-                  <Badge variant="outline" className="text-emerald-600 border-emerald-500/30">
-                    <Link2 className="w-3 h-3 mr-1" />
-                    WordPress
-                  </Badge>
-                )}
               </div>
             </div>
             <p className="text-muted-foreground">
@@ -187,6 +207,10 @@ export default function SiteDetail() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="articles">Artículos</TabsTrigger>
+              <TabsTrigger value="activity" className="gap-1.5">
+                <History className="w-3.5 h-3.5" />
+                Actividad
+              </TabsTrigger>
               <TabsTrigger value="settings">Configuración</TabsTrigger>
               <TabsTrigger value="wordpress">WordPress</TabsTrigger>
             </TabsList>
@@ -199,6 +223,10 @@ export default function SiteDetail() {
                 onGenerateArticle={handleGenerateArticle}
                 isGenerating={isGenerating}
               />
+            </TabsContent>
+
+            <TabsContent value="activity">
+              <SiteActivityLog siteId={site.id} siteName={site.name} />
             </TabsContent>
 
             <TabsContent value="settings">

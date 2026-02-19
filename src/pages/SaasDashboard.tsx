@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, ArrowLeftRight, Shield, Sparkles } from 'lucide-react';
+import { NotificationBell } from '@/components/saas/NotificationBell';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useIsMKProAdmin, useIsSuperAdmin } from '@/hooks/useProfile';
 import { useSites } from '@/hooks/useSites';
@@ -232,6 +233,7 @@ export default function SaasDashboard() {
               <span className="text-sm text-muted-foreground hidden sm:inline">
                 {sites.length}/{sitesLimit} sitios
               </span>
+              <NotificationBell />
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
