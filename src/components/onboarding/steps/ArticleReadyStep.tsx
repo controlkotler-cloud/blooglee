@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Rocket, ArrowRight } from 'lucide-react';
+import { Rocket } from 'lucide-react';
 import type { OnboardingStepData } from '@/hooks/useOnboarding';
 import type { ArticleContent } from '@/hooks/useArticlesSaas';
 
@@ -26,7 +25,6 @@ const CHECKLIST_ITEMS = [
 ];
 
 export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteId }: ArticleReadyStepProps) {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [article, setArticle] = useState<{
     content_spanish: ArticleContent | null;
@@ -65,7 +63,7 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
     : 0;
   const readTime = Math.max(1, Math.round(wordCount / 200));
 
-  const handleComplete = async (goToWordPress: boolean) => {
+  const handleComplete = async () => {
     // Create checklist items
     if (user?.id && siteId) {
       const items = CHECKLIST_ITEMS.map((item) => ({
@@ -82,12 +80,9 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
       }
     }
 
-    if (goToWordPress && onConnectWordPress) {
-      // Stay in the wizard, advance to WordPress step
+    // Always advance to WordPress step
+    if (onConnectWordPress) {
       onConnectWordPress();
-    } else {
-      await onFinish();
-      navigate('/dashboard');
     }
   };
 
@@ -140,11 +135,10 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
         </div>
       </ScrollArea>
 
-      {/* Actions */}
-      <div className="space-y-4 pt-2">
-        {/* Primary: WordPress */}
+      {/* Action */}
+      <div className="pt-2">
         <button
-          onClick={() => handleComplete(true)}
+          onClick={() => handleComplete()}
           className="w-full p-4 rounded-xl border-2 border-violet-500 bg-violet-50 dark:bg-violet-900/20 text-left transition-all hover:shadow-md group"
         >
           <div className="flex items-start gap-3">
@@ -164,21 +158,6 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
             </Button>
           </div>
         </button>
-
-        {/* Secondary: Dashboard */}
-        <div className="text-center space-y-1">
-          <p className="text-xs text-muted-foreground">o</p>
-          <button
-            onClick={() => handleComplete(false)}
-            className="text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline inline-flex items-center gap-1"
-          >
-            Ir al dashboard
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-          <p className="text-xs text-muted-foreground">
-            Puedes publicar este artículo más tarde. Lo guardaremos para ti.
-          </p>
-        </div>
       </div>
     </div>
   );
