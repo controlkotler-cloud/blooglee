@@ -5,7 +5,7 @@ interface ProgressBarProps {
   totalSteps?: number;
 }
 
-const STEP_LABELS = ['Negocio', 'Estilo', 'Tema', 'Generando', '¡Listo!'];
+const STEP_LABELS = ['Negocio', 'Estilo', 'Contenido', 'Publicación', 'Tema', 'Generando', '¡Listo!'];
 
 export function ProgressBar({ currentStep, totalSteps = 5 }: ProgressBarProps) {
   return (
