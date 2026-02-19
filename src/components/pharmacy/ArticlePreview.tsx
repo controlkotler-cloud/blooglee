@@ -1,4 +1,5 @@
 import { useState } from "react";
+import DOMPurify from "dompurify";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -173,7 +174,11 @@ ${content.content}
           {/* Content */}
           <div 
             className="prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: content.content }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content.content, {
+              ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'strong', 'em', 'a', 'blockquote', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'div', 'span', 'hr', 'img', 'br'],
+              ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'id', 'src', 'alt'],
+              ALLOW_DATA_ATTR: false,
+            }) }}
           />
 
           {/* Actions */}
