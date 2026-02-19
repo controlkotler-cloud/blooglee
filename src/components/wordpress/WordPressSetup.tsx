@@ -35,6 +35,7 @@ export function WordPressSetup({ siteId, onClose, onComplete }: WordPressSetupPr
   const [blogUrl, setBlogUrl] = useState<string | undefined>(undefined);
   const upsertConfig = useUpsertWordPressConfig();
   const attemptCountRef = useRef(0);
+  const failedAttemptsRef = useRef(0);
   const wpStartTimeRef = useRef(Date.now());
 
   // Load blog_url from site
@@ -85,10 +86,13 @@ export function WordPressSetup({ siteId, onClose, onComplete }: WordPressSetupPr
           total_attempts: attemptCountRef.current,
           duration_seconds: Math.round((Date.now() - wpStartTimeRef.current) / 1000),
         });
-      } else if (result.error_type === 'no_permissions') {
-        track('wp_auth_attempt', { result: 'permissions_error' });
       } else {
-        track('wp_auth_attempt', { result: 'auth_failed' });
+        failedAttemptsRef.current += 1;
+        if (result.error_type === 'no_permissions') {
+          track('wp_auth_attempt', { result: 'permissions_error' });
+        } else {
+          track('wp_auth_attempt', { result: 'auth_failed' });
+        }
       }
 
       // If success, save credentials
@@ -155,7 +159,7 @@ export function WordPressSetup({ siteId, onClose, onComplete }: WordPressSetupPr
           siteUrl={verifiedUrl}
           onContinue={onComplete}
           onRetry={() => setCurrentSubStep('credentials')}
-          onSkip={onClose}
+          onSkip={failedAttemptsRef.current >= 2 ? onClose : undefined}
         />
       )}
     </div>
