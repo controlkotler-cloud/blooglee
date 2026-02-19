@@ -27,7 +27,6 @@ const QUICK_ACTIONS = [
 ];
 
 const SUPPORT_LINKS = [
-  { icon: MessageSquare, label: 'Hablar por WhatsApp', href: 'https://wa.me/34600000000?text=Hola%2C%20necesito%20ayuda%20con%20Blooglee', external: true },
   { icon: Send, label: 'Enviar email', href: 'mailto:soporte@blooglee.com?subject=Soporte%20Blooglee', external: true },
 ];
 
