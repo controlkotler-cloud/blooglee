@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { AlertTriangle, Shield, Globe, Key, MessageSquare, HelpCircle, Copy, Check, FileCode } from 'lucide-react';
+import { AlertTriangle, Shield, Globe, Key, MessageSquare, HelpCircle, Copy, Check, FileCode, CheckCircle2, ExternalLink, RefreshCw, Tags } from 'lucide-react';
 import { CODE_SNIPPETS, getSnippetById } from '@/data/codeSnippets';
 import { useChatWidget } from '@/components/saas/SupportChatWidget';
 import { useNavigate } from 'react-router-dom';
@@ -69,7 +69,6 @@ function SnippetDialog({ snippetId, onClose }: SnippetDialogProps) {
         </DialogHeader>
 
         <div className="flex-1 overflow-auto space-y-4">
-          {/* Instrucciones */}
           <div className="space-y-2">
             <h4 className="font-medium text-sm flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 flex items-center justify-center text-xs font-bold">?</span>
@@ -80,7 +79,6 @@ function SnippetDialog({ snippetId, onClose }: SnippetDialogProps) {
             </div>
           </div>
 
-          {/* Código */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="font-medium text-sm flex items-center gap-2">
@@ -116,11 +114,131 @@ function SnippetDialog({ snippetId, onClose }: SnippetDialogProps) {
   );
 }
 
-export function WordPressTroubleshootPanel() {
+// ── Connected status card ──
+interface ConnectedStatusProps {
+  siteUrl: string;
+  taxonomiesCount?: { categories: number; tags: number };
+  lastSync?: string;
+  onResync?: () => void;
+  isSyncing?: boolean;
+}
+
+function WordPressConnectedStatus({ siteUrl, taxonomiesCount, lastSync, onResync, isSyncing }: ConnectedStatusProps) {
+  const { openChat } = useChatWidget();
+  const navigate = useNavigate();
+
+  return (
+    <Card className="border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+          WordPress conectado
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Site URL */}
+        <div className="flex items-center gap-2 text-sm">
+          <Globe className="w-4 h-4 text-muted-foreground" />
+          <a
+            href={siteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-violet-600 dark:text-violet-400 hover:underline truncate"
+          >
+            {siteUrl.replace(/^https?:\/\//, '')}
+          </a>
+          <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+        </div>
+
+        {/* Taxonomies info */}
+        {taxonomiesCount && (taxonomiesCount.categories > 0 || taxonomiesCount.tags > 0) && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Tags className="w-4 h-4" />
+            <span>{taxonomiesCount.categories} categorías · {taxonomiesCount.tags} tags sincronizados</span>
+          </div>
+        )}
+
+        {/* Last sync */}
+        {lastSync && (
+          <p className="text-xs text-muted-foreground">
+            Última sincronización: {new Date(lastSync).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-emerald-200 dark:border-emerald-800">
+          {onResync && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onResync}
+              disabled={isSyncing}
+              className="gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Sincronizando...' : 'Re-sincronizar'}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => openChat({ action: 'wordpress_connection' })}
+            className="gap-2"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Hablar con Bloobot
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/help')}
+            className="gap-2"
+          >
+            <HelpCircle className="w-4 h-4" />
+            Centro de ayuda
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Main export (conditional) ──
+interface WordPressTroubleshootPanelProps {
+  isConnected?: boolean;
+  siteUrl?: string;
+  taxonomiesCount?: { categories: number; tags: number };
+  lastSync?: string;
+  onResync?: () => void;
+  isSyncing?: boolean;
+}
+
+export function WordPressTroubleshootPanel({
+  isConnected = false,
+  siteUrl,
+  taxonomiesCount,
+  lastSync,
+  onResync,
+  isSyncing,
+}: WordPressTroubleshootPanelProps) {
   const [selectedSnippet, setSelectedSnippet] = useState<string | null>(null);
   const { openChat } = useChatWidget();
   const navigate = useNavigate();
 
+  // ── Connected state ──
+  if (isConnected && siteUrl) {
+    return (
+      <WordPressConnectedStatus
+        siteUrl={siteUrl}
+        taxonomiesCount={taxonomiesCount}
+        lastSync={lastSync}
+        onResync={onResync}
+        isSyncing={isSyncing}
+      />
+    );
+  }
+
+  // ── Not connected: troubleshoot ──
   const troubleshootItems = [
     { icon: Shield, title: 'Wordfence bloquea', description: 'Añadir excepciones al firewall', snippetId: 'wordfence-whitelist' },
     { icon: Globe, title: 'Polylang/WPML', description: 'Soporte API para idiomas', snippetId: 'polylang-api-support' },
