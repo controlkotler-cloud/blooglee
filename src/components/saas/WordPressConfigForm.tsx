@@ -268,7 +268,7 @@ export function WordPressConfigForm({ siteId, wordpressContext }: WordPressConfi
         </Collapsible>
 
         {/* Formulario */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" autoComplete="off">
           {/* Campo 1: URL */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -322,6 +322,8 @@ export function WordPressConfigForm({ siteId, wordpressContext }: WordPressConfi
               id="wp_username"
               placeholder="tu_usuario_wordpress"
               className="h-12 text-base"
+              autoComplete="off"
+              data-1p-ignore
               {...register('wp_username')}
             />
             <p className="text-xs text-muted-foreground">
@@ -344,6 +346,8 @@ export function WordPressConfigForm({ siteId, wordpressContext }: WordPressConfi
                 type={showPassword ? 'text' : 'password'}
                 placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
                 className="h-12 text-base pr-20"
+                autoComplete="new-password"
+                data-1p-ignore
                 {...register('wp_app_password')}
               />
               <button

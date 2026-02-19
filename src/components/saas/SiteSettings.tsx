@@ -261,7 +261,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" autoComplete="off">
         {/* Basic info */}
         <Card>
           <CardHeader>
