@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,20 +9,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, ArrowLeftRight, Shield } from 'lucide-react';
+import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, ArrowLeftRight, Shield, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useIsMKProAdmin, useIsSuperAdmin } from '@/hooks/useProfile';
 import { useSites, useImportSites } from '@/hooks/useSites';
 import { useAllArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
+import { useAllArticlesForUser } from '@/hooks/useAllArticlesForUser';
 import { useWordPressConfigsBatch } from '@/hooks/useWordPressConfigSaas';
 import { useChecklist } from '@/hooks/useChecklist';
 import { SiteCard } from '@/components/saas/SiteCard';
+import { SitesToolbar, type ViewMode, type SortOption, type FilterOption } from '@/components/saas/SitesToolbar';
+import { SitesTableView } from '@/components/saas/SitesTableView';
+import { AgencyStatsBanner } from '@/components/saas/AgencyStatsBanner';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
 import { PlanBadge, type PlanType } from '@/components/saas/PlanBadge';
 import { SiteImportExport } from '@/components/saas/SiteImportExport';
 import { SetupChecklist } from '@/components/setup/SetupChecklist';
 import { toast } from 'sonner';
 import { useGeneration } from '@/contexts/GenerationContext';
+
+const VIEW_MODE_KEY = 'blooglee-view-mode';
 
 export default function SaasDashboard() {
   const navigate = useNavigate();
@@ -31,22 +37,16 @@ export default function SaasDashboard() {
   const { canAccessMKPro } = useIsMKProAdmin();
   const { isSuperAdmin } = useIsSuperAdmin();
   const { data: sites = [], isLoading: loadingSites } = useSites();
-  
-  // Old onboarding tour disabled
-  // const { shouldShowTour, completeTour } = useOnboardingTour();
-  
-   // Global generation state
-   const { isGenerating } = useGeneration();
+  const { isGenerating } = useGeneration();
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
-  const { data: articles = [] } = useAllArticlesSaas(currentMonth, currentYear);
+  const { data: monthArticles = [] } = useAllArticlesSaas(currentMonth, currentYear);
+  const { data: allArticles = [] } = useAllArticlesForUser();
 
-  // Batch fetch WordPress configs for all sites
   const siteIds = sites.map(s => s.id);
   const { data: wpConfigsMap = {} } = useWordPressConfigsBatch(siteIds);
 
-  // Checklist: show setup view if wizard done but checklist incomplete
   const firstSiteId = sites[0]?.id;
   const { isChecklistComplete, checklistItems, isLoading: loadingChecklist } = useChecklist(firstSiteId);
   const showChecklist = sites.length > 0 && checklistItems.length > 0 && !isChecklistComplete;
@@ -59,16 +59,120 @@ export default function SaasDashboard() {
   const canAddSite = isAdmin || sites.length < sitesLimit;
   const plan = (profile?.plan || 'free') as PlanType;
 
-  const getArticleCountForSite = (siteId: string) => {
-    return articles.filter(a => a.site_id === siteId).length;
+  // Toolbar state
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
+  const [sortOption, setSortOption] = useState<SortOption>('name-asc');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem(VIEW_MODE_KEY);
+    if (saved === 'cards' || saved === 'table') return saved;
+    return sites.length > 6 ? 'table' : 'cards';
+  });
+
+  // Update default view when sites load
+  useEffect(() => {
+    const saved = localStorage.getItem(VIEW_MODE_KEY);
+    if (!saved) {
+      setViewMode(sites.length > 6 ? 'table' : 'cards');
+    }
+  }, [sites.length]);
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem(VIEW_MODE_KEY, mode);
   };
 
-   const handleGenerateArticle = (siteId: string) => {
-     generateMutation.mutate({ siteId });
-   };
- 
-   const handleSignOut = async () => {
-     await signOut();
+  // Compute per-site data
+  const siteDataMap = useMemo(() => {
+    const map: Record<string, { articleCount: number; lastArticleDate: string | null }> = {};
+    for (const site of sites) {
+      const siteArticles = allArticles.filter(a => a.site_id === site.id);
+      map[site.id] = {
+        articleCount: siteArticles.length,
+        lastArticleDate: siteArticles.length > 0 ? siteArticles[0].generated_at : null,
+      };
+    }
+    return map;
+  }, [sites, allArticles]);
+
+  // Filter counts
+  const filterCounts = useMemo(() => ({
+    noWp: sites.filter(s => !wpConfigsMap[s.id]).length,
+    wpConnected: sites.filter(s => !!wpConfigsMap[s.id]).length,
+    noArticles: sites.filter(s => (siteDataMap[s.id]?.articleCount ?? 0) === 0).length,
+  }), [sites, wpConfigsMap, siteDataMap]);
+
+  // Sites needing attention: no WP, 0 articles, or no activity in 2+ weeks
+  const sitesNeedingAttention = useMemo(() => {
+    return sites.filter(s => {
+      if (!wpConfigsMap[s.id]) return true;
+      const data = siteDataMap[s.id];
+      if (!data || data.articleCount === 0) return true;
+      if (data.lastArticleDate) {
+        const diffMs = Date.now() - new Date(data.lastArticleDate).getTime();
+        if (diffMs > 14 * 24 * 60 * 60 * 1000) return true;
+      }
+      return false;
+    }).length;
+  }, [sites, wpConfigsMap, siteDataMap]);
+
+  // Apply search + filter + sort
+  const filteredSites = useMemo(() => {
+    let result = [...sites];
+
+    // Search
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(s =>
+        s.name.toLowerCase().includes(q) ||
+        (s.sector || '').toLowerCase().includes(q) ||
+        (s.location || '').toLowerCase().includes(q)
+      );
+    }
+
+    // Filter
+    switch (activeFilter) {
+      case 'no-wp':
+        result = result.filter(s => !wpConfigsMap[s.id]);
+        break;
+      case 'wp-connected':
+        result = result.filter(s => !!wpConfigsMap[s.id]);
+        break;
+      case 'no-articles':
+        result = result.filter(s => (siteDataMap[s.id]?.articleCount ?? 0) === 0);
+        break;
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      switch (sortOption) {
+        case 'name-asc':
+          return a.name.localeCompare(b.name);
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        case 'activity': {
+          const dateA = siteDataMap[a.id]?.lastArticleDate;
+          const dateB = siteDataMap[b.id]?.lastArticleDate;
+          return (dateB ? new Date(dateB).getTime() : 0) - (dateA ? new Date(dateA).getTime() : 0);
+        }
+        case 'articles':
+          return (siteDataMap[b.id]?.articleCount ?? 0) - (siteDataMap[a.id]?.articleCount ?? 0);
+        case 'wordpress':
+          return (wpConfigsMap[a.id] ? 1 : 0) - (wpConfigsMap[b.id] ? 1 : 0);
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [sites, search, activeFilter, sortOption, wpConfigsMap, siteDataMap]);
+
+  const handleGenerateArticle = (siteId: string) => {
+    generateMutation.mutate({ siteId });
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   const isLoading = loadingProfile || loadingSites || loadingChecklist;
@@ -81,13 +185,31 @@ export default function SaasDashboard() {
     );
   }
 
-  const firstSite = sites[0];
-  const hasWordPressOnFirstSite = firstSite ? !!wpConfigsMap[firstSite.id] : false;
+  // Grid class based on site count
+  const getGridClass = () => {
+    const count = filteredSites.length;
+    if (count === 1) return 'max-w-[500px] mx-auto';
+    if (count === 2) return 'grid gap-4 grid-cols-1 sm:grid-cols-2 max-w-[1024px] mx-auto';
+    return 'grid gap-4 md:grid-cols-2 lg:grid-cols-3';
+  };
+
+  // Table row data
+  const tableData = filteredSites.map(site => ({
+    site,
+    articleCount: siteDataMap[site.id]?.articleCount ?? 0,
+    wpConfig: wpConfigsMap[site.id] || null,
+    lastArticleDate: siteDataMap[site.id]?.lastArticleDate ?? null,
+    needsAttention: !wpConfigsMap[site.id] ||
+      (siteDataMap[site.id]?.articleCount ?? 0) === 0 ||
+      (siteDataMap[site.id]?.lastArticleDate
+        ? Date.now() - new Date(siteDataMap[site.id].lastArticleDate!).getTime() > 14 * 24 * 60 * 60 * 1000
+        : true),
+  }));
+
+  const articlesThisMonth = monthArticles.length;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Old OnboardingTour (driver.js) disabled — replaced by wizard + checklist */}
-
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -111,7 +233,6 @@ export default function SaasDashboard() {
                 {sites.length}/{sitesLimit} sitios
               </span>
 
-              {/* User menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -165,7 +286,8 @@ export default function SaasDashboard() {
           <SetupChecklist site={sites[0]} />
         ) : (
           <>
-            <div className="flex items-center justify-between mb-6">
+            {/* Title + Add button */}
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Tus sitios</h2>
               <Button 
                 onClick={() => navigate('/onboarding')} 
@@ -178,36 +300,127 @@ export default function SaasDashboard() {
             </div>
 
             {sites.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Globe className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2">No tienes sitios todavía</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Crea tu primer sitio para empezar a generar artículos automáticamente
-                  </p>
-                  <Button onClick={() => navigate('/onboarding')}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Crear mi primer sitio
-                  </Button>
-                </CardContent>
-              </Card>
+              /* Empty state - no sites */
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+                  <Sparkles className="w-10 h-10 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Crea tu primer sitio</h3>
+                <p className="text-muted-foreground text-center max-w-md mb-6">
+                  Añade tu negocio para empezar a generar artículos con IA.
+                </p>
+                <Button size="lg" onClick={() => navigate('/onboarding')}>
+                  <Plus className="w-5 h-5 mr-2" />
+                  Añadir sitio
+                </Button>
+              </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {sites.map((site, index) => (
-                  <SiteCard
-                    key={site.id}
-                    site={site}
-                    articleCount={getArticleCountForSite(site.id)}
-                    hasWordPress={!!wpConfigsMap[site.id]}
-                    onGenerateArticle={() => handleGenerateArticle(site.id)}
-                    onViewArticles={() => navigate(`/site/${site.id}`)}
-                    onConfigureWordPress={() => navigate(`/site/${site.id}?tab=wordpress`)}
-                    onEdit={() => navigate(`/site/${site.id}?tab=settings`)}
-                    onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
-                    isGenerating={isGenerating(site.id)}
-                    isFirstSite={index === 0}
+              <div className="space-y-4">
+                {/* Agency stats banner */}
+                <AgencyStatsBanner
+                  totalSites={sites.length}
+                  wpConnected={filterCounts.wpConnected}
+                  wpDisconnected={filterCounts.noWp}
+                  articlesThisMonth={articlesThisMonth}
+                  sitesNeedingAttention={sitesNeedingAttention}
+                  onFilterClick={setActiveFilter}
+                />
+
+                {/* Toolbar */}
+                <SitesToolbar
+                  search={search}
+                  onSearchChange={setSearch}
+                  activeFilter={activeFilter}
+                  onFilterChange={setActiveFilter}
+                  viewMode={viewMode}
+                  onViewModeChange={handleViewModeChange}
+                  sortOption={sortOption}
+                  onSortChange={setSortOption}
+                  filterCounts={filterCounts}
+                  totalSites={sites.length}
+                />
+
+                {/* No results from filter */}
+                {filteredSites.length === 0 ? (
+                  <div className="flex flex-col items-center py-12">
+                    <p className="text-muted-foreground mb-3">No hay sitios que coincidan con tu búsqueda o filtro.</p>
+                    <Button
+                      variant="outline"
+                      onClick={() => { setSearch(''); setActiveFilter('all'); }}
+                    >
+                      Limpiar filtros
+                    </Button>
+                  </div>
+                ) : viewMode === 'table' ? (
+                  /* Table view */
+                  <SitesTableView
+                    sites={tableData}
+                    onGenerateArticle={handleGenerateArticle}
+                    onViewArticles={(id) => navigate(`/site/${id}`)}
+                    onEditSite={(id) => navigate(`/site/${id}?tab=settings`)}
+                    isGenerating={isGenerating}
                   />
-                ))}
+                ) : (
+                  /* Cards view */
+                  <div className={filteredSites.length <= 2 ? '' : 'grid gap-4 md:grid-cols-2 lg:grid-cols-3'}>
+                    {filteredSites.length === 1 ? (
+                      <div className="max-w-[500px] mx-auto">
+                        <SiteCard
+                          site={filteredSites[0]}
+                          articleCount={siteDataMap[filteredSites[0].id]?.articleCount ?? 0}
+                          hasWordPress={!!wpConfigsMap[filteredSites[0].id]}
+                          wpSiteUrl={wpConfigsMap[filteredSites[0].id]?.site_url}
+                          lastArticleDate={siteDataMap[filteredSites[0].id]?.lastArticleDate}
+                          onGenerateArticle={() => handleGenerateArticle(filteredSites[0].id)}
+                          onViewArticles={() => navigate(`/site/${filteredSites[0].id}`)}
+                          onConfigureWordPress={() => navigate(`/site/${filteredSites[0].id}?tab=wordpress`)}
+                          onEdit={() => navigate(`/site/${filteredSites[0].id}?tab=settings`)}
+                          onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
+                          isGenerating={isGenerating(filteredSites[0].id)}
+                          isFirstSite={true}
+                        />
+                      </div>
+                    ) : filteredSites.length === 2 ? (
+                      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 max-w-[1024px] mx-auto">
+                        {filteredSites.map((site, index) => (
+                          <SiteCard
+                            key={site.id}
+                            site={site}
+                            articleCount={siteDataMap[site.id]?.articleCount ?? 0}
+                            hasWordPress={!!wpConfigsMap[site.id]}
+                            wpSiteUrl={wpConfigsMap[site.id]?.site_url}
+                            lastArticleDate={siteDataMap[site.id]?.lastArticleDate}
+                            onGenerateArticle={() => handleGenerateArticle(site.id)}
+                            onViewArticles={() => navigate(`/site/${site.id}`)}
+                            onConfigureWordPress={() => navigate(`/site/${site.id}?tab=wordpress`)}
+                            onEdit={() => navigate(`/site/${site.id}?tab=settings`)}
+                            onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
+                            isGenerating={isGenerating(site.id)}
+                            isFirstSite={index === 0}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      filteredSites.map((site, index) => (
+                        <SiteCard
+                          key={site.id}
+                          site={site}
+                          articleCount={siteDataMap[site.id]?.articleCount ?? 0}
+                          hasWordPress={!!wpConfigsMap[site.id]}
+                          wpSiteUrl={wpConfigsMap[site.id]?.site_url}
+                          lastArticleDate={siteDataMap[site.id]?.lastArticleDate}
+                          onGenerateArticle={() => handleGenerateArticle(site.id)}
+                          onViewArticles={() => navigate(`/site/${site.id}`)}
+                          onConfigureWordPress={() => navigate(`/site/${site.id}?tab=wordpress`)}
+                          onEdit={() => navigate(`/site/${site.id}?tab=settings`)}
+                          onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
+                          isGenerating={isGenerating(site.id)}
+                          isFirstSite={index === 0}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -227,12 +440,11 @@ export default function SaasDashboard() {
               </Card>
             )}
 
-            {/* Import/Export section - Solo para plan Agency */}
             {plan === 'agency' && (
               <div className="mt-6">
                 <SiteImportExport
                   sites={sites}
-                  articles={articles}
+                  articles={monthArticles}
                   sitesLimit={sitesLimit}
                   onImportSites={(sitesToImport) => importSitesMutation.mutate(sitesToImport)}
                 />
