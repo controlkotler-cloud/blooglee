@@ -9,16 +9,16 @@ import { OnboardingNavButtons } from '../OnboardingNavButtons';
 import type { OnboardingStepData } from '@/hooks/useOnboarding';
 
 const TONES = [
-  { value: 'friendly', icon: '🤝', label: 'Cercano y amigable', desc: 'Como hablar con un vecino. Tuteo, lenguaje sencillo.' },
-  { value: 'professional', icon: '👔', label: 'Profesional', desc: 'Formal pero accesible. Usted, sin jerga excesiva.' },
-  { value: 'expert', icon: '🎓', label: 'Experto', desc: 'Técnico y detallado. Posiciónate como autoridad en tu sector.' },
-  { value: 'educational', icon: '💬', label: 'Divulgativo', desc: 'Explica temas complejos de forma sencilla. Ideal para salud, legal, finanzas.' },
+  { value: 'casual', icon: '🤝', label: 'Cercano y amigable', desc: 'Como hablar con un vecino. Tuteo, lenguaje sencillo.' },
+  { value: 'formal', icon: '👔', label: 'Formal y profesional', desc: 'Lenguaje institucional y serio. Usted, sin jerga excesiva.' },
+  { value: 'technical', icon: '🎓', label: 'Técnico y especializado', desc: 'Para audiencia experta. Posiciónate como autoridad en tu sector.' },
+  { value: 'educational', icon: '💬', label: 'Divulgativo y accesible', desc: 'Explica temas complejos de forma sencilla. Ideal para salud, legal, finanzas.' },
 ];
 
 const SECTOR_TONE_MAP: Record<string, string> = {
-  farmacia: 'friendly', peluqueria: 'friendly', restaurante: 'friendly',
-  clinica_dental: 'professional', asesoria: 'professional', inmobiliaria: 'professional',
-  gimnasio: 'friendly', ecommerce: 'friendly', marketing: 'friendly',
+  farmacia: 'casual', peluqueria: 'casual', restaurante: 'casual',
+  clinica_dental: 'formal', asesoria: 'formal', inmobiliaria: 'formal',
+  gimnasio: 'casual', ecommerce: 'casual', marketing: 'casual',
   veterinaria: 'educational',
 };
 
