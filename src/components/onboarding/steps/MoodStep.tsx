@@ -1,51 +1,26 @@
-import { useState, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowRight, ArrowLeft, Check, Loader2 } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { track } from '@/lib/analytics';
+import { OnboardingNavButtons } from '../OnboardingNavButtons';
 import type { OnboardingStepData } from '@/hooks/useOnboarding';
 
 const MOODS = [
-  {
-    value: 'warm_and_welcoming',
-    icon: '🌅',
-    label: 'Cercano y cálido',
-    desc: 'Colores cálidos, iluminación suave. Transmite confianza y cercanía.',
-  },
-  {
-    value: 'clean_and_clinical',
-    icon: '🏢',
-    label: 'Profesional y limpio',
-    desc: 'Líneas claras, tonos neutros. Transmite seriedad y fiabilidad.',
-  },
-  {
-    value: 'energetic',
-    icon: '⚡',
-    label: 'Dinámico y activo',
-    desc: 'Colores vivos, composiciones dinámicas. Transmite energía y movimiento.',
-  },
-  {
-    value: 'calm_and_trustworthy',
-    icon: '🌿',
-    label: 'Natural y tranquilo',
-    desc: 'Tonos naturales, espacios abiertos. Transmite calma y equilibrio.',
-  },
+  { value: 'warm_and_welcoming', icon: '🌅', label: 'Cercano y cálido', desc: 'Colores cálidos, iluminación suave. Transmite confianza y cercanía.' },
+  { value: 'clean_and_clinical', icon: '🏢', label: 'Profesional y limpio', desc: 'Líneas claras, tonos neutros. Transmite seriedad y fiabilidad.' },
+  { value: 'energetic', icon: '⚡', label: 'Dinámico y activo', desc: 'Colores vivos, composiciones dinámicas. Transmite energía y movimiento.' },
+  { value: 'calm_and_trustworthy', icon: '🌿', label: 'Natural y tranquilo', desc: 'Tonos naturales, espacios abiertos. Transmite calma y equilibrio.' },
 ];
 
 const SECTOR_MOOD_MAP: Record<string, string> = {
-  farmacia: 'warm_and_welcoming',
-  peluqueria: 'warm_and_welcoming',
-  clinica_dental: 'clean_and_clinical',
-  asesoria: 'clean_and_clinical',
-  inmobiliaria: 'clean_and_clinical',
-  restaurante: 'energetic',
-  gimnasio: 'energetic',
-  ecommerce: 'energetic',
-  veterinaria: 'calm_and_trustworthy',
-  marketing: 'clean_and_clinical',
+  farmacia: 'warm_and_welcoming', peluqueria: 'warm_and_welcoming',
+  clinica_dental: 'clean_and_clinical', asesoria: 'clean_and_clinical',
+  inmobiliaria: 'clean_and_clinical', restaurante: 'energetic',
+  gimnasio: 'energetic', ecommerce: 'energetic',
+  veterinaria: 'calm_and_trustworthy', marketing: 'clean_and_clinical',
 };
 
 interface MoodStepProps {
@@ -59,21 +34,14 @@ interface MoodStepProps {
 }
 
 export function MoodStep({
-  onNext,
-  onBack,
-  saveStepData,
-  stepData,
-  siteId,
-  colors = [],
-  extractionStatus = 'idle',
+  onNext, onBack, saveStepData, stepData, siteId,
+  colors = [], extractionStatus = 'idle',
 }: MoodStepProps) {
   const sector = stepData?.step1?.sector ?? '';
   const recommendedMood = SECTOR_MOOD_MAP[sector] ?? '';
 
   const [mood, setMood] = useState(stepData?.step2b?.mood ?? recommendedMood);
-  const [useBrandColors, setUseBrandColors] = useState(
-    stepData?.step2b?.use_brand_colors ?? true
-  );
+  const [useBrandColors, setUseBrandColors] = useState(stepData?.step2b?.use_brand_colors ?? true);
   const [isSaving, setIsSaving] = useState(false);
 
   const hasColors = colors.length > 0 && extractionStatus === 'done';
@@ -83,26 +51,13 @@ export function MoodStep({
   const handleNext = async () => {
     if (!canProceed) return;
     setIsSaving(true);
-
     try {
       const data = { mood, use_brand_colors: hasColors ? useBrandColors : false };
       await saveStepData('step2b', data);
-
-      track('onboarding_mood_selected', {
-        mood,
-        pre_selected: mood === recommendedMood,
-      });
-
+      track('onboarding_mood_selected', { mood, pre_selected: mood === recommendedMood });
       if (siteId) {
-        await supabase
-          .from('sites')
-          .update({
-            mood,
-            use_brand_colors: hasColors ? useBrandColors : false,
-          })
-          .eq('id', siteId);
+        await supabase.from('sites').update({ mood, use_brand_colors: hasColors ? useBrandColors : false }).eq('id', siteId);
       }
-
       onNext();
     } catch (err) {
       console.error('Error in MoodStep:', err);
@@ -113,9 +68,9 @@ export function MoodStep({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
+    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
       {/* Header */}
-      <div className="text-center space-y-2 mb-8">
+      <div className="text-center space-y-2 mb-6">
         <h2 className="text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
           ¿Qué estilo visual quieres para tus imágenes?
         </h2>
@@ -131,26 +86,30 @@ export function MoodStep({
           {MOODS.map((m) => {
             const isSelected = mood === m.value;
             const isRecommended = recommendedMood === m.value;
-
             return (
               <button
                 key={m.value}
                 type="button"
                 onClick={() => setMood(m.value)}
-                className={`relative flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all hover:scale-[1.01] ${
+                className={`relative flex flex-col items-start gap-1.5 p-4 rounded-xl border-2 text-left transition-all duration-200 min-h-[130px] ${
                   isSelected
-                    ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 shadow-sm'
-                    : 'border-border hover:border-violet-300'
+                    ? 'border-primary bg-primary/5 shadow-md'
+                    : 'border-border hover:border-primary/40 hover:shadow-sm'
                 }`}
               >
                 {isRecommended && (
-                  <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-medium text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/40 px-2 py-0.5 rounded-full">
+                  <span className="absolute top-2.5 left-2.5 flex items-center gap-1 text-[11px] font-semibold text-white bg-gradient-to-r from-violet-500 to-fuchsia-500 px-2.5 py-0.5 rounded-full">
                     <Check className="w-3 h-3" />
                     Recomendado
                   </span>
                 )}
-                <span className="text-2xl">{m.icon}</span>
-                <span className="text-sm font-semibold">{m.label}</span>
+                {isSelected && !isRecommended && (
+                  <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="w-3 h-3 text-primary-foreground" />
+                  </span>
+                )}
+                <span className="text-[28px] mb-1 mt-1">{m.icon}</span>
+                <span className="text-sm font-semibold text-foreground">{m.label}</span>
                 <span className="text-xs text-muted-foreground leading-snug">{m.desc}</span>
               </button>
             );
@@ -172,55 +131,26 @@ export function MoodStep({
           <div className="flex items-center gap-3 flex-wrap">
             {colors.map((hex) => (
               <div key={hex} className="flex flex-col items-center gap-1">
-                <div
-                  className="w-6 h-6 rounded border border-border"
-                  style={{ backgroundColor: hex }}
-                />
+                <div className="w-6 h-6 rounded border border-border" style={{ backgroundColor: hex }} />
                 <span className="text-[10px] text-muted-foreground font-mono">{hex}</span>
               </div>
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <Checkbox
-              id="use-brand-colors"
-              checked={useBrandColors}
-              onCheckedChange={(checked) => setUseBrandColors(checked === true)}
-            />
-            <label htmlFor="use-brand-colors" className="text-sm cursor-pointer">
-              Usar mis colores de marca
-            </label>
+            <Checkbox id="use-brand-colors" checked={useBrandColors} onCheckedChange={(c) => setUseBrandColors(c === true)} />
+            <label htmlFor="use-brand-colors" className="text-sm cursor-pointer">Usar mis colores de marca</label>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Usaremos estos colores en tus imágenes combinados con el estilo que elijas.
-          </p>
+          <p className="text-xs text-muted-foreground">Usaremos estos colores en tus imágenes combinados con el estilo que elijas.</p>
         </div>
       )}
 
-      {/* Buttons */}
-      <div className="pt-4 border-t flex gap-3">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="h-12 px-6 gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Atrás
-        </Button>
-        <Button
-          onClick={handleNext}
-          disabled={!canProceed || isSaving}
-          className="flex-1 h-12 text-base font-semibold bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white gap-2"
-        >
-          {isSaving ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-          ) : (
-            <>
-              Siguiente
-              <ArrowRight className="w-4 h-4" />
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Navigation */}
+      <OnboardingNavButtons
+        onNext={handleNext}
+        onBack={onBack}
+        nextDisabled={!canProceed}
+        isSaving={isSaving}
+      />
     </div>
   );
 }

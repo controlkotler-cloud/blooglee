@@ -150,6 +150,23 @@ export default {
           "0%, 100%": { backgroundPosition: "0% 50%" },
           "50%": { backgroundPosition: "100% 50%" },
         },
+        "onboarding-pulse": {
+          "0%, 100%": { boxShadow: "0 0 0 0 hsla(var(--primary), 0.4)" },
+          "50%": { boxShadow: "0 0 0 6px hsla(var(--primary), 0)" },
+        },
+        "confetti-fall": {
+          "0%": { transform: "translateY(-100%) rotate(0deg)", opacity: "1" },
+          "100%": { transform: "translateY(100vh) rotate(720deg)", opacity: "0" },
+        },
+        "typing-cursor": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0" },
+        },
+        "progress-indeterminate": {
+          "0%": { width: "0%", marginLeft: "0%" },
+          "50%": { width: "60%", marginLeft: "20%" },
+          "100%": { width: "0%", marginLeft: "100%" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -164,6 +181,9 @@ export default {
         "pulse-glow": "pulse-glow 4s ease-in-out infinite",
         "aurora-shift": "aurora-shift 15s ease-in-out infinite",
         "gradient-shift": "gradient-shift 8s ease infinite",
+        "onboarding-pulse": "onboarding-pulse 2s ease-in-out infinite",
+        "confetti-fall": "confetti-fall 3s ease-in forwards",
+        "typing-cursor": "typing-cursor 1s ease-in-out infinite",
       },
     },
   },

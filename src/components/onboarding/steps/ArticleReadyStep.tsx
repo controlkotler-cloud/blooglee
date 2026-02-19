@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +24,40 @@ const CHECKLIST_ITEMS = [
   { step_key: 'auto_publish', status: 'pending' },
 ];
 
+// CSS confetti particles
+const CONFETTI_COLORS = ['#8B5CF6', '#D946EF', '#F97316', '#22C55E', '#3B82F6', '#EAB308'];
+
+function ConfettiParticles() {
+  const particles = useMemo(() =>
+    Array.from({ length: 30 }, (_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 2}s`,
+      duration: `${2 + Math.random() * 2}s`,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      size: 4 + Math.random() * 6,
+    })),
+  []);
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className="absolute top-0 rounded-sm"
+          style={{
+            left: p.left,
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            animation: `confetti-fall ${p.duration} ${p.delay} ease-in forwards`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteId }: ArticleReadyStepProps) {
   const { user } = useAuth();
   const [article, setArticle] = useState<{
@@ -33,38 +67,22 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
   const [isLoading, setIsLoading] = useState(true);
 
   const articleId = stepData?.step5?.article_id as string | undefined;
-  const topic = (stepData?.step3?.selected_topic as string) ?? '';
 
-  // Load article
   useEffect(() => {
     if (!articleId) { setIsLoading(false); return; }
-
     const load = async () => {
-      const { data } = await supabase
-        .from('articles')
-        .select('content_spanish, image_url')
-        .eq('id', articleId)
-        .single();
-
-      if (data) {
-        setArticle({
-          content_spanish: data.content_spanish as unknown as ArticleContent | null,
-          image_url: data.image_url,
-        });
-      }
+      const { data } = await supabase.from('articles').select('content_spanish, image_url').eq('id', articleId).single();
+      if (data) setArticle({ content_spanish: data.content_spanish as unknown as ArticleContent | null, image_url: data.image_url });
       setIsLoading(false);
     };
     load();
   }, [articleId]);
 
   const content = article?.content_spanish;
-  const wordCount = content?.content
-    ? content.content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length
-    : 0;
+  const wordCount = content?.content ? content.content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length : 0;
   const readTime = Math.max(1, Math.round(wordCount / 200));
 
   const handleComplete = async () => {
-    // Create checklist items
     if (user?.id && siteId) {
       const items = CHECKLIST_ITEMS.map((item) => ({
         user_id: user.id,
@@ -73,23 +91,18 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
         status: item.status,
         completed_at: item.status === 'completed' ? new Date().toISOString() : null,
       }));
-
       const { error } = await supabase.from('onboarding_checklist').insert(items as any);
-      if (error) {
-        console.error('Error creating checklist:', error);
-      }
+      if (error) console.error('Error creating checklist:', error);
     }
-
-    // Always advance to WordPress step
-    if (onConnectWordPress) {
-      onConnectWordPress();
-    }
+    if (onConnectWordPress) onConnectWordPress();
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 py-2">
+    <div className="relative space-y-6 animate-in fade-in duration-500 py-2">
+      <ConfettiParticles />
+
       {/* Celebration header */}
-      <div className="text-center space-y-3">
+      <div className="relative z-10 text-center space-y-3">
         <div className="text-5xl animate-in zoom-in duration-500">🎉</div>
         <h2 className="text-2xl font-display font-bold text-foreground">
           ¡Tu primer artículo está listo!
@@ -107,7 +120,7 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
       </div>
 
       {/* Article preview */}
-      <ScrollArea className="h-[280px] rounded-xl border border-border bg-muted/30 p-1">
+      <ScrollArea className="relative z-10 h-[320px] rounded-xl border border-border bg-card p-1">
         <div className="p-4 space-y-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
@@ -116,48 +129,29 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
           ) : content ? (
             <>
               {article?.image_url && (
-                <img
-                  src={article.image_url}
-                  alt={content.title}
-                  className="w-full max-h-48 object-cover rounded-lg"
-                />
+                <img src={article.image_url} alt={content.title} className="w-full max-h-48 object-cover rounded-lg" />
               )}
-              <div
-                className="prose prose-sm dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: content.content }}
-              />
+              <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: content.content }} />
             </>
           ) : (
-            <p className="text-center text-muted-foreground py-8">
-              No se pudo cargar la vista previa del artículo.
-            </p>
+            <p className="text-center text-muted-foreground py-8">No se pudo cargar la vista previa del artículo.</p>
           )}
         </div>
       </ScrollArea>
 
-      {/* Action */}
-      <div className="pt-2">
-        <button
-          onClick={() => handleComplete()}
-          className="w-full p-4 rounded-xl border-2 border-violet-500 bg-violet-50 dark:bg-violet-900/20 text-left transition-all hover:shadow-md group"
+      {/* CTA */}
+      <div className="relative z-10 space-y-3 pt-2">
+        <Button
+          onClick={handleComplete}
+          className="w-full h-12 text-base font-semibold bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white gap-2 rounded-lg shadow-md"
+          size="lg"
         >
-          <div className="flex items-start gap-3">
-            <Rocket className="w-5 h-5 text-violet-600 mt-0.5 shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">Siguiente paso: conectar tu WordPress</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                No te preocupes, nada se publicará hasta que tú lo decidas.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white shrink-0"
-              tabIndex={-1}
-            >
-              Continuar
-            </Button>
-          </div>
-        </button>
+          <Rocket className="w-5 h-5" />
+          Conectar WordPress y publicar
+        </Button>
+        <p className="text-xs text-center text-muted-foreground">
+          No te preocupes, nada se publicará hasta que tú lo decidas.
+        </p>
       </div>
     </div>
   );

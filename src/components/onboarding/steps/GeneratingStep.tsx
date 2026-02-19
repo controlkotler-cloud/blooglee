@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { RefreshCw } from 'lucide-react';
@@ -14,10 +15,7 @@ const TIPS = [
 ];
 
 const TONE_LABELS: Record<string, string> = {
-  friendly: 'Cercano',
-  professional: 'Profesional',
-  expert: 'Experto',
-  educational: 'Divulgativo',
+  friendly: 'Cercano', professional: 'Profesional', expert: 'Experto', educational: 'Divulgativo',
 };
 
 interface GeneratingStepProps {
@@ -31,12 +29,32 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
   const [status, setStatus] = useState<'generating' | 'done' | 'error'>('generating');
   const [tipIndex, setTipIndex] = useState(0);
   const [tipVisible, setTipVisible] = useState(true);
+  const [progress, setProgressValue] = useState(0);
   const generatedRef = useRef(false);
+  const startTimeRef = useRef(Date.now());
 
   const topic = (stepData?.step3?.selected_topic as string) ?? 'Tu artículo';
   const businessName = (stepData?.step1?.business_name as string) ?? 'tu negocio';
   const tone = (stepData?.step2?.tone as string) ?? '';
   const toneLabel = TONE_LABELS[tone] || tone;
+
+  // Simulated progress animation
+  useEffect(() => {
+    if (status !== 'generating') return;
+    startTimeRef.current = Date.now();
+
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - startTimeRef.current) / 1000;
+      let p: number;
+      if (elapsed < 5) p = (elapsed / 5) * 30;
+      else if (elapsed < 20) p = 30 + ((elapsed - 5) / 15) * 40;
+      else if (elapsed < 40) p = 70 + ((elapsed - 20) / 20) * 25;
+      else p = 95;
+      setProgressValue(Math.min(p, 95));
+    }, 200);
+
+    return () => clearInterval(interval);
+  }, [status]);
 
   // Tip rotation
   useEffect(() => {
@@ -45,7 +63,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
       setTimeout(() => {
         setTipIndex((prev) => (prev + 1) % TIPS.length);
         setTipVisible(true);
-      }, 300);
+      }, 400);
     }, 8000);
     return () => clearInterval(interval);
   }, []);
@@ -65,29 +83,18 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
     try {
       const now = new Date();
       const { data, error } = await supabase.functions.invoke('generate-article-saas', {
-        body: {
-          siteId,
-          topic,
-          month: now.getMonth() + 1,
-          year: now.getFullYear(),
-        },
+        body: { siteId, topic, month: now.getMonth() + 1, year: now.getFullYear() },
       });
 
       if (error) throw error;
 
       const articleId = data?.article?.id || data?.articleId || data?.article_id || data?.id;
-      if (articleId) {
-        await saveStepData('step5', { article_id: articleId });
-      } else {
-        console.warn('No article ID returned from generation', data);
-      }
+      if (articleId) await saveStepData('step5', { article_id: articleId });
 
       const durationSeconds = Math.round((Date.now() - startTime) / 1000);
-      track('onboarding_article_generation_completed', {
-        duration_seconds: durationSeconds,
-        word_count: data?.word_count ?? 0,
-      });
+      track('onboarding_article_generation_completed', { duration_seconds: durationSeconds, word_count: data?.word_count ?? 0 });
 
+      setProgressValue(100);
       setStatus('done');
       setTimeout(() => onNext(), 1200);
     } catch (err) {
@@ -107,7 +114,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
         </h2>
         {status === 'generating' && (
           <>
-            <p className="text-base font-medium text-foreground italic max-w-md mx-auto">
+            <p className="text-lg font-semibold text-foreground italic max-w-md mx-auto">
               &ldquo;{topic}&rdquo;
             </p>
             <p className="text-xs text-muted-foreground">
@@ -118,22 +125,27 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
       </div>
 
       {/* Central content */}
-      <div className="rounded-xl bg-muted/50 border border-border p-6 min-h-[180px] flex items-center justify-center">
+      <div className="rounded-xl bg-muted/50 border border-border p-6 min-h-[200px] flex flex-col items-center justify-center gap-5">
         {status === 'generating' && (
-          <div className="text-center space-y-4">
-            <div className="flex justify-center gap-1.5">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="w-2.5 h-2.5 rounded-full bg-violet-500 animate-bounce"
-                  style={{ animationDelay: `${i * 150}ms` }}
-                />
-              ))}
+          <>
+            {/* Skeleton writing effect */}
+            <div className="w-full max-w-sm space-y-3">
+              <div className="h-4 bg-muted-foreground/10 rounded animate-pulse w-full" />
+              <div className="h-4 bg-muted-foreground/10 rounded animate-pulse w-5/6" />
+              <div className="h-4 bg-muted-foreground/10 rounded animate-pulse w-4/6" />
+              <div className="flex items-center gap-0.5 mt-1">
+                <div className="h-4 bg-muted-foreground/10 rounded animate-pulse w-2/6" />
+                <span className="inline-block w-0.5 h-5 bg-primary animate-[typing-cursor_1s_ease-in-out_infinite]" />
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Esto tarda unos 30-60 segundos ⏱️
-            </p>
-          </div>
+            {/* Progress bar */}
+            <div className="w-full max-w-sm space-y-1.5">
+              <Progress value={progress} className="h-2" />
+              <p className="text-xs text-muted-foreground text-center">
+                Escribiendo... {Math.round(progress)}%
+              </p>
+            </div>
+          </>
         )}
 
         {status === 'done' && (
@@ -148,11 +160,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
               Ha habido un problema al generar tu artículo. No te preocupes, vamos a intentarlo de nuevo.
             </p>
-            <Button
-              onClick={generateArticle}
-              variant="outline"
-              className="gap-2"
-            >
+            <Button onClick={generateArticle} variant="outline" className="gap-2">
               <RefreshCw className="w-4 h-4" />
               Reintentar
             </Button>
@@ -163,11 +171,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
       {/* Rotating tips */}
       {status === 'generating' && (
         <div className="h-10 flex items-center justify-center">
-          <p
-            className={`text-sm text-muted-foreground text-center transition-opacity duration-300 ${
-              tipVisible ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
+          <p className={`text-sm text-muted-foreground text-center transition-opacity duration-400 ${tipVisible ? 'opacity-100' : 'opacity-0'}`}>
             {TIPS[tipIndex]}
           </p>
         </div>

@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { Check } from 'lucide-react';
 
 interface ProgressBarProps {
   currentStep: number;
@@ -9,7 +10,7 @@ const STEP_LABELS = ['Negocio', 'Estilo', 'Contenido', 'Publicación', 'Tema', '
 
 export function ProgressBar({ currentStep, totalSteps = 5 }: ProgressBarProps) {
   return (
-    <div className="flex items-center justify-center w-full mb-8">
+    <div className="flex items-center justify-center w-full mb-10">
       <div className="flex items-center gap-0">
         {Array.from({ length: totalSteps }, (_, i) => {
           const step = i + 1;
@@ -22,20 +23,22 @@ export function ProgressBar({ currentStep, totalSteps = 5 }: ProgressBarProps) {
               <div className="flex flex-col items-center">
                 <div
                   className={cn(
-                    'w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300',
-                    isCompleted && 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white',
-                    isActive && 'ring-2 ring-violet-500 ring-offset-2 ring-offset-violet-50 dark:ring-offset-background bg-white dark:bg-muted text-violet-600 dark:text-violet-400 font-bold',
+                    'rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300',
+                    isActive && 'w-9 h-9',
+                    !isActive && 'w-8 h-8',
+                    isCompleted && 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-sm',
+                    isActive && 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-md animate-[onboarding-pulse_2s_ease-in-out_infinite]',
                     !isCompleted && !isActive && 'bg-muted text-muted-foreground'
                   )}
                 >
-                  {isCompleted ? '✓' : step}
+                  {isCompleted ? <Check className="w-4 h-4" /> : step}
                 </div>
                 <span
                   className={cn(
-                    'text-[10px] mt-1.5 font-medium whitespace-nowrap',
-                    isActive && 'text-violet-600 dark:text-violet-400',
-                    isCompleted && 'text-violet-500',
-                    !isActive && !isCompleted && 'text-muted-foreground'
+                    'text-xs mt-2 font-medium whitespace-nowrap',
+                    isActive && 'text-violet-600 dark:text-violet-400 font-semibold',
+                    isCompleted && 'text-foreground/70',
+                    !isActive && !isCompleted && 'text-muted-foreground/70'
                   )}
                 >
                   {STEP_LABELS[i]}
@@ -46,10 +49,10 @@ export function ProgressBar({ currentStep, totalSteps = 5 }: ProgressBarProps) {
               {step < totalSteps && (
                 <div
                   className={cn(
-                    'w-8 sm:w-12 h-0.5 mx-1 mt-[-14px] transition-all duration-300',
+                    'w-8 sm:w-12 h-[3px] mx-1 mt-[-16px] rounded-full transition-all duration-500',
                     currentStep > step
                       ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500'
-                      : 'bg-muted'
+                      : 'bg-border'
                   )}
                 />
               )}
