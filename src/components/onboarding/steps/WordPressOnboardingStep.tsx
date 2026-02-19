@@ -180,6 +180,13 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
             Publicar en mi blog →
           </Button>
 
+          <Button
+            variant="ghost"
+            onClick={handleGoToDashboard}
+            className="w-full text-muted-foreground"
+          >
+            Prefiero revisarlo antes →
+          </Button>
         </div>
       </div>
     );
