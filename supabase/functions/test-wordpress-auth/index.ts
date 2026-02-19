@@ -37,23 +37,50 @@ Deno.serve(async (req) => {
     const normalizedUrl = url.replace(/\/+$/, '');
     const credentials = btoa(`${username}:${app_password}`);
 
-    // Test authentication with /wp-json/wp/v2/users/me
-    let meResponse: Response;
+    // Build list of base URLs to try: original URL + root origin as fallback
+    const urlsToTry = [normalizedUrl];
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
+      const origin = new URL(normalizedUrl).origin;
+      if (origin !== normalizedUrl) {
+        urlsToTry.push(origin);
+      }
+    } catch { /* ignore */ }
 
-      meResponse = await fetch(`${normalizedUrl}/wp-json/wp/v2/users/me?context=edit`, {
-        headers: {
-          'Authorization': `Basic ${credentials}`,
-          'User-Agent': 'Blooglee/1.0',
-        },
-        signal: controller.signal,
-      });
+    // Test authentication with /wp-json/wp/v2/users/me
+    let meResponse: Response | null = null;
+    let usedBaseUrl = normalizedUrl;
 
-      clearTimeout(timeout);
-    } catch (err) {
-      console.error('[test-wordpress-auth] Fetch error:', err);
+    for (const baseUrl of urlsToTry) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+
+        const res = await fetch(`${baseUrl}/wp-json/wp/v2/users/me?context=edit`, {
+          headers: {
+            'Authorization': `Basic ${credentials}`,
+            'User-Agent': 'Blooglee/1.0',
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeout);
+
+        // If we get a non-404 response, use it
+        if (res.status !== 404) {
+          meResponse = res;
+          usedBaseUrl = baseUrl;
+          break;
+        }
+
+        // If 404, consume body and try next URL
+        await res.text();
+        console.log(`[test-wordpress-auth] 404 at ${baseUrl}/wp-json/..., trying next`);
+      } catch (err) {
+        console.error(`[test-wordpress-auth] Fetch error for ${baseUrl}:`, err);
+      }
+    }
+
+    if (!meResponse) {
       const result: TestAuthResponse = {
         authenticated: false,
         can_publish: false,
@@ -111,7 +138,7 @@ Deno.serve(async (req) => {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
-      const rootRes = await fetch(`${normalizedUrl}/wp-json/`, {
+      const rootRes = await fetch(`${usedBaseUrl}/wp-json/`, {
         headers: { 'User-Agent': 'Blooglee/1.0' },
         signal: controller.signal,
       });
