@@ -83,6 +83,12 @@ export function WPAppPasswordGuide({ siteUrl, onBack, onContinue }: WPAppPasswor
               </CardContent>
             </Card>
           )}
+          <p className="text-xs text-muted-foreground">
+            ¿No lo consigues?{' '}
+            <a href="https://blooglee.com/contact" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
+              Escríbenos y te ayudamos →
+            </a>
+          </p>
         </div>
       ),
     },
