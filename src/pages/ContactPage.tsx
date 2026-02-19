@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Mail, MapPin, Clock, Send, CheckCircle2 } from 'lucide-react';
@@ -15,6 +16,8 @@ const contactSchema = z.object({
   email: z.string().trim().email('Email no válido').max(255, 'Email demasiado largo'),
   subject: z.string().min(1, 'Selecciona un asunto'),
   message: z.string().trim().min(10, 'El mensaje debe tener al menos 10 caracteres').max(2000, 'Mensaje demasiado largo'),
+  gdprConsent: z.literal(true, { errorMap: () => ({ message: 'Debes aceptar la política de privacidad' }) }),
+  marketingConsent: z.boolean().optional(),
 });
 
 const subjects = [
@@ -31,6 +34,8 @@ const ContactPage = () => {
     email: '',
     subject: '',
     message: '',
+    gdprConsent: false,
+    marketingConsent: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -226,7 +231,38 @@ const ContactPage = () => {
                       {errors.message && <p className="text-sm text-destructive">{errors.message}</p>}
                     </div>
 
-                    <Button 
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id="gdprConsent"
+                          checked={formData.gdprConsent}
+                          onCheckedChange={(checked) => setFormData({ ...formData, gdprConsent: checked === true })}
+                          className="mt-0.5"
+                        />
+                        <Label htmlFor="gdprConsent" className="text-xs text-muted-foreground font-normal leading-relaxed cursor-pointer">
+                          He leído y acepto la{' '}
+                          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                            Política de Privacidad
+                          </a>
+                          . Consiento el tratamiento de mis datos para gestionar mi consulta. *
+                        </Label>
+                      </div>
+                      {errors.gdprConsent && <p className="text-sm text-destructive ml-7">{errors.gdprConsent}</p>}
+
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id="marketingConsent"
+                          checked={formData.marketingConsent}
+                          onCheckedChange={(checked) => setFormData({ ...formData, marketingConsent: checked === true })}
+                          className="mt-0.5"
+                        />
+                        <Label htmlFor="marketingConsent" className="text-xs text-muted-foreground font-normal leading-relaxed cursor-pointer">
+                          Acepto recibir comunicaciones comerciales y novedades de Blooglee. Puedes darte de baja en cualquier momento.
+                        </Label>
+                      </div>
+                    </div>
+
+                    <Button
                       type="submit" 
                       className="w-full sm:w-auto bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400 hover:opacity-90"
                       disabled={isSubmitting}
