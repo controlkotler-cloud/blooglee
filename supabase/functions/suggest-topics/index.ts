@@ -45,6 +45,7 @@ Los títulos deben ser:
 - Con gancho para atraer clics
 - Optimizados para SEO${location ? " local" : ""}
 - En español
+- NO incluir nombres de ciudades, pueblos ni localidades en los títulos
 
 Para cada título incluye una descripción de 1 línea explicando qué cubrirá el artículo.
 
