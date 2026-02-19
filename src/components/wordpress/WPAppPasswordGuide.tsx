@@ -11,9 +11,11 @@ interface WPAppPasswordGuideProps {
 
 export function WPAppPasswordGuide({ siteUrl, onBack, onContinue }: WPAppPasswordGuideProps) {
   const [showHelp, setShowHelp] = useState(false);
-  const profileUrl = `${siteUrl.replace(/\/+$/, '')}/wp-admin/profile.php`;
-
-  const wpAdminUrl = `${siteUrl.replace(/\/+$/, '')}/wp-admin/`;
+  const origin = (() => {
+    try { return new URL(siteUrl).origin; } catch { return siteUrl.replace(/\/+$/, ''); }
+  })();
+  const profileUrl = `${origin}/wp-admin/profile.php`;
+  const wpAdminUrl = `${origin}/wp-admin/`;
   const totalSteps = 5;
 
   const steps = [
