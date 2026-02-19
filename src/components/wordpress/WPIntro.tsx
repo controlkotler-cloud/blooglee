@@ -1,18 +1,134 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle2, XCircle, HelpCircle, ArrowRight, ArrowLeft, Mail } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { CheckCircle2, XCircle, ArrowRight, Mail, Loader2, Globe } from 'lucide-react';
 
 interface WPIntroProps {
+  blogUrl?: string;
   onHasWordPress: () => void;
+  /** Called when WordPress is auto-detected on the blogUrl — skips url_check */
+  onWordPressDetected?: (url: string) => void;
   onSkip: () => void;
 }
 
-type InfoPanel = null | 'no_blog' | 'not_sure';
+interface CheckResult {
+  is_wordpress: boolean;
+  api_rest_active: boolean;
+  detected_plugins: string[];
+  site_name: string;
+  error_type: string | null;
+}
 
-export function WPIntro({ onHasWordPress, onSkip }: WPIntroProps) {
-  const [showPanel, setShowPanel] = useState<InfoPanel>(null);
+type DetectionStatus = 'idle' | 'checking' | 'detected' | 'not_detected';
 
+export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }: WPIntroProps) {
+  const [showNoPanel, setShowNoPanel] = useState(false);
+  const [detection, setDetection] = useState<DetectionStatus>('idle');
+  const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
+
+  // Auto-detect WordPress from blogUrl on mount
+  useEffect(() => {
+    if (!blogUrl) return;
+
+    let cancelled = false;
+    const normalizedUrl = blogUrl.trim().replace(/\/+$/, '').replace(/^(?!https?:\/\/)/, 'https://');
+
+    setDetection('checking');
+
+    supabase.functions.invoke('check-wordpress', { body: { url: normalizedUrl } })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data) {
+          setDetection('not_detected');
+          return;
+        }
+        const result = data as CheckResult;
+        setCheckResult(result);
+        setDetection(result.is_wordpress && result.api_rest_active ? 'detected' : 'not_detected');
+      })
+      .catch(() => {
+        if (!cancelled) setDetection('not_detected');
+      });
+
+    return () => { cancelled = true; };
+  }, [blogUrl]);
+
+  // WordPress auto-detected
+  if (detection === 'detected' && checkResult && blogUrl) {
+    const normalizedUrl = blogUrl.trim().replace(/\/+$/, '').replace(/^(?!https?:\/\/)/, 'https://');
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="text-center space-y-2">
+          <h2 className="text-xl font-display font-bold text-foreground">
+            Conectar tu WordPress
+          </h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Para que Blooglee pueda publicar artículos en tu blog, necesitamos conectarnos a tu WordPress.
+          </p>
+        </div>
+
+        <Card className="border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-900/10">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  ¡Hemos detectado WordPress en tu web!
+                </p>
+                {checkResult.site_name && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Sitio: {checkResult.site_name}
+                  </p>
+                )}
+                {checkResult.detected_plugins.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Plugins: {checkResult.detected_plugins.join(', ')}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Button
+              onClick={() => onWordPressDetected?.(normalizedUrl) ?? onHasWordPress()}
+              className="w-full"
+            >
+              Conectar WordPress →
+            </Button>
+          </CardContent>
+        </Card>
+
+        <div className="text-center">
+          <button
+            onClick={onSkip}
+            className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+          >
+            Ahora no, lo haré más tarde
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Checking spinner
+  if (detection === 'checking') {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="text-center space-y-2">
+          <h2 className="text-xl font-display font-bold text-foreground">
+            Conectar tu WordPress
+          </h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Comprobando si tu web usa WordPress...
+          </p>
+        </div>
+        <div className="flex justify-center py-6">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
+
+  // Not detected or no blogUrl — ask simple question
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="text-center space-y-2">
@@ -33,47 +149,32 @@ export function WPIntro({ onHasWordPress, onSkip }: WPIntroProps) {
             onClick={onHasWordPress}
             className="flex items-center gap-3 p-4 rounded-xl border-2 border-border bg-card text-left transition-all hover:border-primary/50 hover:bg-primary/5"
           >
-            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+            <Globe className="w-5 h-5 text-primary shrink-0" />
             <div>
-              <p className="text-sm font-medium text-foreground">Sí, tengo un WordPress</p>
+              <p className="text-sm font-medium text-foreground">Sí, tengo un blog</p>
             </div>
             <ArrowRight className="w-4 h-4 text-muted-foreground ml-auto shrink-0" />
           </button>
 
           {/* No */}
           <button
-            onClick={() => setShowPanel('no_blog')}
+            onClick={() => setShowNoPanel(true)}
             className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${
-              showPanel === 'no_blog'
+              showNoPanel
                 ? 'border-primary/30 bg-primary/5'
                 : 'border-border bg-card hover:border-border/80'
             }`}
           >
             <XCircle className="w-5 h-5 text-muted-foreground shrink-0" />
             <div>
-              <p className="text-sm font-medium text-foreground">No tengo blog todavía</p>
-            </div>
-          </button>
-
-          {/* Not sure */}
-          <button
-            onClick={() => setShowPanel('not_sure')}
-            className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${
-              showPanel === 'not_sure'
-                ? 'border-primary/30 bg-primary/5'
-                : 'border-border bg-card hover:border-border/80'
-            }`}
-          >
-            <HelpCircle className="w-5 h-5 text-muted-foreground shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-foreground">No estoy seguro</p>
+              <p className="text-sm font-medium text-foreground">No tengo blog</p>
             </div>
           </button>
         </div>
       </div>
 
-      {/* Info panels */}
-      {showPanel === 'no_blog' && (
+      {/* No blog panel */}
+      {showNoPanel && (
         <Card className="animate-in fade-in slide-in-from-bottom-2 duration-300 border-primary/20">
           <CardContent className="p-4 space-y-3">
             <p className="text-sm text-foreground">
@@ -92,28 +193,6 @@ export function WPIntro({ onHasWordPress, onSkip }: WPIntroProps) {
             <Button variant="outline" onClick={onSkip} className="w-full">
               Continuar sin WordPress →
             </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {showPanel === 'not_sure' && (
-        <Card className="animate-in fade-in slide-in-from-bottom-2 duration-300 border-primary/20">
-          <CardContent className="p-4 space-y-3">
-            <p className="text-sm font-medium text-foreground">¿Cómo saberlo?</p>
-            <p className="text-sm text-muted-foreground">
-              Si tu web termina en <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">/wp-admin/</code> al añadirlo a tu dirección web, es WordPress.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Prueba: escribe tu dirección seguida de <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">/wp-admin/</code> en el navegador. ¿Aparece una pantalla de login? ¡Es WordPress!
-            </p>
-            <div className="flex gap-2">
-              <Button onClick={onHasWordPress} className="flex-1">
-                Sí, es WordPress →
-              </Button>
-              <Button variant="outline" onClick={onSkip} className="flex-1">
-                No es WordPress
-              </Button>
-            </div>
           </CardContent>
         </Card>
       )}

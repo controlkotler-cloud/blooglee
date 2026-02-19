@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpsertWordPressConfig } from '@/hooks/useWordPressConfigSaas';
@@ -32,9 +32,23 @@ export function WordPressSetup({ siteId, onClose, onComplete }: WordPressSetupPr
   const [authResult, setAuthResult] = useState<AuthResult | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [lastCredentials, setLastCredentials] = useState<{ username: string; appPassword: string } | null>(null);
+  const [blogUrl, setBlogUrl] = useState<string | undefined>(undefined);
   const upsertConfig = useUpsertWordPressConfig();
   const attemptCountRef = useRef(0);
   const wpStartTimeRef = useRef(Date.now());
+
+  // Load blog_url from site
+  useEffect(() => {
+    if (!siteId) return;
+    supabase
+      .from('sites')
+      .select('blog_url')
+      .eq('id', siteId)
+      .single()
+      .then(({ data }) => {
+        if (data?.blog_url) setBlogUrl(data.blog_url);
+      });
+  }, [siteId]);
 
   const handleCredentialsSubmit = async (username: string, appPassword: string) => {
     setIsVerifying(true);
@@ -100,7 +114,12 @@ export function WordPressSetup({ siteId, onClose, onComplete }: WordPressSetupPr
     <div className="space-y-4 animate-in fade-in duration-300">
       {currentSubStep === 'intro' && (
         <WPIntro
+          blogUrl={blogUrl}
           onHasWordPress={() => setCurrentSubStep('url_check')}
+          onWordPressDetected={(url) => {
+            setVerifiedUrl(url);
+            setCurrentSubStep('app_password_guide');
+          }}
           onSkip={onClose}
         />
       )}
