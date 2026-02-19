@@ -22,6 +22,13 @@ const DAYS_OF_WEEK = [
   { value: '0', label: 'Domingo' },
 ];
 
+const WEEKS_OF_MONTH = [
+  { value: '1', label: 'Primera semana' },
+  { value: '2', label: 'Segunda semana' },
+  { value: '3', label: 'Tercera semana' },
+  { value: '4', label: 'Cuarta semana' },
+];
+
 const HOURS = Array.from({ length: 24 }, (_, i) => ({
   value: String(i),
   label: `${String(i).padStart(2, '0')}:00`,
@@ -65,6 +72,9 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
   const [localHour, setLocalHour] = useState<string>(
     (saved?.local_hour as string) ?? '9'
   );
+  const [weekOfMonth, setWeekOfMonth] = useState<string>(
+    (saved?.week_of_month as string) ?? '1'
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   // If user tries weekly on free/starter, show warning
@@ -81,6 +91,7 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
         frequency: effectiveFrequency,
         day_of_week: dayOfWeek,
         local_hour: localHour,
+        week_of_month: weekOfMonth,
       });
 
       track('onboarding_scheduling', {
@@ -97,6 +108,7 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
             publish_frequency: effectiveFrequency,
             publish_day_of_week: Number(dayOfWeek),
             publish_hour_utc: utcHour,
+            publish_week_of_month: effectiveFrequency === 'monthly' ? Number(weekOfMonth) : null,
           })
           .eq('id', siteId);
       }
@@ -187,7 +199,7 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
         )}
       </div>
 
-      {/* Day & Hour */}
+      {/* Day, Week & Hour */}
       <div className="space-y-3 p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-violet-500" />
@@ -196,7 +208,7 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
         <p className="text-xs text-muted-foreground">
           Elige cuándo prefieres que se publiquen tus artículos.
         </p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${frequency === 'monthly' ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Día de la semana</Label>
             <Select value={dayOfWeek} onValueChange={setDayOfWeek}>
@@ -210,6 +222,21 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
               </SelectContent>
             </Select>
           </div>
+          {frequency === 'monthly' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Semana del mes</Label>
+              <Select value={weekOfMonth} onValueChange={setWeekOfMonth}>
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {WEEKS_OF_MONTH.map((w) => (
+                    <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Hora (tu zona horaria)</Label>
             <Select value={localHour} onValueChange={setLocalHour}>
