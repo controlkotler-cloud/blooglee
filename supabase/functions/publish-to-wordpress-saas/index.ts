@@ -154,13 +154,13 @@ Deno.serve(async (req) => {
 
     console.log('WordPress URL:', wpConfig.site_url);
 
-    // Normalize WordPress URL
+    // Normalize WordPress URL to origin (strip /blog, /wp-admin, etc.)
     let wpUrl = wpConfig.site_url.trim();
-    if (wpUrl.endsWith('/wp-admin') || wpUrl.endsWith('/wp-admin/')) {
-      wpUrl = wpUrl.replace(/\/wp-admin\/?$/, '');
-    }
-    if (wpUrl.endsWith('/')) {
-      wpUrl = wpUrl.slice(0, -1);
+    try {
+      const parsed = new URL(wpUrl);
+      wpUrl = parsed.origin;
+    } catch {
+      wpUrl = wpUrl.replace(/\/wp-admin\/?$/, '').replace(/\/+$/, '');
     }
 
     // Create Basic Auth header

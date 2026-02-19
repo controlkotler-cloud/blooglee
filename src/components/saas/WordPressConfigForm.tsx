@@ -52,9 +52,14 @@ type FormData = z.infer<typeof formSchema>;
 
 interface WordPressConfigFormProps {
   siteId: string;
+  wordpressContext?: {
+    analyzed_at?: string;
+    lastTopics?: string[];
+    [key: string]: unknown;
+  } | null;
 }
 
-export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
+export function WordPressConfigForm({ siteId, wordpressContext }: WordPressConfigFormProps) {
   const { data: config, isLoading } = useWordPressConfig(siteId);
   const upsertMutation = useUpsertWordPressConfig();
   const deleteMutation = useDeleteWordPressConfig();
@@ -185,12 +190,6 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
     setValidationState('idle');
     setValidationResult(null);
     setUrlStatus('idle');
-  };
-
-  const handleSync = () => {
-    if (config?.id) {
-      syncMutation.mutate(config.id);
-    }
   };
 
   const getCheckIcon = (status: 'ok' | 'warning' | 'error') => {
@@ -438,27 +437,7 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
               )}
             </Button>
 
-            {config && (
-              <Button 
-                variant="outline" 
-                type="button" 
-                onClick={handleSync}
-                disabled={syncMutation.isPending}
-                className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
-              >
-                {syncMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sincronizando...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Sincronizar
-                  </>
-                )}
-              </Button>
-            )}
+            {/* Sync button moved to connected status card below */}
 
             {config && (
               <AlertDialog>
@@ -493,9 +472,10 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
         {/* Panel condicional: estado si conectado, troubleshoot si no */}
         <WordPressTroubleshootPanel
           isConnected={!!config}
-          siteUrl={config?.site_url}
+          siteUrl={config?.site_url ? (() => { try { return new URL(config.site_url).origin; } catch { return config.site_url; } })() : undefined}
           onResync={config ? () => syncMutation.mutate(config.id) : undefined}
           isSyncing={syncMutation.isPending}
+          lastSync={wordpressContext?.analyzed_at}
         />
       </CardContent>
     </Card>
