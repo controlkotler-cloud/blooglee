@@ -68,7 +68,7 @@ export function MoodStep({
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
+    <div className="space-y-5">
       {/* Header */}
       <div className="text-center space-y-2 mb-4 sm:mb-6">
         <h2 className="text-xl sm:text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
@@ -104,7 +104,7 @@ export function MoodStep({
                   </span>
                 )}
                 {isSelected && !isRecommended && (
-                  <span className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                  <span className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center animate-checkmark-pop">
                     <Check className="w-3 h-3 text-primary-foreground" />
                   </span>
                 )}
@@ -131,9 +131,13 @@ export function MoodStep({
         <div className="space-y-3 py-3 px-4 rounded-lg bg-muted/50">
           <p className="text-sm font-medium">🎨 Hemos detectado los colores de tu web:</p>
           <div className="flex items-center gap-3 flex-wrap">
-            {colors.map((hex) => (
-              <div key={hex} className="flex flex-col items-center gap-1">
-                <div className="w-9 h-9 sm:w-6 sm:h-6 rounded border border-border" style={{ backgroundColor: hex }} />
+            {colors.map((hex, i) => (
+              <div
+                key={hex}
+                className="flex flex-col items-center gap-1 animate-color-stagger"
+                style={{ animationDelay: `${i * 100}ms`, animationFillMode: 'both' }}
+              >
+                <div className="w-9 h-9 sm:w-6 sm:h-6 rounded border border-border transition-transform duration-200 hover:scale-110" style={{ backgroundColor: hex }} />
                 <span className="text-[10px] text-muted-foreground font-mono">{hex}</span>
               </div>
             ))}

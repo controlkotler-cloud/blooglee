@@ -28,16 +28,24 @@ const CHECKLIST_ITEMS = [
 const CONFETTI_COLORS = ['#8B5CF6', '#D946EF', '#F97316', '#22C55E', '#3B82F6', '#EAB308'];
 
 function ConfettiParticles() {
+  const [visible, setVisible] = useState(true);
   const particles = useMemo(() =>
     Array.from({ length: 30 }, (_, i) => ({
       id: i,
       left: `${Math.random() * 100}%`,
-      delay: `${Math.random() * 2}s`,
-      duration: `${2 + Math.random() * 2}s`,
+      delay: `${Math.random() * 1.5}s`,
+      duration: `${1.5 + Math.random() * 1.5}s`,
       color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
       size: 4 + Math.random() * 6,
     })),
   []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(false), 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -98,12 +106,12 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
   };
 
   return (
-    <div className="relative space-y-5 sm:space-y-6 animate-in fade-in duration-500 py-2">
+    <div className="relative space-y-5 sm:space-y-6 py-2">
       <ConfettiParticles />
 
       {/* Celebration header */}
       <div className="relative z-10 text-center space-y-2 sm:space-y-3">
-        <div className="text-4xl sm:text-5xl animate-in zoom-in duration-500">🎉</div>
+        <div className="text-4xl sm:text-5xl animate-bounce-in">🎉</div>
         <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">
           ¡Tu primer artículo está listo!
         </h2>
@@ -120,7 +128,7 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
       </div>
 
       {/* Article preview */}
-      <ScrollArea className="relative z-10 h-[260px] sm:h-[320px] rounded-xl border border-border bg-card p-1">
+      <ScrollArea className="relative z-10 h-[260px] sm:h-[320px] rounded-xl border border-border bg-card p-1 animate-in fade-in slide-in-from-bottom-3 duration-500" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
         <div className="p-3 sm:p-4 space-y-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">

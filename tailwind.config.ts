@@ -167,6 +167,34 @@ export default {
           "50%": { width: "60%", marginLeft: "20%" },
           "100%": { width: "0%", marginLeft: "100%" },
         },
+        "step-enter-right": {
+          "0%": { opacity: "0", transform: "translateX(20px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        "step-enter-left": {
+          "0%": { opacity: "0", transform: "translateX(-20px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        "checkmark-pop": {
+          "0%": { transform: "scale(0)", opacity: "0" },
+          "60%": { transform: "scale(1.15)" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+        "bounce-in": {
+          "0%": { transform: "scale(0)", opacity: "0" },
+          "50%": { transform: "scale(1.12)" },
+          "70%": { transform: "scale(0.95)" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+        "color-stagger": {
+          "0%": { opacity: "0", transform: "scale(0.5)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "flash-done": {
+          "0%": { backgroundColor: "transparent" },
+          "30%": { backgroundColor: "hsla(var(--primary), 0.08)" },
+          "100%": { backgroundColor: "transparent" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -184,6 +212,12 @@ export default {
         "onboarding-pulse": "onboarding-pulse 2s ease-in-out infinite",
         "confetti-fall": "confetti-fall 3s ease-in forwards",
         "typing-cursor": "typing-cursor 1s ease-in-out infinite",
+        "step-enter-right": "step-enter-right 0.3s ease-out forwards",
+        "step-enter-left": "step-enter-left 0.3s ease-out forwards",
+        "checkmark-pop": "checkmark-pop 0.25s ease-out forwards",
+        "bounce-in": "bounce-in 0.5s ease-out forwards",
+        "color-stagger": "color-stagger 0.3s ease-out forwards",
+        "flash-done": "flash-done 0.6s ease-out forwards",
       },
     },
   },

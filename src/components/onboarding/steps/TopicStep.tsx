@@ -97,7 +97,7 @@ export function TopicStep({ onNext, onBack, saveStepData, stepData }: TopicStepP
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
+    <div className="space-y-5">
       {/* Header */}
       <div className="text-center space-y-2 mb-4 sm:mb-6">
         <h2 className="text-xl sm:text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
@@ -142,7 +142,7 @@ export function TopicStep({ onNext, onBack, saveStepData, stepData }: TopicStepP
                       <p className="text-xs text-muted-foreground mt-1 leading-snug">{topic.description}</p>
                     </div>
                     {isSelected && (
-                      <span className="shrink-0 w-5 h-5 rounded-full bg-primary flex items-center justify-center mt-1">
+                      <span className="shrink-0 w-5 h-5 rounded-full bg-primary flex items-center justify-center mt-1 animate-checkmark-pop">
                         <Check className="w-3 h-3 text-primary-foreground" />
                       </span>
                     )}

@@ -105,7 +105,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
   };
 
   return (
-    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500 py-2 sm:py-4">
+    <div className="space-y-6 sm:space-y-8 py-2 sm:py-4">
       {/* Header */}
       <div className="text-center space-y-3">
         <p className="text-3xl">✨</p>
@@ -125,7 +125,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
       </div>
 
       {/* Central content */}
-      <div className="rounded-xl bg-muted/50 border border-border p-4 sm:p-6 min-h-[180px] sm:min-h-[200px] flex flex-col items-center justify-center gap-5">
+      <div className={`rounded-xl bg-muted/50 border border-border p-4 sm:p-6 min-h-[180px] sm:min-h-[200px] flex flex-col items-center justify-center gap-5 transition-colors duration-300 ${status === 'done' ? 'animate-flash-done' : ''}`}>
         {status === 'generating' && (
           <>
             {/* Skeleton writing effect */}
@@ -140,7 +140,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
             </div>
             {/* Progress bar */}
             <div className="w-full max-w-sm space-y-1.5">
-              <Progress value={progress} className="h-2" />
+              <Progress value={progress} className="h-2 [&>div]:transition-[width] [&>div]:duration-1000 [&>div]:ease-linear" />
               <p className="text-xs text-muted-foreground text-center">
                 Escribiendo... {Math.round(progress)}%
               </p>

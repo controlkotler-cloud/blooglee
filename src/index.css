@@ -313,11 +313,18 @@
   
   /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
     .mockup-float,
     .mockup-shadow,
     .mockup-glow,
     .liquid-blob {
-      animation: none !important;
       will-change: auto;
     }
   }
