@@ -144,9 +144,9 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
           <div className="flex items-start gap-3">
             <Rocket className="w-5 h-5 text-violet-600 mt-0.5 shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">Publicar en mi WordPress</p>
+              <p className="text-sm font-semibold text-foreground">Siguiente: conectar WordPress</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Conecta tu WordPress y publica este artículo en tu blog.
+                En el siguiente paso conectarás tu blog. Tranquilo, nada se publicará hasta que tú lo decidas.
               </p>
             </div>
             <Button
@@ -154,7 +154,7 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
               className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white shrink-0"
               tabIndex={-1}
             >
-              Conectar WordPress
+              Continuar
             </Button>
           </div>
         </button>
