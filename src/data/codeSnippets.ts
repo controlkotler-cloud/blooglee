@@ -68,14 +68,15 @@ Sin este snippet, Yoast ignorará estos campos. El **excerpt** funciona siempre 
   },
   {
     id: 'polylang-api-support',
-    title: 'Polylang - Soporte API REST',
-    description: 'Permite publicar artículos en el idioma correcto vía API REST',
+    title: 'Polylang - Publicar en varios idiomas',
+    description: 'Configura Polylang para publicar artículos en español y catalán vía API',
     category: 'multiidioma',
     plugin: 'polylang',
     fileName: 'functions.php',
     code: `/**
  * Blooglee - Polylang API REST Support
  * Añade este código al functions.php de tu tema hijo
+ * Permite a Blooglee publicar artículos en el idioma correcto
  */
 add_action('rest_api_init', function() {
     register_rest_field('post', 'lang', array(
@@ -93,13 +94,26 @@ add_action('rest_api_init', function() {
         ),
     ));
 });`,
-    instructions: `1. Accede a tu WordPress
-2. Ve a **Apariencia → Editor de temas**
-3. Selecciona tu tema hijo (child theme)
-4. Abre el archivo **functions.php**
-5. Añade el código al final del archivo
-6. Guarda los cambios
+    instructions: `⚠️ IMPORTANTE: Sin este snippet, todos los artículos se publicarán en el idioma por defecto de tu WordPress, ignorando el catalán.
 
+PASO 1 — Añadir el código:
+1. Accede a tu WordPress como administrador
+2. Ve a **Apariencia → Editor de temas** (o edita por FTP)
+3. Selecciona tu **tema hijo** (child theme)
+4. Abre **functions.php** y añade el código al final
+5. Guarda los cambios
+
+PASO 2 — Configurar Polylang:
+1. Ve a **Idiomas → Configuración**
+2. Asegúrate de tener configurados los idiomas: **Español (es)** y **Catalán (ca)**
+3. En **Idiomas → Configuración → URL**, usa la opción "El idioma se define por el contenido"
+
+PASO 3 — Verificar:
+1. Genera un artículo con español y catalán activados en Blooglee
+2. Publica desde Blooglee → deberías ver dos posts: uno en "es" y otro en "ca"
+3. En tu WordPress, ve a **Entradas** y verifica que cada post tiene el idioma correcto asignado
+
+💡 Si usas WPML en vez de Polylang, usa el snippet de "WPML - Soporte API REST" en su lugar.
 ⚠️ Si no tienes un tema hijo, créalo primero para evitar perder cambios al actualizar el tema.`,
   },
   {

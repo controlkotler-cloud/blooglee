@@ -343,8 +343,10 @@ CAPITALIZACIÓN ESPAÑOLA:
 ═══════════════════════════════════════
 
 ENLACE INTERNO (OBLIGATORIO):
-- La PRIMERA vez que menciones "{{siteName}}" en el cuerpo del texto, enlázalo a {{homeUrl}}
-- Formato: <a href="{{homeUrl}}" target="_blank" rel="noopener">{{siteName}}</a>
+- Incluye UN enlace a {{homeUrl}} en el artículo, de forma NATURAL
+- Puedes mencionar "{{siteName}}" si encaja de forma orgánica en una frase. Si no encaja, usa un texto ancla genérico como "nuestra web", "nuestro sitio" o "esta guía"
+- ⚠️ NUNCA fuerces el nombre de la empresa en una frase donde no tiene sentido gramatical. El nombre "{{siteName}}" es una MARCA, no un sustantivo común. NO escribas frases como "contar con un {{siteName}}" o "tener {{siteName}} cerca"
+- Formato: <a href="{{homeUrl}}" target="_blank" rel="noopener">texto ancla natural</a>
 
 ENLACES EXTERNOS (2 OBLIGATORIOS):
 - Incluye 2 enlaces a fuentes de autoridad relevantes para el sector
@@ -398,7 +400,7 @@ RESPONDE ÚNICAMENTE con un JSON válido con TODOS estos campos:
 Recuerda:
 - Pilar de contenido: {{pillarType}} → {{pillarDescription}}
 - Longitud: ~{{lengthWords}} palabras
-- Enlaza "{{siteName}}" a {{homeUrl}} en su primera mención
+- Incluye un enlace a {{homeUrl}} de forma natural (puedes usar "{{siteName}}" como ancla solo si encaja gramaticalmente; si no, usa "nuestra web" o similar)
 - 2 enlaces externos a fuentes de autoridad
 - Frase final variada con enlaces a {{blogUrl}} y/o {{instagramUrl}}
 - Focus keyword mínimo 5 veces, en seo_title al inicio, meta_description, primer párrafo y 2+ subtítulos
