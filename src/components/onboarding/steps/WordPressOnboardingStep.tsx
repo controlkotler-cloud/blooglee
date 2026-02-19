@@ -123,15 +123,6 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
   if (phase === 'setup' && siteId) {
     return (
       <div className="space-y-4 animate-in fade-in duration-300">
-        <div className="text-center space-y-2 mb-4">
-          <h2 className="text-xl font-display font-bold text-foreground">
-            Conecta tu WordPress
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Conecta tu blog para publicar artículos directamente.
-          </p>
-        </div>
-
         <WordPressSetup
           siteId={siteId}
           onClose={handleGoToDashboard}
