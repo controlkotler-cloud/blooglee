@@ -2,6 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+export interface NotificationPreferences {
+  article_published: boolean;
+  pre_publish_review: boolean;
+  weekly_summary: boolean;
+  product_updates: boolean;
+}
+
 export interface Profile {
   id: string;
   user_id: string;
@@ -14,6 +21,14 @@ export interface Profile {
   beta_started_at: string | null;
   beta_expires_at: string | null;
   beta_invitation_id: string | null;
+  full_name: string | null;
+  phone: string | null;
+  company_name: string | null;
+  tax_id: string | null;
+  billing_address: string | null;
+  timezone: string | null;
+  avatar_url: string | null;
+  notification_preferences: NotificationPreferences | null;
   created_at: string;
   updated_at: string;
 }
@@ -44,7 +59,7 @@ export function useProfile() {
         return null;
       }
 
-      return data as Profile;
+      return data as unknown as Profile;
     },
     enabled: !!user?.id,
   });
