@@ -23,6 +23,17 @@ export interface OnboardingStepData {
     selected_topic?: string;
     topic_options?: string[];
   };
+  step_content_prefs?: {
+    catalan?: boolean;
+    include_featured_image?: boolean;
+    avoid_topics?: string;
+  };
+  step_scheduling?: {
+    auto_generate?: boolean;
+    frequency?: string;
+    day_of_week?: string;
+    local_hour?: string;
+  };
   step5?: {
     article_id?: string;
   };

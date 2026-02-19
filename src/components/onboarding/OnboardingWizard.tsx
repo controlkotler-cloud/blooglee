@@ -6,6 +6,8 @@ import { ProgressBar } from './ProgressBar';
 import { BusinessStep } from './steps/BusinessStep';
 import { ToneStep } from './steps/ToneStep';
 import { MoodStep } from './steps/MoodStep';
+import { ContentPrefsStep } from './steps/ContentPrefsStep';
+import { SchedulingStep } from './steps/SchedulingStep';
 import { TopicStep } from './steps/TopicStep';
 import { GeneratingStep } from './steps/GeneratingStep';
 import { ArticleReadyStep } from './steps/ArticleReadyStep';
@@ -16,26 +18,32 @@ const STEP_NAMES: Record<number, string> = {
   1: 'business',
   2: 'tone',
   3: 'mood',
-  4: 'topic',
-  5: 'generating',
-  6: 'article_ready',
-  7: 'wordpress_setup',
+  4: 'content_prefs',
+  5: 'scheduling',
+  6: 'topic',
+  7: 'generating',
+  8: 'article_ready',
+  9: 'wordpress_setup',
 };
 
 /**
- * Maps internal steps (1-7) to progress bar points (1-5):
+ * Maps internal steps (1-9) to progress bar points (1-7):
  * step 1 → point 1 (Negocio)
- * step 2,3 → point 2 (Estilo) — tono + mood visual
- * step 4 → point 3 (Tema)
- * step 5 → point 4 (Generando)
- * step 6,7 → point 5 (¡Listo!)
+ * step 2,3 → point 2 (Estilo)
+ * step 4 → point 3 (Contenido)
+ * step 5 → point 4 (Publicación)
+ * step 6 → point 5 (Tema)
+ * step 7 → point 6 (Generando)
+ * step 8,9 → point 7 (¡Listo!)
  */
 function mapStepToProgressPoint(step: number): number {
   if (step <= 1) return 1;
   if (step <= 3) return 2;
   if (step === 4) return 3;
   if (step === 5) return 4;
-  return 5;
+  if (step === 6) return 5;
+  if (step === 7) return 6;
+  return 7;
 }
 
 export function OnboardingWizard() {
@@ -107,7 +115,7 @@ export function OnboardingWizard() {
 
   return (
     <OnboardingLayout>
-      <ProgressBar currentStep={progressPoint} totalSteps={5} />
+      <ProgressBar currentStep={progressPoint} totalSteps={7} />
 
       {currentStep === 1 && (
         <BusinessStep
@@ -138,9 +146,27 @@ export function OnboardingWizard() {
         />
       )}
       {currentStep === 4 && (
-        <TopicStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} />
+        <ContentPrefsStep
+          onNext={nextStep}
+          onBack={prevStep}
+          saveStepData={saveStepData}
+          stepData={stepData}
+          siteId={siteId}
+        />
       )}
       {currentStep === 5 && (
+        <SchedulingStep
+          onNext={nextStep}
+          onBack={prevStep}
+          saveStepData={saveStepData}
+          stepData={stepData}
+          siteId={siteId}
+        />
+      )}
+      {currentStep === 6 && (
+        <TopicStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} />
+      )}
+      {currentStep === 7 && (
         <GeneratingStep
           onNext={nextStep}
           saveStepData={saveStepData}
@@ -148,18 +174,15 @@ export function OnboardingWizard() {
           siteId={siteId}
         />
       )}
-      {currentStep === 6 && (
+      {currentStep === 8 && (
         <ArticleReadyStep
           onFinish={handleCompleteWizard}
-          onConnectWordPress={() => {
-            // Advance to step 7 (WordPress setup) without completing the wizard yet
-            nextStep();
-          }}
+          onConnectWordPress={() => nextStep()}
           stepData={stepData}
           siteId={siteId}
         />
       )}
-      {currentStep === 7 && (
+      {currentStep === 9 && (
         <WordPressOnboardingStep
           onFinish={handleCompleteWizard}
           stepData={stepData}
