@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import DOMPurify from 'dompurify';
 import {
   Dialog,
   DialogContent,
@@ -212,7 +213,11 @@ function ArticleContentView({ content }: ArticleContentViewProps) {
       {/* Content */}
       <div
         className="prose prose-sm dark:prose-invert max-w-none"
-        dangerouslySetInnerHTML={{ __html: content.content }}
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content.content, {
+          ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'strong', 'em', 'a', 'blockquote', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'div', 'span', 'hr', 'img', 'br'],
+          ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'id', 'src', 'alt'],
+          ALLOW_DATA_ATTR: false,
+        }) }}
       />
     </div>
   );

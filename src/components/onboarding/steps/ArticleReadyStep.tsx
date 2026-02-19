@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -139,7 +140,11 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
               {article?.image_url && (
                 <img src={article.image_url} alt={content.title} className="w-full max-h-48 object-cover rounded-lg" />
               )}
-              <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: content.content }} />
+              <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content.content, {
+                ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'strong', 'em', 'a', 'blockquote', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'div', 'span', 'hr', 'img', 'br'],
+                ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'id', 'src', 'alt'],
+                ALLOW_DATA_ATTR: false,
+              }) }} />
             </>
           ) : (
             <p className="text-center text-muted-foreground py-8">No se pudo cargar la vista previa del artículo.</p>
