@@ -490,8 +490,13 @@ export function WordPressConfigForm({ siteId }: WordPressConfigFormProps) {
           </div>
         </form>
 
-        {/* Panel de ayuda para problemas */}
-        <WordPressTroubleshootPanel />
+        {/* Panel condicional: estado si conectado, troubleshoot si no */}
+        <WordPressTroubleshootPanel
+          isConnected={!!config}
+          siteUrl={config?.site_url}
+          onResync={config ? () => syncMutation.mutate(config.id) : undefined}
+          isSyncing={syncMutation.isPending}
+        />
       </CardContent>
     </Card>
   );
