@@ -83,8 +83,8 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
       {/* Header */}
-      <div className="text-center space-y-2 mb-6">
-        <h2 className="text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
+      <div className="text-center space-y-2 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
           ¿Cómo quieres que suene tu blog?
         </h2>
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
@@ -105,26 +105,28 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
                 key={t.value}
                 type="button"
                 onClick={() => setTone(t.value)}
-                className={`relative flex flex-col items-start gap-1.5 p-4 rounded-xl border-2 text-left transition-all duration-200 min-h-[130px] ${
+                className={`relative flex flex-row sm:flex-col items-start gap-3 sm:gap-1.5 p-3 sm:p-4 rounded-xl border-2 text-left transition-all duration-200 min-h-[60px] sm:min-h-[130px] ${
                   isSelected
                     ? 'border-primary bg-primary/5 shadow-md'
                     : 'border-border hover:border-primary/40 hover:shadow-sm'
                 }`}
               >
                 {isRecommended && (
-                  <span className="absolute top-2.5 left-2.5 flex items-center gap-1 text-[11px] font-semibold text-white bg-gradient-to-r from-violet-500 to-fuchsia-500 px-2.5 py-0.5 rounded-full">
+                  <span className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-white bg-gradient-to-r from-violet-500 to-fuchsia-500 px-2 sm:px-2.5 py-0.5 rounded-full">
                     <Check className="w-3 h-3" />
                     Recomendado
                   </span>
                 )}
                 {isSelected && !isRecommended && (
-                  <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                  <span className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                     <Check className="w-3 h-3 text-primary-foreground" />
                   </span>
                 )}
-                <span className="text-[28px] mb-1 mt-1">{t.icon}</span>
-                <span className="text-sm font-semibold text-foreground">{t.label}</span>
-                <span className="text-xs text-muted-foreground leading-snug">{t.desc}</span>
+                <span className="text-[28px] sm:text-[28px] shrink-0 mt-3 sm:mt-1 sm:mb-1">{t.icon}</span>
+                <div className="flex-1 min-w-0 mt-1 sm:mt-0">
+                  <span className="text-sm font-semibold text-foreground block">{t.label}</span>
+                  <span className="text-xs text-muted-foreground leading-snug block">{t.desc}</span>
+                </div>
               </button>
             );
           })}
@@ -142,7 +144,7 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
           placeholder={audiencePlaceholder}
           value={audience}
           onChange={(e) => setAudience(e.target.value)}
-          className="text-base resize-none rounded-lg"
+          className="text-base resize-none rounded-lg min-h-[48px]"
           maxLength={200}
         />
         <p className="text-[13px] text-muted-foreground">Opcional · Puedes añadirlo después</p>

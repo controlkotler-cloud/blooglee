@@ -66,10 +66,10 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
+    <div className="space-y-4 sm:space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
       {/* Header */}
-      <div className="text-center space-y-2 mb-6">
-        <h2 className="text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
+      <div className="text-center space-y-2 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
           Personaliza tu contenido
         </h2>
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
@@ -78,7 +78,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
       </div>
 
       {/* Languages */}
-      <div className="space-y-3 p-4 rounded-xl border bg-card">
+      <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
           <Languages className="w-4 h-4 text-primary" />
           <Label className="text-sm font-semibold">Idiomas del blog</Label>
@@ -99,7 +99,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
       </div>
 
       {/* Featured image */}
-      <div className="space-y-3 p-4 rounded-xl border bg-card">
+      <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
           <Image className="w-4 h-4 text-primary" />
           <Label className="text-sm font-semibold">Imagen destacada</Label>
@@ -112,7 +112,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
       </div>
 
       {/* Avoid topics */}
-      <div className="space-y-3 p-4 rounded-xl border bg-card">
+      <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
           <Ban className="w-4 h-4 text-primary" />
           <Label className="text-sm font-semibold">Temas a evitar</Label>
@@ -123,7 +123,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
           placeholder={avoidPlaceholder}
           value={avoidTopics}
           onChange={(e) => setAvoidTopics(e.target.value)}
-          className="text-sm resize-none rounded-lg"
+          className="text-base sm:text-sm resize-none rounded-lg min-h-[48px]"
           maxLength={500}
         />
         <p className="text-[13px] text-muted-foreground">Opcional · Separados por comas</p>

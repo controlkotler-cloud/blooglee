@@ -73,10 +73,10 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
+    <div className="space-y-4 sm:space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
       {/* Header */}
-      <div className="text-center space-y-2 mb-6">
-        <h2 className="text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
+      <div className="text-center space-y-2 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
           Programación de artículos
         </h2>
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
@@ -85,7 +85,7 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
       </div>
 
       {/* Auto-publish */}
-      <div className="space-y-3 p-4 rounded-xl border bg-card">
+      <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-primary" />
           <Label className="text-sm font-semibold">Publicación automática</Label>
@@ -98,7 +98,7 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
       </div>
 
       {/* Frequency */}
-      <div className="space-y-3 p-4 rounded-xl border bg-card">
+      <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
           <CalendarClock className="w-4 h-4 text-primary" />
           <Label className="text-sm font-semibold">Frecuencia de publicación</Label>
@@ -115,7 +115,7 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
           </div>
           <div className="flex items-center gap-3">
             <RadioGroupItem value="weekly" id="freq-weekly" />
-            <label htmlFor="freq-weekly" className="text-sm cursor-pointer flex items-center gap-2">
+            <label htmlFor="freq-weekly" className="text-sm cursor-pointer flex items-center gap-2 flex-wrap">
               Semanal <span className="text-muted-foreground text-xs">· 4 artículos/mes</span>
               {isWeeklyRestricted && <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 dark:text-amber-400">Requiere Pro</Badge>}
             </label>
@@ -130,17 +130,17 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
       </div>
 
       {/* Day, Week & Hour */}
-      <div className="space-y-3 p-4 rounded-xl border bg-card">
+      <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-primary" />
           <Label className="text-sm font-semibold">Día y hora preferidos</Label>
         </div>
         <p className="text-xs text-muted-foreground">Elige cuándo prefieres que se publiquen tus artículos.</p>
-        <div className={`grid gap-3 ${frequency === 'monthly' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <div className={`grid gap-3 ${frequency === 'monthly' ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Día de la semana</Label>
             <Select value={dayOfWeek} onValueChange={setDayOfWeek}>
-              <SelectTrigger className="h-11 rounded-lg"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-12 sm:h-11 text-base sm:text-sm rounded-lg"><SelectValue /></SelectTrigger>
               <SelectContent>{DAYS_OF_WEEK.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
@@ -148,7 +148,7 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Semana del mes</Label>
               <Select value={weekOfMonth} onValueChange={setWeekOfMonth}>
-                <SelectTrigger className="h-11 rounded-lg"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-12 sm:h-11 text-base sm:text-sm rounded-lg"><SelectValue /></SelectTrigger>
                 <SelectContent>{WEEKS_OF_MONTH.map((w) => <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -156,7 +156,7 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Hora (tu zona horaria)</Label>
             <Select value={localHour} onValueChange={setLocalHour}>
-              <SelectTrigger className="h-11 rounded-lg"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-12 sm:h-11 text-base sm:text-sm rounded-lg"><SelectValue /></SelectTrigger>
               <SelectContent>{HOURS.map((h) => <SelectItem key={h.value} value={h.value}>{h.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
