@@ -146,7 +146,6 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
       <div className="space-y-4 animate-in fade-in duration-300">
         <WordPressSetup
           siteId={siteId}
-          onClose={handleGoToDashboard}
           onComplete={handleSetupComplete}
         />
       </div>
@@ -181,15 +180,6 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
             Publicar en mi blog →
           </Button>
 
-          <div className="text-center">
-            <button
-              onClick={handleGoToDashboard}
-              className="text-sm text-muted-foreground hover:text-foreground hover:underline inline-flex items-center gap-1"
-            >
-              Publicar más tarde
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
         </div>
       </div>
     );

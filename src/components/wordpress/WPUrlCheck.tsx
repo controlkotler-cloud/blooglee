@@ -12,7 +12,7 @@ interface WPUrlCheckProps {
   initialUrl?: string;
   onBack: () => void;
   onContinue: (url: string) => void;
-  onSkip: () => void;
+  onSkip?: () => void;
 }
 
 interface CheckResult {
@@ -237,7 +237,7 @@ export function WPUrlCheck({ siteId, initialUrl, onBack, onContinue, onSkip }: W
                   Reintentar
                 </Button>
               )}
-              {errorInfo.canSkip && (
+              {errorInfo.canSkip && onSkip && (
                 <Button variant="ghost" onClick={onSkip} className="flex-1">
                   Continuar sin WordPress
                 </Button>

@@ -21,7 +21,7 @@ interface AuthResult {
 
 interface WordPressSetupProps {
   siteId: string;
-  onClose: () => void;
+  onClose?: () => void;
   onComplete: () => void;
 }
 
