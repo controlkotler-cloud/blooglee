@@ -89,7 +89,13 @@ export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }
               </div>
             </div>
             <Button
-              onClick={() => onWordPressDetected?.(normalizedUrl) ?? onHasWordPress()}
+              onClick={() => {
+                if (onWordPressDetected) {
+                  onWordPressDetected(normalizedUrl);
+                } else {
+                  onHasWordPress();
+                }
+              }}
               className="w-full"
             >
               Conectar WordPress →
