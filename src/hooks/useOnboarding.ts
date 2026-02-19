@@ -55,9 +55,19 @@ interface OnboardingProgress {
 export function useOnboarding(siteId?: string) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [progress, setProgress] = useState<OnboardingProgress | null>(null);
+  const [progress, setProgressState] = useState<OnboardingProgress | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const mountedRef = useRef(true);
+  const progressRef = useRef<OnboardingProgress | null>(null);
+
+  // Wrapper to keep ref in sync with state
+  const setProgress = useCallback((updater: OnboardingProgress | null | ((prev: OnboardingProgress | null) => OnboardingProgress | null)) => {
+    setProgressState(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      progressRef.current = next;
+      return next;
+    });
+  }, []);
 
   // Load or create onboarding progress
   useEffect(() => {
@@ -150,9 +160,10 @@ export function useOnboarding(siteId?: string) {
 
   // Save step data (optimistic + async persist)
   const saveStepData = useCallback(async (stepKey: string, data: object) => {
-    if (!progress) return;
+    const current = progressRef.current;
+    if (!current) return;
 
-    const newStepData = { ...progress.step_data, [stepKey]: data };
+    const newStepData = { ...current.step_data, [stepKey]: data };
 
     // Optimistic update
     setProgress(prev => prev ? { ...prev, step_data: newStepData } : null);
@@ -161,68 +172,72 @@ export function useOnboarding(siteId?: string) {
     const { error } = await supabase
       .from('onboarding_progress')
       .update({ step_data: newStepData } as any)
-      .eq('id', progress.id);
+      .eq('id', current.id);
 
     if (error) console.error('Error saving step data:', error);
-  }, [progress]);
+  }, [setProgress]);
 
   // Navigate steps
   const nextStep = useCallback(async () => {
-    if (!progress) return;
+    const current = progressRef.current;
+    if (!current) return;
 
-    const newStep = progress.current_step + 1;
+    const newStep = current.current_step + 1;
     setProgress(prev => prev ? { ...prev, current_step: newStep } : null);
 
     const { error } = await supabase
       .from('onboarding_progress')
       .update({ current_step: newStep })
-      .eq('id', progress.id);
+      .eq('id', current.id);
 
     if (error) console.error('Error advancing step:', error);
-  }, [progress]);
+  }, [setProgress]);
 
   const prevStep = useCallback(async () => {
-    if (!progress || progress.current_step <= 1) return;
+    const current = progressRef.current;
+    if (!current || current.current_step <= 1) return;
 
-    const newStep = progress.current_step - 1;
+    const newStep = current.current_step - 1;
     setProgress(prev => prev ? { ...prev, current_step: newStep } : null);
 
     const { error } = await supabase
       .from('onboarding_progress')
       .update({ current_step: newStep })
-      .eq('id', progress.id);
+      .eq('id', current.id);
 
     if (error) console.error('Error going back:', error);
-  }, [progress]);
+  }, [setProgress]);
 
   const goToStep = useCallback(async (step: number) => {
-    if (!progress) return;
+    const current = progressRef.current;
+    if (!current) return;
 
     setProgress(prev => prev ? { ...prev, current_step: step } : null);
 
     const { error } = await supabase
       .from('onboarding_progress')
       .update({ current_step: step })
-      .eq('id', progress.id);
+      .eq('id', current.id);
 
     if (error) console.error('Error setting step:', error);
-  }, [progress]);
+  }, [setProgress]);
 
   const completeWizard = useCallback(async () => {
-    if (!progress) return;
+    const current = progressRef.current;
+    if (!current) return;
 
     setProgress(prev => prev ? { ...prev, wizard_completed: true } : null);
 
     const { error } = await supabase
       .from('onboarding_progress')
       .update({ wizard_completed: true })
-      .eq('id', progress.id);
+      .eq('id', current.id);
 
     if (error) console.error('Error completing wizard:', error);
 
     // Invalidate sites query so ProtectedRoute sees the new site
     queryClient.invalidateQueries({ queryKey: ['sites'] });
-  }, [progress, queryClient]);
+  }, [setProgress, queryClient]);
 
   return {
     progress,
