@@ -1,50 +1,28 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ArrowLeft, CalendarClock, Zap, Clock } from 'lucide-react';
+import { CalendarClock, Zap, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { track } from '@/lib/analytics';
 import { useProfile } from '@/hooks/useProfile';
+import { OnboardingNavButtons } from '../OnboardingNavButtons';
 import type { OnboardingStepData } from '@/hooks/useOnboarding';
 
 const DAYS_OF_WEEK = [
-  { value: '1', label: 'Lunes' },
-  { value: '2', label: 'Martes' },
-  { value: '3', label: 'Miércoles' },
-  { value: '4', label: 'Jueves' },
-  { value: '5', label: 'Viernes' },
-  { value: '6', label: 'Sábado' },
-  { value: '0', label: 'Domingo' },
+  { value: '1', label: 'Lunes' }, { value: '2', label: 'Martes' }, { value: '3', label: 'Miércoles' },
+  { value: '4', label: 'Jueves' }, { value: '5', label: 'Viernes' }, { value: '6', label: 'Sábado' }, { value: '0', label: 'Domingo' },
 ];
-
 const WEEKS_OF_MONTH = [
-  { value: '1', label: 'Primera semana' },
-  { value: '2', label: 'Segunda semana' },
-  { value: '3', label: 'Tercera semana' },
-  { value: '4', label: 'Cuarta semana' },
+  { value: '1', label: 'Primera semana' }, { value: '2', label: 'Segunda semana' },
+  { value: '3', label: 'Tercera semana' }, { value: '4', label: 'Cuarta semana' },
 ];
+const HOURS = Array.from({ length: 24 }, (_, i) => ({ value: String(i), label: `${String(i).padStart(2, '0')}:00` }));
 
-const HOURS = Array.from({ length: 24 }, (_, i) => ({
-  value: String(i),
-  label: `${String(i).padStart(2, '0')}:00`,
-}));
-
-function localToUtc(localHour: number): number {
-  const now = new Date();
-  now.setHours(localHour, 0, 0, 0);
-  return now.getUTCHours();
-}
-
-function utcToLocal(utcHour: number): number {
-  const now = new Date();
-  now.setUTCHours(utcHour, 0, 0, 0);
-  return now.getHours();
-}
+function localToUtc(localHour: number): number { const now = new Date(); now.setHours(localHour, 0, 0, 0); return now.getUTCHours(); }
 
 interface SchedulingStepProps {
   onNext: () => void;
@@ -57,27 +35,15 @@ interface SchedulingStepProps {
 export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId }: SchedulingStepProps) {
   const { data: profile } = useProfile();
   const userPlan = profile?.plan ?? 'free';
-
   const saved = stepData?.step_scheduling as Record<string, unknown> | undefined;
 
-  const [autoGenerate, setAutoGenerate] = useState<boolean>(
-    (saved?.auto_generate as boolean) ?? true
-  );
-  const [frequency, setFrequency] = useState<string>(
-    (saved?.frequency as string) ?? 'monthly'
-  );
-  const [dayOfWeek, setDayOfWeek] = useState<string>(
-    (saved?.day_of_week as string) ?? '2'
-  );
-  const [localHour, setLocalHour] = useState<string>(
-    (saved?.local_hour as string) ?? '9'
-  );
-  const [weekOfMonth, setWeekOfMonth] = useState<string>(
-    (saved?.week_of_month as string) ?? '1'
-  );
+  const [autoGenerate, setAutoGenerate] = useState<boolean>((saved?.auto_generate as boolean) ?? true);
+  const [frequency, setFrequency] = useState<string>((saved?.frequency as string) ?? 'monthly');
+  const [dayOfWeek, setDayOfWeek] = useState<string>((saved?.day_of_week as string) ?? '2');
+  const [localHour, setLocalHour] = useState<string>((saved?.local_hour as string) ?? '9');
+  const [weekOfMonth, setWeekOfMonth] = useState<string>((saved?.week_of_month as string) ?? '1');
   const [isSaving, setIsSaving] = useState(false);
 
-  // If user tries weekly on free/starter, show warning
   const isWeeklyRestricted = frequency === 'weekly' && (userPlan === 'free' || userPlan === 'starter');
 
   const handleNext = async () => {
@@ -86,31 +52,15 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
       const utcHour = localToUtc(Number(localHour));
       const effectiveFrequency = isWeeklyRestricted ? 'biweekly' : frequency;
 
-      await saveStepData('step_scheduling', {
-        auto_generate: autoGenerate,
-        frequency: effectiveFrequency,
-        day_of_week: dayOfWeek,
-        local_hour: localHour,
-        week_of_month: weekOfMonth,
-      });
-
-      track('onboarding_scheduling', {
-        auto_generate: autoGenerate,
-        frequency: effectiveFrequency,
-        plan: userPlan,
-      });
+      await saveStepData('step_scheduling', { auto_generate: autoGenerate, frequency: effectiveFrequency, day_of_week: dayOfWeek, local_hour: localHour, week_of_month: weekOfMonth });
+      track('onboarding_scheduling', { auto_generate: autoGenerate, frequency: effectiveFrequency, plan: userPlan });
 
       if (siteId) {
-        await supabase
-          .from('sites')
-          .update({
-            auto_generate: autoGenerate,
-            publish_frequency: effectiveFrequency,
-            publish_day_of_week: Number(dayOfWeek),
-            publish_hour_utc: utcHour,
-            publish_week_of_month: effectiveFrequency === 'monthly' ? Number(weekOfMonth) : null,
-          })
-          .eq('id', siteId);
+        await supabase.from('sites').update({
+          auto_generate: autoGenerate, publish_frequency: effectiveFrequency,
+          publish_day_of_week: Number(dayOfWeek), publish_hour_utc: utcHour,
+          publish_week_of_month: effectiveFrequency === 'monthly' ? Number(weekOfMonth) : null,
+        }).eq('id', siteId);
       }
 
       onNext();
@@ -123,9 +73,9 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
+    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
       {/* Header */}
-      <div className="text-center space-y-2 mb-8">
+      <div className="text-center space-y-2 mb-6">
         <h2 className="text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
           Programación de artículos
         </h2>
@@ -137,64 +87,44 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
       {/* Auto-publish */}
       <div className="space-y-3 p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-violet-500" />
+          <Zap className="w-4 h-4 text-primary" />
           <Label className="text-sm font-semibold">Publicación automática</Label>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Cuando se genere un artículo, se publicará automáticamente en tu WordPress sin necesidad de revisión manual.
-        </p>
+        <p className="text-xs text-muted-foreground">Cuando se genere un artículo, se publicará automáticamente en tu WordPress.</p>
         <div className="flex items-center justify-between">
-          <label htmlFor="auto-generate" className="text-sm cursor-pointer">
-            Publicar automáticamente
-          </label>
-          <Switch
-            id="auto-generate"
-            checked={autoGenerate}
-            onCheckedChange={setAutoGenerate}
-          />
+          <label htmlFor="auto-generate" className="text-sm cursor-pointer">Publicar automáticamente</label>
+          <Switch id="auto-generate" checked={autoGenerate} onCheckedChange={setAutoGenerate} />
         </div>
       </div>
 
       {/* Frequency */}
       <div className="space-y-3 p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
-          <CalendarClock className="w-4 h-4 text-violet-500" />
+          <CalendarClock className="w-4 h-4 text-primary" />
           <Label className="text-sm font-semibold">Frecuencia de publicación</Label>
         </div>
-        <p className="text-xs text-muted-foreground">
-          ¿Con qué frecuencia quieres publicar nuevos artículos?
-        </p>
+        <p className="text-xs text-muted-foreground">¿Con qué frecuencia quieres publicar nuevos artículos?</p>
         <RadioGroup value={frequency} onValueChange={setFrequency} className="space-y-2">
           <div className="flex items-center gap-3">
             <RadioGroupItem value="monthly" id="freq-monthly" />
-            <label htmlFor="freq-monthly" className="text-sm cursor-pointer">
-              Mensual <span className="text-muted-foreground text-xs">· 1 artículo/mes</span>
-            </label>
+            <label htmlFor="freq-monthly" className="text-sm cursor-pointer">Mensual <span className="text-muted-foreground text-xs">· 1 artículo/mes</span></label>
           </div>
           <div className="flex items-center gap-3">
             <RadioGroupItem value="biweekly" id="freq-biweekly" />
-            <label htmlFor="freq-biweekly" className="text-sm cursor-pointer">
-              Quincenal <span className="text-muted-foreground text-xs">· 2 artículos/mes</span>
-            </label>
+            <label htmlFor="freq-biweekly" className="text-sm cursor-pointer">Quincenal <span className="text-muted-foreground text-xs">· 2 artículos/mes</span></label>
           </div>
           <div className="flex items-center gap-3">
             <RadioGroupItem value="weekly" id="freq-weekly" />
             <label htmlFor="freq-weekly" className="text-sm cursor-pointer flex items-center gap-2">
               Semanal <span className="text-muted-foreground text-xs">· 4 artículos/mes</span>
-              {isWeeklyRestricted && (
-                <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 dark:text-amber-400">
-                  Requiere Pro
-                </Badge>
-              )}
+              {isWeeklyRestricted && <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 dark:text-amber-400">Requiere Pro</Badge>}
             </label>
           </div>
         </RadioGroup>
         {isWeeklyRestricted && (
           <p className="text-xs text-amber-600 dark:text-amber-400">
             Tu plan actual ({userPlan === 'free' ? 'Free' : 'Starter'}) permite hasta quincenal.{' '}
-            <a href="/pricing" target="_blank" className="underline font-medium">
-              Ver planes
-            </a>
+            <a href="/pricing" target="_blank" className="underline font-medium">Ver planes</a>
           </p>
         )}
       </div>
@@ -202,78 +132,39 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
       {/* Day, Week & Hour */}
       <div className="space-y-3 p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-violet-500" />
+          <Clock className="w-4 h-4 text-primary" />
           <Label className="text-sm font-semibold">Día y hora preferidos</Label>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Elige cuándo prefieres que se publiquen tus artículos.
-        </p>
+        <p className="text-xs text-muted-foreground">Elige cuándo prefieres que se publiquen tus artículos.</p>
         <div className={`grid gap-3 ${frequency === 'monthly' ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Día de la semana</Label>
             <Select value={dayOfWeek} onValueChange={setDayOfWeek}>
-              <SelectTrigger className="h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DAYS_OF_WEEK.map((d) => (
-                  <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                ))}
-              </SelectContent>
+              <SelectTrigger className="h-11 rounded-lg"><SelectValue /></SelectTrigger>
+              <SelectContent>{DAYS_OF_WEEK.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           {frequency === 'monthly' && (
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Semana del mes</Label>
               <Select value={weekOfMonth} onValueChange={setWeekOfMonth}>
-                <SelectTrigger className="h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {WEEKS_OF_MONTH.map((w) => (
-                    <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectTrigger className="h-11 rounded-lg"><SelectValue /></SelectTrigger>
+                <SelectContent>{WEEKS_OF_MONTH.map((w) => <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           )}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Hora (tu zona horaria)</Label>
             <Select value={localHour} onValueChange={setLocalHour}>
-              <SelectTrigger className="h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {HOURS.map((h) => (
-                  <SelectItem key={h.value} value={h.value}>{h.label}</SelectItem>
-                ))}
-              </SelectContent>
+              <SelectTrigger className="h-11 rounded-lg"><SelectValue /></SelectTrigger>
+              <SelectContent>{HOURS.map((h) => <SelectItem key={h.value} value={h.value}>{h.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </div>
       </div>
 
-      {/* Buttons */}
-      <div className="pt-4 border-t flex gap-3">
-        <Button variant="outline" onClick={onBack} className="h-12 px-6 gap-2">
-          <ArrowLeft className="w-4 h-4" />
-          Atrás
-        </Button>
-        <Button
-          onClick={handleNext}
-          disabled={isSaving}
-          className="flex-1 h-12 text-base font-semibold bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white gap-2"
-        >
-          {isSaving ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-          ) : (
-            <>
-              Siguiente
-              <ArrowRight className="w-4 h-4" />
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Navigation */}
+      <OnboardingNavButtons onNext={handleNext} onBack={onBack} isSaving={isSaving} />
     </div>
   );
 }

@@ -1,50 +1,24 @@
 import { useState, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowRight, ArrowLeft, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { track } from '@/lib/analytics';
+import { OnboardingNavButtons } from '../OnboardingNavButtons';
 import type { OnboardingStepData } from '@/hooks/useOnboarding';
 
 const TONES = [
-  {
-    value: 'friendly',
-    icon: '🤝',
-    label: 'Cercano y amigable',
-    desc: 'Como hablar con un vecino. Tuteo, lenguaje sencillo.',
-  },
-  {
-    value: 'professional',
-    icon: '👔',
-    label: 'Profesional',
-    desc: 'Formal pero accesible. Usted, sin jerga excesiva.',
-  },
-  {
-    value: 'expert',
-    icon: '🎓',
-    label: 'Experto',
-    desc: 'Técnico y detallado. Para posicionarte como autoridad en tu sector.',
-  },
-  {
-    value: 'educational',
-    icon: '💬',
-    label: 'Divulgativo',
-    desc: 'Explica temas complejos de forma sencilla. Ideal para salud, legal, finanzas.',
-  },
+  { value: 'friendly', icon: '🤝', label: 'Cercano y amigable', desc: 'Como hablar con un vecino. Tuteo, lenguaje sencillo.' },
+  { value: 'professional', icon: '👔', label: 'Profesional', desc: 'Formal pero accesible. Usted, sin jerga excesiva.' },
+  { value: 'expert', icon: '🎓', label: 'Experto', desc: 'Técnico y detallado. Posiciónate como autoridad en tu sector.' },
+  { value: 'educational', icon: '💬', label: 'Divulgativo', desc: 'Explica temas complejos de forma sencilla. Ideal para salud, legal, finanzas.' },
 ];
 
 const SECTOR_TONE_MAP: Record<string, string> = {
-  farmacia: 'friendly',
-  peluqueria: 'friendly',
-  restaurante: 'friendly',
-  clinica_dental: 'professional',
-  asesoria: 'professional',
-  inmobiliaria: 'professional',
-  gimnasio: 'friendly',
-  ecommerce: 'friendly',
-  marketing: 'friendly',
+  farmacia: 'friendly', peluqueria: 'friendly', restaurante: 'friendly',
+  clinica_dental: 'professional', asesoria: 'professional', inmobiliaria: 'professional',
+  gimnasio: 'friendly', ecommerce: 'friendly', marketing: 'friendly',
   veterinaria: 'educational',
 };
 
@@ -86,19 +60,14 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
       const data = { tone, audience: audience.trim() };
       await saveStepData('step2', data);
 
-      // Track if audience was skipped
       if (!audience.trim()) {
         track('onboarding_step_skipped', { step: 2, field: 'audience' });
       }
 
-      // Update site tone + target_audience
       if (siteId) {
         await supabase
           .from('sites')
-          .update({
-            tone,
-            target_audience: audience.trim() || null,
-          })
+          .update({ tone, target_audience: audience.trim() || null })
           .eq('id', siteId);
       }
 
@@ -112,9 +81,9 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
+    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
       {/* Header */}
-      <div className="text-center space-y-2 mb-8">
+      <div className="text-center space-y-2 mb-6">
         <h2 className="text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
           ¿Cómo quieres que suene tu blog?
         </h2>
@@ -136,20 +105,25 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
                 key={t.value}
                 type="button"
                 onClick={() => setTone(t.value)}
-                className={`relative flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all hover:scale-[1.01] ${
+                className={`relative flex flex-col items-start gap-1.5 p-4 rounded-xl border-2 text-left transition-all duration-200 min-h-[130px] ${
                   isSelected
-                    ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 shadow-sm'
-                    : 'border-border hover:border-violet-300'
+                    ? 'border-primary bg-primary/5 shadow-md'
+                    : 'border-border hover:border-primary/40 hover:shadow-sm'
                 }`}
               >
                 {isRecommended && (
-                  <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-medium text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/40 px-2 py-0.5 rounded-full">
+                  <span className="absolute top-2.5 left-2.5 flex items-center gap-1 text-[11px] font-semibold text-white bg-gradient-to-r from-violet-500 to-fuchsia-500 px-2.5 py-0.5 rounded-full">
                     <Check className="w-3 h-3" />
                     Recomendado
                   </span>
                 )}
-                <span className="text-2xl">{t.icon}</span>
-                <span className="text-sm font-semibold">{t.label}</span>
+                {isSelected && !isRecommended && (
+                  <span className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="w-3 h-3 text-primary-foreground" />
+                  </span>
+                )}
+                <span className="text-[28px] mb-1 mt-1">{t.icon}</span>
+                <span className="text-sm font-semibold text-foreground">{t.label}</span>
                 <span className="text-xs text-muted-foreground leading-snug">{t.desc}</span>
               </button>
             );
@@ -158,7 +132,7 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
       </div>
 
       {/* Audience */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <Label htmlFor="audience" className="text-sm font-medium">
           Tu audiencia ideal
         </Label>
@@ -168,37 +142,19 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
           placeholder={audiencePlaceholder}
           value={audience}
           onChange={(e) => setAudience(e.target.value)}
-          className="text-base resize-none"
+          className="text-base resize-none rounded-lg"
           maxLength={200}
         />
-        <p className="text-xs text-muted-foreground">Opcional · Puedes añadirlo después</p>
+        <p className="text-[13px] text-muted-foreground">Opcional · Puedes añadirlo después</p>
       </div>
 
-      {/* Buttons */}
-      <div className="pt-4 border-t flex gap-3">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="h-12 px-6 gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Atrás
-        </Button>
-        <Button
-          onClick={handleNext}
-          disabled={!canProceed || isSaving}
-          className="flex-1 h-12 text-base font-semibold bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white gap-2"
-        >
-          {isSaving ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-          ) : (
-            <>
-              Siguiente
-              <ArrowRight className="w-4 h-4" />
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Navigation */}
+      <OnboardingNavButtons
+        onNext={handleNext}
+        onBack={onBack}
+        nextDisabled={!canProceed}
+        isSaving={isSaving}
+      />
     </div>
   );
 }

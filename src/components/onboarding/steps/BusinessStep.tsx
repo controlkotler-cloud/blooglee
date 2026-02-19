@@ -1,14 +1,14 @@
 import { useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowRight, Building2, MapPin, Globe, Link2 } from 'lucide-react';
+import { Building2, MapPin, Globe, Link2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useColorPalette } from '@/hooks/useColorPalette';
+import { OnboardingNavButtons } from '../OnboardingNavButtons';
 import type { OnboardingStepData } from '@/hooks/useOnboarding';
 
 const SECTORS = [
@@ -67,7 +67,6 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
     setIsSaving(true);
 
     try {
-      // 1. Create site
       const { data: site, error: siteError } = await supabase
         .from('sites')
         .insert({
@@ -83,10 +82,8 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
 
       if (siteError) throw siteError;
 
-      // 2. Create onboarding_progress linked to the site
       await createProgress(site.id);
 
-      // 3. Save step data
       const stepData = {
         business_name: businessName.trim(),
         sector: finalSector,
@@ -96,15 +93,11 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
       };
       await saveStepData('step1', stepData);
 
-      // 4. Trigger color extraction in background (fire-and-forget)
       if (websiteUrl.trim()) {
         triggerExtraction(websiteUrl.trim(), site.id);
       }
 
-      // 5. Refresh sites cache
       await queryClient.refetchQueries({ queryKey: ['sites', user.id] });
-
-      // 6. Advance
       onNext();
     } catch (err: any) {
       console.error('Error in BusinessStep:', err);
@@ -116,21 +109,21 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
+    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
       {/* Header */}
-      <div className="text-center space-y-2 mb-8">
+      <div className="text-center space-y-2 mb-6">
         <h2 className="text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
           Cuéntanos sobre tu negocio
         </h2>
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
-          Con esta información, nuestra IA creará artículos perfectos para tu blog. Solo necesitamos lo básico.
+          Con esta información, nuestra IA creará artículos perfectos para tu blog.
         </p>
       </div>
 
       {/* Business name */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <Label htmlFor="business-name" className="flex items-center gap-2 text-sm font-medium">
-          <Building2 className="w-4 h-4 text-violet-500" />
+          <Building2 className="w-4 h-4 text-primary" />
           Nombre de tu negocio <span className="text-destructive">*</span>
         </Label>
         <Input
@@ -138,20 +131,20 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
           placeholder="Ej: Farmacia López"
           value={businessName}
           onChange={(e) => setBusinessName(e.target.value)}
-          className="h-12 text-base"
+          className="h-11 text-base rounded-lg"
           maxLength={100}
           autoFocus
         />
       </div>
 
       {/* Sector */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <Label className="flex items-center gap-2 text-sm font-medium">
           <span className="text-lg">🏷️</span>
           ¿A qué se dedica tu negocio? <span className="text-destructive">*</span>
         </Label>
         <Select value={sector} onValueChange={setSector}>
-          <SelectTrigger className="h-12 text-base">
+          <SelectTrigger className="h-11 text-base rounded-lg">
             <SelectValue placeholder="Selecciona un sector..." />
           </SelectTrigger>
           <SelectContent>
@@ -168,16 +161,16 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
             placeholder="Describe tu sector"
             value={customSector}
             onChange={(e) => setCustomSector(e.target.value)}
-            className="h-11 mt-2 animate-in fade-in duration-200"
+            className="h-11 mt-2 animate-in fade-in duration-200 rounded-lg"
             maxLength={60}
           />
         )}
       </div>
 
       {/* Location */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <Label htmlFor="location" className="flex items-center gap-2 text-sm font-medium">
-          <MapPin className="w-4 h-4 text-violet-500" />
+          <MapPin className="w-4 h-4 text-primary" />
           ¿Dónde está tu negocio? <span className="text-destructive">*</span>
         </Label>
         <Input
@@ -185,40 +178,46 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
           placeholder="Ej: Logroño, La Rioja"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          className="h-12 text-base"
+          className="h-11 text-base rounded-lg"
           maxLength={100}
         />
       </div>
 
-      {/* Scope */}
-      <div className="space-y-3">
+      {/* Scope — mini cards */}
+      <div className="space-y-2">
         <Label className="flex items-center gap-2 text-sm font-medium">
-          <Globe className="w-4 h-4 text-violet-500" />
+          <Globe className="w-4 h-4 text-primary" />
           ¿A quién quieres llegar? <span className="text-destructive">*</span>
         </Label>
         <div className="grid gap-2">
-          {SCOPES.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              onClick={() => setScope(s.value)}
-              className={`flex items-center gap-3 p-3.5 rounded-xl border-2 text-left transition-all hover:scale-[1.01] ${
-                scope === s.value
-                  ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 shadow-sm'
-                  : 'border-border hover:border-violet-300'
-              }`}
-            >
-              <span className="text-xl">{s.icon}</span>
-              <span className="text-sm font-medium">{s.label}</span>
-            </button>
-          ))}
+          {SCOPES.map((s) => {
+            const isSelected = scope === s.value;
+            return (
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => setScope(s.value)}
+                className={`flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all duration-200 ${
+                  isSelected
+                    ? 'border-primary bg-primary/5 shadow-sm'
+                    : 'border-border hover:border-primary/40 hover:shadow-sm'
+                }`}
+              >
+                <span className="text-xl">{s.icon}</span>
+                <span className="text-sm font-medium">{s.label}</span>
+                {isSelected && (
+                  <span className="ml-auto text-primary text-sm">✓</span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Website URL */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <Label htmlFor="website-url" className="flex items-center gap-2 text-sm font-medium">
-          <Link2 className="w-4 h-4 text-violet-500" />
+          <Link2 className="w-4 h-4 text-primary" />
           URL de tu web <span className="text-destructive">*</span>
         </Label>
         <Input
@@ -226,31 +225,20 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
           placeholder="Ej: www.farmacialopez.es"
           value={websiteUrl}
           onChange={(e) => setWebsiteUrl(e.target.value)}
-          className="h-12 text-base"
+          className="h-11 text-base rounded-lg"
           maxLength={200}
         />
-        <p className="text-xs text-muted-foreground">
-          Analizaremos tu web para extraer los colores de tu marca y datos clave de tu negocio.
+        <p className="text-[13px] text-muted-foreground">
+          Analizaremos tu web para extraer los colores de tu marca.
         </p>
       </div>
 
-      {/* Next button */}
-      <div className="pt-4 border-t">
-        <Button
-          onClick={handleNext}
-          disabled={!canProceed || isSaving}
-          className="w-full h-12 text-base font-semibold bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white gap-2"
-        >
-          {isSaving ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-          ) : (
-            <>
-              Siguiente
-              <ArrowRight className="w-4 h-4" />
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Navigation */}
+      <OnboardingNavButtons
+        onNext={handleNext}
+        nextDisabled={!canProceed}
+        isSaving={isSaving}
+      />
     </div>
   );
 }
