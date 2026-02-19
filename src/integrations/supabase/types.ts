@@ -604,47 +604,71 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           beta_expires_at: string | null
           beta_invitation_id: string | null
           beta_started_at: string | null
+          billing_address: string | null
+          company_name: string | null
           created_at: string
           email: string
+          full_name: string | null
           id: string
           is_beta: boolean | null
+          notification_preferences: Json | null
           onboarding_completed: boolean | null
+          phone: string | null
           plan: string
           posts_limit: number
           sites_limit: number
+          tax_id: string | null
+          timezone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           beta_expires_at?: string | null
           beta_invitation_id?: string | null
           beta_started_at?: string | null
+          billing_address?: string | null
+          company_name?: string | null
           created_at?: string
           email: string
+          full_name?: string | null
           id?: string
           is_beta?: boolean | null
+          notification_preferences?: Json | null
           onboarding_completed?: boolean | null
+          phone?: string | null
           plan?: string
           posts_limit?: number
           sites_limit?: number
+          tax_id?: string | null
+          timezone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           beta_expires_at?: string | null
           beta_invitation_id?: string | null
           beta_started_at?: string | null
+          billing_address?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string
+          full_name?: string | null
           id?: string
           is_beta?: boolean | null
+          notification_preferences?: Json | null
           onboarding_completed?: boolean | null
+          phone?: string | null
           plan?: string
           posts_limit?: number
           sites_limit?: number
+          tax_id?: string | null
+          timezone?: string | null
           updated_at?: string
           user_id?: string
         }
