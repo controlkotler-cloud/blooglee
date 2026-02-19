@@ -9,7 +9,7 @@ interface WPIntroProps {
   onHasWordPress: () => void;
   /** Called when WordPress is auto-detected on the blogUrl — skips url_check */
   onWordPressDetected?: (url: string) => void;
-  onSkip: () => void;
+  onSkip?: () => void;
 }
 
 interface CheckResult {
@@ -97,14 +97,16 @@ export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }
           </CardContent>
         </Card>
 
-        <div className="text-center">
-          <button
-            onClick={onSkip}
-            className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-          >
-            Ahora no, lo haré más tarde
-          </button>
-        </div>
+        {onSkip && (
+          <div className="text-center">
+            <button
+              onClick={onSkip}
+              className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Ahora no, lo haré más tarde
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -190,9 +192,11 @@ export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }
             <p className="text-sm text-muted-foreground">
               Mientras tanto, puedes seguir usando Blooglee para generar artículos y guardarlos como borradores.
             </p>
-            <Button variant="outline" onClick={onSkip} className="w-full">
-              Continuar sin WordPress →
-            </Button>
+            {onSkip && (
+              <Button variant="outline" onClick={onSkip} className="w-full">
+                Continuar sin WordPress →
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

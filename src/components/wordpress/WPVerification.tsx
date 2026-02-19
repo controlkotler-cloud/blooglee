@@ -15,7 +15,7 @@ interface WPVerificationProps {
   siteUrl: string;
   onContinue: () => void;
   onRetry: () => void;
-  onSkip: () => void;
+  onSkip?: () => void;
 }
 
 export function WPVerification({ result, siteUrl, onContinue, onRetry, onSkip }: WPVerificationProps) {
@@ -158,7 +158,8 @@ export function WPVerification({ result, siteUrl, onContinue, onRetry, onSkip }:
   );
 }
 
-function SkipSection({ onSkip }: { onSkip: () => void }) {
+function SkipSection({ onSkip }: { onSkip?: () => void }) {
+  if (!onSkip) return null;
   return (
     <div className="text-center space-y-1 pt-2">
       <p className="text-xs text-muted-foreground">
