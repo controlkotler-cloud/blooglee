@@ -139,13 +139,14 @@ Deno.serve(async (req) => {
     console.log('Site ID:', wpConfig.site_id);
     const siteId = wpConfig.site_id;
 
-    // Normalize WordPress URL
+    // Normalize WordPress URL to origin (strip /blog, /wp-admin, etc.)
     let wpUrl = wpConfig.site_url.trim();
-    if (wpUrl.endsWith('/wp-admin') || wpUrl.endsWith('/wp-admin/')) {
-      wpUrl = wpUrl.replace(/\/wp-admin\/?$/, '');
-    }
-    if (wpUrl.endsWith('/')) {
-      wpUrl = wpUrl.slice(0, -1);
+    try {
+      const parsed = new URL(wpUrl);
+      wpUrl = parsed.origin;
+    } catch {
+      // Fallback: manual cleanup
+      wpUrl = wpUrl.replace(/\/wp-admin\/?$/, '').replace(/\/+$/, '');
     }
     console.log('Normalized WordPress URL:', wpUrl);
 

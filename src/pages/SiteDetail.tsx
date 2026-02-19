@@ -206,7 +206,7 @@ export default function SiteDetail() {
             </TabsContent>
 
             <TabsContent value="wordpress">
-              <WordPressConfigForm siteId={site.id} />
+              <WordPressConfigForm siteId={site.id} wordpressContext={site.wordpress_context as any} />
             </TabsContent>
           </Tabs>
         </main>
