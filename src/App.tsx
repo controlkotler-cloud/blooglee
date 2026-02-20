@@ -16,7 +16,6 @@ import AccountSettings from "./pages/AccountSettings";
 import BillingPage from "./pages/BillingPage";
 import HelpPage from "./pages/HelpPage";
 import KnowledgeArticle from "./pages/KnowledgeArticle";
-import MKPro from "./pages/MKPro";
 import { OnboardingWizard } from "./components/onboarding/OnboardingWizard";
 import Auth from "./pages/Auth";
 import Waitlist from "./pages/Waitlist";
@@ -168,14 +167,8 @@ const App = () => (
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/mkpro"
-            element={
-              <ProtectedRoute>
-                <MKPro />
-              </ProtectedRoute>
-            }
-          />
+
+
           
           {/* Admin routes - SuperAdmin only */}
           <Route

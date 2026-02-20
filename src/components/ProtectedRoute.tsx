@@ -2,7 +2,7 @@ import { ReactNode, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useSites } from '@/hooks/useSites';
-import { useIsMKProAdmin, useIsSuperAdmin } from '@/hooks/useProfile';
+import { useIsAdmin, useIsSuperAdmin } from '@/hooks/useProfile';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -12,8 +12,8 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children, requireSuperAdmin = false }: ProtectedRouteProps) => {
   const { session, loading } = useAuth();
   const { data: sites, isLoading: loadingSites } = useSites();
-  const { isMKProAdmin, isAdmin, isSuperAdmin, isLoading: loadingRoles } = useIsMKProAdmin();
-  const { isSuperAdmin: superAdminCheck, isLoading: loadingSuperAdmin } = useIsSuperAdmin();
+  const { isAdmin, isLoading: loadingRoles } = useIsAdmin();
+  const { isSuperAdmin, isLoading: loadingSuperAdmin } = useIsSuperAdmin();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -27,22 +27,13 @@ export const ProtectedRoute = ({ children, requireSuperAdmin = false }: Protecte
     if (loading || loadingSites || loadingRoles || loadingSuperAdmin) return;
 
     // Check superadmin requirement for admin routes
-    if (requireSuperAdmin && !superAdminCheck) {
+    if (requireSuperAdmin && !isSuperAdmin) {
       navigate('/dashboard', { replace: true });
       return;
     }
 
-    // Superadmins and admins have free access to all protected routes
+    // Admins have free access to all protected routes
     if (isAdmin || isSuperAdmin) {
-      // No forced redirects - admins can go anywhere
-      return;
-    }
-
-    // MKPro-only admins (not full admins) go to /mkpro
-    if (isMKProAdmin) {
-      if (location.pathname !== '/mkpro') {
-        navigate('/mkpro', { replace: true });
-      }
       return;
     }
 
@@ -50,7 +41,7 @@ export const ProtectedRoute = ({ children, requireSuperAdmin = false }: Protecte
     if (sites?.length === 0 && location.pathname !== '/onboarding' && location.pathname !== '/onboarding/wizard') {
       navigate('/onboarding', { replace: true });
     }
-  }, [session, loading, loadingSites, loadingRoles, loadingSuperAdmin, sites, isMKProAdmin, isAdmin, isSuperAdmin, superAdminCheck, requireSuperAdmin, navigate, location.pathname]);
+  }, [session, loading, loadingSites, loadingRoles, loadingSuperAdmin, sites, isAdmin, isSuperAdmin, requireSuperAdmin, navigate, location.pathname]);
 
   if (loading || loadingSites || loadingRoles || loadingSuperAdmin) {
     return (
