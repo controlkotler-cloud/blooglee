@@ -64,7 +64,9 @@ export default function SaasDashboard() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
   const [sortOption, setSortOption] = useState<SortOption>('name-asc');
+  const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 640;
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (isMobileViewport) return 'cards';
     const saved = localStorage.getItem(VIEW_MODE_KEY);
     if (saved === 'cards' || saved === 'table') return saved;
     return sites.length > 6 ? 'table' : 'cards';
@@ -229,7 +231,7 @@ export default function SaasDashboard() {
                   <span className="hidden sm:inline">MKPro</span>
                 </Button>
               )}
-              <PlanBadge plan={plan} />
+              <PlanBadge plan={plan} size="sm" />
               <span className="text-sm text-muted-foreground hidden sm:inline">
                 {sites.length}/{sitesLimit} sitios
               </span>
@@ -237,7 +239,7 @@ export default function SaasDashboard() {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" className="h-11 w-11 sm:h-9 sm:w-9">
                     <Settings className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>

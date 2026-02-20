@@ -54,8 +54,8 @@ export function SitesToolbar({
 }: SitesToolbarProps) {
   return (
     <div className="space-y-3">
+      {/* Row 1: Search (full-width on mobile) */}
       <div className="flex flex-col sm:flex-row gap-3">
-        {/* Search */}
         <div className="relative w-full sm:w-[250px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -66,8 +66,8 @@ export function SitesToolbar({
           />
         </div>
 
-        {/* Right side: sort + view toggle */}
-        <div className="flex items-center gap-2 sm:ml-auto">
+        {/* Sort + view toggle — hidden on mobile (view forced to cards) */}
+        <div className="hidden sm:flex items-center gap-2 sm:ml-auto">
           <Select value={sortOption} onValueChange={(v) => onSortChange(v as SortOption)}>
             <SelectTrigger className="w-[180px] h-9 text-xs">
               <SelectValue placeholder="Ordenar por" />
@@ -102,11 +102,27 @@ export function SitesToolbar({
             </Button>
           </div>
         </div>
+
+        {/* Mobile-only sort (no view toggle) */}
+        <div className="sm:hidden">
+          <Select value={sortOption} onValueChange={(v) => onSortChange(v as SortOption)}>
+            <SelectTrigger className="w-full h-10 text-sm">
+              <SelectValue placeholder="Ordenar por" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name-asc">Nombre A-Z</SelectItem>
+              <SelectItem value="name-desc">Nombre Z-A</SelectItem>
+              <SelectItem value="activity">Última actividad</SelectItem>
+              <SelectItem value="articles">Artículos (más a menos)</SelectItem>
+              <SelectItem value="wordpress">Estado WordPress</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Filter chips */}
+      {/* Row 2: Filter chips — horizontal scroll on mobile */}
       {totalSites > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5 -mx-1 px-1">
           {FILTERS.map(({ key, label, countKey }) => {
             const count = countKey ? filterCounts[countKey] : totalSites;
             const isActive = activeFilter === key;
@@ -118,7 +134,7 @@ export function SitesToolbar({
                 onClick={() => !isDisabled && onFilterChange(key)}
                 disabled={isDisabled}
                 className={`
-                  inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors
+                  inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap shrink-0 min-h-[36px]
                   ${isActive
                     ? 'bg-primary text-primary-foreground'
                     : isDisabled
