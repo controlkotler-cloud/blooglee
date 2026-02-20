@@ -68,7 +68,6 @@ export default function AdminUsers() {
   const getRoleBadgeVariant = (role: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
     switch (role) {
       case 'superadmin': return 'destructive';
-      case 'mkpro_admin': return 'default';
       case 'beta': return 'secondary';
       default: return 'outline';
     }
@@ -117,7 +116,6 @@ export default function AdminUsers() {
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
                     <SelectItem value="superadmin">Superadmin</SelectItem>
-                    <SelectItem value="mkpro_admin">MKPro</SelectItem>
                     <SelectItem value="beta">Beta</SelectItem>
                     <SelectItem value="user">User</SelectItem>
                   </SelectContent>

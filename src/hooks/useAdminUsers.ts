@@ -106,7 +106,7 @@ export function useUpdateUserRole() {
   return useMutation({
     mutationFn: async ({ userId, role, action }: { 
       userId: string; 
-      role: 'superadmin' | 'mkpro_admin' | 'beta' | 'user';
+      role: 'superadmin' | 'beta' | 'user';
       action: 'add' | 'remove';
     }) => {
       if (action === 'add') {
