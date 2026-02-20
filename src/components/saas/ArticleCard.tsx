@@ -17,6 +17,7 @@ interface ArticleCardProps {
   onView: () => void;
   onPublish: () => void;
   onDelete: () => void;
+  isAdmin?: boolean;
 }
 
 export function ArticleCard({
@@ -24,6 +25,7 @@ export function ArticleCard({
   onView,
   onPublish,
   onDelete,
+  isAdmin = false,
 }: ArticleCardProps) {
   const title = article.content_spanish?.title || article.topic;
   const hasSpanish = !!article.content_spanish;
@@ -60,13 +62,13 @@ export function ArticleCard({
                 <Eye className="w-4 h-4 mr-2" />
                 Ver artículo
               </DropdownMenuItem>
-              {!article.wp_post_url && (
+              {(!article.wp_post_url || isAdmin) && (
                 <DropdownMenuItem onClick={onPublish}>
                   <Upload className="w-4 h-4 mr-2" />
-                  Publicar en WordPress
+                  {article.wp_post_url ? 'Republicar en WordPress' : 'Publicar en WordPress'}
                 </DropdownMenuItem>
               )}
-              {!article.wp_post_url && (
+              {(!article.wp_post_url || isAdmin) && (
                 <DropdownMenuItem onClick={onDelete} className="text-destructive">
                   <Trash2 className="w-4 h-4 mr-2" />
                   Eliminar

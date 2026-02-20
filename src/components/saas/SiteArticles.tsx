@@ -187,6 +187,7 @@ export function SiteArticles({ siteId, siteName, siteSector, onGenerateArticle, 
             <ArticleCard
               key={article.id}
               article={article}
+              isAdmin={isAdmin}
               onView={() => setPreviewArticle(article)}
               onPublish={() => handlePublish(article)}
               onDelete={() => handleDelete(article)}
