@@ -36,7 +36,7 @@ export interface Profile {
 export interface UserRole {
   id: string;
   user_id: string;
-  role: 'superadmin' | 'admin' | 'mkpro_admin' | 'beta' | 'user';
+  role: 'superadmin' | 'admin' | 'beta' | 'user';
   created_at: string;
 }
 

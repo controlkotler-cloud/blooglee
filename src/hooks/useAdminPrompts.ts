@@ -26,7 +26,7 @@ export interface PromptInput {
   is_active?: boolean;
 }
 
-const CATEGORIES = ['farmacias', 'empresas', 'saas', 'blog', 'soporte'] as const;
+const CATEGORIES = ['saas', 'blog', 'soporte'] as const;
 export type PromptCategory = typeof CATEGORIES[number];
 export { CATEGORIES };
 
