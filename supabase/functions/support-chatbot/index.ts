@@ -59,17 +59,18 @@ CONTEXTO DE BLOOGLEE:
 - Los problemas más comunes son: firewalls bloqueando la API, permisos insuficientes, plugins multiidioma mal configurados
 
 PLANES DE BLOOGLEE:
-- Free: 1 mes gratis de prueba con hasta 4 artículos/mes, 1 sitio web. Sin tarjeta de crédito.
-- Starter (19€/mes o 15€/mes anual): 1 sitio, 4 artículos/mes, SEO avanzado, publicación automática, soporte por email
-- Pro (29€/mes oferta lanzamiento o 39€/mes anual): Hasta 3 sitios, 30 artículos/mes, todo lo de Starter, soporte prioritario
-- Agencia (149€/mes o 119€/mes anual): Hasta 10 sitios, artículos ilimitados, white-label, soporte prioritario
+- Free (0€): 1 sitio, 1 artículo de prueba (único, no se renueva), hasta 800 palabras, publicación manual.
+- Starter (19€/mes o 16€/mes anual): 1 sitio, hasta 4 artículos/mes, hasta 1.500 palabras, publicación automática, soporte por email (<24h, L-V 9-20h).
+- Pro (39€/mes o 33€/mes anual): Hasta 5 sitios (+extra a 6€/mes, máx 15), hasta 46 artículos/mes, hasta 2.500 palabras, publicación diaria, perfil avanzado, soporte prioritario (<8h, L-V 9-20h).
+- Agency (99€/mes o 83€/mes anual): Hasta 25 sitios, artículos ilimitados, hasta 2.500 palabras, soporte preferente (<4h, L-V 9-20h).
 
 REGLAS SOBRE PLANES:
-- Todos los usuarios empiezan con el plan Free de 1 mes gratis
-- Después del mes gratuito, deben actualizar al plan que prefieran (Starter, Pro o Agencia)
-- Si quieren Pro o Agencia antes de que termine el mes gratis, pueden actualizar anticipadamente
-- Para más de 10 sitios, deben contactar ventas en hola@blooglee.com para un plan personalizado
-- El Pro tiene oferta de lanzamiento: 29€/mes en lugar de 49€/mes
+- El plan Free incluye solo 1 artículo de prueba en total (no se renueva cada mes)
+- Para seguir generando artículos, el usuario debe pasar a Starter o superior
+- Para más de 25 sitios, contactar ventas en hola@blooglee.com
+- La facturación anual supone 2 meses gratis (~17% ahorro)
+- SEO es igual en todos los planes, no hay "SEO básico" vs "SEO avanzado"
+- White-label: Blooglee no aparece en los artículos publicados en ningún plan
 
 FORMATO DE RESPUESTA:
 - Usa markdown para formatear
@@ -193,7 +194,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { messages, error_context } = await req.json();
+    const { messages, error_context, user_metadata } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(
@@ -266,8 +267,19 @@ Deno.serve(async (req) => {
       errorContextStr = `\n\nCONTEXTO DEL ERROR:\n- Código: ${error_context.code || "No especificado"}\n- Acción: ${error_context.action || "No especificada"}\n- Mensaje: ${error_context.message || "No especificado"}`;
     }
 
+    // Add user metadata for support prioritization
+    let userMetadataStr = "";
+    if (user_metadata) {
+      userMetadataStr = `\n\nDATOS DEL USUARIO (para priorización interna, NO mostrar al usuario):
+- Plan: ${user_metadata.plan || "free"}
+- Sitios: ${user_metadata.sitesCount ?? "?"}
+- Email: ${user_metadata.email || "No disponible"}
+- Fecha registro: ${user_metadata.registeredAt || "No disponible"}
+Prioridad de respuesta según plan: Agency(<4h) > Pro(<8h) > Starter(<24h) > Free(solo centro de ayuda).`;
+    }
+
     // Build final system prompt with context
-    const enhancedSystemPrompt = SYSTEM_PROMPT + articlesContext + errorContextStr;
+    const enhancedSystemPrompt = SYSTEM_PROMPT + articlesContext + errorContextStr + userMetadataStr;
 
     // Call Lovable AI
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -8,8 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, FileText, Sparkles } from 'lucide-react';
+import { Loader2, FileText, Sparkles, ArrowRight, Lock } from 'lucide-react';
 import { useArticlesSaas, useDeleteArticleSaas, type Article } from '@/hooks/useArticlesSaas';
+import { useProfile, useIsAdmin } from '@/hooks/useProfile';
+import { useAllArticlesSaas } from '@/hooks/useArticlesSaas';
 import { ArticleCard } from './ArticleCard';
 import { ArticlePreviewDialog } from './ArticlePreviewDialog';
 import { WordPressPublishDialogSaas } from './WordPressPublishDialogSaas';
@@ -51,6 +54,19 @@ export function SiteArticles({ siteId, siteName, siteSector, onGenerateArticle, 
     parseInt(selectedYear)
   );
   const deleteMutation = useDeleteArticleSaas();
+  const { data: profile } = useProfile();
+  const { isAdmin } = useIsAdmin();
+
+  // Check if user is on Free plan and has used their trial article
+  const isFreePlan = profile?.plan === 'free';
+  // For free users, count ALL articles (not just this month) - use a broad query
+  const { data: allArticles = [] } = useAllArticlesSaas(
+    currentDate.getMonth() + 1,
+    currentDate.getFullYear()
+  );
+  // Free plan: 1 article lifetime. Check across all time by looking at total count in current view
+  // The actual enforcement is in the backend, but we show UI feedback
+  const freeTrialUsed = isFreePlan && !isAdmin && articles.length > 0;
 
   // Generate year options (current year and 2 years back)
   const years = Array.from({ length: 3 }, (_, i) => {
@@ -108,14 +124,43 @@ export function SiteArticles({ siteId, siteName, siteSector, onGenerateArticle, 
           </Select>
         </div>
 
-        <Button onClick={onGenerateArticle} disabled={isGenerating}>
-          {isGenerating ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        {isFreePlan && !isAdmin ? (
+          freeTrialUsed ? (
+            <div className="flex flex-col items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-center">
+              <Lock className="w-5 h-5 text-amber-600" />
+              <p className="text-sm font-medium text-amber-800">
+                Has usado tu artículo de prueba.
+              </p>
+              <p className="text-xs text-amber-600">
+                Pasa a Starter para generar artículos ilimitados automáticamente.
+              </p>
+              <Link
+                to="/pricing"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+              >
+                Ver planes <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           ) : (
-            <Sparkles className="w-4 h-4 mr-2" />
-          )}
-          Generar artículo
-        </Button>
+            <Button onClick={onGenerateArticle} disabled={isGenerating}>
+              {isGenerating ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 mr-2" />
+              )}
+              Generar artículo de prueba
+            </Button>
+          )
+        ) : (
+          <Button onClick={onGenerateArticle} disabled={isGenerating}>
+            {isGenerating ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4 mr-2" />
+            )}
+            Generar artículo
+          </Button>
+        )}
       </div>
 
       {/* Articles grid or empty state */}

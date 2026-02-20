@@ -139,9 +139,14 @@ export function useUpsertWordPressConfig() {
       queryClient.invalidateQueries({ queryKey: ['wordpress_configs', variables.site_id] });
       toast.success('Configuración de WordPress guardada');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error saving WordPress config:', error);
-      toast.error('Error al guardar la configuración');
+      // Handle duplicate URL (unique constraint on normalized_site_url)
+      if (error?.code === '23505' || error?.message?.includes('unique') || error?.message?.includes('duplicate')) {
+        toast.error('Esta web ya está conectada a otra cuenta de Blooglee. Si es tu web, inicia sesión con la cuenta original o contacta soporte.');
+      } else {
+        toast.error('Error al guardar la configuración');
+      }
     },
   });
 }
