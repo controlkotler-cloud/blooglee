@@ -86,9 +86,9 @@ function generateLlmsTxt(posts: BlogPost[]): string {
 
 Blooglee automatiza la creación de contenido para blogs WordPress:
 
-1. Genera artículos de 800-1200 palabras con IA (GPT-5/Gemini)
+1. Genera artículos de 800-2500 palabras con IA (Gemini 2.5 Flash)
 2. Optimiza automáticamente para SEO (meta tags, slugs, estructura)
-3. Incluye imágenes destacadas con créditos
+3. Incluye imágenes destacadas generadas por IA
 4. Publica directamente en WordPress con un clic
 5. Adapta el contenido al sector del cliente
 

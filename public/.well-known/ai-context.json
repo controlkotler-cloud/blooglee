@@ -11,15 +11,17 @@
   "product": {
     "type": "SaaS",
     "category": "Content Marketing Automation",
-    "aiModels": ["OpenAI GPT-5", "Google Gemini 2.5"],
+    "aiModels": ["Google Gemini 2.5 Flash", "Google Gemini 3 Pro"],
     "integrations": ["WordPress", "Yoast SEO", "Polylang"],
     "features": [
-      "Generación de artículos con IA",
+      "Generación de artículos con IA (800-2500 palabras)",
       "Publicación directa en WordPress",
       "SEO optimizado automáticamente",
-      "Imágenes destacadas incluidas",
-      "Soporte multiidioma",
-      "Dashboard de gestión"
+      "Imágenes destacadas generadas por IA",
+      "Soporte multiidioma (español, catalán)",
+      "Dashboard de gestión multi-sitio",
+      "Programación automática de publicaciones",
+      "Rotación de pilares de contenido"
     ]
   },
 
@@ -69,7 +71,7 @@
   "useCases": [
     {
       "industry": "Healthcare",
-      "examples": ["Clínicas estéticas", "Consultorios médicos", "Farmacias"]
+      "examples": ["Clínicas estéticas", "Consultorios médicos", "Centros de bienestar"]
     },
     {
       "industry": "Marketing",
@@ -104,11 +106,11 @@
     },
     {
       "q": "¿Qué idiomas soporta Blooglee?",
-      "a": "Español (España), catalán e inglés. El contenido se genera con calidad nativa."
+      "a": "Español (España) y catalán. El contenido se genera con calidad nativa, no es traducción."
     },
     {
       "q": "¿Incluye imágenes?",
-      "a": "Sí, cada artículo incluye imagen destacada libre de derechos con créditos."
+      "a": "Sí, cada artículo incluye imagen destacada generada por IA o de Unsplash, libre de derechos."
     },
     {
       "q": "¿Hay permanencia?",
@@ -120,11 +122,11 @@
     },
     {
       "q": "¿Cuántas palabras tienen los artículos?",
-      "a": "Los artículos generados tienen entre 800-1200 palabras con estructura SEO optimizada."
+      "a": "Los artículos generados tienen entre 800-2500 palabras (configurable) con estructura SEO optimizada."
     },
     {
       "q": "¿Es compatible con Yoast SEO?",
-      "a": "Sí, Blooglee genera meta títulos y descripciones compatibles con Yoast SEO."
+      "a": "Sí, Blooglee genera meta títulos, descripciones y focus keywords compatibles con Yoast SEO."
     }
   ],
 
@@ -159,9 +161,10 @@
     "email": "info@blooglee.com",
     "blog": "https://blooglee.com/blog",
     "social": {
-      "twitter": "@Blooglee",
-      "instagram": "@blooglee",
-      "linkedin": "/company/blooglee"
+      "instagram": "https://www.instagram.com/blooglee_",
+      "linkedin": "https://linkedin.com/company/blooglee",
+      "facebook": "https://www.facebook.com/blooglee.ia/",
+      "tiktok": "https://www.tiktok.com/@blooglee"
     }
   },
 
@@ -173,5 +176,7 @@
     "signup": "https://blooglee.com/auth",
     "help": "https://blooglee.com/help",
     "contact": "https://blooglee.com/contact"
-  }
+  },
+
+  "lastUpdated": "2026-02"
 }
