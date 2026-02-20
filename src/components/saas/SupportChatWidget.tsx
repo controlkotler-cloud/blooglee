@@ -29,7 +29,7 @@ export function useChatWidget() {
 }
 
 // Hidden routes where Bloobot should not appear
-const HIDDEN_ROUTES = ['/onboarding', '/auth', '/mkpro'];
+const HIDDEN_ROUTES = ['/onboarding', '/auth'];
 
 export function SupportChatProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
