@@ -2,64 +2,60 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, Minus } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-const roles = ['superadmin', 'admin', 'mkpro_admin', 'beta', 'user'] as const;
+const roles = ['superadmin', 'admin', 'beta', 'user'] as const;
 
 const roleColors: Record<string, string> = {
   superadmin: 'bg-red-500/10 text-red-600 border-red-200',
   admin: 'bg-purple-500/10 text-purple-600 border-purple-200',
-  mkpro_admin: 'bg-blue-500/10 text-blue-600 border-blue-200',
   beta: 'bg-green-500/10 text-green-600 border-green-200',
   user: 'bg-gray-500/10 text-gray-600 border-gray-200',
 };
 
-type CellValue = boolean | string | 'na';
+type CellValue = boolean | string;
 
 interface PermissionRow {
   action: string;
   category: string;
   superadmin: CellValue;
   admin: CellValue;
-  mkpro_admin: CellValue;
   beta: CellValue;
   user: CellValue;
 }
 
 const permissions: PermissionRow[] = [
   // Acceso
-  { category: 'Acceso', action: 'SaaS (/dashboard, /site/:id)', superadmin: true, admin: true, mkpro_admin: false, beta: true, user: true },
-  { category: 'Acceso', action: 'MKPro (/mkpro)', superadmin: true, admin: true, mkpro_admin: true, beta: false, user: false },
-  { category: 'Acceso', action: 'Panel Admin (/admin/*)', superadmin: true, admin: false, mkpro_admin: false, beta: false, user: false },
+  { category: 'Acceso', action: 'SaaS (/dashboard, /site/:id)', superadmin: true, admin: true, beta: true, user: true },
+  { category: 'Acceso', action: 'Panel Admin (/admin/*)', superadmin: true, admin: false, beta: false, user: false },
   // Artículos
-  { category: 'Artículos', action: 'Generar artículos', superadmin: 'Sin límite', admin: 'Sin límite', mkpro_admin: 'na', beta: 'Según plan', user: 'Según plan' },
-  { category: 'Artículos', action: 'Regenerar tras publicación', superadmin: true, admin: true, mkpro_admin: 'na', beta: false, user: false },
-  { category: 'Artículos', action: 'Republicar artículo publicado', superadmin: true, admin: true, mkpro_admin: 'na', beta: false, user: false },
-  { category: 'Artículos', action: 'Eliminar artículo publicado', superadmin: true, admin: true, mkpro_admin: 'na', beta: false, user: false },
-  { category: 'Artículos', action: 'Copiar contenido de artículo', superadmin: true, admin: true, mkpro_admin: 'na', beta: false, user: false },
-  { category: 'Artículos', action: 'Regenerar imagen', superadmin: 'Siempre', admin: 'Siempre', mkpro_admin: 'na', beta: 'Solo no publicados', user: 'Solo no publicados' },
+  { category: 'Artículos', action: 'Generar artículos', superadmin: 'Sin límite', admin: 'Sin límite', beta: 'Según plan', user: 'Según plan' },
+  { category: 'Artículos', action: 'Regenerar tras publicación', superadmin: true, admin: true, beta: false, user: false },
+  { category: 'Artículos', action: 'Republicar artículo publicado', superadmin: true, admin: true, beta: false, user: false },
+  { category: 'Artículos', action: 'Eliminar artículo publicado', superadmin: true, admin: true, beta: false, user: false },
+  { category: 'Artículos', action: 'Copiar contenido de artículo', superadmin: true, admin: true, beta: false, user: false },
+  { category: 'Artículos', action: 'Regenerar imagen', superadmin: 'Siempre', admin: 'Siempre', beta: 'Solo no publicados', user: 'Solo no publicados' },
   // Límites
-  { category: 'Límites', action: 'Límite de sitios', superadmin: 'Bypass', admin: 'Bypass', mkpro_admin: 'na', beta: 'Según plan (1)', user: 'Según plan' },
-  { category: 'Límites', action: 'Límite de artículos/mes', superadmin: 'Bypass', admin: 'Bypass', mkpro_admin: 'na', beta: 'Según plan (4)', user: 'Según plan' },
-  { category: 'Límites', action: 'Free: límite lifetime (1 art.)', superadmin: 'Bypass', admin: 'Bypass', mkpro_admin: 'na', beta: 'N/A', user: 'Enforced' },
+  { category: 'Límites', action: 'Límite de sitios', superadmin: 'Bypass', admin: 'Bypass', beta: 'Según plan (1)', user: 'Según plan' },
+  { category: 'Límites', action: 'Límite de artículos/mes', superadmin: 'Bypass', admin: 'Bypass', beta: 'Según plan (4)', user: 'Según plan' },
+  { category: 'Límites', action: 'Free: límite lifetime (1 art.)', superadmin: 'Bypass', admin: 'Bypass', beta: 'N/A', user: 'Enforced' },
   // Funcionalidades
-  { category: 'Funcionalidades', action: 'Publicación automática WP', superadmin: true, admin: true, mkpro_admin: 'na', beta: 'Si plan lo permite', user: 'Si plan lo permite' },
-  { category: 'Funcionalidades', action: 'Perfil de contenido avanzado', superadmin: true, admin: true, mkpro_admin: 'na', beta: 'Starter+', user: 'Starter+' },
-  { category: 'Funcionalidades', action: 'Paleta editable en imagen', superadmin: true, admin: true, mkpro_admin: 'na', beta: 'Starter+', user: 'Starter+' },
-  { category: 'Funcionalidades', action: 'Soporte Bloobot', superadmin: true, admin: true, mkpro_admin: 'na', beta: true, user: true },
+  { category: 'Funcionalidades', action: 'Publicación automática WP', superadmin: true, admin: true, beta: 'Si plan lo permite', user: 'Si plan lo permite' },
+  { category: 'Funcionalidades', action: 'Perfil de contenido avanzado', superadmin: true, admin: true, beta: 'Starter+', user: 'Starter+' },
+  { category: 'Funcionalidades', action: 'Paleta editable en imagen', superadmin: true, admin: true, beta: 'Starter+', user: 'Starter+' },
+  { category: 'Funcionalidades', action: 'Soporte Bloobot', superadmin: true, admin: true, beta: true, user: true },
   // Administración
-  { category: 'Administración', action: 'Ver todos los profiles (BD)', superadmin: true, admin: false, mkpro_admin: false, beta: false, user: false },
-  { category: 'Administración', action: 'Gestionar roles (BD)', superadmin: true, admin: false, mkpro_admin: false, beta: false, user: false },
-  { category: 'Administración', action: 'Gestionar beta invitations', superadmin: true, admin: false, mkpro_admin: false, beta: false, user: false },
-  { category: 'Administración', action: 'Gestionar social content', superadmin: true, admin: false, mkpro_admin: false, beta: false, user: false },
-  { category: 'Administración', action: 'Gestionar prompts', superadmin: true, admin: false, mkpro_admin: false, beta: false, user: false },
+  { category: 'Administración', action: 'Ver todos los profiles (BD)', superadmin: true, admin: false, beta: false, user: false },
+  { category: 'Administración', action: 'Gestionar roles (BD)', superadmin: true, admin: false, beta: false, user: false },
+  { category: 'Administración', action: 'Gestionar beta invitations', superadmin: true, admin: false, beta: false, user: false },
+  { category: 'Administración', action: 'Gestionar social content', superadmin: true, admin: false, beta: false, user: false },
+  { category: 'Administración', action: 'Gestionar prompts', superadmin: true, admin: false, beta: false, user: false },
 ];
 
 function CellRenderer({ value }: { value: CellValue }) {
   if (value === true) return <Check className="h-4 w-4 text-green-500 mx-auto" />;
   if (value === false) return <X className="h-4 w-4 text-red-400 mx-auto" />;
-  if (value === 'na') return <Minus className="h-4 w-4 text-muted-foreground mx-auto" />;
   return <span className="text-xs text-center block">{value}</span>;
 }
 
@@ -68,10 +64,10 @@ function MobilePermissionCard({ row }: { row: PermissionRow }) {
     <Card className="mb-2">
       <CardContent className="p-3">
         <p className="text-sm font-medium mb-2">{row.action}</p>
-        <div className="grid grid-cols-5 gap-1 text-center">
+        <div className="grid grid-cols-4 gap-1 text-center">
           {roles.map(role => (
             <div key={role} className="flex flex-col items-center gap-0.5">
-              <span className="text-[9px] text-muted-foreground truncate w-full">{role.replace('_', ' ')}</span>
+              <span className="text-[9px] text-muted-foreground truncate w-full">{role}</span>
               <CellRenderer value={row[role]} />
             </div>
           ))}
@@ -88,7 +84,6 @@ export default function AdminPermissions() {
   const roleDescriptions = [
     { role: 'superadmin', desc: 'Acceso total sin restricciones, incluido panel admin' },
     { role: 'admin', desc: 'Como superadmin pero sin panel /admin/*' },
-    { role: 'mkpro_admin', desc: 'Solo acceso al módulo legacy MKPro' },
     { role: 'beta', desc: 'Usuario con plan Starter temporal (3 meses, controlado por beta_expires_at)' },
     { role: 'user', desc: 'Acceso normal al SaaS, limitado por su plan (Free/Starter/Pro/Agency)' },
   ];
@@ -104,7 +99,7 @@ export default function AdminPermissions() {
         </div>
 
         {/* Role descriptions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {roleDescriptions.map(({ role, desc }) => (
             <Card key={role}>
               <CardContent className="p-3">
@@ -157,7 +152,7 @@ export default function AdminPermissions() {
                       <>
                         {showCategory && (
                           <TableRow key={`cat-${row.category}`} className="bg-muted/30 hover:bg-muted/30">
-                            <TableCell colSpan={6} className="py-2 font-semibold text-xs uppercase tracking-wider text-muted-foreground">
+                            <TableCell colSpan={5} className="py-2 font-semibold text-xs uppercase tracking-wider text-muted-foreground">
                               {row.category}
                             </TableCell>
                           </TableRow>

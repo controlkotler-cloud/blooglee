@@ -106,21 +106,6 @@ export function useIsSuperAdmin() {
   return { isSuperAdmin, isLoading };
 }
 
-export function useIsMKProAdmin() {
-  const { data: roles = [], isLoading } = useUserRoles();
-  
-  const isMKProAdmin = roles.some(r => r.role === 'mkpro_admin');
-  const isAdmin = roles.some(r => r.role === 'admin' || r.role === 'superadmin');
-  const isSuperAdmin = roles.some(r => r.role === 'superadmin');
-  
-  return { 
-    isMKProAdmin, 
-    isAdmin,
-    isSuperAdmin,
-    canAccessMKPro: isMKProAdmin || isAdmin,
-    isLoading 
-  };
-}
 
 export function useIsBeta() {
   const { data: roles = [], isLoading } = useUserRoles();

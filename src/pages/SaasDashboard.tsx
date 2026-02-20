@@ -9,10 +9,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, ArrowLeftRight, Shield, Sparkles } from 'lucide-react';
+import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, Shield, Sparkles } from 'lucide-react';
 import { NotificationBell } from '@/components/saas/NotificationBell';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile, useIsMKProAdmin, useIsSuperAdmin } from '@/hooks/useProfile';
+import { useProfile, useIsAdmin, useIsSuperAdmin } from '@/hooks/useProfile';
 import { useSites } from '@/hooks/useSites';
 import { useAllArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
 import { useAllArticlesForUser } from '@/hooks/useAllArticlesForUser';
@@ -35,7 +35,7 @@ export default function SaasDashboard() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { data: profile, isLoading: loadingProfile } = useProfile();
-  const { canAccessMKPro } = useIsMKProAdmin();
+  const { isAdmin: isAdminRole } = useIsAdmin();
   const { isSuperAdmin } = useIsSuperAdmin();
   const { data: sites = [], isLoading: loadingSites } = useSites();
   const { isGenerating } = useGeneration();
@@ -56,7 +56,7 @@ export default function SaasDashboard() {
   
 
   const sitesLimit = profile?.sites_limit ?? 1;
-  const isAdmin = isSuperAdmin || canAccessMKPro;
+  const isAdmin = isSuperAdmin || isAdminRole;
   const canAddSite = isAdmin || sites.length < sitesLimit;
   const plan = (profile?.plan || 'free') as PlanType;
 
@@ -220,17 +220,6 @@ export default function SaasDashboard() {
               <BloogleeLogo size="lg" />
             </div>
             <div className="flex items-center gap-3">
-              {canAccessMKPro && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => navigate('/mkpro')}
-                  className="gap-2"
-                >
-                  <ArrowLeftRight className="w-4 h-4" />
-                  <span className="hidden sm:inline">MKPro</span>
-                </Button>
-              )}
               <PlanBadge plan={plan} size="sm" />
               <span className="text-sm text-muted-foreground hidden sm:inline">
                 {sites.length}/{sitesLimit} sitios
@@ -256,14 +245,6 @@ export default function SaasDashboard() {
                     <HelpCircle className="w-4 h-4 mr-2" />
                     Ayuda
                   </DropdownMenuItem>
-                  {canAccessMKPro && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => navigate('/mkpro')}>
-                        MKPro Admin
-                      </DropdownMenuItem>
-                    </>
-                  )}
                   {isSuperAdmin && (
                     <>
                       <DropdownMenuSeparator />

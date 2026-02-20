@@ -84,12 +84,6 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
             Volver a Blooglee
           </Button>
         </Link>
-        <Link to="/mkpro" onClick={onNavigate}>
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground h-9 sm:h-10">
-            <Settings className="h-4 w-4" />
-            Ir a MKPro
-          </Button>
-        </Link>
         <Button 
           variant="ghost"
           size="sm"
