@@ -58,19 +58,19 @@ export function AgencyStatsBanner({
   ];
 
   return (
-    <div className="flex flex-wrap gap-4 p-3 rounded-lg bg-muted/50 border text-sm">
+    <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4 p-3 rounded-lg bg-muted/50 border text-sm">
       {stats.map((stat) => {
         const isClickable = !!stat.filter;
         const Wrapper = isClickable ? 'button' : 'div';
         return (
           <Wrapper
             key={stat.label}
-            className={`flex items-center gap-1.5 ${isClickable ? 'hover:underline cursor-pointer' : ''} ${stat.highlight ? 'font-medium' : ''}`}
+            className={`flex items-center gap-1.5 min-h-[44px] sm:min-h-0 ${isClickable ? 'hover:underline cursor-pointer' : ''} ${stat.highlight ? 'font-medium' : ''}`}
             onClick={isClickable ? () => onFilterClick(stat.filter!) : undefined}
           >
-            <stat.icon className={`w-3.5 h-3.5 ${stat.color}`} />
+            <stat.icon className={`w-4 h-4 sm:w-3.5 sm:h-3.5 ${stat.color}`} />
             <span className="font-semibold">{stat.value}</span>
-            <span className="text-muted-foreground">{stat.label}</span>
+            <span className="text-muted-foreground text-xs sm:text-sm">{stat.label}</span>
           </Wrapper>
         );
       })}

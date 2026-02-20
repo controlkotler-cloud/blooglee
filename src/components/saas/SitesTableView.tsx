@@ -69,6 +69,105 @@ function isDateOld(dateStr: string | null): boolean {
   return diffMs > 14 * 24 * 60 * 60 * 1000; // 2 weeks
 }
 
+/* ─── Mobile card for each site row ─── */
+function MobileSiteCard({
+  site,
+  articleCount,
+  wpConfig,
+  lastArticleDate,
+  needsAttention,
+  onGenerateArticle,
+  onViewArticles,
+  onEditSite,
+  isGenerating,
+}: SiteRowData & {
+  onGenerateArticle: () => void;
+  onViewArticles: () => void;
+  onEditSite: () => void;
+  isGenerating: boolean;
+}) {
+  const dateLabel = formatRelativeDate(lastArticleDate);
+  const dateIsOld = isDateOld(lastArticleDate);
+
+  return (
+    <div
+      className={`rounded-lg border bg-card p-3 px-4 space-y-1.5 ${
+        needsAttention ? 'border-l-[3px] border-l-amber-500 bg-amber-50/40 dark:bg-amber-900/5' : ''
+      }`}
+    >
+      {/* Line 1: Name + WP status */}
+      <div className="flex items-start justify-between gap-2">
+        <button
+          className="font-semibold text-[15px] leading-snug text-left line-clamp-2 hover:text-primary transition-colors"
+          onClick={onViewArticles}
+        >
+          {site.name}
+        </button>
+        {wpConfig ? (
+          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+        ) : (
+          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+        )}
+      </div>
+
+      {/* Line 2: Articles + date */}
+      <p className="text-sm text-muted-foreground">
+        <span className={articleCount === 0 ? 'text-amber-600 font-medium' : ''}>
+          {articleCount} artículo{articleCount !== 1 ? 's' : ''}
+        </span>
+        {' · '}
+        <span className={dateIsOld ? 'text-amber-600' : ''}>
+          {dateLabel}
+        </span>
+      </p>
+
+      {/* Line 3: Action icons */}
+      <div className="flex items-center gap-1 pt-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11"
+          onClick={onGenerateArticle}
+          disabled={!wpConfig || isGenerating}
+          aria-label="Generar artículo"
+        >
+          <Sparkles className="w-[18px] h-[18px]" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11"
+          onClick={onViewArticles}
+          aria-label="Ver artículos"
+        >
+          <FileText className="w-[18px] h-[18px]" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11"
+          onClick={onEditSite}
+          aria-label="Configuración"
+        >
+          <Settings className="w-[18px] h-[18px]" />
+        </Button>
+        {wpConfig && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-11 w-11"
+            onClick={() => window.open(wpConfig.site_url, '_blank')}
+            aria-label="Abrir WordPress"
+          >
+            <ExternalLink className="w-[18px] h-[18px]" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Desktop table ─── */
 export function SitesTableView({
   sites,
   onGenerateArticle,
@@ -124,153 +223,154 @@ export function SitesTableView({
   );
 
   return (
-    <TooltipProvider>
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <SortHeader label="Nombre" column="name" />
-              <SortHeader label="Sector" column="sector" className="hidden md:table-cell" />
-              <SortHeader label="Ubicación" column="location" className="hidden md:table-cell" />
-              <SortHeader label="WordPress" column="wordpress" />
-              <SortHeader label="Artículos" column="articles" />
-              <SortHeader label="Último artículo" column="lastArticle" />
-              <TableHead className="text-xs font-medium text-muted-foreground text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sorted.map(({ site, articleCount, wpConfig, lastArticleDate, needsAttention }) => (
-              <TableRow
-                key={site.id}
-                className={needsAttention ? 'bg-amber-50/50 dark:bg-amber-900/5' : ''}
-              >
-                {/* Name */}
-                <TableCell>
-                  <button
-                    className="font-semibold text-sm hover:text-primary transition-colors text-left"
-                    onClick={() => onViewArticles(site.id)}
-                  >
-                    {site.name}
-                  </button>
-                </TableCell>
+    <>
+      {/* Mobile: stacked cards */}
+      <div className="sm:hidden space-y-2">
+        {sorted.map((row) => (
+          <MobileSiteCard
+            key={row.site.id}
+            {...row}
+            onGenerateArticle={() => onGenerateArticle(row.site.id)}
+            onViewArticles={() => onViewArticles(row.site.id)}
+            onEditSite={() => onEditSite(row.site.id)}
+            isGenerating={isGenerating(row.site.id)}
+          />
+        ))}
+      </div>
 
-                {/* Sector */}
-                <TableCell className="hidden md:table-cell">
-                  {site.sector ? (
-                    <Badge variant="secondary" className="text-xs capitalize">
-                      {site.sector.replace(/_/g, ' ')}
-                    </Badge>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-
-                {/* Location */}
-                <TableCell className="hidden md:table-cell">
-                  <span className="text-sm">{site.location || '—'}</span>
-                </TableCell>
-
-                {/* WordPress */}
-                <TableCell>
-                  {wpConfig ? (
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      </TooltipTrigger>
-                      <TooltipContent>WP conectado a {wpConfig.site_url}</TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <AlertTriangle className="w-4 h-4 text-amber-500" />
-                      </TooltipTrigger>
-                      <TooltipContent>Configura WordPress</TooltipContent>
-                    </Tooltip>
-                  )}
-                </TableCell>
-
-                {/* Articles */}
-                <TableCell>
-                  <span className={`text-sm font-medium ${articleCount === 0 ? 'text-destructive' : ''}`}>
-                    {articleCount}
-                  </span>
-                </TableCell>
-
-                {/* Last article */}
-                <TableCell>
-                  <span className={`text-sm ${isDateOld(lastArticleDate) ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                    {formatRelativeDate(lastArticleDate)}
-                  </span>
-                </TableCell>
-
-                {/* Actions */}
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => onGenerateArticle(site.id)}
-                          disabled={!wpConfig || isGenerating(site.id)}
-                        >
-                          <Sparkles className="w-4 h-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Generar artículo</TooltipContent>
-                    </Tooltip>
-
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => onViewArticles(site.id)}
-                        >
-                          <FileText className="w-4 h-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Ver artículos</TooltipContent>
-                    </Tooltip>
-
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => onEditSite(site.id)}
-                        >
-                          <Settings className="w-4 h-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Configuración</TooltipContent>
-                    </Tooltip>
-
-                    {wpConfig && (
+      {/* Desktop: table */}
+      <TooltipProvider>
+        <div className="hidden sm:block rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <SortHeader label="Nombre" column="name" />
+                <SortHeader label="Sector" column="sector" className="hidden md:table-cell" />
+                <SortHeader label="Ubicación" column="location" className="hidden md:table-cell" />
+                <SortHeader label="WordPress" column="wordpress" />
+                <SortHeader label="Artículos" column="articles" />
+                <SortHeader label="Último artículo" column="lastArticle" />
+                <TableHead className="text-xs font-medium text-muted-foreground text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sorted.map(({ site, articleCount, wpConfig, lastArticleDate, needsAttention }) => (
+                <TableRow
+                  key={site.id}
+                  className={needsAttention ? 'bg-amber-50/50 dark:bg-amber-900/5' : ''}
+                >
+                  <TableCell>
+                    <button
+                      className="font-semibold text-sm hover:text-primary transition-colors text-left"
+                      onClick={() => onViewArticles(site.id)}
+                    >
+                      {site.name}
+                    </button>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {site.sector ? (
+                      <Badge variant="secondary" className="text-xs capitalize">
+                        {site.sector.replace(/_/g, ' ')}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <span className="text-sm">{site.location || '—'}</span>
+                  </TableCell>
+                  <TableCell>
+                    {wpConfig ? (
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                        </TooltipTrigger>
+                        <TooltipContent>WP conectado a {wpConfig.site_url}</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <AlertTriangle className="w-4 h-4 text-amber-500" />
+                        </TooltipTrigger>
+                        <TooltipContent>Configura WordPress</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span className={`text-sm font-medium ${articleCount === 0 ? 'text-destructive' : ''}`}>
+                      {articleCount}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`text-sm ${isDateOld(lastArticleDate) ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                      {formatRelativeDate(lastArticleDate)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => window.open(wpConfig.site_url, '_blank')}
+                            onClick={() => onGenerateArticle(site.id)}
+                            disabled={!wpConfig || isGenerating(site.id)}
                           >
-                            <ExternalLink className="w-4 h-4" />
+                            <Sparkles className="w-4 h-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Ir al WordPress</TooltipContent>
+                        <TooltipContent>Generar artículo</TooltipContent>
                       </Tooltip>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => onViewArticles(site.id)}
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Ver artículos</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => onEditSite(site.id)}
+                          >
+                            <Settings className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Configuración</TooltipContent>
+                      </Tooltip>
+                      {wpConfig && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => window.open(wpConfig.site_url, '_blank')}
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Ir al WordPress</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </TooltipProvider>
+    </>
   );
 }

@@ -91,7 +91,7 @@ export function SiteCard({
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div className="space-y-1 pr-6">
-              <CardTitle className="text-lg">{site.name}</CardTitle>
+              <CardTitle className="text-[15px] sm:text-lg line-clamp-2">{site.name}</CardTitle>
               {site.sector && (
                 <Badge variant="secondary" className="text-xs capitalize">
                   {site.sector.replace(/_/g, ' ')}
