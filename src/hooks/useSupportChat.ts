@@ -12,6 +12,13 @@ interface ErrorContext {
   siteId?: string;
 }
 
+interface UserMetadata {
+  plan?: string;
+  sitesCount?: number;
+  email?: string;
+  registeredAt?: string;
+}
+
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/support-chatbot`;
 
 export function useSupportChat() {
@@ -22,7 +29,8 @@ export function useSupportChat() {
 
   const sendMessage = useCallback(async (
     userMessage: string,
-    errorContext?: ErrorContext
+    errorContext?: ErrorContext,
+    userMetadata?: UserMetadata
   ) => {
     if (!userMessage.trim()) return;
 
@@ -49,6 +57,7 @@ export function useSupportChat() {
         body: JSON.stringify({
           messages: [...messages, userMsg],
           error_context: errorContext,
+          user_metadata: userMetadata,
         }),
         signal: abortControllerRef.current.signal,
       });

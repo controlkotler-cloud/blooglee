@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { X, Minimize2, Send, Loader2, RefreshCw, MessageSquare, Plug, FileText, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSupportChat } from '@/hooks/useSupportChat';
+import { useProfile } from '@/hooks/useProfile';
+import { useSites } from '@/hooks/useSites';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 
@@ -32,9 +34,18 @@ const SUPPORT_LINKS = [
 
 export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChatDialogProps) {
   const { messages, isLoading, error, sendMessage, clearMessages } = useSupportChat();
+  const { data: profile } = useProfile();
+  const { data: sites = [] } = useSites();
   const [input, setInput] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const userMetadata = useMemo(() => ({
+    plan: profile?.plan || 'free',
+    sitesCount: sites.length,
+    email: profile?.email || '',
+    registeredAt: profile?.created_at || '',
+  }), [profile, sites.length]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -57,19 +68,19 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
   useEffect(() => {
     if (isOpen && errorContext && messages.length === 0) {
       const contextMessage = `Estoy teniendo un problema: ${errorContext.message || 'Error'} (Código: ${errorContext.code || 'desconocido'})`;
-      sendMessage(contextMessage, errorContext);
+      sendMessage(contextMessage, errorContext, userMetadata);
     }
-  }, [isOpen, errorContext, messages.length, sendMessage]);
+  }, [isOpen, errorContext, messages.length, sendMessage, userMetadata]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
-    sendMessage(input, errorContext);
+    sendMessage(input, errorContext, userMetadata);
     setInput('');
   };
 
   const handleQuickAction = (message: string) => {
-    sendMessage(message, errorContext);
+    sendMessage(message, errorContext, userMetadata);
   };
 
   if (!isOpen) return null;

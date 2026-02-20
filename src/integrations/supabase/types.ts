@@ -1170,6 +1170,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          normalized_site_url: string | null
           site_id: string
           site_url: string
           updated_at: string
@@ -1180,6 +1181,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          normalized_site_url?: string | null
           site_id: string
           site_url: string
           updated_at?: string
@@ -1190,6 +1192,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          normalized_site_url?: string | null
           site_id?: string
           site_url?: string
           updated_at?: string
@@ -1423,6 +1426,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      normalize_wordpress_url: { Args: { url: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "mkpro_admin" | "user" | "superadmin" | "beta"
