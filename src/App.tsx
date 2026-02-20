@@ -53,6 +53,7 @@ import AdminBetaInvitations from "./pages/admin/AdminBetaInvitations";
 import AdminPrompts from "./pages/admin/AdminPrompts";
 import AdminSurveys from "./pages/admin/AdminSurveys";
 import AdminSocialContent from "./pages/admin/AdminSocialContent";
+import AdminPermissions from "./pages/admin/AdminPermissions";
 
 // Beta Signup
 import BetaSignup from "./pages/BetaSignup";
@@ -231,6 +232,14 @@ const App = () => (
             element={
               <ProtectedRoute requireSuperAdmin>
                 <AdminSocialContent />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/permissions"
+            element={
+              <ProtectedRoute requireSuperAdmin>
+                <AdminPermissions />
               </ProtectedRoute>
             }
           />

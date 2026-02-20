@@ -10,7 +10,8 @@ import {
   ArrowLeft,
   LogOut,
   Menu,
-  Share2
+  Share2,
+  ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ const menuItems = [
   { path: '/admin/surveys', icon: ClipboardList, label: 'Encuestas' },
   { path: '/admin/prompts', icon: Settings, label: 'Prompts' },
   { path: '/admin/social', icon: Share2, label: 'Social Media' },
+  { path: '/admin/permissions', icon: ShieldCheck, label: 'Permisos' },
 ];
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
