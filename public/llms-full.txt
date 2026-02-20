@@ -1,6 +1,6 @@
 # Blooglee - Documentación Completa para LLMs
 
-> Blooglee es una plataforma SaaS española que genera y publica automáticamente artículos de blog optimizados para SEO en WordPress usando inteligencia artificial (GPT-5, Gemini 2.5).
+> Blooglee es una plataforma SaaS española que genera y publica automáticamente artículos de blog optimizados para SEO en WordPress usando inteligencia artificial (Gemini 2.5 Flash).
 
 ## Información de la Empresa
 
@@ -15,7 +15,7 @@
 
 ### Mercado Objetivo
 - **Geográfico**: España y Latinoamérica
-- **Idiomas soportados**: Español (España), Catalán, Inglés
+- **Idiomas soportados**: Español (España), Catalán
 - **Moneda**: Euro (EUR)
 - **Público objetivo**: PYMEs, agencias de marketing, autónomos
 
@@ -25,7 +25,7 @@
 
 ### ¿Qué es Blooglee?
 
-Blooglee es una plataforma de automatización de contenido que utiliza modelos de inteligencia artificial de última generación (GPT-5 de OpenAI y Gemini 2.5 de Google) para generar artículos de blog profesionales y publicarlos directamente en sitios WordPress.
+Blooglee es una plataforma de automatización de contenido que utiliza modelos de inteligencia artificial de última generación (Gemini 2.5 Flash de Google) para generar artículos de blog profesionales y publicarlos directamente en sitios WordPress.
 
 La plataforma está diseñada para empresas y agencias de marketing que necesitan mantener un blog activo para SEO pero no tienen tiempo ni recursos para crear contenido manualmente.
 
@@ -40,11 +40,11 @@ La plataforma está diseñada para empresas y agencias de marketing que necesita
 ### Características Principales
 
 #### 1. Generación de Contenido con IA
-- Artículos de 800-1200 palabras
-- Estructura profesional: H1, H2, H3, párrafos
+- Artículos de 800-2500 palabras (configurable)
+- Estructura profesional: H2, H3, párrafos
 - Adaptación al tono y sector del negocio
 - Contenido 100% único (no duplicado)
-- Modelos: GPT-5, Gemini 2.5 Flash, Gemini 2.5 Pro
+- Modelo principal: Gemini 2.5 Flash
 
 #### 2. Optimización SEO Automática
 - Meta título optimizado (<60 caracteres)
@@ -54,10 +54,9 @@ La plataforma está diseñada para empresas y agencias de marketing que necesita
 - Keywords naturalmente integradas
 
 #### 3. Imágenes Destacadas
-- Imagen incluida en cada artículo
-- Bancos libres de derechos (Pexels, Unsplash)
-- Opción de imágenes generadas por IA
-- Créditos del fotógrafo automáticos
+- Imagen generada por IA (Gemini 3 Pro) en cada artículo
+- Fallback a Unsplash (fotografía libre de derechos)
+- Créditos del fotógrafo automáticos cuando aplica
 - Alta resolución para web
 
 #### 4. Publicación en WordPress
@@ -69,8 +68,7 @@ La plataforma está diseñada para empresas y agencias de marketing que necesita
 
 #### 5. Multi-idioma
 - Español (España) - calidad nativa
-- Catalán - calidad nativa
-- Inglés - calidad profesional
+- Catalán - calidad nativa (generación nativa, no traducción)
 - No es traducción automática
 
 #### 6. Gestión Multi-sitio
@@ -112,13 +110,11 @@ La plataforma está diseñada para empresas y agencias de marketing que necesita
 
 ### Plan Agencia - 149€/mes (119€ anual)
 - 10 sitios web
-- Artículos ilimitados
+- 100 artículos/mes
 - Imagen destacada incluida
 - SEO avanzado
 - Publicación automática
 - Soporte dedicado
-- API access
-- White-label disponible
 - **Ideal para**: Agencias de marketing
 
 ### Facturación
@@ -157,7 +153,7 @@ La plataforma está diseñada para empresas y agencias de marketing que necesita
 ### Sobre el Producto
 
 **P: ¿Qué es exactamente Blooglee?**
-R: Blooglee es una plataforma SaaS que utiliza inteligencia artificial (GPT-5 de OpenAI y Gemini de Google) para generar artículos de blog profesionales y publicarlos automáticamente en WordPress. Está diseñada para empresas y agencias que quieren mantener su blog activo para SEO sin dedicar horas a la redacción.
+R: Blooglee es una plataforma SaaS que utiliza inteligencia artificial (Gemini 2.5 Flash de Google) para generar artículos de blog profesionales y publicarlos automáticamente en WordPress. Está diseñada para empresas y agencias que quieren mantener su blog activo para SEO sin dedicar horas a la redacción.
 
 **P: ¿Cómo genera Blooglee los artículos?**
 R: Blooglee analiza el sector y características de tu negocio, selecciona temas relevantes para tu audiencia, y utiliza modelos de IA avanzados para crear contenido único y optimizado. Cada artículo incluye título, meta descripción, estructura con encabezados, imagen destacada y está listo para publicar.
@@ -166,7 +162,7 @@ R: Blooglee analiza el sector y características de tu negocio, selecciona temas
 R: Cada artículo es 100% único, generado específicamente para tu negocio. No hay contenido duplicado, reciclado ni spinning. Puedes verificarlo con cualquier herramienta de detección de plagio.
 
 **P: ¿Cuántas palabras tienen los artículos?**
-R: Los artículos generados tienen entre 800-1200 palabras, con estructura profesional que incluye introducción, desarrollo con varios apartados (H2, H3) y conclusión.
+R: Los artículos generados tienen entre 800-2500 palabras (configurable: corto ~800, medio ~1500, largo ~2500), con estructura profesional que incluye introducción, desarrollo con varios apartados (H2, H3) y conclusión.
 
 **P: ¿Puedo editar los artículos antes de publicar?**
 R: Sí. Blooglee genera el contenido y te muestra una vista previa. Puedes editarlo directamente en la plataforma o en WordPress antes de publicar. Tienes control total.
@@ -223,13 +219,13 @@ R: Sí. Contacta con nuestro equipo en info@blooglee.com para planes personaliza
 ### Sobre la IA
 
 **P: ¿Qué modelos de IA usa Blooglee?**
-R: Utilizamos los modelos más avanzados disponibles: GPT-5 de OpenAI y Gemini 2.5 de Google. El sistema selecciona automáticamente el modelo más adecuado según el tipo de contenido.
+R: Utilizamos Gemini 2.5 Flash de Google para generación de texto y Gemini 3 Pro para generación de imágenes. El sistema selecciona automáticamente las mejores configuraciones según el tipo de contenido.
 
 **P: ¿La IA puede crear contenido falso o incorrecto?**
 R: Blooglee genera contenido informativo general basado en conocimiento verificado. Para datos específicos como estadísticas de tu empresa, siempre debes revisar y personalizar el contenido antes de publicar.
 
 **P: ¿Blooglee usa ChatGPT directamente?**
-R: Blooglee utiliza la API de OpenAI (GPT-5) y Google (Gemini), no la interfaz de ChatGPT. Esto permite un control profesional sobre la generación y garantías de privacidad de datos.
+R: Blooglee utiliza la API de Google (Gemini), no una interfaz de chat. Esto permite un control profesional sobre la generación y garantías de privacidad de datos.
 
 ### Sobre Seguridad
 
@@ -284,7 +280,7 @@ Copy.ai se enfoca en textos cortos de marketing.
 
 | Aspecto | Blooglee | Copy.ai |
 |---------|----------|---------|
-| **Tipo contenido** | Artículos largos (800-1200 palabras) | Textos cortos |
+| **Tipo contenido** | Artículos largos (800-2500 palabras) | Textos cortos |
 | **SEO** | Completo, automático | No incluido |
 | **Imágenes** | Incluidas | No incluidas |
 | **WordPress** | Integración nativa | No |
@@ -377,7 +373,7 @@ Copy.ai se enfoca en textos cortos de marketing.
 ### Salud y Bienestar
 - **Clínicas médicas**: Información sobre tratamientos, prevención
 - **Clínicas estéticas**: Novedades en procedimientos, consejos de belleza
-- **Farmacias**: Salud estacional, productos destacados
+- **Farmacias**: Salud estacional, consejos de bienestar
 - **Nutricionistas**: Dietas, alimentación saludable
 - **Fisioterapeutas**: Prevención de lesiones, ejercicios
 
@@ -426,15 +422,13 @@ Copy.ai se enfoca en textos cortos de marketing.
 - **Jetpack**: Compatible
 
 ### Modelos de IA Utilizados
-- **OpenAI GPT-5**: Contenido general, creatividad alta
-- **Google Gemini 2.5 Flash**: Velocidad, contenido técnico
-- **Google Gemini 2.5 Pro**: Calidad premium, análisis
-- **Generación de imágenes**: Gemini 3 Pro, FLUX
+- **Google Gemini 2.5 Flash**: Generación de texto (modelo principal)
+- **Google Gemini 3 Pro**: Generación de imágenes con IA
 
-### Bancos de Imágenes
-- **Pexels**: Fotos profesionales libres de derechos
-- **Unsplash**: Fotografía de alta calidad
-- **IA generativa**: Imágenes únicas cuando aplica
+### Imágenes
+- **IA generativa**: Imágenes únicas generadas con Gemini 3 Pro (prioritario)
+- **Unsplash**: Fotografía de alta calidad libre de derechos (fallback)
+- Créditos automáticos cuando aplica
 
 ---
 
@@ -453,8 +447,7 @@ Copy.ai se enfoca en textos cortos de marketing.
 - **Acceso limitado**: Solo crear/editar posts y media
 
 ### Autenticación
-- **Método**: Supabase Auth
-- **MFA**: Disponible
+- **Método**: Auth integrada
 - **Sesiones**: Expiración configurable
 
 ---
@@ -462,31 +455,27 @@ Copy.ai se enfoca en textos cortos de marketing.
 ## Roadmap y Futuro
 
 ### Q1 2026 (Actual)
-- ✅ GPT-5 integrado
-- ✅ Gemini 2.5 Pro/Flash
+- ✅ Gemini 2.5 Flash integrado
+- ✅ Generación de imágenes con IA (Gemini 3 Pro)
 - ✅ Dashboard mejorado
 - ✅ Soporte multi-sitio completo
-- 🔄 API pública (beta)
+- ✅ Configuración de longitud de artículos
+- ✅ Rotación de pilares de contenido
+- ✅ Programación automática de publicaciones
 
 ### Q2 2026
-- LinkedIn publishing
-- Programación avanzada con calendario
+- Programación avanzada con calendario visual
 - Templates personalizables
 - Métricas de rendimiento SEO
 - Sugerencias de temas basadas en tendencias
 
 ### Q3 2026
-- Instagram captions
-- Generación de vídeo corto (shorts)
 - Integración Google Analytics 4
 - A/B testing de títulos
-- Generación de newsletters
+- API pública para integraciones
 
 ### Q4 2026
-- Shopify integration
-- Squarespace integration
-- White-label completo para agencias
-- App móvil iOS/Android
+- White-label para agencias
 - Webhooks y automatizaciones
 
 ---
@@ -574,7 +563,7 @@ Copy.ai se enfoca en textos cortos de marketing.
 ---
 
 *Documento generado para consumo por LLMs y sistemas de IA*
-*Versión: 2.0*
-*Última actualización: Enero 2026*
+*Versión: 3.0*
+*Última actualización: Febrero 2026*
 *Idioma: Español (España)*
 *Contacto: info@blooglee.com*

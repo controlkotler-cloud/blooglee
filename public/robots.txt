@@ -15,7 +15,6 @@ Allow: /.well-known/ai-context.json
 Disallow: /dashboard
 Disallow: /account
 Disallow: /billing
-Disallow: /mkpro
 Disallow: /onboarding
 Disallow: /site/
 Disallow: /auth
@@ -107,7 +106,6 @@ Allow: /
 Disallow: /dashboard
 Disallow: /account
 Disallow: /billing
-Disallow: /mkpro
 Disallow: /onboarding
 Disallow: /site/
 Disallow: /auth
@@ -117,7 +115,6 @@ Allow: /
 Disallow: /dashboard
 Disallow: /account
 Disallow: /billing
-Disallow: /mkpro
 Disallow: /onboarding
 Disallow: /site/
 Disallow: /auth
@@ -127,7 +124,6 @@ Allow: /
 Disallow: /dashboard
 Disallow: /account
 Disallow: /billing
-Disallow: /mkpro
 Disallow: /onboarding
 Disallow: /site/
 Disallow: /auth
@@ -173,7 +169,6 @@ Allow: /
 Disallow: /dashboard
 Disallow: /account
 Disallow: /billing
-Disallow: /mkpro
 Disallow: /onboarding
 Disallow: /site/
 Disallow: /auth
@@ -185,7 +180,7 @@ Disallow: /api/
 # ===========================================
 
 # Sitemap dinámico (generado desde base de datos)
-Sitemap: https://gqtikajhhggyoiypkbgw.supabase.co/functions/v1/serve-sitemap
+Sitemap: https://czccftspeoenzgzgeqyb.supabase.co/functions/v1/serve-sitemap
 
 # Sitemap estático (fallback)
 # Sitemap: https://blooglee.com/sitemap.xml

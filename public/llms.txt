@@ -1,6 +1,6 @@
 # Blooglee - Blog Automático con IA para WordPress
 
-> Blooglee es una plataforma SaaS española que genera y publica automáticamente artículos de blog optimizados para SEO en WordPress usando inteligencia artificial (GPT-5, Gemini).
+> Blooglee es una plataforma SaaS española que genera y publica automáticamente artículos de blog optimizados para SEO en WordPress usando inteligencia artificial (Gemini 2.5 Flash).
 
 ## Información Esencial
 
@@ -9,18 +9,18 @@
 - **Fundación**: 2025
 - **Sede**: Barcelona, España
 - **Web**: https://blooglee.com
-- **Idiomas**: Español, Catalán, Inglés
+- **Idiomas**: Español, Catalán
 - **Mercado**: España y Latinoamérica
 
 ## ¿Qué hace Blooglee?
 
 Blooglee automatiza la creación y publicación de contenido para blogs WordPress:
 
-1. **Generación con IA**: Artículos de 800-1200 palabras usando GPT-5 y Gemini
-2. **SEO Automático**: Meta títulos, descripciones, slugs optimizados
-3. **Imágenes Incluidas**: Imagen destacada con créditos del fotógrafo
+1. **Generación con IA**: Artículos de 800-2500 palabras usando Gemini 2.5 Flash
+2. **SEO Automático**: Meta títulos, descripciones, slugs, focus keyword optimizados
+3. **Imágenes Incluidas**: Imagen destacada generada por IA (con fallback a Unsplash)
 4. **Publicación 1-Clic**: Publica directamente en WordPress
-5. **Multi-idioma**: Español, catalán e inglés nativos
+5. **Multi-idioma**: Español y catalán nativos
 
 ## Planes y Precios (EUR)
 
@@ -66,10 +66,10 @@ Sí. Blooglee funciona con WordPress 5.0+ que tenga Application Passwords habili
 Cada artículo es generado de forma única por IA. No hay contenido duplicado ni reciclado. Puedes pasar cualquier test de plagio.
 
 ### ¿Cuántas palabras tienen los artículos?
-Los artículos tienen entre 800-1200 palabras con estructura optimizada: H1, H2, H3, introducción, desarrollo y conclusión.
+Los artículos tienen entre 800-2500 palabras (configurable: corto ~800, medio ~1500, largo ~2500) con estructura optimizada: H2, H3, introducción, desarrollo y conclusión.
 
 ### ¿Las imágenes tienen derechos de autor?
-No. Todas las imágenes provienen de bancos libres de derechos (Pexels, Unsplash) o son generadas por IA. Los créditos se incluyen automáticamente.
+No. Las imágenes son generadas por IA (Gemini 3 Pro) o provienen de Unsplash (libres de derechos). Los créditos se incluyen automáticamente cuando aplica.
 
 ### ¿Puedo programar publicaciones automáticas?
 Sí. Configuras la frecuencia (semanal, quincenal, mensual) y Blooglee genera y puede publicar automáticamente según tu calendario.
@@ -78,7 +78,7 @@ Sí. Configuras la frecuencia (semanal, quincenal, mensual) y Blooglee genera y 
 No. Puedes cancelar tu suscripción cuando quieras sin penalizaciones ni cargos adicionales.
 
 ### ¿Qué modelos de IA usa Blooglee?
-Blooglee utiliza los modelos más avanzados: GPT-5 de OpenAI y Gemini 2.5 de Google, seleccionando el más adecuado para cada tipo de contenido.
+Blooglee utiliza Google Gemini 2.5 Flash para generación de texto y Gemini 3 Pro para generación de imágenes, seleccionando el modelo más adecuado para cada tipo de contenido.
 
 ### ¿Blooglee funciona con WooCommerce?
 Sí. Si tienes un blog en tu tienda WooCommerce, Blooglee puede publicar artículos sin problemas. Ideal para atraer tráfico orgánico a tus productos.
@@ -189,5 +189,5 @@ ChatGPT es una herramienta general que requiere escribir prompts, copiar conteni
 
 ---
 
-*Actualizado: Enero 2026*
-*Versión: 2.0*
+*Actualizado: Febrero 2026*
+*Versión: 3.0*
