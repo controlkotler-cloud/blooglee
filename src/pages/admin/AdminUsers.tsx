@@ -116,6 +116,7 @@ export default function AdminUsers() {
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
                     <SelectItem value="superadmin">Superadmin</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="beta">Beta</SelectItem>
                     <SelectItem value="user">User</SelectItem>
                   </SelectContent>
@@ -269,6 +270,42 @@ export default function AdminUsers() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Rol Admin (acceso completo excepto panel admin)</label>
+                <div className="flex items-center gap-3">
+                  {editingUser?.roles.includes('admin') ? (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={updateRole.isPending}
+                      onClick={async () => {
+                        await updateRole.mutateAsync({ userId: editingUser.user_id, role: 'admin', action: 'remove' });
+                        setEditingUser({ ...editingUser, roles: editingUser.roles.filter((r: string) => r !== 'admin') });
+                        toast.success('Rol admin eliminado');
+                      }}
+                    >
+                      Quitar Admin
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={updateRole.isPending}
+                      onClick={async () => {
+                        await updateRole.mutateAsync({ userId: editingUser.user_id, role: 'admin', action: 'add' });
+                        setEditingUser({ ...editingUser, roles: [...editingUser.roles, 'admin'] });
+                        toast.success('Rol admin asignado');
+                      }}
+                    >
+                      Hacer Admin
+                    </Button>
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    {editingUser?.roles.includes('admin') ? '✅ Es admin' : 'No es admin'}
+                  </span>
+                </div>
               </div>
 
               <div className="space-y-2">
