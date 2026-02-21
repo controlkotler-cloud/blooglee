@@ -585,6 +585,87 @@ async function sendArticleNotification(
 }
 
 // ==========================================
+// PUBLISHED NOTIFICATION EMAIL
+// ==========================================
+async function sendPublishedNotification(
+  userEmail: string,
+  siteName: string,
+  articleTitle: string,
+  postUrl: string,
+  siteId: string
+): Promise<void> {
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  if (!RESEND_API_KEY) return;
+
+  try {
+    const resend = new Resend(RESEND_API_KEY);
+    const siteUrl = "https://blooglee.lovable.app";
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f3ff;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 16px; overflow: hidden; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+    <header style="background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #F97316 100%); padding: 40px 30px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">🚀 Artículo publicado</h1>
+    </header>
+    
+    <main style="padding: 40px 30px;">
+      <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">¡Buenas noticias!</p>
+      <p style="color: #374151; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">Tu artículo para <strong style="color: #8B5CF6;">${siteName}</strong> se ha publicado automáticamente en WordPress:</p>
+      
+      <div style="background: linear-gradient(to right, #f0fdf4, #ecfdf5); padding: 24px; border-radius: 12px; border-left: 4px solid #22c55e; margin: 24px 0;">
+        <h2 style="color: #1f2937; margin: 0 0 12px 0; font-size: 20px; font-weight: 600;">${articleTitle}</h2>
+        <a href="${postUrl}" style="color: #8B5CF6; font-size: 14px; word-break: break-all;">${postUrl}</a>
+      </div>
+      
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${postUrl}" style="display: inline-block; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; padding: 16px 32px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px 0 rgba(34, 197, 94, 0.4); margin-bottom: 12px;">
+          Ver artículo en tu blog
+        </a>
+      </div>
+      
+      <div style="text-align: center;">
+        <a href="${siteUrl}/site/${siteId}" style="color: #8B5CF6; text-decoration: none; font-size: 14px;">
+          Ver en tu panel de Blooglee →
+        </a>
+      </div>
+    </main>
+    
+    <footer style="background-color: #faf5ff; padding: 24px 30px; text-align: center; border-top: 1px solid #e9d5ff;">
+      <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+        Blooglee - Automatiza tu blog con IA
+      </p>
+      <p style="margin: 8px 0 0 0;">
+        <a href="https://www.instagram.com/blooglee_/" style="color: #8B5CF6; text-decoration: none; font-size: 12px;">Síguenos en Instagram</a>
+      </p>
+    </footer>
+  </div>
+</body>
+</html>`;
+
+    const { error } = await resend.emails.send({
+      from: "Blooglee <noreply@blooglee.com>",
+      to: [userEmail],
+      subject: `🚀 Artículo publicado en ${siteName}`,
+      html,
+    });
+
+    if (error) {
+      console.error("Error sending published notification:", error);
+    } else {
+      console.log("Published notification sent to:", userEmail);
+    }
+  } catch (error) {
+    console.error("Exception sending published notification:", error);
+  }
+}
+
+// ==========================================
 // TYPES
 // ==========================================
 interface WordPressContext {
@@ -2372,6 +2453,18 @@ Deno.serve(async (req) => {
                   .update({ wp_post_url: result.post_url })
                   .eq('id', savedArticle.id);
                 console.log(`[auto-publish] Updated wp_post_url: ${result.post_url}`);
+
+                // Send "published" notification email with the live link
+                if (userProfile?.email) {
+                  const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
+                  sendPublishedNotification(
+                    userProfile.email,
+                    site.name,
+                    articleTitle,
+                    result.post_url,
+                    siteId
+                  ).catch(err => console.error("[auto-publish] Email notification error:", err));
+                }
               }
             }
           }).catch(err => {
