@@ -67,24 +67,34 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    // Client for auth validation
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
+    // Detect if called with service_role_key (internal call from publish function)
+    const token = authHeader.replace('Bearer ', '');
+    const isServiceRole = token === supabaseServiceKey;
+    let userId: string;
 
-    // Validate user via getUser
-    console.log('Validating user token...');
-    const { data: userData, error: userError } = await supabaseAuth.auth.getUser();
-    if (userError || !userData?.user) {
-      console.error('Invalid token:', userError?.message || 'No user data');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (isServiceRole) {
+      console.log('=== SERVICE ROLE MODE (internal call) ===');
+      // userId will be resolved from the wordpress_config owner below
+      userId = '';
+    } else {
+      // Client for auth validation
+      const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+
+      // Validate user via getUser
+      console.log('Validating user token...');
+      const { data: userData, error: userError } = await supabaseAuth.auth.getUser();
+      if (userError || !userData?.user) {
+        console.error('Invalid token:', userError?.message || 'No user data');
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      userId = userData.user.id;
+      console.log('User ID validated:', userId);
     }
-
-    const userId = userData.user.id;
-    console.log('User ID validated:', userId);
     
     // Use service role for database operations (bypasses RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -126,8 +136,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify ownership
-    if (wpConfig.user_id !== userId) {
+    // Verify ownership (skip for service_role internal calls)
+    if (isServiceRole) {
+      // Resolve userId from the config owner for downstream operations
+      userId = wpConfig.user_id;
+      console.log('Service role: resolved userId from config owner:', userId);
+    } else if (wpConfig.user_id !== userId) {
       console.error('Access denied: user', userId, 'does not own config', wpConfig.id);
       return new Response(
         JSON.stringify({ error: 'Acceso denegado' }),
