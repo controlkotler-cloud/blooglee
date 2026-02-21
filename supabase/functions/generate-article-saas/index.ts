@@ -2392,7 +2392,9 @@ Deno.serve(async (req) => {
       .eq('user_id', userId)
       .single();
 
-    if (userProfile?.email) {
+    // Only send "article ready" email if NOT scheduled (manual generation)
+    // For scheduled generation, the "published" email is sent after WordPress publish
+    if (!isScheduled && userProfile?.email) {
       const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
       const articleExcerpt = spanishArticle?.meta_description || catalanArticle?.meta_description || `Nuevo artículo sobre ${topic}`;
       
