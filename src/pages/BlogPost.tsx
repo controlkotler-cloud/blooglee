@@ -247,6 +247,7 @@ const BlogPost = () => {
           publishedTime: post.date,
           author: post.author.name,
           section: post.category,
+          tags: post.seoKeywords,
         }}
       />
       <BlogPostingSchema 
@@ -323,13 +324,12 @@ const BlogPost = () => {
               />
             </div>
 
-            {/* Content */}
+            {/* Content with inline CTA */}
             <div className="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/50 shadow-xl p-6 sm:p-8 lg:p-10 mb-8">
               <div 
                 className="prose prose-lg max-w-none"
                 dangerouslySetInnerHTML={{ __html: parsedContent }}
                 onClick={(e) => {
-                  // Handle internal link clicks
                   const target = e.target as HTMLElement;
                   if (target.tagName === 'A' && target.getAttribute('data-internal') === 'true') {
                     e.preventDefault();
@@ -340,6 +340,26 @@ const BlogPost = () => {
                   }
                 }}
               />
+
+              {/* Inline CTA - End of article */}
+              <div className="mt-10 p-6 rounded-2xl bg-gradient-to-r from-violet-50 via-fuchsia-50 to-orange-50 border border-violet-200/50">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <div className="flex-1 text-center sm:text-left">
+                    <h4 className="font-display text-lg font-bold text-foreground mb-1">
+                      ¿Tu blog necesita contenido constante?
+                    </h4>
+                    <p className="text-sm text-foreground/60">
+                      Blooglee genera artículos SEO y los publica en WordPress automáticamente. Prueba gratis.
+                    </p>
+                  </div>
+                  <Link 
+                    to="/waitlist"
+                    className="shrink-0 px-6 py-3 rounded-full font-semibold text-white bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400 hover:shadow-lg hover:shadow-violet-500/25 transition-all text-sm"
+                  >
+                    Probar Blooglee gratis
+                  </Link>
+                </div>
+              </div>
             </div>
 
             {/* Share */}

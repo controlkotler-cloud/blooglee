@@ -28,6 +28,7 @@ export interface FormattedBlogPost {
   date: string;
   readTime: string;
   category: string;
+  seoKeywords: string[];
   author: {
     name: string;
     avatar: string;
@@ -60,6 +61,7 @@ function transformPost(post: BlogPost): FormattedBlogPost {
     date: formatDate(post.published_at),
     readTime: calculateReadTime(post.content),
     category: post.category,
+    seoKeywords: post.seo_keywords || [],
     author: {
       name: post.author_name,
       avatar: post.author_avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
