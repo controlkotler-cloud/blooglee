@@ -2437,17 +2437,18 @@ Deno.serve(async (req) => {
           };
 
           const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress-saas`;
-          fetch(publishUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${serviceRoleKey}`,
-            },
-            body: JSON.stringify(publishPayload),
-          }).then(async (res) => {
-            console.log(`[auto-publish] Response status: ${res.status}`);
-            if (res.ok) {
-              const result = await res.json();
+          try {
+            const publishRes = await fetch(publishUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${serviceRoleKey}`,
+              },
+              body: JSON.stringify(publishPayload),
+            });
+            console.log(`[auto-publish] Response status: ${publishRes.status}`);
+            if (publishRes.ok) {
+              const result = await publishRes.json();
               if (result.post_url) {
                 // Update article with wp_post_url
                 await supabase
@@ -2459,19 +2460,21 @@ Deno.serve(async (req) => {
                 // Send "published" notification email with the live link
                 if (userProfile?.email) {
                   const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
-                  sendPublishedNotification(
+                  await sendPublishedNotification(
                     userProfile.email,
                     site.name,
                     articleTitle,
                     result.post_url,
                     siteId
-                  ).catch(err => console.error("[auto-publish] Email notification error:", err));
+                  );
                 }
               }
+            } else {
+              console.error(`[auto-publish] Failed with status ${publishRes.status}`);
             }
-          }).catch(err => {
-            console.error('[auto-publish] Error:', err);
-          });
+          } catch (publishErr) {
+            console.error('[auto-publish] Error:', publishErr);
+          }
         } else {
           console.log("No WordPress config found or no Spanish content - skipping auto-publish");
         }
