@@ -12,6 +12,7 @@ interface SEOHeadProps {
     publishedTime?: string;
     author?: string;
     section?: string;
+    tags?: string[];
   };
   noIndex?: boolean;
 }
@@ -70,11 +71,17 @@ export const SEOHead = ({
             <meta property="article:published_time" content={article.publishedTime} />
           )}
           {article.author && (
-            <meta property="article:author" content={article.author} />
+            <>
+              <meta property="article:author" content={article.author} />
+              <meta name="author" content={article.author} />
+            </>
           )}
           {article.section && (
             <meta property="article:section" content={article.section} />
           )}
+          {article.tags?.map((tag, i) => (
+            <meta key={i} property="article:tag" content={tag} />
+          ))}
         </>
       )}
       

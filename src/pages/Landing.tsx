@@ -22,11 +22,11 @@ import { SEOHead, FAQSchema, SoftwareAppSchema } from '@/components/seo';
 const landingFAQs = [
   {
     question: '¿Qué es Blooglee?',
-    answer: 'Blooglee es una plataforma SaaS española que utiliza inteligencia artificial (GPT-5 y Gemini) para generar y publicar automáticamente artículos de blog optimizados para SEO en WordPress. Ideal para empresas y agencias de marketing que quieren mantener su blog activo sin dedicar horas a la redacción.',
+    answer: 'Blooglee es una plataforma SaaS española que utiliza inteligencia artificial (Gemini 2.5 Flash de Google) para generar y publicar automáticamente artículos de blog optimizados para SEO en WordPress. Ideal para empresas y agencias de marketing que quieren mantener su blog activo sin dedicar horas a la redacción.',
   },
   {
     question: '¿Cómo funciona la generación automática de contenido de Blooglee?',
-    answer: 'Blooglee usa modelos de IA avanzados para generar artículos únicos de 800-1200 palabras. Configuras tu sitio web, eliges el sector y la frecuencia, y Blooglee genera artículos completos con imagen destacada, meta descripciones y estructura SEO optimizada, listos para publicar en WordPress con un clic.',
+    answer: 'Blooglee usa modelos de IA avanzados para generar artículos únicos de 800-2500 palabras según tu configuración. Configuras tu sitio web, eliges el sector y la frecuencia, y Blooglee genera artículos completos con imagen destacada, meta descripciones y estructura SEO optimizada, listos para publicar en WordPress con un clic.',
   },
   {
     question: '¿Blooglee es compatible con mi WordPress?',
@@ -62,7 +62,7 @@ const landingFAQs = [
   },
   {
     question: '¿Cuántas palabras tienen los artículos de Blooglee?',
-    answer: 'Los artículos generados tienen entre 800-1200 palabras con estructura profesional: título H1 optimizado, introducción, secciones con H2 y H3, y conclusión. Longitud ideal para SEO y engagement.',
+    answer: 'Los artículos generados tienen entre 800-2500 palabras según tu configuración (corto, medio o largo), con estructura profesional: título H1 optimizado, introducción, secciones con H2 y H3, y conclusión. Longitud ideal para SEO y engagement.',
   },
   {
     question: '¿Puedo programar publicaciones automáticas en Blooglee?',
@@ -207,10 +207,10 @@ const Landing = () => {
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </span>
                 </Link>
-                <button className="group px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-semibold text-foreground bg-white/80 backdrop-blur-sm border border-violet-200/50 hover:bg-white hover:border-violet-300 transition-all shadow-lg flex items-center justify-center gap-2">
+                <Link to="/como-funciona" className="group px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-semibold text-foreground bg-white/80 backdrop-blur-sm border border-violet-200/50 hover:bg-white hover:border-violet-300 transition-all shadow-lg flex items-center justify-center gap-2">
                   <Play className="w-5 h-5 text-violet-500 group-hover:scale-110 transition-transform" />
                   Ver demo
-                </button>
+                </Link>
               </div>
 
             </div>
