@@ -17,6 +17,7 @@ const STEP_ORDER = [
   'business_setup',
   'style_setup',
   'first_article',
+  'polylang_setup',
   'wordpress_connect',
   'first_publish',
   'content_profile',

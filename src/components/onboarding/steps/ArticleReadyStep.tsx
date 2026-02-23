@@ -15,7 +15,7 @@ interface ArticleReadyStepProps {
   siteId?: string;
 }
 
-const CHECKLIST_ITEMS = [
+const BASE_CHECKLIST_ITEMS = [
   { step_key: 'business_setup', status: 'completed' },
   { step_key: 'style_setup', status: 'completed' },
   { step_key: 'first_article', status: 'completed' },
@@ -24,6 +24,16 @@ const CHECKLIST_ITEMS = [
   { step_key: 'content_profile', status: 'pending' },
   { step_key: 'auto_publish', status: 'pending' },
 ];
+
+function buildChecklistItems(hasCatalan: boolean) {
+  const items = [...BASE_CHECKLIST_ITEMS];
+  if (hasCatalan) {
+    // Insert polylang_setup before wordpress_connect
+    const wpIndex = items.findIndex(i => i.step_key === 'wordpress_connect');
+    items.splice(wpIndex, 0, { step_key: 'polylang_setup', status: 'pending' });
+  }
+  return items;
+}
 
 // CSS confetti particles
 const CONFETTI_COLORS = ['#8B5CF6', '#D946EF', '#F97316', '#22C55E', '#3B82F6', '#EAB308'];
@@ -91,9 +101,11 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
   const wordCount = content?.content ? content.content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length : 0;
   const readTime = Math.max(1, Math.round(wordCount / 200));
 
+  const hasCatalan = !!(stepData?.step_content_prefs as Record<string, unknown> | undefined)?.catalan;
+
   const handleComplete = async () => {
     if (user?.id && siteId) {
-      const items = CHECKLIST_ITEMS.map((item) => ({
+      const items = buildChecklistItems(hasCatalan).map((item) => ({
         user_id: user.id,
         site_id: siteId,
         step_key: item.step_key,
