@@ -68,6 +68,7 @@ export function useSyncTaxonomiesSaas() {
     onSuccess: (data, wordpressConfigId) => {
       queryClient.invalidateQueries({ queryKey: ['wordpress-taxonomies-saas', wordpressConfigId] });
       queryClient.invalidateQueries({ queryKey: ['sites'] }); // Refresh sites to get updated wordpress_context
+      queryClient.invalidateQueries({ queryKey: ['wordpress-diagnostics'] });
       
       // Show detailed feedback
       const taxonomyMsg = `${data.categories} categorías y ${data.tags} tags sincronizados`;
@@ -80,6 +81,11 @@ export function useSyncTaxonomiesSaas() {
       } else {
         // content_analyzed true but no wordpress_context - something went wrong
         toast.warning(`${taxonomyMsg}, pero no se pudo guardar el contexto de WordPress.`);
+      }
+
+      // Show Polylang warning if check failed
+      if (data.polylang_check && !data.polylang_check.ok) {
+        toast.warning(data.polylang_check.message, { duration: 8000 });
       }
     },
     onError: (error: Error) => {

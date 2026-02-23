@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
     console.log('Fetching WordPress config...');
     const { data: wpConfig, error: wpError } = await supabase
       .from('wordpress_configs')
-      .select('*, sites!inner(id, name, user_id)')
+      .select('*, sites!inner(id, name, user_id, languages)')
       .eq('id', body.wordpress_config_id)
       .maybeSingle();
 
@@ -423,8 +423,98 @@ Responde SOLO con JSON válido (sin markdown):
       console.log('Content analysis disabled, skipping');
     }
 
+    // ==========================================
+    // POLYLANG HEALTH CHECK (if site uses Catalan)
+    // ==========================================
+    const siteLanguages: string[] = (wpConfig as any).sites?.languages || [];
+    const hasCatalan = siteLanguages.includes('catalan');
+    let polylangStatus: { ok: boolean; message: string } | null = null;
+
+    if (hasCatalan) {
+      console.log('=== POLYLANG HEALTH CHECK ===');
+      try {
+        // 1. Check if Polylang REST endpoint exists
+        const polylangUrl = `${wpUrl}/wp-json/pll/v1/languages`;
+        const pllRes = await fetch(polylangUrl, { headers: wpHeaders });
+
+        if (!pllRes.ok) {
+          polylangStatus = { ok: false, message: 'Polylang no detectado. Instala y activa el plugin Polylang en tu WordPress.' };
+          console.log('Polylang plugin NOT detected');
+        } else {
+          const pllLangs = await pllRes.json();
+          const hasCa = Array.isArray(pllLangs) && pllLangs.some((l: any) => l.slug === 'ca' || l.code === 'ca');
+          const hasEs = Array.isArray(pllLangs) && pllLangs.some((l: any) => l.slug === 'es' || l.code === 'es');
+
+          if (!hasEs || !hasCa) {
+            polylangStatus = { ok: false, message: `Faltan idiomas en Polylang: ${!hasEs ? 'Español (es)' : ''}${!hasEs && !hasCa ? ' y ' : ''}${!hasCa ? 'Catalán (ca)' : ''}. Configúralos en Idiomas → Idiomas.` };
+            console.log('Polylang missing languages:', { hasEs, hasCa });
+          } else {
+            // 2. Check if REST API accepts "lang" field by creating+deleting a test draft
+            try {
+              const testRes = await fetch(`${wpUrl}/wp-json/wp/v2/posts`, {
+                method: 'POST',
+                headers: wpHeaders,
+                body: JSON.stringify({ title: 'Blooglee Polylang Test', status: 'draft', lang: 'ca' }),
+              });
+
+              if (testRes.ok) {
+                const testPost = await testRes.json();
+                // Check if lang was accepted
+                const postLang = testPost.lang || testPost.polylang_current_lang;
+                if (postLang === 'ca') {
+                  polylangStatus = { ok: true, message: 'Polylang configurado correctamente. El campo "lang" funciona en la API REST.' };
+                  console.log('Polylang REST lang field WORKS');
+                } else {
+                  polylangStatus = { ok: false, message: 'Polylang está instalado pero el campo "lang" no funciona en la API REST. Añade el snippet PHP de Polylang en Code Snippets.' };
+                  console.log('Polylang REST lang field NOT working (lang value:', postLang, ')');
+                }
+                // Clean up test post
+                await fetch(`${wpUrl}/wp-json/wp/v2/posts/${testPost.id}?force=true`, { method: 'DELETE', headers: wpHeaders }).catch(() => {});
+              } else {
+                const errText = await testRes.text();
+                polylangStatus = { ok: false, message: 'No se pudo verificar el snippet de Polylang. Error al crear post de prueba.' };
+                console.error('Polylang test post failed:', testRes.status, errText.substring(0, 200));
+              }
+            } catch (testErr) {
+              polylangStatus = { ok: false, message: 'Error al verificar el snippet de Polylang.' };
+              console.error('Polylang test error:', testErr);
+            }
+          }
+        }
+
+        // Save diagnostic result
+        await supabase.from('wordpress_diagnostics').upsert({
+          user_id: userId,
+          site_id: siteId,
+          check_type: 'polylang',
+          status: polylangStatus.ok ? 'ok' : 'error',
+          message: polylangStatus.message,
+          checked_at: new Date().toISOString(),
+        }, { onConflict: 'site_id,check_type', ignoreDuplicates: false }).catch(err => {
+          // If upsert fails (no unique constraint), try delete+insert
+          console.log('Upsert failed, trying delete+insert:', err.message);
+        });
+
+        // Fallback: delete old + insert new
+        if (polylangStatus) {
+          await supabase.from('wordpress_diagnostics').delete().eq('site_id', siteId).eq('check_type', 'polylang').eq('user_id', userId);
+          await supabase.from('wordpress_diagnostics').insert({
+            user_id: userId,
+            site_id: siteId,
+            check_type: 'polylang',
+            status: polylangStatus.ok ? 'ok' : 'error',
+            message: polylangStatus.message,
+            checked_at: new Date().toISOString(),
+          });
+        }
+      } catch (pllError) {
+        console.error('Polylang health check error:', pllError);
+        polylangStatus = { ok: false, message: 'Error al verificar Polylang.' };
+      }
+    }
+
     console.log('=== SYNC COMPLETE ===');
-    console.log('Categories:', categories.length, '| Tags:', tags.length, '| Context analyzed:', !!contentAnalysis);
+    console.log('Categories:', categories.length, '| Tags:', tags.length, '| Context analyzed:', !!contentAnalysis, '| Polylang:', polylangStatus ? (polylangStatus.ok ? 'OK' : 'FAIL') : 'N/A');
 
     return new Response(
       JSON.stringify({
@@ -432,7 +522,8 @@ Responde SOLO con JSON válido (sin markdown):
         categories: categories.length,
         tags: tags.length,
         content_analyzed: !!contentAnalysis,
-        wordpress_context: contentAnalysis
+        wordpress_context: contentAnalysis,
+        polylang_check: polylangStatus,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
