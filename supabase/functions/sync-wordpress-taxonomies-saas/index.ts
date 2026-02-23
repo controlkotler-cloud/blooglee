@@ -142,11 +142,30 @@ Deno.serve(async (req) => {
       userId = wpConfig.user_id;
       console.log('Service role: resolved userId from config owner:', userId);
     } else if (wpConfig.user_id !== userId) {
-      console.error('Access denied: user', userId, 'does not own config', wpConfig.id);
-      return new Response(
-        JSON.stringify({ error: 'Acceso denegado' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Check if user is admin/superadmin OR a team member/owner
+      const { data: userRole } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .in('role', ['admin', 'superadmin'])
+        .maybeSingle();
+
+      const { data: teamLink } = await supabase
+        .from('team_members')
+        .select('id')
+        .or(`and(owner_id.eq.${userId},member_id.eq.${wpConfig.user_id}),and(owner_id.eq.${wpConfig.user_id},member_id.eq.${userId})`)
+        .maybeSingle();
+
+      if (!userRole && !teamLink) {
+        console.error('Access denied: user', userId, 'does not own config', wpConfig.id);
+        return new Response(
+          JSON.stringify({ error: 'Acceso denegado' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      console.log('Access granted via', userRole ? `role: ${userRole.role}` : 'team membership');
+      // Use the config owner's userId for taxonomy operations
+      userId = wpConfig.user_id;
     }
 
     console.log('WordPress URL:', wpConfig.site_url);
