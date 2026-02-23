@@ -6,10 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Save, Unplug, ChevronDown, BookOpen, CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useWordPressConfig, useUpsertWordPressConfig, useDeleteWordPressConfig } from '@/hooks/useWordPressConfigSaas';
 import { useWordPressHealthCheck, HealthCheckResult } from '@/hooks/useWordPressHealthCheck';
 import { useSyncTaxonomiesSaas } from '@/hooks/useWordPressTaxonomiesSaas';
+import { usePolylangDiagnostic } from '@/hooks/usePolylangDiagnostic';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { WordPressTroubleshootPanel } from './WordPressTroubleshootPanel';
 import { toast } from 'sonner';
@@ -52,6 +54,7 @@ type FormData = z.infer<typeof formSchema>;
 
 interface WordPressConfigFormProps {
   siteId: string;
+  languages?: string[];
   wordpressContext?: {
     analyzed_at?: string;
     lastTopics?: string[];
@@ -59,12 +62,14 @@ interface WordPressConfigFormProps {
   } | null;
 }
 
-export function WordPressConfigForm({ siteId, wordpressContext }: WordPressConfigFormProps) {
+export function WordPressConfigForm({ siteId, languages = [], wordpressContext }: WordPressConfigFormProps) {
   const { data: config, isLoading } = useWordPressConfig(siteId);
   const upsertMutation = useUpsertWordPressConfig();
   const deleteMutation = useDeleteWordPressConfig();
   const { runHealthCheck, isChecking } = useWordPressHealthCheck();
   const syncMutation = useSyncTaxonomiesSaas();
+  const hasCatalan = languages.includes('catalan');
+  const { data: polylangDiagnostic } = usePolylangDiagnostic(hasCatalan ? siteId : undefined);
   
   const [showPassword, setShowPassword] = useState(false);
   const [helpOpen, setHelpOpen] = useState(true);
@@ -472,6 +477,58 @@ export function WordPressConfigForm({ siteId, wordpressContext }: WordPressConfi
             )}
           </div>
         </form>
+
+        {/* Banner de diagnóstico Polylang */}
+        {hasCatalan && config && polylangDiagnostic && polylangDiagnostic.status === 'error' && (
+          <Alert variant="destructive" className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Polylang no está correctamente configurado</AlertTitle>
+            <AlertDescription className="space-y-2">
+              <p className="text-sm">{polylangDiagnostic.message}</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs border-amber-500/50 hover:bg-amber-100 dark:hover:bg-amber-950/40"
+                  onClick={() => window.open('/help', '_blank')}
+                >
+                  <BookOpen className="w-3.5 h-3.5 mr-1.5" />
+                  Ver solución
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs border-amber-500/50 hover:bg-amber-100 dark:hover:bg-amber-950/40"
+                  onClick={() => config && syncMutation.mutate(config.id)}
+                  disabled={syncMutation.isPending}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+                  Re-verificar
+                </Button>
+              </div>
+              {polylangDiagnostic.checked_at && (
+                <p className="text-xs text-amber-700/70 dark:text-amber-300/50 mt-1">
+                  Último check: {new Date(polylangDiagnostic.checked_at).toLocaleString('es-ES')}
+                </p>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {hasCatalan && config && polylangDiagnostic && polylangDiagnostic.status === 'ok' && (
+          <Alert className="border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-100 [&>svg]:text-emerald-600">
+            <CheckCircle className="h-4 w-4" />
+            <AlertTitle>Polylang configurado correctamente</AlertTitle>
+            <AlertDescription className="text-sm text-emerald-700 dark:text-emerald-300">
+              {polylangDiagnostic.message}
+              {polylangDiagnostic.checked_at && (
+                <span className="text-xs ml-2 opacity-70">
+                  ({new Date(polylangDiagnostic.checked_at).toLocaleString('es-ES')})
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Panel condicional: estado si conectado, troubleshoot si no */}
         <WordPressTroubleshootPanel

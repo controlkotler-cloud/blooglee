@@ -69,6 +69,7 @@ export function useSyncTaxonomiesSaas() {
       queryClient.invalidateQueries({ queryKey: ['wordpress-taxonomies-saas', wordpressConfigId] });
       queryClient.invalidateQueries({ queryKey: ['sites'] }); // Refresh sites to get updated wordpress_context
       queryClient.invalidateQueries({ queryKey: ['wordpress-diagnostics'] });
+      queryClient.invalidateQueries({ queryKey: ['wordpress-diagnostics', 'polylang'] });
       
       // Show detailed feedback
       const taxonomyMsg = `${data.categories} categorías y ${data.tags} tags sincronizados`;
