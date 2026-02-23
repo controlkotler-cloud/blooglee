@@ -7,6 +7,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { ArrowLeft, Loader2, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { track } from '@/lib/analytics';
 
+function decodeHtmlEntities(text: string): string {
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  return doc.documentElement.textContent || text;
+}
+
 interface WPUrlCheckProps {
   siteId: string;
   initialUrl?: string;
@@ -188,7 +193,7 @@ export function WPUrlCheck({ siteId, initialUrl, onBack, onContinue, onSkip }: W
                 </p>
                 {result.site_name && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Sitio: {result.site_name}
+                    Sitio: {decodeHtmlEntities(result.site_name)}
                   </p>
                 )}
                 {result.detected_plugins.length > 0 && (

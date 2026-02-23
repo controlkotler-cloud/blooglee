@@ -23,6 +23,11 @@ interface CheckResult {
 
 type DetectionStatus = 'idle' | 'checking' | 'detected' | 'not_detected';
 
+function decodeHtmlEntities(text: string): string {
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  return doc.documentElement.textContent || text;
+}
+
 export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }: WPIntroProps) {
   const [showNoPanel, setShowNoPanel] = useState(false);
   const [detection, setDetection] = useState<DetectionStatus>('idle');
@@ -85,7 +90,7 @@ export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }
                 </p>
                 {checkResult.site_name && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Sitio: {checkResult.site_name}
+                    Sitio: {decodeHtmlEntities(checkResult.site_name)}
                   </p>
                 )}
                 {checkResult.detected_plugins.length > 0 && (
