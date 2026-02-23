@@ -503,6 +503,31 @@ function checkUserRateLimit(userId: string): { allowed: boolean; retryAfter?: nu
 }
 
 // ==========================================
+// TEAM EMAIL HELPERS
+// ==========================================
+async function getTeamMemberEmails(supabase: any, ownerId: string): Promise<string[]> {
+  try {
+    const { data: teamMembers } = await supabase
+      .from('team_members')
+      .select('member_id')
+      .eq('owner_id', ownerId);
+    
+    if (!teamMembers || teamMembers.length === 0) return [];
+    
+    const memberIds = teamMembers.map((m: { member_id: string }) => m.member_id);
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('email')
+      .in('user_id', memberIds);
+    
+    return profiles?.map((p: { email: string }) => p.email).filter(Boolean) || [];
+  } catch (e) {
+    console.error("Error fetching team member emails:", e);
+    return [];
+  }
+}
+
+// ==========================================
 // EMAIL NOTIFICATION
 // ==========================================
 async function sendArticleNotification(
@@ -510,7 +535,8 @@ async function sendArticleNotification(
   siteName: string,
   articleTitle: string,
   articleExcerpt: string,
-  siteId: string
+  siteId: string,
+  extraEmails: string[] = []
 ): Promise<void> {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) {
@@ -567,9 +593,12 @@ async function sendArticleNotification(
 </body>
 </html>`;
 
+    const allRecipients = [userEmail, ...extraEmails.filter(e => e !== userEmail)];
+    console.log(`Sending article notification to: ${allRecipients.join(', ')}`);
+
     const { error } = await resend.emails.send({
       from: "Blooglee <noreply@blooglee.com>",
-      to: [userEmail],
+      to: allRecipients,
       subject: `📝 Nuevo artículo generado para ${siteName}`,
       html,
     });
@@ -592,7 +621,8 @@ async function sendPublishedNotification(
   siteName: string,
   articleTitle: string,
   postUrl: string,
-  siteId: string
+  siteId: string,
+  extraEmails: string[] = []
 ): Promise<void> {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) return;
@@ -648,9 +678,12 @@ async function sendPublishedNotification(
 </body>
 </html>`;
 
+    const allRecipients = [userEmail, ...extraEmails.filter(e => e !== userEmail)];
+    console.log(`Sending published notification to: ${allRecipients.join(', ')}`);
+
     const { error } = await resend.emails.send({
       from: "Blooglee <noreply@blooglee.com>",
-      to: [userEmail],
+      to: allRecipients,
       subject: `🚀 Artículo publicado en ${siteName}`,
       html,
     });
@@ -2418,12 +2451,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Send notification email to user
+    // Send notification email to user + team members
     const { data: userProfile } = await supabase
       .from('profiles')
       .select('email')
       .eq('user_id', userId)
       .single();
+
+    const teamEmails = await getTeamMemberEmails(supabase, userId);
 
     // Only send "article ready" email if NOT scheduled (manual generation)
     // For scheduled generation, the "published" email is sent after WordPress publish
@@ -2436,7 +2471,8 @@ Deno.serve(async (req) => {
         site.name,
         articleTitle,
         articleExcerpt,
-        siteId
+        siteId,
+        teamEmails
       ).catch(err => console.error("Background email error:", err));
     }
 
@@ -2490,7 +2526,6 @@ Deno.serve(async (req) => {
                   .eq('id', savedArticle.id);
                 console.log(`[auto-publish] Updated wp_post_url: ${result.post_url}`);
 
-                // Send "published" notification email with the live link
                 if (userProfile?.email) {
                   const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
                   await sendPublishedNotification(
@@ -2498,7 +2533,8 @@ Deno.serve(async (req) => {
                     site.name,
                     articleTitle,
                     result.post_url,
-                    siteId
+                    siteId,
+                    teamEmails
                   );
                 }
               }
