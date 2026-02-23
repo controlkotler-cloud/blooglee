@@ -19,52 +19,48 @@ export const CODE_SNIPPETS: CodeSnippet[] = [
     fileName: 'functions.php',
     code: `/**
  * Blooglee - Yoast SEO API Support
- * Habilita la edición de campos Yoast via REST API
+ * Registra los campos de Yoast para la REST API
+ * Prioridad 20 para ejecutar DESPUÉS de que Yoast cargue sus campos
  */
 add_action('init', function() {
-    // Meta descripción
-    register_post_meta('post', '_yoast_wpseo_metadesc', [
-        'show_in_rest' => true,
-        'single' => true,
-        'type' => 'string',
-        'auth_callback' => function() {
-            return current_user_can('edit_posts');
-        }
-    ]);
-    
-    // SEO Title
-    register_post_meta('post', '_yoast_wpseo_title', [
-        'show_in_rest' => true,
-        'single' => true,
-        'type' => 'string',
-        'auth_callback' => function() {
-            return current_user_can('edit_posts');
-        }
-    ]);
-    
-    // Focus keyword
-    register_post_meta('post', '_yoast_wpseo_focuskw', [
-        'show_in_rest' => true,
-        'single' => true,
-        'type' => 'string',
-        'auth_callback' => function() {
-            return current_user_can('edit_posts');
-        }
-    ]);
-});`,
-    instructions: `1. Accede a tu WordPress
-2. Ve a **Apariencia → Editor de temas**
-3. Selecciona tu tema hijo
-4. Abre **functions.php**
-5. Añade el código al final
-6. Guarda los cambios
+    $meta_keys = [
+        '_yoast_wpseo_metadesc',
+        '_yoast_wpseo_title',
+        '_yoast_wpseo_focuskw',
+    ];
+    foreach ($meta_keys as $key) {
+        register_post_meta('post', $key, [
+            'show_in_rest'  => true,
+            'single'        => true,
+            'type'          => 'string',
+            'auth_callback' => '__return_true',
+        ]);
+    }
+}, 20);`,
+    instructions: `⚠️ SIN ESTE SNIPPET, Yoast ignorará la meta descripción, SEO title y focus keyword que Blooglee envía. Solo verás el excerpt como fallback.
 
-⚠️ Este snippet es NECESARIO para que Blooglee pueda rellenar automáticamente:
-- Meta descripción (aparece en Google)
-- SEO Title (título optimizado para CTR)
-- Focus Keyword (para análisis de Yoast)
+PASO 1 — Añadir el código:
+1. Accede a tu WordPress como administrador
+2. Ve a **Apariencia → Editor de archivos del tema** (o edita por FTP)
+3. Selecciona tu **tema hijo** (child theme)
+4. Abre **functions.php** y añade el código **al final** del archivo
+5. Guarda los cambios
 
-Sin este snippet, Yoast ignorará estos campos. El **excerpt** funciona siempre como fallback.`,
+PASO 2 — Verificar que funciona:
+1. Genera y publica un artículo desde Blooglee
+2. En tu WordPress, abre el post publicado
+3. Baja hasta la sección de Yoast SEO
+4. Comprueba que aparecen:
+   - **Meta descripción** (no vacía)
+   - **SEO Title** (no el título por defecto)
+   - **Focus keyword** (la palabra clave del artículo)
+
+💡 Si sigues sin ver los campos de Yoast, comprueba que:
+- Tienes Yoast SEO activo y actualizado
+- Estás editando el functions.php del **tema hijo**, no del tema padre
+- No hay otro plugin de SEO (Rank Math, All in One SEO) en conflicto
+
+⚠️ Si no tienes un tema hijo, créalo primero para evitar perder los cambios al actualizar el tema.`,
   },
   {
     id: 'polylang-api-support',
