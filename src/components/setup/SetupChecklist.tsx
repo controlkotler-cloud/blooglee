@@ -14,6 +14,7 @@ import { ContentProfileStep } from './ContentProfileStep';
 import { AutoPublishStep } from './AutoPublishStep';
 import { track } from '@/lib/analytics';
 import { WordPressSetup } from '@/components/wordpress/WordPressSetup';
+import { CodeSnippetsLibrary } from '@/components/saas/CodeSnippetsLibrary';
 import { MessageCircle, PartyPopper } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,7 +35,7 @@ const MOOD_LABELS: Record<string, string> = {
   'calm and natural': 'Natural',
 };
 
-type ActiveStep = null | 'wordpress_connect' | 'first_publish' | 'content_profile' | 'auto_publish';
+type ActiveStep = null | 'wordpress_connect' | 'first_publish' | 'content_profile' | 'auto_publish' | 'polylang_setup';
 
 interface SetupChecklistProps {
   site: Site;
@@ -123,6 +124,13 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
           actionLabel: hasWordPress ? 'Configurar' : 'Conectar WordPress →',
           onAction: () => openStep('wordpress_connect'),
         };
+      case 'polylang_setup':
+        return {
+          title: 'Configurar Polylang para catalán',
+          description: 'Instala el plugin y añade el snippet para publicar en dos idiomas.',
+          actionLabel: 'Ver instrucciones →',
+          onAction: () => openStep('polylang_setup'),
+        };
       case 'first_publish':
         return {
           title: 'Publicar tu primer artículo',
@@ -152,6 +160,79 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
   };
 
   // Render active step sub-screens
+  if (activeStep === 'polylang_setup') {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto">
+        <div className="space-y-2">
+          <Button variant="ghost" size="sm" onClick={() => setActiveStep(null)} className="mb-2">
+            ← Volver al checklist
+          </Button>
+          <h2 className="text-xl font-display font-bold text-foreground">
+            Configurar Polylang para catalán
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Para que Blooglee publique artículos en español y catalán, necesitas hacer 2 cosas en tu WordPress:
+          </p>
+        </div>
+
+        <Card className="border-primary/20">
+          <CardContent className="p-5 space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center">1</span>
+                <div>
+                  <p className="font-semibold text-sm">Instalar el plugin Polylang</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    En tu WordPress, ve a <strong>Plugins → Añadir nuevo</strong>, busca <strong>&quot;Polylang&quot;</strong>, instálalo y actívalo.
+                    Luego configura los idiomas <strong>Español (es)</strong> y <strong>Catalán (ca)</strong> en <strong>Idiomas → Idiomas</strong>.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center">2</span>
+                <div>
+                  <p className="font-semibold text-sm">Añadir el snippet de código PHP</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Instala el plugin gratuito <strong>&quot;Code Snippets&quot;</strong> (Plugins → Añadir nuevo → buscar &quot;Code Snippets&quot;).
+                    Una vez activado, ve a <strong>Snippets → Añadir nuevo</strong> y pega el código de aquí abajo.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-5 space-y-3">
+            <p className="text-sm font-semibold">Código PHP para la REST API de Polylang:</p>
+            <CodeSnippetsLibrary filterPlugin="polylang" />
+          </CardContent>
+        </Card>
+
+        <div className="flex gap-3">
+          <Button
+            onClick={() => {
+              updateStep('polylang_setup', 'completed');
+              track('checklist_step_completed', { step: 'polylang_setup', duration_seconds: Math.round((Date.now() - stepStartTimeRef.current) / 1000) });
+              setActiveStep(null);
+            }}
+          >
+            Ya lo he configurado ✓
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              updateStep('polylang_setup', 'completed', { skipped: true });
+              setActiveStep(null);
+            }}
+          >
+            Lo haré más tarde
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (activeStep === 'wordpress_connect') {
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
