@@ -1118,6 +1118,7 @@ export type Database = {
         Returns: boolean
       }
       is_team_member: { Args: { site_owner_id: string }; Returns: boolean }
+      is_team_owner: { Args: { member_user_id: string }; Returns: boolean }
       normalize_wordpress_url: { Args: { url: string }; Returns: string }
     }
     Enums: {
