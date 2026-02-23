@@ -81,10 +81,10 @@ export function useSites() {
     queryFn: async (): Promise<Site[]> => {
       if (!user?.id) return [];
 
+      // RLS handles access control (own sites + team sites)
       const { data, error } = await supabase
         .from('sites')
         .select('*')
-        .eq('user_id', user.id)
         .order('name', { ascending: true });
 
       if (error) {
