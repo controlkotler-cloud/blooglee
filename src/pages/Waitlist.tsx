@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ProductMockup } from '@/components/saas/ProductMockup';
 import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
-import { supabase } from '@/integrations/supabase/client';
+import { useNewsletterSubscribe } from '@/hooks/useNewsletterSubscribe';
 
 const benefits = [
   { icon: Sparkles, text: "Genera artículos con IA en segundos" },
@@ -24,6 +24,7 @@ const Waitlist = () => {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptMarketing, setAcceptMarketing] = useState(false);
   const { toast } = useToast();
+  const { subscribe } = useNewsletterSubscribe();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,49 +50,16 @@ const Waitlist = () => {
     setIsLoading(true);
 
     try {
-      // Check if email already exists
-      const { data: existing } = await supabase
-        .from('newsletter_subscribers')
-        .select('id, source')
-        .eq('email', email.toLowerCase().trim())
-        .maybeSingle();
+      const result = await subscribe({
+        name: name || 'Sin nombre',
+        email,
+        audience: 'empresas',
+        gdprConsent: acceptTerms,
+        marketingConsent: acceptMarketing,
+        source: 'waitlist',
+      });
 
-      if (existing) {
-        if (existing.source === 'waitlist') {
-          toast({
-            title: '¡Ya estás en la lista!',
-            description: 'Este email ya está registrado en la lista de espera.',
-          });
-        } else {
-          // Update existing subscriber to also be on waitlist
-          await supabase
-            .from('newsletter_subscribers')
-            .update({
-              source: 'waitlist',
-              marketing_consent: acceptMarketing,
-              name: name || existing.source,
-            })
-            .eq('id', existing.id);
-          
-          setIsSuccess(true);
-        }
-      } else {
-        // Insert new waitlist subscriber
-        const { error } = await supabase
-          .from('newsletter_subscribers')
-          .insert({
-            email: email.toLowerCase().trim(),
-            name: name || null,
-            source: 'waitlist',
-            audience: 'empresas',
-            is_active: true,
-            gdpr_consent: true,
-            marketing_consent: acceptMarketing,
-            consent_date: new Date().toISOString(),
-          });
-
-        if (error) throw error;
-        
+      if (result.success) {
         setIsSuccess(true);
       }
     } catch (error) {
@@ -105,7 +73,6 @@ const Waitlist = () => {
       setIsLoading(false);
     }
   };
-
   if (isSuccess) {
     return (
       <div className="min-h-screen aurora-bg aurora-bg-intense flex items-center justify-center px-4">
