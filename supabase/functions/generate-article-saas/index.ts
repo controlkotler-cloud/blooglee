@@ -1362,16 +1362,48 @@ Deno.serve(async (req) => {
     console.log("Site ID:", siteId);
     console.log("Month/Year:", month, year);
 
-    // Fetch site and validate ownership
-    const { data: site, error: siteError } = await supabase
+    // Fetch site and validate ownership or team membership
+    let site: any = null;
+    let siteOwnerUserId: string = userId;
+
+    // First try direct ownership
+    const { data: ownedSite, error: ownedSiteError } = await supabase
       .from('sites')
       .select('*')
       .eq('id', siteId)
       .eq('user_id', userId)
       .single();
 
-    if (siteError || !site) {
-      console.error("Site error:", siteError);
+    if (ownedSite) {
+      site = ownedSite;
+    } else {
+      // Check team membership: fetch the site and verify team access
+      const serviceClient = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+      const { data: teamSite } = await serviceClient
+        .from('sites')
+        .select('*')
+        .eq('id', siteId)
+        .single();
+
+      if (teamSite) {
+        // Verify the user is a team member of the site owner
+        const { data: membership } = await serviceClient
+          .from('team_members')
+          .select('id')
+          .eq('owner_id', teamSite.user_id)
+          .eq('member_id', userId)
+          .single();
+
+        if (membership) {
+          site = teamSite;
+          siteOwnerUserId = teamSite.user_id;
+          console.log(`Team member ${userId} accessing site owned by ${siteOwnerUserId}`);
+        }
+      }
+    }
+
+    if (!site) {
+      console.error("Site not found or access denied");
       return new Response(JSON.stringify({ error: 'Site not found or access denied' }), { 
         status: 404, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -1381,13 +1413,13 @@ Deno.serve(async (req) => {
     console.log("Site:", site.name);
     console.log("Sector:", site.sector);
 
-    // Check admin status for bypass
-    const isAdmin = await isUserAdmin(supabase, userId);
+    // Check admin status for bypass (check both the acting user and the site owner)
+    const isAdmin = await isUserAdmin(supabase, userId) || (siteOwnerUserId !== userId && await isUserAdmin(supabase, siteOwnerUserId));
     console.log("Is admin:", isAdmin);
 
-    // Check plan limits (skip for admins)
+    // Check plan limits using the SITE OWNER's profile (not the team member's)
     if (!isAdmin) {
-      const profile = await getUserProfile(supabase, userId);
+      const profile = await getUserProfile(supabase, siteOwnerUserId);
       if (!profile) {
         return new Response(JSON.stringify({ error: 'Profile not found' }), { 
           status: 404, 
@@ -1397,7 +1429,7 @@ Deno.serve(async (req) => {
 
       // Free plan: lifetime limit of 1 article total (not per month)
       if (profile.plan === 'free') {
-        const totalArticles = await countTotalArticles(supabase, userId);
+        const totalArticles = await countTotalArticles(supabase, siteOwnerUserId);
         console.log(`Free plan: total articles ever: ${totalArticles}`);
         
         if (totalArticles >= 1) {
@@ -1414,7 +1446,7 @@ Deno.serve(async (req) => {
         }
       } else {
         // Paid plans: monthly limit
-        const articlesThisMonth = await countArticlesThisMonth(supabase, userId, month, year);
+        const articlesThisMonth = await countArticlesThisMonth(supabase, siteOwnerUserId, month, year);
         console.log(`Articles this month: ${articlesThisMonth}/${profile.posts_limit}`);
 
         if (articlesThisMonth >= profile.posts_limit) {
@@ -2315,11 +2347,12 @@ Deno.serve(async (req) => {
     };
 
     // Check if article already exists based on site's publish frequency
-    let existingQuery = supabase
+    // Use service client to check across all users (team members + owner)
+    const serviceClientForCheck = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+    let existingQuery = serviceClientForCheck
       .from('articles')
       .select('id')
-      .eq('site_id', siteId)
-      .eq('user_id', userId);
+      .eq('site_id', siteId);
 
     if (site.publish_frequency === 'daily') {
       const todayStart = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());

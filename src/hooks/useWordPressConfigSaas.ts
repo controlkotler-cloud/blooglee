@@ -23,11 +23,11 @@ export function useWordPressConfigsBatch(siteIds: string[]) {
     queryFn: async (): Promise<Record<string, WordPressConfig>> => {
       if (!user?.id || siteIds.length === 0) return {};
 
+      // RLS handles access control (own + team configs)
       const { data, error } = await supabase
         .from('wordpress_configs')
         .select('*')
-        .in('site_id', siteIds)
-        .eq('user_id', user.id);
+        .in('site_id', siteIds);
 
       if (error) {
         console.error('Error fetching WordPress configs batch:', error);
@@ -69,11 +69,11 @@ export function useWordPressConfig(siteId: string | undefined) {
     queryFn: async (): Promise<WordPressConfig | null> => {
       if (!user?.id || !siteId) return null;
 
+      // RLS handles access control (own + team configs)
       const { data, error } = await supabase
         .from('wordpress_configs')
         .select('*')
         .eq('site_id', siteId)
-        .eq('user_id', user.id)
         .maybeSingle();
 
       if (error) {

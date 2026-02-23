@@ -934,6 +934,30 @@ export type Database = {
         }
         Relationships: []
       }
+      team_members: {
+        Row: {
+          created_at: string
+          id: string
+          member_id: string
+          owner_id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          member_id: string
+          owner_id: string
+          role?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          member_id?: string
+          owner_id?: string
+          role?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1093,6 +1117,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_team_member: { Args: { site_owner_id: string }; Returns: boolean }
       normalize_wordpress_url: { Args: { url: string }; Returns: string }
     }
     Enums: {

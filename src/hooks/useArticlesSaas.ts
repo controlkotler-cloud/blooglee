@@ -201,11 +201,11 @@ export function useArticlesSaas(siteId: string | undefined, month?: number, year
     queryFn: async (): Promise<Article[]> => {
       if (!user?.id || !siteId) return [];
 
+      // RLS handles access control (own + team articles)
       let query = supabase
         .from('articles')
         .select('*')
-        .eq('site_id', siteId)
-        .eq('user_id', user.id);
+        .eq('site_id', siteId);
 
       if (month !== undefined) {
         query = query.eq('month', month);
@@ -235,10 +235,10 @@ export function useAllArticlesSaas(month: number, year: number) {
     queryFn: async (): Promise<Article[]> => {
       if (!user?.id) return [];
 
+      // RLS handles access control (own + team articles)
       const { data, error } = await supabase
         .from('articles')
         .select('*')
-        .eq('user_id', user.id)
         .eq('month', month)
         .eq('year', year)
         .order('generated_at', { ascending: false });

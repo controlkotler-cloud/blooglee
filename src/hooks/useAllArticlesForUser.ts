@@ -11,10 +11,10 @@ export function useAllArticlesForUser() {
     queryFn: async (): Promise<Article[]> => {
       if (!user?.id) return [];
 
+      // RLS handles access control (own + team articles)
       const { data, error } = await supabase
         .from('articles')
         .select('*')
-        .eq('user_id', user.id)
         .order('generated_at', { ascending: false });
 
       if (error) {
