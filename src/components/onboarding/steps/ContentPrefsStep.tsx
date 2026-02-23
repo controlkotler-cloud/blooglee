@@ -90,9 +90,32 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
         </div>
         {catalan && (
           <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
-            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <AlertDescription className="text-xs text-amber-800 dark:text-amber-300">
-              Necesitarás el plugin <strong>Polylang</strong> instalado en tu WordPress para gestionar contenido en dos idiomas.
+            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <AlertDescription className="text-xs text-amber-800 dark:text-amber-300 space-y-2">
+              <p>
+                Para publicar en dos idiomas necesitas hacer <strong>2 cosas</strong> en tu WordPress:
+              </p>
+              <ol className="list-decimal list-inside space-y-1 ml-1">
+                <li>Instalar el plugin <strong>Polylang</strong> y configurar los idiomas Español (es) y Catalán (ca).</li>
+                <li>Añadir un pequeño código PHP para que la API REST de WordPress acepte el idioma. Puedes hacerlo con el plugin gratuito <strong>Code Snippets</strong> (o en el <code className="bg-amber-200/50 dark:bg-amber-800/50 px-1 rounded text-[11px]">functions.php</code> de tu tema hijo).</li>
+              </ol>
+              <p>
+                Encontrarás el código exacto y las instrucciones paso a paso en la sección{' '}
+                <a
+                  href="/site/settings?tab=wordpress#snippets"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.open('/help', '_blank');
+                  }}
+                  className="underline font-semibold text-amber-900 dark:text-amber-200 hover:text-amber-700 dark:hover:text-amber-100"
+                >
+                  WordPress → Snippets de código
+                </a>{' '}
+                de tu panel, o después de conectar WordPress en la configuración de tu sitio.
+              </p>
+              <p className="text-[11px] opacity-80">
+                No te preocupes, podrás configurarlo más adelante cuando conectes tu WordPress.
+              </p>
             </AlertDescription>
           </Alert>
         )}
