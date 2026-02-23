@@ -501,23 +501,15 @@ Responde SOLO con JSON válido (sin markdown):
           }
         }
 
-        // Save diagnostic result
-        await supabase.from('wordpress_diagnostics').upsert({
-          user_id: userId,
-          site_id: siteId,
-          check_type: 'polylang',
-          status: polylangStatus.ok ? 'ok' : 'error',
-          message: polylangStatus.message,
-          checked_at: new Date().toISOString(),
-        }, { onConflict: 'site_id,check_type', ignoreDuplicates: false }).catch(err => {
-          // If upsert fails (no unique constraint), try delete+insert
-          console.log('Upsert failed, trying delete+insert:', err.message);
-        });
-
-        // Fallback: delete old + insert new
-        if (polylangStatus) {
-          await supabase.from('wordpress_diagnostics').delete().eq('site_id', siteId).eq('check_type', 'polylang').eq('user_id', userId);
-          await supabase.from('wordpress_diagnostics').insert({
+        // Save diagnostic result: delete old + insert new
+        console.log('Saving Polylang diagnostic:', polylangStatus.ok ? 'OK' : 'ERROR');
+        try {
+          await supabase.from('wordpress_diagnostics')
+            .delete()
+            .eq('site_id', siteId)
+            .eq('check_type', 'polylang');
+          
+          const { error: diagError } = await supabase.from('wordpress_diagnostics').insert({
             user_id: userId,
             site_id: siteId,
             check_type: 'polylang',
@@ -525,6 +517,13 @@ Responde SOLO con JSON válido (sin markdown):
             message: polylangStatus.message,
             checked_at: new Date().toISOString(),
           });
+          if (diagError) {
+            console.error('Failed to save Polylang diagnostic:', diagError.message);
+          } else {
+            console.log('Polylang diagnostic saved successfully');
+          }
+        } catch (saveErr) {
+          console.error('Exception saving Polylang diagnostic:', saveErr);
         }
       } catch (pllError) {
         console.error('Polylang health check error:', pllError);
