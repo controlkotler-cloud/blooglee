@@ -1,78 +1,33 @@
-# Plan de Mejora de Trafico para Blooglee
 
-## Diagnostico
 
-Con 284 visitantes en un mes y buen engagement (5 pag/visita), el problema no es la retencion sino la **adquisicion**. El sitio funciona bien una vez llega el usuario, pero Google no lo encuentra facilmente.
+## Problemas detectados
 
----
+### Problema 1: El nombre de la marca se usa como palabra comun
+La IA esta usando "Farmactur" como si fuera un sinonimo de "farmacia" en la frase "la atencion a la Farmactur se vuelve crucial". Esto ocurre porque el prompt no le dice explicitamente a la IA que el nombre de la empresa es una marca propia y NO debe usarse como sustantivo comun.
 
-## Fase 1: Correcciones Criticas (Impacto inmediato)
+**Solucion**: Añadir una instruccion explicita en el prompt del sistema (tanto en la tabla `prompts` de la BD como en el fallback del codigo) indicando que `{{siteName}}` es una marca comercial y NUNCA debe sustituir a sustantivos genericos del sector.
 
-### 1.1 Corregir FAQ de la Landing
+### Problema 2: Se genera doble articulo (con imagen diferente)
+Los logs de produccion confirman que la edge function `generate-article-saas` se invoco **DOS veces en el mismo segundo** (10:58:10). La primera creo el articulo, la segunda lo detecto como existente y lo **sobreescribio** con contenido e imagen nuevos (lineas 2407-2420 del edge function).
 
-- Cambiar "GPT-5 y Gemini" por "Gemini 2.5 Flash de Google" en la FAQ
-- Corregir "800-1200 palabras" por "800-2500 palabras" (el producto real soporta hasta 2500)
-- Esto mejora la coherencia para AEO (ChatGPT, Perplexity, etc.)
+La causa raiz: el `useEffect` en `GeneratingStep.tsx` con dependencia `[siteId]` puede dispararse dos veces (React StrictMode o re-render rapido). El `generatedRef` no es suficiente si ambas ejecuciones arrancan antes de que la primera termine.
 
-### 1.2 Activar el boton "Ver demo"
-
-- Convertirlo en un enlace a `/como-funciona` 
-- Actualmente es un `<button>` sin funcionalidad
-
-### 1.3 Ocultar URL de Supabase en el RSS
-
-- Cambiar la URL del RSS en `index.html` para usar el dominio propio (`https://blooglee.com/rss.xml`)
-- Configurar un redirect o proxy si es necesario
+**Solucion**: Añadir una bandera `isGeneratingRef` que se active ANTES de la llamada async, bloqueando cualquier invocacion concurrente.
 
 ---
 
-## Fase 2: SEO Tecnico (Impacto medio plazo)
+## Cambios tecnicos
 
-### 2.1 Pre-renderizado para paginas criticas
+### 1. `src/components/onboarding/steps/GeneratingStep.tsx`
+- Añadir un `isGeneratingRef` que se ponga a `true` sincronamente antes de llamar a `generateArticle()`
+- En el `useEffect`, comprobar `isGeneratingRef.current` ademas de `generatedRef.current`
+- Esto evita que dos ejecuciones del effect lancen la funcion en paralelo
 
-- Implementar `vite-plugin-prerender` o similar para generar HTML estatico de:
-  - `/` (Landing)
-  - `/pricing`
-  - `/features`
-  - `/como-funciona`
-  - `/para/clinicas`, `/para/agencias-marketing`, `/para/tiendas-online`, `/para/autonomos`
-  - `/alternativas`, `/alternativas/*`
-  - `/blog` (index)
-  - `/blog/:slug` (cada post individual)
-- Esto permite que Google indexe contenido real sin ejecutar JavaScript
-- **Es la mejora con mayor impacto potencial para SEO**
+### 2. `supabase/functions/generate-article-saas/index.ts`
+- En la seccion del prompt del sistema (fallback, lineas ~86-90), añadir una regla explicita:
+  > `{{siteName}}` es una MARCA COMERCIAL. Usala SOLO como nombre propio de la empresa, NUNCA como sustantivo comun ni como sustituto de palabras genericas del sector.
+- Actualizar tambien la entrada `saas.article.system` en la tabla `prompts` de la BD con la misma regla
 
-### 2.2 Mejorar meta tags dinamicos
+### 3. Proteccion adicional contra sobreescritura de imagen
+- En la logica de upsert (lineas 2407-2420), cuando se detecta un articulo existente generado hace menos de 60 segundos, **no sobreescribirlo** sino devolver el articulo existente directamente. Esto protege contra invocaciones duplicadas accidentales.
 
-- Anadir `article:tag` con las `seo_keywords` de cada blog post
-- Incluir `og:locale:alternate` para cataln si aplica
-- Anadir `meta name="author"` dinamico por post
-
-### 2.3 Sitemap dinamico mejorado
-
-- El sitemap actual es estatico y no incluye todos los blog posts automaticamente
-- Ya existe `serve-sitemap` como edge function, pero el `sitemap.xml` estatico puede estar desactualizado
-- Asegurar que `robots.txt` apunta al sitemap dinamico
-
----
-
-## Fase 3: Contenido y Conversion (Impacto continuo)
-
-### 3.2 Ampliar interlinking del blog
-
-- Los posts del blog deben enlazar a las paginas de casos de uso y features
-- Anadir un sidebar o seccion "Articulos relacionados" en cada post
-- Esto mejora el crawl depth y distribuye autoridad
-
-### 3.4 Mejorar la densidad de CTAs en el blog
-
-- Anadir un banner CTA dentro de cada post de blog (a mitad y al final)
-- Actualmente los posts del blog no tienen CTAs claros hacia el producto
-
----
-
-
-| &nbsp; | &nbsp; | &nbsp; | &nbsp; |
-| ------ | ------ | ------ | ------ |
-| &nbsp; | &nbsp; | &nbsp; | &nbsp; |
-| &nbsp; | &nbsp; | &nbsp; | &nbsp; |
