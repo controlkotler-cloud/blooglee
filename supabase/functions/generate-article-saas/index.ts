@@ -345,7 +345,7 @@ CAPITALIZACIÓN ESPAÑOLA:
 ENLACE INTERNO (OBLIGATORIO):
 - Incluye UN enlace a {{homeUrl}} en el artículo, de forma NATURAL
 - Puedes mencionar "{{siteName}}" si encaja de forma orgánica en una frase. Si no encaja, usa un texto ancla genérico como "nuestra web", "nuestro sitio" o "esta guía"
-- ⚠️ NUNCA fuerces el nombre de la empresa en una frase donde no tiene sentido gramatical. El nombre "{{siteName}}" es una MARCA, no un sustantivo común. NO escribas frases como "contar con un {{siteName}}" o "tener {{siteName}} cerca"
+- ⚠️ REGLA CRÍTICA SOBRE EL NOMBRE DE MARCA: "{{siteName}}" es una MARCA COMERCIAL registrada. Úsala SOLO como nombre propio de la empresa. NUNCA la uses como sustantivo común, genérico o sustituto de palabras del sector. NO escribas frases como "contar con un {{siteName}}", "tener {{siteName}} cerca", "la atención a la {{siteName}}" o "acudir a la {{siteName}}". Si necesitas un sustantivo genérico, usa la palabra real del sector (farmacia, clínica, tienda, etc.)
 - Formato: <a href="{{homeUrl}}" target="_blank" rel="noopener">texto ancla natural</a>
 
 ENLACES EXTERNOS (2 OBLIGATORIOS):
@@ -2405,19 +2405,51 @@ Deno.serve(async (req) => {
 
     let savedArticle;
     if (existingArticle) {
-      const { data, error: updateError } = await supabase
+      // Check if article was created very recently (< 60s) — likely a duplicate invocation
+      const { data: existingFull } = await serviceClientForCheck
         .from('articles')
-        .update(articleData)
+        .select('*')
         .eq('id', existingArticle.id)
-        .select()
         .single();
 
-      if (updateError) {
-        console.error("Error updating article:", updateError);
-        throw new Error("Failed to update article");
+      if (existingFull) {
+        const createdAt = new Date(existingFull.generated_at).getTime();
+        const now = Date.now();
+        if (now - createdAt < 60000) {
+          console.log("⚠️ Duplicate invocation detected (article created <60s ago). Returning existing article:", existingArticle.id);
+          savedArticle = existingFull;
+          // Skip update — return existing article as-is
+        } else {
+          const { data, error: updateError } = await supabase
+            .from('articles')
+            .update(articleData)
+            .eq('id', existingArticle.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error("Error updating article:", updateError);
+            throw new Error("Failed to update article");
+          }
+          savedArticle = data;
+          console.log("Updated existing article:", savedArticle.id);
+        }
+      } else {
+        // Shouldn't happen but fallback to update
+        const { data, error: updateError } = await supabase
+          .from('articles')
+          .update(articleData)
+          .eq('id', existingArticle.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error("Error updating article:", updateError);
+          throw new Error("Failed to update article");
+        }
+        savedArticle = data;
+        console.log("Updated existing article (fallback):", savedArticle.id);
       }
-      savedArticle = data;
-      console.log("Updated existing article:", savedArticle.id);
     } else {
       const { data, error: insertError } = await supabase
         .from('articles')
