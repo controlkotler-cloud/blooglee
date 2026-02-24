@@ -135,7 +135,15 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
   };
 
   // Setup phase
-  if (phase === 'setup' && siteId) {
+  if (phase === 'setup') {
+    if (!siteId) {
+      return (
+        <div className="space-y-4 py-8 text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
+          <p className="text-sm text-muted-foreground">Cargando configuración...</p>
+        </div>
+      );
+    }
     return (
       <div className="space-y-4 animate-in fade-in duration-300">
         <WordPressSetup
@@ -241,6 +249,11 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
       </div>
     );
   }
-
-  return null;
+  // Fallback: should not reach here
+  return (
+    <div className="space-y-4 py-8 text-center">
+      <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
+      <p className="text-sm text-muted-foreground">Cargando...</p>
+    </div>
+  );
 }
