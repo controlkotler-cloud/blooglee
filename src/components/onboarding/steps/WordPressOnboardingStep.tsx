@@ -148,6 +148,7 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
       <div className="space-y-4 animate-in fade-in duration-300">
         <WordPressSetup
           siteId={siteId}
+          onClose={handleGoToDashboard}
           onComplete={handleSetupComplete}
         />
       </div>
