@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,6 +14,7 @@ import { useSyncTaxonomiesSaas } from '@/hooks/useWordPressTaxonomiesSaas';
 import { usePolylangDiagnostic } from '@/hooks/usePolylangDiagnostic';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { WordPressTroubleshootPanel } from './WordPressTroubleshootPanel';
+import { PolylangSetupGuide } from './PolylangSetupGuide';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -73,6 +74,9 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
   
   const [showPassword, setShowPassword] = useState(false);
   const [helpOpen, setHelpOpen] = useState(true);
+  const [polylangGuideOpen, setPolylangGuideOpen] = useState(false);
+  const [polylangVerifyResult, setPolylangVerifyResult] = useState<'success' | 'error' | null>(null);
+  const [polylangVerifyMessage, setPolylangVerifyMessage] = useState<string>('');
   
   // Estados de validación
   const [urlStatus, setUrlStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
@@ -478,57 +482,117 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
           </div>
         </form>
 
-        {/* Banner de diagnóstico Polylang */}
-        {hasCatalan && config && polylangDiagnostic && polylangDiagnostic.status === 'error' && (
-          <Alert variant="destructive" className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Polylang no está correctamente configurado</AlertTitle>
-            <AlertDescription className="space-y-2">
-              <p className="text-sm">{polylangDiagnostic.message}</p>
-              <div className="flex flex-wrap gap-2 mt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs border-amber-500/50 hover:bg-amber-100 dark:hover:bg-amber-950/40"
-                  onClick={() => window.open('/help', '_blank')}
-                >
-                  <BookOpen className="w-3.5 h-3.5 mr-1.5" />
-                  Ver solución
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs border-amber-500/50 hover:bg-amber-100 dark:hover:bg-amber-950/40"
-                  onClick={() => config && syncMutation.mutate(config.id)}
-                  disabled={syncMutation.isPending}
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-                  Re-verificar
-                </Button>
-              </div>
-              {polylangDiagnostic.checked_at && (
-                <p className="text-xs text-amber-700/70 dark:text-amber-300/50 mt-1">
-                  Último check: {new Date(polylangDiagnostic.checked_at).toLocaleString('es-ES')}
-                </p>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
+        {/* Banner de diagnóstico Polylang - 3 estados */}
+        {hasCatalan && config && (() => {
+          const diagStatus = polylangDiagnostic?.status;
+          const langLabels = languages.map(l => l === 'spanish' ? 'español' : l === 'catalan' ? 'catalán' : l).join(' y ');
+          const siteOrigin = config.site_url ? (() => { try { return new URL(config.site_url).origin; } catch { return config.site_url; } })() : undefined;
 
-        {hasCatalan && config && polylangDiagnostic && polylangDiagnostic.status === 'ok' && (
-          <Alert className="border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-100 [&>svg]:text-emerald-600">
-            <CheckCircle className="h-4 w-4" />
-            <AlertTitle>Polylang configurado correctamente</AlertTitle>
-            <AlertDescription className="text-sm text-emerald-700 dark:text-emerald-300">
-              {polylangDiagnostic.message}
-              {polylangDiagnostic.checked_at && (
-                <span className="text-xs ml-2 opacity-70">
-                  ({new Date(polylangDiagnostic.checked_at).toLocaleString('es-ES')})
-                </span>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
+          const handleVerifyInGuide = () => {
+            setPolylangVerifyResult(null);
+            syncMutation.mutate(config.id, {
+              onSuccess: () => {
+                // After sync, diagnostic will be refetched. We check the result.
+                setTimeout(() => {
+                  // Re-read from cache won't work instantly, rely on invalidation
+                  setPolylangVerifyResult('success');
+                  setPolylangVerifyMessage('');
+                  // Auto-close after 3 seconds on success
+                  setTimeout(() => setPolylangGuideOpen(false), 3000);
+                }, 1500);
+              },
+              onError: (err) => {
+                setPolylangVerifyResult('error');
+                setPolylangVerifyMessage(err instanceof Error ? err.message : 'Error desconocido');
+              },
+            });
+          };
+
+          if (diagStatus === 'ok') {
+            return (
+              <Alert className="border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-100 [&>svg]:text-emerald-600">
+                <CheckCircle className="h-4 w-4" />
+                <AlertTitle>Polylang conectado correctamente</AlertTitle>
+                <AlertDescription className="text-sm text-emerald-700 dark:text-emerald-300 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span>Los artículos se publican en {langLabels}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 p-0"
+                    onClick={() => syncMutation.mutate(config.id)}
+                    disabled={syncMutation.isPending}
+                  >
+                    <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+                    Reverificar
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            );
+          }
+
+          if (diagStatus === 'error') {
+            return (
+              <>
+                <Alert variant="destructive" className="border-red-500/50 bg-red-50 dark:bg-red-950/20 text-red-900 dark:text-red-100 [&>svg]:text-red-600">
+                  <XCircle className="h-4 w-4" />
+                  <AlertTitle>Error de conexión con Polylang</AlertTitle>
+                  <AlertDescription className="space-y-2">
+                    <p className="text-sm">La publicación multiidioma no funcionará. {polylangDiagnostic?.message}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs border-red-500/50 hover:bg-red-100 dark:hover:bg-red-950/40"
+                      onClick={() => { setPolylangVerifyResult(null); setPolylangGuideOpen(true); }}
+                    >
+                      <BookOpen className="w-3.5 h-3.5 mr-1.5" />
+                      Ver solución
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+                <PolylangSetupGuide
+                  open={polylangGuideOpen}
+                  onOpenChange={setPolylangGuideOpen}
+                  siteUrl={siteOrigin}
+                  onVerify={handleVerifyInGuide}
+                  isVerifying={syncMutation.isPending}
+                  verifyResult={polylangVerifyResult}
+                  verifyMessage={polylangVerifyMessage}
+                />
+              </>
+            );
+          }
+
+          // No diagnostic yet or unknown = yellow/warning
+          return (
+            <>
+              <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Polylang detectado pero no configurado para API</AlertTitle>
+                <AlertDescription className="space-y-2">
+                  <p className="text-sm">Los artículos solo se publicarán en el idioma principal.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs border-amber-500/50 hover:bg-amber-100 dark:hover:bg-amber-950/40"
+                    onClick={() => { setPolylangVerifyResult(null); setPolylangGuideOpen(true); }}
+                  >
+                    <BookOpen className="w-3.5 h-3.5 mr-1.5" />
+                    Configurar ahora
+                  </Button>
+                </AlertDescription>
+              </Alert>
+              <PolylangSetupGuide
+                open={polylangGuideOpen}
+                onOpenChange={setPolylangGuideOpen}
+                siteUrl={siteOrigin}
+                onVerify={handleVerifyInGuide}
+                isVerifying={syncMutation.isPending}
+                verifyResult={polylangVerifyResult}
+                verifyMessage={polylangVerifyMessage}
+              />
+            </>
+          );
+        })()}
 
         {/* Panel condicional: estado si conectado, troubleshoot si no */}
         <WordPressTroubleshootPanel
