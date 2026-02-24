@@ -141,7 +141,6 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
         <WordPressSetup
           siteId={siteId}
           onComplete={handleSetupComplete}
-          onClose={handleGoToDashboard}
         />
       </div>
     );
