@@ -36,6 +36,7 @@ interface PolylangSetupGuideProps {
   isVerifying: boolean;
   verifyResult?: 'success' | 'error' | null;
   verifyMessage?: string;
+  hideVerifyButton?: boolean;
 }
 
 export function PolylangSetupGuide({
@@ -46,6 +47,7 @@ export function PolylangSetupGuide({
   isVerifying,
   verifyResult,
   verifyMessage,
+  hideVerifyButton,
 }: PolylangSetupGuideProps) {
   const [copied, setCopied] = useState(false);
 
@@ -204,25 +206,31 @@ export function PolylangSetupGuide({
 
         {/* Sticky bottom buttons */}
         <div className="sticky bottom-0 left-0 right-0 p-4 border-t bg-background/95 backdrop-blur-sm space-y-2">
-          <Button
-            onClick={onVerify}
-            disabled={isVerifying}
-            className="w-full h-11"
-          >
-            {isVerifying ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Verificando...
-              </>
-            ) : verifyResult === 'error' ? (
-              <>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Reintentar
-              </>
-            ) : (
-              'Verificar conexión multiidioma'
-            )}
-          </Button>
+          {hideVerifyButton ? (
+            <p className="text-sm text-muted-foreground text-center py-2">
+              Podrás verificar la conexión con Polylang una vez conectes WordPress en la pestaña Configuración o en el checklist del dashboard.
+            </p>
+          ) : (
+            <Button
+              onClick={onVerify}
+              disabled={isVerifying}
+              className="w-full h-11"
+            >
+              {isVerifying ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Verificando...
+                </>
+              ) : verifyResult === 'error' ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Reintentar
+                </>
+              ) : (
+                'Verificar conexión multiidioma'
+              )}
+            </Button>
+          )}
           <Button
             variant="ghost"
             className="w-full"
