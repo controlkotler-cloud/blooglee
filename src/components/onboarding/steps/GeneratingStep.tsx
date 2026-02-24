@@ -31,6 +31,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
   const [tipVisible, setTipVisible] = useState(true);
   const [progress, setProgressValue] = useState(0);
   const generatedRef = useRef(false);
+  const isGeneratingRef = useRef(false);
   const startTimeRef = useRef(Date.now());
 
   const topic = (stepData?.step3?.selected_topic as string) ?? 'Tu artículo';
@@ -70,7 +71,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
 
   // Generate article (skip if already generated in a previous mount)
   useEffect(() => {
-    if (generatedRef.current || !siteId) return;
+    if (generatedRef.current || isGeneratingRef.current || !siteId) return;
 
     // If article was already generated in a previous session, skip to next
     const existingArticleId = stepData?.step5?.article_id;
@@ -82,6 +83,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
       return;
     }
 
+    isGeneratingRef.current = true;
     generatedRef.current = true;
     generateArticle();
   }, [siteId]);
@@ -112,6 +114,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
       console.error('Article generation failed:', err);
       setStatus('error');
       generatedRef.current = false;
+      isGeneratingRef.current = false;
     }
   };
 
