@@ -68,9 +68,20 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
     return () => clearInterval(interval);
   }, []);
 
-  // Generate article
+  // Generate article (skip if already generated in a previous mount)
   useEffect(() => {
     if (generatedRef.current || !siteId) return;
+
+    // If article was already generated in a previous session, skip to next
+    const existingArticleId = stepData?.step5?.article_id;
+    if (existingArticleId) {
+      generatedRef.current = true;
+      setProgressValue(100);
+      setStatus('done');
+      setTimeout(() => onNext(), 600);
+      return;
+    }
+
     generatedRef.current = true;
     generateArticle();
   }, [siteId]);
