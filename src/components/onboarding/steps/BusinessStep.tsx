@@ -113,6 +113,28 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
     setIsSaving(true);
 
     try {
+      // Deduplication: check if user already has a site with the same blog_url
+      if (finalUrl) {
+        const normalizedUrl = finalUrl.toLowerCase().replace(/\/+$/, '').replace(/^https?:\/\//, '').replace(/^www\./, '');
+        const { data: existingSites } = await supabase
+          .from('sites')
+          .select('id, name, blog_url')
+          .eq('user_id', user.id);
+
+        const duplicate = existingSites?.find(s => {
+          if (!s.blog_url) return false;
+          const existing = s.blog_url.toLowerCase().replace(/\/+$/, '').replace(/^https?:\/\//, '').replace(/^www\./, '');
+          return existing === normalizedUrl;
+        });
+
+        if (duplicate) {
+          toast.error(`Ya tienes un sitio con esta URL: "${duplicate.name}". Ve al dashboard para gestionarlo.`);
+          setIsSaving(false);
+          submittingRef.current = false;
+          return;
+        }
+      }
+
       const { data: site, error: siteError } = await supabase
         .from('sites')
         .insert({
