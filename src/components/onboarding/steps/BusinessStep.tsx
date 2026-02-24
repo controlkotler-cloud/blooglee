@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building2, MapPin, Globe, Link2 } from 'lucide-react';
+import { Building2, MapPin, Globe, Link2, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -11,6 +11,7 @@ import { useColorPalette } from '@/hooks/useColorPalette';
 import { OnboardingNavButtons } from '../OnboardingNavButtons';
 import type { OnboardingStepData } from '@/hooks/useOnboarding';
 
+// Define constants for sectors and scopes
 const SECTORS = [
   { value: 'farmacia', label: 'Farmacia', icon: '💊' },
   { value: 'clinica_dental', label: 'Clínica dental', icon: '🦷' },
@@ -30,6 +31,34 @@ const SCOPES = [
   { value: 'national', label: 'A clientes de toda España', icon: '🇪🇸' },
   { value: 'international', label: 'A clientes internacionales', icon: '🌍' },
 ];
+
+type UrlStatus = 'empty' | 'valid' | 'missing_protocol' | 'http_only' | 'invalid';
+
+function analyzeUrl(raw: string): { status: UrlStatus; suggestions?: string[] } {
+  const trimmed = raw.trim();
+  if (!trimmed) return { status: 'empty' };
+
+  // Already has https://
+  if (/^https:\/\/.*?\..+/.test(trimmed)) return { status: 'valid' };
+
+  // Has http:// but not https
+  if (/^http:\/\/.*?\..+/.test(trimmed)) return { status: 'http_only' };
+
+  // Looks like a domain without protocol
+  if (/^(www\.)?[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/.test(trimmed)) {
+    const withoutWww = trimmed.replace(/^www\./, '');
+    const withWww = trimmed.startsWith('www.') ? trimmed : `www.${trimmed}`;
+    return {
+      status: 'missing_protocol',
+      suggestions: [`https://${withoutWww}`, `https://${withWww}`],
+    };
+  }
+
+  // Anything else with a dot might be a malformed URL
+  if (trimmed.includes('.')) return { status: 'invalid' };
+
+  return { status: 'invalid' };
+}
 
 interface BusinessStepProps {
   onNext: () => void;
@@ -54,6 +83,10 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
 
   const finalSector = sector === 'otro' ? customSector.trim() : sector;
 
+  const urlAnalysis = useMemo(() => analyzeUrl(websiteUrl), [websiteUrl]);
+
+  const isUrlAcceptable = urlAnalysis.status === 'valid' || urlAnalysis.status === 'http_only';
+
   const canProceed =
     businessName.trim().length > 0 &&
     finalSector.length > 0 &&
@@ -61,8 +94,21 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
     scope.length > 0 &&
     websiteUrl.trim().length > 0;
 
+  const applySuggestion = (suggestion: string) => {
+    setWebsiteUrl(suggestion);
+  };
+
   const handleNext = async () => {
     if (!canProceed || !user?.id || submittingRef.current) return;
+
+    // Auto-fix URL without protocol
+    let finalUrl = websiteUrl.trim();
+    if (urlAnalysis.status === 'missing_protocol') {
+      finalUrl = `https://${finalUrl.replace(/^www\./, '')}`;
+      setWebsiteUrl(finalUrl);
+      toast.info('Hemos añadido https:// a tu URL. Verifica que es correcta.');
+    }
+
     submittingRef.current = true;
     setIsSaving(true);
 
@@ -75,7 +121,7 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
           sector: finalSector,
           location: location.trim(),
           geographic_scope: scope,
-          blog_url: websiteUrl.trim() || null,
+          blog_url: finalUrl || null,
         })
         .select()
         .single();
@@ -89,12 +135,12 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
         sector: finalSector,
         location: location.trim(),
         scope,
-        website_url: websiteUrl.trim() || '',
+        website_url: finalUrl || '',
       };
       await saveStepData('step1', stepData);
 
-      if (websiteUrl.trim()) {
-        triggerExtraction(websiteUrl.trim(), site.id);
+      if (finalUrl) {
+        triggerExtraction(finalUrl, site.id);
       }
 
       await queryClient.refetchQueries({ queryKey: ['sites', user.id] });
@@ -221,18 +267,86 @@ export function BusinessStep({ onNext, saveStepData, createProgress, initialData
         <Label htmlFor="website-url" className="flex items-center gap-2 text-sm font-medium">
           <Link2 className="w-4 h-4 text-primary" />
           URL de tu web <span className="text-destructive">*</span>
+          {urlAnalysis.status === 'valid' && (
+            <CheckCircle className="w-4 h-4 text-emerald-500" />
+          )}
         </Label>
         <Input
           id="website-url"
-          placeholder="Ej: www.farmacialopez.es"
+          type="url"
+          placeholder="https://www.tusitio.com"
           value={websiteUrl}
           onChange={(e) => setWebsiteUrl(e.target.value)}
-          className="h-12 sm:h-11 text-base rounded-lg"
+          className={`h-12 sm:h-11 text-base rounded-lg ${
+            urlAnalysis.status === 'valid' ? 'border-emerald-500/50 focus-visible:ring-emerald-500/30' :
+            urlAnalysis.status === 'invalid' ? 'border-destructive/50 focus-visible:ring-destructive/30' : ''
+          }`}
           maxLength={200}
         />
-        <p className="text-[13px] text-muted-foreground">
-          Analizaremos tu web para extraer los colores de tu marca.
-        </p>
+
+        {/* Helper text — always visible when no inline feedback */}
+        {(urlAnalysis.status === 'empty' || urlAnalysis.status === 'valid') && (
+          <p className="text-[13px] text-muted-foreground">
+            Escribe la URL completa tal como aparece en tu navegador, incluyendo https:// y www si tu web lo usa
+          </p>
+        )}
+
+        {/* Missing protocol suggestions */}
+        {urlAnalysis.status === 'missing_protocol' && urlAnalysis.suggestions && (
+          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 animate-in fade-in duration-200">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  Parece que falta el protocolo. ¿Cuál es la correcta?
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {urlAnalysis.suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => applySuggestion(s)}
+                      className="px-3 py-1.5 text-sm font-medium rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/60 transition-colors border border-amber-300 dark:border-amber-700"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* HTTP warning */}
+        {urlAnalysis.status === 'http_only' && (
+          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 animate-in fade-in duration-200">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  Tu web usa http en vez de https. Si tienes SSL activado, usa https://
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setWebsiteUrl(websiteUrl.replace(/^http:\/\//, 'https://'))}
+                  className="px-3 py-1.5 text-sm font-medium rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/60 transition-colors border border-amber-300 dark:border-amber-700"
+                >
+                  Cambiar a https://
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Invalid URL */}
+        {urlAnalysis.status === 'invalid' && (
+          <div className="flex items-center gap-2 animate-in fade-in duration-200">
+            <XCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+            <p className="text-[13px] text-destructive">
+              La URL no parece válida. Debe ser algo como https://www.tusitio.com
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
