@@ -112,7 +112,8 @@ export function OnboardingWizard() {
       case 9:
         return <WordPressOnboardingStep onFinish={handleCompleteWizard} stepData={stepData} siteId={siteId} />;
       default:
-        return null;
+        // Safety: if step somehow exceeds max, show last valid step
+        return <WordPressOnboardingStep onFinish={handleCompleteWizard} stepData={stepData} siteId={siteId} />;
     }
   };
 

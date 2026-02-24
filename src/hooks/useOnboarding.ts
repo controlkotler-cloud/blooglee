@@ -190,9 +190,11 @@ export function useOnboarding(siteId?: string) {
   }, [setProgress]);
 
   // Navigate steps
+  const MAX_STEP = 9;
+
   const nextStep = useCallback(async () => {
     const current = progressRef.current;
-    if (!current) return;
+    if (!current || current.current_step >= MAX_STEP) return;
 
     const newStep = current.current_step + 1;
     setProgress(prev => prev ? { ...prev, current_step: newStep } : null);
