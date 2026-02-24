@@ -124,7 +124,6 @@ export function WordPressSetup({ siteId, onClose, onComplete }: WordPressSetupPr
             setVerifiedUrl(url);
             setCurrentSubStep('app_password_guide');
           }}
-          onSkip={onClose}
         />
       )}
       {currentSubStep === 'url_check' && (
@@ -136,7 +135,6 @@ export function WordPressSetup({ siteId, onClose, onComplete }: WordPressSetupPr
             setVerifiedUrl(url);
             setCurrentSubStep('app_password_guide');
           }}
-          onSkip={onClose}
         />
       )}
       {currentSubStep === 'app_password_guide' && (
