@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle2, AlertTriangle, Globe, Shield, User } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Globe, Shield, User, KeyRound, ShieldX, WifiOff, Copy, Check } from 'lucide-react';
+import { useState } from 'react';
 
 interface AuthResult {
   authenticated: boolean;
@@ -61,26 +62,43 @@ export function WPVerification({ result, siteUrl, onContinue, onRetry, onSkip }:
 
   if (result.error_type === 'auth_failed') {
     return (
-      <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="space-y-5 animate-in fade-in duration-300">
+        <ErrorHeader
+          icon={<KeyRound className="w-6 h-6 text-amber-500" />}
+          title="Credenciales incorrectas"
+          subtitle="No hemos podido autenticarte en WordPress"
+        />
+
         <Card className="border-amber-500/30 bg-amber-50/50 dark:bg-amber-900/10">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">
-                  El usuario o la contraseña de aplicación no son correctos.
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Asegúrate de usar la <strong>contraseña de aplicación</strong> (no tu contraseña
-                  normal de WordPress). Son las 24 letras que se generaron en el paso anterior.
-                </p>
-              </div>
+          <CardContent className="p-4 space-y-4">
+            <p className="text-sm text-foreground">
+              El usuario o la contraseña de aplicación no coinciden. Comprueba estos puntos:
+            </p>
+
+            <ChecklistItem
+              label="¿Usas la contraseña de aplicación?"
+              detail="Son las 24 letras con espacios que generaste en WordPress (ej: ABCD 1234 EFGH 5678 IJKL 9012). No es tu contraseña normal de login."
+            />
+            <ChecklistItem
+              label="¿Copiaste todos los caracteres?"
+              detail="La contraseña incluye los espacios entre grupos. Asegúrate de copiarla entera sin añadir ni quitar caracteres."
+            />
+            <ChecklistItem
+              label="¿El usuario es correcto?"
+              detail="Usa el mismo nombre de usuario con el que entraste en WordPress para crear la contraseña de aplicación."
+            />
+
+            <div className="rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground space-y-1">
+              <p className="font-medium text-foreground">💡 Tip: genera una nueva contraseña</p>
+              <p>
+                Si no estás seguro, lo más fácil es generar una nueva. Ve a <strong>WordPress → Usuarios → Tu perfil → Contraseñas de aplicación</strong>, escribe "Blooglee" y haz clic en "Añadir".
+              </p>
             </div>
           </CardContent>
         </Card>
 
         <Button onClick={onRetry} className="w-full">
-          Reintentar
+          Reintentar con otras credenciales
         </Button>
 
         <SkipSection onSkip={onSkip} />
@@ -90,39 +108,44 @@ export function WPVerification({ result, siteUrl, onContinue, onRetry, onSkip }:
 
   if (result.error_type === 'no_permissions') {
     return (
-      <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="space-y-5 animate-in fade-in duration-300">
+        <ErrorHeader
+          icon={<ShieldX className="w-6 h-6 text-amber-500" />}
+          title="Sin permisos de publicación"
+          subtitle={result.user_role
+            ? `Tu usuario tiene el rol "${result.user_role}", que no permite publicar.`
+            : 'Tu usuario no tiene permisos para crear entradas en WordPress.'}
+        />
+
         <Card className="border-amber-500/30 bg-amber-50/50 dark:bg-amber-900/10">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">
-                  Tu usuario no tiene permisos para publicar.
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Necesitas un usuario con rol de <strong>Administrador</strong> o{' '}
-                  <strong>Editor</strong>.
-                </p>
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <p className="font-medium">Para verificar tu rol:</p>
-                  <ol className="list-decimal list-inside space-y-0.5">
-                    <li>Entra en WordPress → Usuarios → Tu perfil</li>
-                    <li>Verifica que tu rol sea Administrador o Editor</li>
-                    <li>Si no lo es, pide a un Administrador que lo cambie</li>
-                  </ol>
-                </div>
-                {result.user_role && (
-                  <p className="text-xs text-muted-foreground">
-                    Tu rol actual: <strong>{result.user_role}</strong>
-                  </p>
-                )}
-              </div>
+          <CardContent className="p-4 space-y-4">
+            <p className="text-sm text-foreground">
+              Blooglee necesita un usuario con rol de <strong>Administrador</strong> o <strong>Editor</strong> para poder publicar artículos.
+            </p>
+
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-foreground">Cómo solucionarlo:</p>
+              <ol className="list-decimal list-inside text-xs text-muted-foreground space-y-1.5 pl-1">
+                <li>Entra en <strong>WordPress → Usuarios → Todos los usuarios</strong></li>
+                <li>Busca tu usuario y haz clic en "Editar"</li>
+                <li>Cambia el campo <strong>Perfil</strong> a "Administrador" o "Editor"</li>
+                <li>Guarda los cambios y vuelve aquí</li>
+              </ol>
             </div>
+
+            {result.user_role && (
+              <div className="flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2">
+                <User className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">
+                  Rol actual detectado: <strong className="text-foreground">{result.user_role}</strong>
+                </span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Button onClick={onRetry} className="w-full">
-          Reintentar
+          Ya lo he cambiado, reintentar
         </Button>
 
         <SkipSection onSkip={onSkip} />
@@ -132,29 +155,90 @@ export function WPVerification({ result, siteUrl, onContinue, onRetry, onSkip }:
 
   // Timeout / generic error
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-5 animate-in fade-in duration-300">
+      <ErrorHeader
+        icon={<WifiOff className="w-6 h-6 text-amber-500" />}
+        title="No se pudo conectar"
+        subtitle="No hemos podido comunicarnos con tu WordPress"
+      />
+
       <Card className="border-amber-500/30 bg-amber-50/50 dark:bg-amber-900/10">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">
-                No hemos podido conectar con tu WordPress.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Verifica que tu web está activa e inténtalo de nuevo.
-              </p>
-            </div>
+        <CardContent className="p-4 space-y-4">
+          <p className="text-sm text-foreground">
+            La conexión ha fallado o ha tardado demasiado. Puede deberse a varias causas:
+          </p>
+
+          <ChecklistItem
+            label="Tu web está caída o en mantenimiento"
+            detail="Comprueba que puedes acceder a tu web normalmente desde el navegador."
+          />
+          <ChecklistItem
+            label="Un plugin de seguridad bloquea la API REST"
+            detail="Plugins como Wordfence, iThemes Security o Sucuri pueden bloquear las conexiones API. Revisa sus ajustes o desactívalos temporalmente."
+          />
+          <ChecklistItem
+            label="Tu hosting limita las conexiones externas"
+            detail="Algunos hostings bloquean peticiones API. Contacta a tu proveedor si el problema persiste."
+          />
+
+          <div className="rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
+            <p>
+              <strong>URL que intentamos conectar:</strong>{' '}
+              <CopyableUrl url={siteUrl} />
+            </p>
           </div>
         </CardContent>
       </Card>
 
       <Button onClick={onRetry} className="w-full">
-        Reintentar
+        Reintentar conexión
       </Button>
 
       <SkipSection onSkip={onSkip} />
     </div>
+  );
+}
+
+// --- Sub-components ---
+
+function ErrorHeader({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
+  return (
+    <div className="text-center space-y-2">
+      <div className="flex justify-center">
+        <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center">
+          {icon}
+        </div>
+      </div>
+      <h2 className="text-lg font-display font-bold text-foreground">{title}</h2>
+      <p className="text-sm text-muted-foreground max-w-sm mx-auto">{subtitle}</p>
+    </div>
+  );
+}
+
+function ChecklistItem({ label, detail }: { label: string; detail: string }) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+      <div>
+        <p className="text-xs font-medium text-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
+function CopyableUrl({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button onClick={handleCopy} className="inline-flex items-center gap-1 text-foreground hover:text-primary transition-colors">
+      <code className="break-all">{url}</code>
+      {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+    </button>
   );
 }
 
