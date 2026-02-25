@@ -3,7 +3,8 @@ import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
   "Access-Control-Max-Age": "86400",
 };
@@ -19,7 +20,7 @@ let cacheVersion: number = 0;
 function substituteVariables(content: string, variables: Record<string, string>): string {
   let result = content;
   for (const [key, value] of Object.entries(variables)) {
-    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value || '');
+    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value || "");
   }
   return result;
 }
@@ -29,54 +30,53 @@ async function getPrompt(
   supabase: any,
   key: string,
   variables: Record<string, string>,
-  fallback: string
+  fallback: string,
 ): Promise<string> {
   try {
     // 1. Check cache version from database
     const { data: versionData, error: versionError } = await supabase
-      .from('prompt_cache_version')
-      .select('version')
-      .eq('id', 1)
+      .from("prompt_cache_version")
+      .select("version")
+      .eq("id", 1)
       .single();
-    
+
     if (versionError) {
       console.log("Cache version check failed, using fallback:", versionError.message);
       return substituteVariables(fallback, variables);
     }
-    
+
     const currentVersion = versionData?.version || 0;
-    
+
     // 2. If version changed, clear cache
     if (currentVersion !== cacheVersion) {
       promptCache.clear();
       cacheVersion = currentVersion;
       console.log(`Prompt cache invalidated, new version: ${cacheVersion}`);
     }
-    
+
     // 3. If in cache, use it
     if (promptCache.has(key)) {
       console.log(`Using cached prompt: ${key}`);
       return substituteVariables(promptCache.get(key)!, variables);
     }
-    
+
     // 4. Load from database
     const { data, error } = await supabase
-      .from('prompts')
-      .select('content')
-      .eq('key', key)
-      .eq('is_active', true)
+      .from("prompts")
+      .select("content")
+      .eq("key", key)
+      .eq("is_active", true)
       .single();
-    
+
     if (error || !data?.content) {
       console.log(`Prompt not found in DB (${key}), using fallback`);
       return substituteVariables(fallback, variables);
     }
-    
+
     // 5. Store in cache and return
     promptCache.set(key, data.content);
     console.log(`Loaded prompt from DB: ${key}`);
     return substituteVariables(data.content, variables);
-    
   } catch (e) {
     console.error(`Error loading prompt ${key}:`, e);
     return substituteVariables(fallback, variables);
@@ -86,15 +86,11 @@ async function getPrompt(
 // ==========================================
 // META DESCRIPTION FIXER - Uses AI to rewrite instead of truncating
 // ==========================================
-async function fixMetaDescription(
-  metaDesc: string,
-  focusKeyword: string,
-  apiKey: string
-): Promise<string> {
+async function fixMetaDescription(metaDesc: string, focusKeyword: string, apiKey: string): Promise<string> {
   // Step 1: Always clean punctuation
   let cleaned = metaDesc
-    .replace(/[!¡?¿]/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/[!¡?¿]/g, "")
+    .replace(/\s+/g, " ")
     .trim();
 
   // Step 2: If already valid (≤145 chars, looks complete), return as-is
@@ -104,19 +100,20 @@ async function fixMetaDescription(
 
   // Step 3: If too long or looks cut off, regenerate with AI
   console.log(`Meta description needs fix: ${cleaned.length} chars, regenerating with AI...`);
-  
+
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
-        messages: [{
-          role: "user",
-          content: `Reescribe esta meta description para que tenga EXACTAMENTE entre 120 y 140 caracteres. 
+        messages: [
+          {
+            role: "user",
+            content: `Reescribe esta meta description para que tenga EXACTAMENTE entre 120 y 140 caracteres. 
 La frase debe ser COMPLETA, con sentido, sin cortes ni puntos suspensivos.
 Incluye la keyword "${focusKeyword}" de forma natural.
 PROHIBIDO usar signos de exclamación (!) o interrogación (?).
@@ -124,8 +121,9 @@ Tono directo y profesional.
 
 Meta description original: "${cleaned}"
 
-Responde SOLO con la nueva meta description, sin comillas ni explicaciones.`
-        }],
+Responde SOLO con la nueva meta description, sin comillas ni explicaciones.`,
+          },
+        ],
         temperature: 0.3,
         max_tokens: 200,
       }),
@@ -133,12 +131,12 @@ Responde SOLO con la nueva meta description, sin comillas ni explicaciones.`
 
     if (response.ok) {
       const data = await response.json();
-      let newMeta = (data.choices?.[0]?.message?.content || '')
-        .replace(/^["']|["']$/g, '')
-        .replace(/[!¡?¿]/g, '')
-        .replace(/\s+/g, ' ')
+      let newMeta = (data.choices?.[0]?.message?.content || "")
+        .replace(/^["']|["']$/g, "")
+        .replace(/[!¡?¿]/g, "")
+        .replace(/\s+/g, " ")
         .trim();
-      
+
       if (newMeta.length >= 50 && newMeta.length <= 145) {
         console.log(`Meta description regenerated: ${newMeta.length} chars`);
         return newMeta;
@@ -153,17 +151,17 @@ Responde SOLO con la nueva meta description, sin comillas ni explicaciones.`
   if (cleaned.length > 145) {
     // Try to cut at last period before 145
     const sub = cleaned.substring(0, 145);
-    const lastPeriod = sub.lastIndexOf('.');
+    const lastPeriod = sub.lastIndexOf(".");
     if (lastPeriod > 80) {
       return cleaned.substring(0, lastPeriod + 1);
     }
     // Try comma
-    const lastComma = sub.lastIndexOf(',');
+    const lastComma = sub.lastIndexOf(",");
     if (lastComma > 80) {
       return cleaned.substring(0, lastComma);
     }
     // Last word boundary
-    const lastSpace = sub.lastIndexOf(' ');
+    const lastSpace = sub.lastIndexOf(" ");
     return lastSpace > 100 ? cleaned.substring(0, lastSpace) : sub;
   }
 
@@ -175,7 +173,7 @@ Responde SOLO con la nueva meta description, sin comillas ni explicaciones.`
 // ==========================================
 function cleanMarkdownFromHtml(content: string): string {
   if (!content) return content;
-  
+
   // Step 1: Protect HTML tags from markdown processing
   // Extract all HTML tags and replace with placeholders
   const tags: string[] = [];
@@ -183,25 +181,25 @@ function cleanMarkdownFromHtml(content: string): string {
     tags.push(match);
     return `%%HTMLTAG-${tags.length - 1}%%`;
   });
-  
+
   // Step 2: Apply markdown cleanup ONLY on text content (not inside HTML tags)
   protected_content = protected_content
     // **texto** or __texto__ → <strong>texto</strong>
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
     // *texto* or _texto_ → <em>texto</em>
-    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>')
-    .replace(/(?<!_)_([^_\n]+)_(?!_)/g, '<em>$1</em>')
+    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "<em>$1</em>")
+    .replace(/(?<!_)_([^_\n]+)_(?!_)/g, "<em>$1</em>")
     // ~~texto~~ → <del>texto</del>
-    .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+    .replace(/~~([^~]+)~~/g, "<del>$1</del>")
     // `codigo` → <code>codigo</code>
-    .replace(/`([^`]+)`/g, '<code>$1</code>');
-  
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+
   // Step 3: Restore original HTML tags
   protected_content = protected_content.replace(/%%HTMLTAG-(\d+)%%/g, (_, index) => {
     return tags[parseInt(index)];
   });
-  
+
   return protected_content;
 }
 
@@ -466,7 +464,7 @@ STRICT REQUIREMENTS:
 - NO human faces
 - All products must be completely generic and unbranded
 - No visible text, labels or packaging on any product
-- Suitable for blog header, 16:9 ratio`
+- Suitable for blog header, 16:9 ratio`,
 };
 
 // ==========================================
@@ -479,7 +477,7 @@ const RATE_LIMIT_MAX_REQUESTS = 5;
 function checkUserRateLimit(userId: string): { allowed: boolean; retryAfter?: number } {
   const now = Date.now();
   const record = userRateLimitMap.get(userId);
-  
+
   if (userRateLimitMap.size > 500) {
     for (const [key, value] of userRateLimitMap.entries()) {
       if (now > value.resetTime) {
@@ -487,17 +485,17 @@ function checkUserRateLimit(userId: string): { allowed: boolean; retryAfter?: nu
       }
     }
   }
-  
+
   if (!record || now > record.resetTime) {
     userRateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
     return { allowed: true };
   }
-  
+
   if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
     const retryAfter = Math.ceil((record.resetTime - now) / 1000);
     return { allowed: false, retryAfter };
   }
-  
+
   record.count++;
   return { allowed: true };
 }
@@ -507,19 +505,13 @@ function checkUserRateLimit(userId: string): { allowed: boolean; retryAfter?: nu
 // ==========================================
 async function getTeamMemberEmails(supabase: any, ownerId: string): Promise<string[]> {
   try {
-    const { data: teamMembers } = await supabase
-      .from('team_members')
-      .select('member_id')
-      .eq('owner_id', ownerId);
-    
+    const { data: teamMembers } = await supabase.from("team_members").select("member_id").eq("owner_id", ownerId);
+
     if (!teamMembers || teamMembers.length === 0) return [];
-    
+
     const memberIds = teamMembers.map((m: { member_id: string }) => m.member_id);
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('email')
-      .in('user_id', memberIds);
-    
+    const { data: profiles } = await supabase.from("profiles").select("email").in("user_id", memberIds);
+
     return profiles?.map((p: { email: string }) => p.email).filter(Boolean) || [];
   } catch (e) {
     console.error("Error fetching team member emails:", e);
@@ -536,7 +528,7 @@ async function sendArticleNotification(
   articleTitle: string,
   articleExcerpt: string,
   siteId: string,
-  extraEmails: string[] = []
+  extraEmails: string[] = [],
 ): Promise<void> {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) {
@@ -547,7 +539,7 @@ async function sendArticleNotification(
   try {
     const resend = new Resend(RESEND_API_KEY);
     const siteUrl = "https://blooglee.lovable.app";
-    
+
     const html = `
 <!DOCTYPE html>
 <html>
@@ -593,8 +585,8 @@ async function sendArticleNotification(
 </body>
 </html>`;
 
-    const allRecipients = [userEmail, ...extraEmails.filter(e => e !== userEmail)];
-    console.log(`Sending article notification to: ${allRecipients.join(', ')}`);
+    const allRecipients = [userEmail, ...extraEmails.filter((e) => e !== userEmail)];
+    console.log(`Sending article notification to: ${allRecipients.join(", ")}`);
 
     const { error } = await resend.emails.send({
       from: "Blooglee <noreply@blooglee.com>",
@@ -622,7 +614,7 @@ async function sendPublishedNotification(
   articleTitle: string,
   postUrl: string,
   siteId: string,
-  extraEmails: string[] = []
+  extraEmails: string[] = [],
 ): Promise<void> {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) return;
@@ -678,8 +670,8 @@ async function sendPublishedNotification(
 </body>
 </html>`;
 
-    const allRecipients = [userEmail, ...extraEmails.filter(e => e !== userEmail)];
-    console.log(`Sending published notification to: ${allRecipients.join(', ')}`);
+    const allRecipients = [userEmail, ...extraEmails.filter((e) => e !== userEmail)];
+    console.log(`Sending published notification to: ${allRecipients.join(", ")}`);
 
     const { error } = await resend.emails.send({
       from: "Blooglee <noreply@blooglee.com>",
@@ -754,24 +746,29 @@ interface SectorContext {
 // PILLAR DESCRIPTIONS
 // ==========================================
 const PILLAR_DESCRIPTIONS: Record<string, string> = {
-  educational: "Contenido EDUCATIVO: guías prácticas, tutoriales paso a paso, how-to, consejos aplicables inmediatamente. Enseña algo útil al lector.",
-  trends: "Contenido de TENDENCIAS: novedades del sector, innovación, cambios recientes, lo que viene. Mantén al lector actualizado.",
-  cases: "Contenido de CASOS PRÁCTICOS: ejemplos reales, testimonios, historias de éxito, antes/después. Muestra resultados concretos.",
-  seasonal: "Contenido ESTACIONAL: adaptado a la época del año, fechas señaladas, temporadas comerciales, eventos relevantes.",
-  opinion: "Contenido de OPINIÓN/ANÁLISIS: perspectivas del sector, reflexiones profesionales, análisis de situaciones, visión experta."
+  educational:
+    "Contenido EDUCATIVO: guías prácticas, tutoriales paso a paso, how-to, consejos aplicables inmediatamente. Enseña algo útil al lector.",
+  trends:
+    "Contenido de TENDENCIAS: novedades del sector, innovación, cambios recientes, lo que viene. Mantén al lector actualizado.",
+  cases:
+    "Contenido de CASOS PRÁCTICOS: ejemplos reales, testimonios, historias de éxito, antes/después. Muestra resultados concretos.",
+  seasonal:
+    "Contenido ESTACIONAL: adaptado a la época del año, fechas señaladas, temporadas comerciales, eventos relevantes.",
+  opinion:
+    "Contenido de OPINIÓN/ANÁLISIS: perspectivas del sector, reflexiones profesionales, análisis de situaciones, visión experta.",
 };
 
 const TONE_DESCRIPTIONS: Record<string, string> = {
   formal: "Tono FORMAL y profesional: lenguaje institucional, serio pero no frío, evita coloquialismos.",
   casual: "Tono CERCANO pero experto: accesible sin perder autoridad, tutea al lector, conversacional.",
   technical: "Tono TÉCNICO y especializado: usa terminología del sector, para audiencia experta.",
-  educational: "Tono DIVULGATIVO y accesible: explica conceptos complejos de forma simple, pedagógico."
+  educational: "Tono DIVULGATIVO y accesible: explica conceptos complejos de forma simple, pedagógico.",
 };
 
 const LENGTH_TARGETS: Record<string, { words: number; description: string; maxTokens: number }> = {
   short: { words: 800, description: "~800 palabras, lectura rápida de 3 minutos", maxTokens: 6000 },
   medium: { words: 1500, description: "~1500 palabras, lectura de 6-7 minutos", maxTokens: 10000 },
-  long: { words: 2500, description: "~2500 palabras, guía completa de 10+ minutos", maxTokens: 16000 }
+  long: { words: 2500, description: "~2500 palabras, guía completa de 10+ minutos", maxTokens: 16000 },
 };
 
 // ==========================================
@@ -779,89 +776,143 @@ const LENGTH_TARGETS: Record<string, { words: number; description: string; maxTo
 // ==========================================
 const SECTOR_IMAGE_CONTEXTS: Record<string, SectorContext> = {
   marketing: {
-    examples: ["business team meeting modern office laptop", "digital marketing analytics dashboard screen", "creative workspace minimal design desk"],
+    examples: [
+      "business team meeting modern office laptop",
+      "digital marketing analytics dashboard screen",
+      "creative workspace minimal design desk",
+    ],
     prohibitedTerms: ["facebook logo", "instagram icon", "twitter", "tiktok"],
-    fallbackQuery: "professional business workspace modern office"
+    fallbackQuery: "professional business workspace modern office",
   },
   tecnologia: {
-    examples: ["programmer coding laptop dark modern office", "technology innovation abstract blue lights", "startup team collaboration whiteboard"],
+    examples: [
+      "programmer coding laptop dark modern office",
+      "technology innovation abstract blue lights",
+      "startup team collaboration whiteboard",
+    ],
     prohibitedTerms: ["apple logo", "microsoft", "google"],
-    fallbackQuery: "technology innovation abstract professional"
+    fallbackQuery: "technology innovation abstract professional",
   },
   salud: {
-    examples: ["wellness lifestyle healthy living nature", "medical professional consultation friendly", "healthcare innovation modern clinic"],
+    examples: [
+      "wellness lifestyle healthy living nature",
+      "medical professional consultation friendly",
+      "healthcare innovation modern clinic",
+    ],
     prohibitedTerms: ["pills", "medicine bottles", "hospital bed", "surgery", "blood"],
-    fallbackQuery: "wellness health professional modern"
+    fallbackQuery: "wellness health professional modern",
   },
   farmacia: {
-    examples: ["pharmacy shelves products wellness", "natural health supplements herbs", "wellness lifestyle healthy products"],
+    examples: [
+      "pharmacy shelves products wellness",
+      "natural health supplements herbs",
+      "wellness lifestyle healthy products",
+    ],
     prohibitedTerms: ["pills closeup", "medicine bottles", "hospital", "surgery", "syringes", "blood"],
-    fallbackQuery: "pharmacy wellness natural health products"
+    fallbackQuery: "pharmacy wellness natural health products",
   },
   belleza: {
-    examples: ["beautiful hairstyle woman portrait natural light", "elegant haircut woman closeup professional photo", "hair color highlights natural"],
+    examples: [
+      "beautiful hairstyle woman portrait natural light",
+      "elegant haircut woman closeup professional photo",
+      "hair color highlights natural",
+    ],
     prohibitedTerms: ["barber", "barbershop", "beard", "men haircut", "shaving"],
-    fallbackQuery: "beautiful hairstyle woman portrait elegant"
+    fallbackQuery: "beautiful hairstyle woman portrait elegant",
   },
   hosteleria: {
-    examples: ["restaurant interior modern elegant dining tables", "chef cooking kitchen professional gourmet", "hotel lobby luxury modern reception"],
+    examples: [
+      "restaurant interior modern elegant dining tables",
+      "chef cooking kitchen professional gourmet",
+      "hotel lobby luxury modern reception",
+    ],
     prohibitedTerms: ["fast food", "dirty kitchen", "drunk", "messy"],
-    fallbackQuery: "restaurant elegant dining professional interior"
+    fallbackQuery: "restaurant elegant dining professional interior",
   },
   default: {
-    examples: ["professional team collaboration office", "business success growth abstract", "modern workspace minimal clean"],
+    examples: [
+      "professional team collaboration office",
+      "business success growth abstract",
+      "modern workspace minimal clean",
+    ],
     prohibitedTerms: [],
-    fallbackQuery: "professional business success modern"
-  }
+    fallbackQuery: "professional business success modern",
+  },
 };
 
-const MONTH_NAMES_ES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const MONTH_NAMES_CA = ["Gener", "Febrer", "Març", "Abril", "Maig", "Juny", "Juliol", "Agost", "Setembre", "Octubre", "Novembre", "Desembre"];
+const MONTH_NAMES_ES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+const MONTH_NAMES_CA = [
+  "Gener",
+  "Febrer",
+  "Març",
+  "Abril",
+  "Maig",
+  "Juny",
+  "Juliol",
+  "Agost",
+  "Setembre",
+  "Octubre",
+  "Novembre",
+  "Desembre",
+];
 
 // ==========================================
 // JSON REPAIR: Escape control chars ONLY inside string literals
 // ==========================================
 function escapeControlCharsInsideStrings(input: string): string {
-  let result = '';
+  let result = "";
   let inString = false;
   let escaped = false;
-  
+
   for (let i = 0; i < input.length; i++) {
     const char = input[i];
     const code = input.charCodeAt(i);
-    
+
     if (escaped) {
       // Previous char was backslash inside string, just add this char
       result += char;
       escaped = false;
       continue;
     }
-    
+
     if (char === '"' && !escaped) {
       // Toggle string state
       inString = !inString;
       result += char;
       continue;
     }
-    
-    if (char === '\\' && inString) {
+
+    if (char === "\\" && inString) {
       // Next char is escaped
       escaped = true;
       result += char;
       continue;
     }
-    
+
     if (inString) {
       // Inside a string - escape control characters
-      if (char === '\n') {
-        result += '\\n';
-      } else if (char === '\r') {
-        result += '\\r';
-      } else if (char === '\t') {
-        result += '\\t';
-      } else if (code >= 0x00 && code <= 0x1F) {
+      if (char === "\n") {
+        result += "\\n";
+      } else if (char === "\r") {
+        result += "\\r";
+      } else if (char === "\t") {
+        result += "\\t";
+      } else if (code >= 0x00 && code <= 0x1f) {
         // Other control chars - convert to unicode escape
-        result += '\\u' + code.toString(16).padStart(4, '0');
+        result += "\\u" + code.toString(16).padStart(4, "0");
       } else {
         result += char;
       }
@@ -870,7 +921,7 @@ function escapeControlCharsInsideStrings(input: string): string {
       result += char;
     }
   }
-  
+
   return result;
 }
 
@@ -879,14 +930,14 @@ function escapeControlCharsInsideStrings(input: string): string {
 // ==========================================
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const response = await fetch(url, options);
       if (response.status === 429) {
         const waitTime = Math.pow(2, attempt + 1) * 1000;
         console.log(`Rate limit hit, waiting ${waitTime}ms before retry ${attempt + 1}/${maxRetries}`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
         continue;
       }
       return response;
@@ -895,7 +946,7 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3)
       console.error(`Fetch attempt ${attempt + 1} failed:`, lastError.message);
       if (attempt < maxRetries - 1) {
         const waitTime = Math.pow(2, attempt + 1) * 1000;
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
       }
     }
   }
@@ -905,88 +956,98 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3)
 function detectSectorCategory(sector: string | null | undefined): string {
   if (!sector) return "default";
   const s = sector.toLowerCase();
-  
+
   // IMPORTANT: Check specific sectors BEFORE generic ones
   // "farmacia" must be checked before "digital" (a pharmacy site might mention "digital")
-  if (s.includes("farmacia") || s.includes("parafarm") || s.includes("dermofarm") || s.includes("botica")) return "farmacia";
+  if (s.includes("farmacia") || s.includes("parafarm") || s.includes("dermofarm") || s.includes("botica"))
+    return "farmacia";
   if (s.includes("peluqu") || s.includes("cabello") || s.includes("estétic") || s.includes("beauty")) return "belleza";
-  if (s.includes("restaur") || s.includes("hotel") || s.includes("hostel") || s.includes("bar ") || s.includes("cafeter")) return "hosteleria";
-  if (s.includes("marketing") || s.includes("seo") || s.includes("publicidad") || s.includes("agencia")) return "marketing";
-  if (s.includes("tecnolog") || s.includes("software") || s.includes("informát") || s.includes("saas")) return "tecnologia";
+  if (
+    s.includes("restaur") ||
+    s.includes("hotel") ||
+    s.includes("hostel") ||
+    s.includes("bar ") ||
+    s.includes("cafeter")
+  )
+    return "hosteleria";
+  if (s.includes("marketing") || s.includes("seo") || s.includes("publicidad") || s.includes("agencia"))
+    return "marketing";
+  if (s.includes("tecnolog") || s.includes("software") || s.includes("informát") || s.includes("saas"))
+    return "tecnologia";
   if (s.includes("salud") || s.includes("médic") || s.includes("clínic") || s.includes("wellness")) return "salud";
-  
+
   return "default";
 }
 
 function buildGeoContext(site: SiteData): { geoContext: string; locationInfo: string } {
   const scope = site.geographic_scope || "local";
-  
+
   switch (scope) {
     case "local":
       if (!site.location || site.location.trim() === "") {
         return {
           geoContext: `- El contenido es de ámbito general, sin referencias a ubicaciones específicas.`,
-          locationInfo: "Ámbito: General"
+          locationInfo: "Ámbito: General",
         };
       }
       return {
         geoContext: `- Menciona la población "${site.location}" 1-2 veces para potenciar el SEO local.`,
-        locationInfo: `Localidad: ${site.location}`
+        locationInfo: `Localidad: ${site.location}`,
       };
-      
+
     case "regional":
       if (!site.location || site.location.trim() === "") {
         return {
           geoContext: `- El contenido es de ámbito regional, pero sin región específica.`,
-          locationInfo: "Ámbito: Regional"
+          locationInfo: "Ámbito: Regional",
         };
       }
       return {
         geoContext: `- Menciona la región "${site.location}" 1-2 veces para SEO regional.`,
-        locationInfo: `Región: ${site.location}`
+        locationInfo: `Región: ${site.location}`,
       };
-      
+
     case "national":
     default:
       return {
         geoContext: `- PROHIBIDO mencionar cualquier ubicación geográfica específica. El contenido es para toda España.`,
-        locationInfo: "Ámbito: Nacional (toda España)"
+        locationInfo: "Ámbito: Nacional (toda España)",
       };
   }
 }
 
 async function isUserAdmin(supabaseClient: any, userId: string): Promise<boolean> {
   try {
-    const { data, error } = await supabaseClient
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId);
-    
+    const { data, error } = await supabaseClient.from("user_roles").select("role").eq("user_id", userId);
+
     if (error) {
       console.error("Error checking admin role:", error);
       return false;
     }
-    
-    return data?.some((r: { role: string }) => r.role === 'admin') || false;
+
+    return data?.some((r: { role: string }) => r.role === "admin") || false;
   } catch (e) {
     console.error("Exception checking admin role:", e);
     return false;
   }
 }
 
-async function getUserProfile(supabaseClient: any, userId: string): Promise<{ posts_limit: number; plan: string } | null> {
+async function getUserProfile(
+  supabaseClient: any,
+  userId: string,
+): Promise<{ posts_limit: number; plan: string } | null> {
   try {
     const { data, error } = await supabaseClient
-      .from('profiles')
-      .select('posts_limit, plan')
-      .eq('user_id', userId)
+      .from("profiles")
+      .select("posts_limit, plan")
+      .eq("user_id", userId)
       .single();
-    
+
     if (error) {
       console.error("Error fetching profile:", error);
       return null;
     }
-    
+
     return data;
   } catch (e) {
     console.error("Exception fetching profile:", e);
@@ -998,15 +1059,15 @@ async function getUserProfile(supabaseClient: any, userId: string): Promise<{ po
 async function countTotalArticles(supabaseClient: any, userId: string): Promise<number> {
   try {
     const { count, error } = await supabaseClient
-      .from('articles')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
-    
+      .from("articles")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId);
+
     if (error) {
       console.error("Error counting total articles:", error);
       return 0;
     }
-    
+
     return count || 0;
   } catch (e) {
     console.error("Exception counting total articles:", e);
@@ -1014,20 +1075,25 @@ async function countTotalArticles(supabaseClient: any, userId: string): Promise<
   }
 }
 
-async function countArticlesThisMonth(supabaseClient: any, userId: string, month: number, year: number): Promise<number> {
+async function countArticlesThisMonth(
+  supabaseClient: any,
+  userId: string,
+  month: number,
+  year: number,
+): Promise<number> {
   try {
     const { count, error } = await supabaseClient
-      .from('articles')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('month', month)
-      .eq('year', year);
-    
+      .from("articles")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("month", month)
+      .eq("year", year);
+
     if (error) {
       console.error("Error counting articles:", error);
       return 0;
     }
-    
+
     return count || 0;
   } catch (e) {
     console.error("Exception counting articles:", e);
@@ -1035,35 +1101,68 @@ async function countArticlesThisMonth(supabaseClient: any, userId: string, month
   }
 }
 
+function normalizeFrequency(rawFrequency: string | null | undefined): string {
+  if (!rawFrequency) return "monthly";
+  if (rawFrequency === "fortnightly") return "biweekly";
+  return rawFrequency;
+}
+
 // Get dynamic topics limit based on publish frequency
 function getTopicsLimitForFrequency(publishFrequency: string): number {
-  switch (publishFrequency) {
-    case 'daily':
-    case 'daily_weekdays':
+  const normalizedFrequency = normalizeFrequency(publishFrequency);
+
+  switch (normalizedFrequency) {
+    case "daily":
+    case "daily_weekdays":
       return 60; // ~2 months of memory for daily
-    case 'weekly':
-    case 'biweekly':
+    case "weekly":
+    case "biweekly":
       return 30; // ~6-7 months for weekly
-    case 'monthly':
+    case "monthly":
     default:
       return 20; // ~20 months for monthly
+  }
+}
+
+async function logSiteActivity(
+  supabaseClient: any,
+  siteId: string,
+  userId: string,
+  actionType: string,
+  description: string,
+  metadata: Record<string, unknown> = {},
+): Promise<void> {
+  try {
+    const { error } = await supabaseClient.from("site_activity_log").insert({
+      site_id: siteId,
+      user_id: userId,
+      action_type: actionType,
+      description,
+      metadata,
+    });
+
+    if (error) {
+      console.error(`[site-activity] Failed to log ${actionType}:`, error);
+    }
+  } catch (error) {
+    console.error(`[site-activity] Exception logging ${actionType}:`, error);
   }
 }
 
 async function getUsedTopicsForSite(supabaseClient: any, siteId: string, limit: number = 50): Promise<string[]> {
   try {
     const { data, error } = await supabaseClient
-      .from('articles')
-      .select('topic')
-      .eq('site_id', siteId)
-      .order('generated_at', { ascending: false })
+      .from("articles")
+      .select("topic")
+      .eq("site_id", siteId)
+      .order("generated_at", { ascending: false })
       .limit(limit);
-    
+
     if (error) {
       console.error("Error fetching used topics:", error);
       return [];
     }
-    
+
     return data?.map((a: { topic: string }) => a.topic) || [];
   } catch (e) {
     console.error("Exception fetching used topics:", e);
@@ -1076,83 +1175,135 @@ async function getUsedTopicsForSite(supabaseClient: any, siteId: string, limit: 
 
 // Words that should stay lowercase in Spanish titles (unless first word)
 const SPANISH_LOWERCASE_WORDS = new Set([
-  'a', 'al', 'ante', 'bajo', 'con', 'contra', 'de', 'del', 'desde', 'durante',
-  'e', 'el', 'en', 'entre', 'hacia', 'hasta', 'la', 'las', 'lo', 'los',
-  'mediante', 'ni', 'o', 'para', 'pero', 'por', 'que', 'se', 'según', 'sin',
-  'sobre', 'su', 'sus', 'tan', 'tu', 'tus', 'u', 'un', 'una', 'uno', 'unos', 'unas',
-  'y', 'ya', 'como', 'más', 'muy', 'nos', 'es', 'son', 'no', 'si', 'te', 'mi', 'me',
+  "a",
+  "al",
+  "ante",
+  "bajo",
+  "con",
+  "contra",
+  "de",
+  "del",
+  "desde",
+  "durante",
+  "e",
+  "el",
+  "en",
+  "entre",
+  "hacia",
+  "hasta",
+  "la",
+  "las",
+  "lo",
+  "los",
+  "mediante",
+  "ni",
+  "o",
+  "para",
+  "pero",
+  "por",
+  "que",
+  "se",
+  "según",
+  "sin",
+  "sobre",
+  "su",
+  "sus",
+  "tan",
+  "tu",
+  "tus",
+  "u",
+  "un",
+  "una",
+  "uno",
+  "unos",
+  "unas",
+  "y",
+  "ya",
+  "como",
+  "más",
+  "muy",
+  "nos",
+  "es",
+  "son",
+  "no",
+  "si",
+  "te",
+  "mi",
+  "me",
 ]);
 
 // Words/patterns that should keep their original casing (brands, acronyms, etc.)
-const PRESERVE_CASE_PATTERNS = /^(SEO|HTML|CSS|API|URL|FAQ|CRM|SaaS|WordPress|Google|Instagram|Facebook|TikTok|LinkedIn|YouTube|iOS|AI|IA|B2B|B2C|KPI|ROI|CMS|PHP|UX|UI|RGPD|LOPD|IVA|DNI|NIF|CBD|SPF|LED|OK|etc|vs)$/i;
+const PRESERVE_CASE_PATTERNS =
+  /^(SEO|HTML|CSS|API|URL|FAQ|CRM|SaaS|WordPress|Google|Instagram|Facebook|TikTok|LinkedIn|YouTube|iOS|AI|IA|B2B|B2C|KPI|ROI|CMS|PHP|UX|UI|RGPD|LOPD|IVA|DNI|NIF|CBD|SPF|LED|OK|etc|vs)$/i;
 
 function enforceSpanishCapitalizationText(text: string): string {
   if (!text || text.length < 2) return text;
-  
+
   // Split into words, preserving whitespace and punctuation
   const words = text.split(/(\s+)/);
   let isFirstWord = true;
-  
+
   const result = words.map((word) => {
     // Skip whitespace tokens
     if (/^\s+$/.test(word)) return word;
-    
+
     // Skip empty
     if (!word) return word;
-    
+
     // Preserve brands/acronyms
-    if (PRESERVE_CASE_PATTERNS.test(word.replace(/[^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]/g, ''))) {
+    if (PRESERVE_CASE_PATTERNS.test(word.replace(/[^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]/g, ""))) {
       isFirstWord = false;
       return word;
     }
-    
+
     // Extract leading punctuation (¿, ¡, ", etc.)
-    const leadingPunct = word.match(/^([^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]*)/)?.[1] || '';
-    const trailingPunct = word.match(/([^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]*)$/)?.[1] || '';
-    const core = word.slice(leadingPunct.length, word.length - (trailingPunct.length || 0)) || word.slice(leadingPunct.length);
-    
+    const leadingPunct = word.match(/^([^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]*)/)?.[1] || "";
+    const trailingPunct = word.match(/([^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]*)$/)?.[1] || "";
+    const core =
+      word.slice(leadingPunct.length, word.length - (trailingPunct.length || 0)) || word.slice(leadingPunct.length);
+
     if (!core) {
       return word;
     }
-    
+
     // Check if starts after sentence-ending punctuation
-    const isAfterSentenceEnd = leadingPunct.includes('¿') || leadingPunct.includes('¡');
-    
+    const isAfterSentenceEnd = leadingPunct.includes("¿") || leadingPunct.includes("¡");
+
     if (isFirstWord || isAfterSentenceEnd) {
       isFirstWord = false;
       // Capitalize first letter, lowercase rest (unless it's a preserved pattern)
       return leadingPunct + core.charAt(0).toUpperCase() + core.slice(1).toLowerCase() + trailingPunct;
     }
-    
+
     isFirstWord = false;
-    
+
     // Common Spanish lowercase words
     if (SPANISH_LOWERCASE_WORDS.has(core.toLowerCase())) {
       return leadingPunct + core.toLowerCase() + trailingPunct;
     }
-    
+
     // Everything else: lowercase (Spanish capitalization rule)
     return leadingPunct + core.charAt(0).toLowerCase() + core.slice(1).toLowerCase() + trailingPunct;
   });
-  
-  return result.join('');
+
+  return result.join("");
 }
 
 function enforceSpanishCapitalizationHtml(htmlContent: string): string {
   if (!htmlContent) return htmlContent;
-  
+
   let fixed = htmlContent;
   let fixCount = 0;
-  
+
   // Fix H2 and H3 tags in HTML
   fixed = fixed.replace(/<(h[23])([^>]*)>(.*?)<\/\1>/gi, (_match, tag, attrs, innerText) => {
     // Don't touch if it contains HTML links or other tags (except simple formatting)
     if (/<a\s/i.test(innerText)) return _match;
-    
-    const cleaned = enforceSpanishCapitalizationText(innerText.replace(/<[^>]+>/g, ''));
-    
+
+    const cleaned = enforceSpanishCapitalizationText(innerText.replace(/<[^>]+>/g, ""));
+
     // Reconstruct with any inline tags preserved
-    if (cleaned !== innerText.replace(/<[^>]+>/g, '')) {
+    if (cleaned !== innerText.replace(/<[^>]+>/g, "")) {
       fixCount++;
       // Simple case: no inner HTML tags
       if (!/<[^>]+>/.test(innerText)) {
@@ -1161,11 +1312,11 @@ function enforceSpanishCapitalizationHtml(htmlContent: string): string {
     }
     return _match;
   });
-  
+
   if (fixCount > 0) {
     console.log(`Capitalization enforcement: fixed ${fixCount} HTML headings`);
   }
-  
+
   return fixed;
 }
 
@@ -1194,7 +1345,7 @@ function isHomepageUrl(urlString: string): boolean {
   try {
     const url = new URL(urlString);
     // Consider homepage if path is "/" or empty, with no query params
-    return (url.pathname === '/' || url.pathname === '') && !url.search;
+    return (url.pathname === "/" || url.pathname === "") && !url.search;
   } catch {
     return false;
   }
@@ -1202,58 +1353,59 @@ function isHomepageUrl(urlString: string): boolean {
 
 async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string> {
   if (!htmlContent) return htmlContent;
-  
+
   const linkRegex = /<a\s+([^>]*href="(https?:\/\/[^"]+)"[^>]*)>([^<]*)<\/a>/gi;
   const matches: Array<{ full: string; attrs: string; url: string; text: string }> = [];
-  
+
   let match;
   while ((match = linkRegex.exec(htmlContent)) !== null) {
     matches.push({
       full: match[0],
       attrs: match[1],
       url: match[2],
-      text: match[3]
+      text: match[3],
     });
   }
-  
+
   if (matches.length === 0) {
     console.log("No external links found in content");
     return htmlContent;
   }
-  
+
   console.log(`Verifying ${matches.length} external links...`);
-  
+
   const linksToVerify = matches.slice(0, 10);
   let cleanedContent = htmlContent;
   let fixedCount = 0;
   let keptCount = 0;
 
-  const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-  
+  const BROWSER_UA =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
   for (const link of linksToVerify) {
     if (isHomepageUrl(link.url)) {
       console.log(`Homepage URL, keeping as-is: ${link.url}`);
       continue;
     }
-    
+
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
-      
+
       const headResponse = await fetch(link.url, {
-        method: 'HEAD',
+        method: "HEAD",
         signal: controller.signal,
-        redirect: 'follow',
-        headers: { 'User-Agent': BROWSER_UA }
+        redirect: "follow",
+        headers: { "User-Agent": BROWSER_UA },
       });
-      
+
       clearTimeout(timeout);
-      
+
       if (headResponse.status >= 200 && headResponse.status < 400) {
         console.log(`Link OK (${headResponse.status}): ${link.url}`);
         continue;
       }
-      
+
       if (headResponse.status === 404 || headResponse.status === 410) {
         const originUrl = getOriginUrl(link.url);
         console.log(`Broken link (${headResponse.status}): ${link.url} → ${originUrl}`);
@@ -1262,22 +1414,22 @@ async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string>
         fixedCount++;
         continue;
       }
-      
+
       if (headResponse.status === 403 || headResponse.status === 405) {
         // HEAD blocked, retry with GET
         try {
           const ctrl2 = new AbortController();
           const t2 = setTimeout(() => ctrl2.abort(), 8000);
           const getResponse = await fetch(link.url, {
-            method: 'GET',
+            method: "GET",
             signal: ctrl2.signal,
-            redirect: 'follow',
-            headers: { 'User-Agent': BROWSER_UA }
+            redirect: "follow",
+            headers: { "User-Agent": BROWSER_UA },
           });
           clearTimeout(t2);
           // Consume body to avoid resource leak
           await getResponse.text().catch(() => {});
-          
+
           if (getResponse.status === 404 || getResponse.status === 410) {
             const originUrl = getOriginUrl(link.url);
             console.log(`Broken link on GET (${getResponse.status}): ${link.url} → ${originUrl}`);
@@ -1294,18 +1446,19 @@ async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string>
         }
         continue;
       }
-      
+
       // 500+ or other status → keep original (likely temporary server error)
       console.log(`Server error (${headResponse.status}), keeping original: ${link.url}`);
       keptCount++;
-      
     } catch (error) {
       // Network error or timeout → KEEP original link
-      console.log(`Network/timeout error, keeping original: ${link.url} (${error instanceof Error ? error.message : 'unknown'})`);
+      console.log(
+        `Network/timeout error, keeping original: ${link.url} (${error instanceof Error ? error.message : "unknown"})`,
+      );
       keptCount++;
     }
   }
-  
+
   console.log(`Link verification complete: ${fixedCount} fixed, ${keptCount} kept despite errors`);
   return cleanedContent;
 }
@@ -1316,7 +1469,7 @@ async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string>
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -1345,26 +1498,26 @@ Deno.serve(async (req) => {
       userId = schedulerUserId;
       console.log("Using scheduler userId:", userId);
     } else {
-      const authHeader = req.headers.get('Authorization');
-      if (!authHeader?.startsWith('Bearer ')) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
-          status: 401, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
       supabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
-        global: { headers: { Authorization: authHeader } }
+        global: { headers: { Authorization: authHeader } },
       });
 
-      const token = authHeader.replace('Bearer ', '');
+      const token = authHeader.replace("Bearer ", "");
       const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-      
+
       if (claimsError || !claimsData?.claims) {
         console.error("Auth error:", claimsError);
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
-          status: 401, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
@@ -1373,17 +1526,14 @@ Deno.serve(async (req) => {
       const rateLimitResult = checkUserRateLimit(userId);
       if (!rateLimitResult.allowed) {
         console.log(`Rate limit exceeded for user: ${userId}`);
-        return new Response(
-          JSON.stringify({ error: "Demasiadas peticiones. Por favor, espera un momento." }),
-          { 
-            status: 429, 
-            headers: { 
-              ...corsHeaders, 
-              "Content-Type": "application/json",
-              "Retry-After": String(rateLimitResult.retryAfter || 60)
-            } 
-          }
-        );
+        return new Response(JSON.stringify({ error: "Demasiadas peticiones. Por favor, espera un momento." }), {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimitResult.retryAfter || 60),
+          },
+        });
       }
     }
 
@@ -1401,10 +1551,10 @@ Deno.serve(async (req) => {
 
     // First try direct ownership
     const { data: ownedSite, error: ownedSiteError } = await supabase
-      .from('sites')
-      .select('*')
-      .eq('id', siteId)
-      .eq('user_id', userId)
+      .from("sites")
+      .select("*")
+      .eq("id", siteId)
+      .eq("user_id", userId)
       .single();
 
     if (ownedSite) {
@@ -1412,19 +1562,15 @@ Deno.serve(async (req) => {
     } else {
       // Check team membership: fetch the site and verify team access
       const serviceClient = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-      const { data: teamSite } = await serviceClient
-        .from('sites')
-        .select('*')
-        .eq('id', siteId)
-        .single();
+      const { data: teamSite } = await serviceClient.from("sites").select("*").eq("id", siteId).single();
 
       if (teamSite) {
         // Verify the user is a team member of the site owner
         const { data: membership } = await serviceClient
-          .from('team_members')
-          .select('id')
-          .eq('owner_id', teamSite.user_id)
-          .eq('member_id', userId)
+          .from("team_members")
+          .select("id")
+          .eq("owner_id", teamSite.user_id)
+          .eq("member_id", userId)
           .single();
 
         if (membership) {
@@ -1437,9 +1583,9 @@ Deno.serve(async (req) => {
 
     if (!site) {
       console.error("Site not found or access denied");
-      return new Response(JSON.stringify({ error: 'Site not found or access denied' }), { 
-        status: 404, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      return new Response(JSON.stringify({ error: "Site not found or access denied" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -1447,35 +1593,40 @@ Deno.serve(async (req) => {
     console.log("Sector:", site.sector);
 
     // Check admin status for bypass (check both the acting user and the site owner)
-    const isAdmin = await isUserAdmin(supabase, userId) || (siteOwnerUserId !== userId && await isUserAdmin(supabase, siteOwnerUserId));
+    const isAdmin =
+      (await isUserAdmin(supabase, userId)) ||
+      (siteOwnerUserId !== userId && (await isUserAdmin(supabase, siteOwnerUserId)));
     console.log("Is admin:", isAdmin);
 
     // Check plan limits using the SITE OWNER's profile (not the team member's)
     if (!isAdmin) {
       const profile = await getUserProfile(supabase, siteOwnerUserId);
       if (!profile) {
-        return new Response(JSON.stringify({ error: 'Profile not found' }), { 
-          status: 404, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        return new Response(JSON.stringify({ error: "Profile not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
       // Free plan: lifetime limit of 1 article total (not per month)
-      if (profile.plan === 'free') {
+      if (profile.plan === "free") {
         const totalArticles = await countTotalArticles(supabase, siteOwnerUserId);
         console.log(`Free plan: total articles ever: ${totalArticles}`);
-        
+
         if (totalArticles >= 1) {
-          return new Response(JSON.stringify({ 
-            error: "Has usado tu artículo de prueba. Pasa a Starter para generar artículos automáticamente.",
-            limit: 1,
-            current: totalArticles,
-            plan: 'free',
-            isLifetimeLimit: true
-          }), { 
-            status: 403, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          });
+          return new Response(
+            JSON.stringify({
+              error: "Has usado tu artículo de prueba. Pasa a Starter para generar artículos automáticamente.",
+              limit: 1,
+              current: totalArticles,
+              plan: "free",
+              isLifetimeLimit: true,
+            }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
         }
       } else {
         // Paid plans: monthly limit
@@ -1483,15 +1634,18 @@ Deno.serve(async (req) => {
         console.log(`Articles this month: ${articlesThisMonth}/${profile.posts_limit}`);
 
         if (articlesThisMonth >= profile.posts_limit) {
-          return new Response(JSON.stringify({ 
-            error: "Has alcanzado tu límite mensual de artículos",
-            limit: profile.posts_limit,
-            current: articlesThisMonth,
-            plan: profile.plan
-          }), { 
-            status: 403, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          });
+          return new Response(
+            JSON.stringify({
+              error: "Has alcanzado tu límite mensual de artículos",
+              limit: profile.posts_limit,
+              current: articlesThisMonth,
+              plan: profile.plan,
+            }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
         }
       }
     } else {
@@ -1503,43 +1657,48 @@ Deno.serve(async (req) => {
     const today = new Date();
     const dayOfMonth = today.getDate();
     const dateContext = `${dayOfMonth} de ${monthNameEs} ${year}`;
-    
+
     const { geoContext, locationInfo } = buildGeoContext(site);
     const sectorCategory = detectSectorCategory(site.sector);
     const sectorContext = SECTOR_IMAGE_CONTEXTS[sectorCategory] || SECTOR_IMAGE_CONTEXTS.default;
 
     // Build prompt variables
     const sector = site.sector || "servicios profesionales";
-    const description = site.description ? `DESCRIPCIÓN DEL NEGOCIO (contexto interno, NO copiar en el texto): ${site.description}` : '';
-    const descriptionContext = site.description ? `, teniendo en cuenta el contexto del negocio (sin mencionarlo explícitamente)` : '';
-    const scope = site.geographic_scope === "national" ? "Nacional (España)" : (site.location || "General");
+    const description = site.description
+      ? `DESCRIPCIÓN DEL NEGOCIO (contexto interno, NO copiar en el texto): ${site.description}`
+      : "";
+    const descriptionContext = site.description
+      ? `, teniendo en cuenta el contexto del negocio (sin mencionarlo explícitamente)`
+      : "";
+    const scope = site.geographic_scope === "national" ? "Nacional (España)" : site.location || "General";
 
     // ==========================================
     // ENRICHED CONTEXT: Pillar rotation & profile
     // ==========================================
-    const contentPillars = site.content_pillars && site.content_pillars.length > 0 
-      ? site.content_pillars 
-      : ['educational', 'trends', 'seasonal'];
-    
+    const contentPillars =
+      site.content_pillars && site.content_pillars.length > 0
+        ? site.content_pillars
+        : ["educational", "trends", "seasonal"];
+
     const lastPillarIndex = site.last_pillar_index ?? 0;
     const currentPillarIndex = (lastPillarIndex + 1) % contentPillars.length;
     const currentPillar = contentPillars[currentPillarIndex];
     const pillarDescription = PILLAR_DESCRIPTIONS[currentPillar] || PILLAR_DESCRIPTIONS.educational;
-    
+
     console.log(`Content pillar rotation: ${currentPillar} (index ${currentPillarIndex}/${contentPillars.length})`);
-    
+
     // Tone and audience from profile
-    const siteTone = site.tone || 'casual';
+    const siteTone = site.tone || "casual";
     const toneDescription = TONE_DESCRIPTIONS[siteTone] || TONE_DESCRIPTIONS.casual;
-    const targetAudience = site.target_audience || '';
+    const targetAudience = site.target_audience || "";
     const avoidTopics = site.avoid_topics || [];
-    const preferredLength = site.preferred_length || 'medium';
+    const preferredLength = site.preferred_length || "medium";
     const lengthTarget = LENGTH_TARGETS[preferredLength] || LENGTH_TARGETS.medium;
-    
+
     // WordPress context if available
     const wpContext = site.wordpress_context || null;
-    const wpStyleNotes = wpContext?.style_notes || '';
-    const wpRecentTopics = wpContext?.lastTopics?.slice(0, 15).join(', ') || '';
+    const wpStyleNotes = wpContext?.style_notes || "";
+    const wpRecentTopics = wpContext?.lastTopics?.slice(0, 15).join(", ") || "";
 
     // ==========================================
     // LOAD SECTOR PROHIBITED TERMS
@@ -1547,11 +1706,11 @@ Deno.serve(async (req) => {
     let sectorProhibitedTerms: string[] = [];
     try {
       const { data: sectorData } = await supabase
-        .from('sector_contexts')
-        .select('prohibited_terms')
+        .from("sector_contexts")
+        .select("prohibited_terms")
         .or(`sector_key.eq.${sectorCategory},sector_key.eq.general`)
-        .order('sector_key', { ascending: false }); // sector-specific first
-      
+        .order("sector_key", { ascending: false }); // sector-specific first
+
       if (sectorData && sectorData.length > 0) {
         // Merge all prohibited terms from sector + general
         sectorProhibitedTerms = sectorData.flatMap((s: { prohibited_terms: string[] }) => s.prohibited_terms || []);
@@ -1563,50 +1722,57 @@ Deno.serve(async (req) => {
 
     // Generate topic if not provided
     let topic = providedTopic;
-    
+
     if (!topic) {
       console.log("Generating topic with AI...");
-      
+
       // Use dynamic limit based on publish frequency
-      const topicsLimit = getTopicsLimitForFrequency(site.publish_frequency || 'monthly');
+      const topicsLimit = getTopicsLimitForFrequency(site.publish_frequency || "monthly");
       console.log(`Using topics limit: ${topicsLimit} for frequency: ${site.publish_frequency}`);
-      
+
       const usedTopics = await getUsedTopicsForSite(supabase, siteId, topicsLimit);
       console.log(`Found ${usedTopics.length} Blooglee topics`);
-      
+
       // Get WordPress topics from context
       const wpTopics = wpContext?.lastTopics || [];
       console.log(`Found ${wpTopics.length} WordPress topics from context`);
       if (wpTopics.length > 0) {
-        console.log('WordPress topics to avoid:', wpTopics.slice(0, 5).join(', '));
+        console.log("WordPress topics to avoid:", wpTopics.slice(0, 5).join(", "));
       }
-      
+
       // Build comprehensive avoid list - use full dynamic limit
       const allAvoidTopics = [
         ...avoidTopics,
         ...usedTopics.slice(0, topicsLimit),
-        ...wpTopics // WordPress topics from sync
+        ...wpTopics, // WordPress topics from sync
       ];
       console.log(`Total topics to avoid: ${allAvoidTopics.length}`);
-      
-      const usedTopicsSection = allAvoidTopics.length > 0 
-        ? `\n\n⚠️ TEMAS YA USADOS (NO REPETIR NI SIMILARES):\n${allAvoidTopics.slice(0, 60).map((t, i) => `${i+1}. ${t}`).join('\n')}`
-        : '';
+
+      const usedTopicsSection =
+        allAvoidTopics.length > 0
+          ? `\n\n⚠️ TEMAS YA USADOS (NO REPETIR NI SIMILARES):\n${allAvoidTopics
+              .slice(0, 60)
+              .map((t, i) => `${i + 1}. ${t}`)
+              .join("\n")}`
+          : "";
 
       // Build avoid topics list for prompt
-      const avoidTopicsListForPrompt = avoidTopics.length > 0
-        ? avoidTopics.map(t => `- ${t}`).join('\n')
-        : '(ninguno especificado)';
+      const avoidTopicsListForPrompt =
+        avoidTopics.length > 0 ? avoidTopics.map((t) => `- ${t}`).join("\n") : "(ninguno especificado)";
 
       // Build prohibited terms string for prompt
-      const prohibitedTermsForPrompt = sectorProhibitedTerms.length > 0
-        ? sectorProhibitedTerms.slice(0, 20).map(t => `- ${t}`).join('\n')
-        : '(ninguno)';
+      const prohibitedTermsForPrompt =
+        sectorProhibitedTerms.length > 0
+          ? sectorProhibitedTerms
+              .slice(0, 20)
+              .map((t) => `- ${t}`)
+              .join("\n")
+          : "(ninguno)";
 
       // Build custom topic directive
-      const customTopicDirective = site.custom_topic 
+      const customTopicDirective = site.custom_topic
         ? `ENFOQUE TEMÁTICO (contexto interno, NO usar literalmente): El cliente quiere contenido orientado hacia "${site.custom_topic}". Genera un tema que encaje con este enfoque de forma natural, sin repetir la frase del cliente.`
-        : '';
+        : "";
 
       // Build enriched topic prompt variables
       const enrichedVariables = {
@@ -1623,28 +1789,25 @@ Deno.serve(async (req) => {
         pillarDescription: pillarDescription,
         toneType: siteTone,
         toneDescription: toneDescription,
-        targetAudience: targetAudience ? `Perfil de la audiencia (NO mencionar en el texto, solo usar como contexto): ${targetAudience}` : 'Audiencia general',
-        wpStyleNotes: wpStyleNotes ? `ESTILO DETECTADO EN SU BLOG: ${wpStyleNotes}` : '',
-        wpRecentTopics: wpRecentTopics ? `TEMAS RECIENTES DE SU BLOG: ${wpRecentTopics}` : '',
+        targetAudience: targetAudience
+          ? `Perfil de la audiencia (NO mencionar en el texto, solo usar como contexto): ${targetAudience}`
+          : "Audiencia general",
+        wpStyleNotes: wpStyleNotes ? `ESTILO DETECTADO EN SU BLOG: ${wpStyleNotes}` : "",
+        wpRecentTopics: wpRecentTopics ? `TEMAS RECIENTES DE SU BLOG: ${wpRecentTopics}` : "",
         prohibitedTerms: prohibitedTermsForPrompt,
         avoidTopicsList: avoidTopicsListForPrompt,
         customTopicDirective: customTopicDirective,
       };
 
       // Get topic prompt from database with cache
-      const topicPrompt = await getPrompt(
-        supabase,
-        'saas.topic',
-        enrichedVariables,
-        FALLBACK_PROMPTS.topic
-      );
+      const topicPrompt = await getPrompt(supabase, "saas.topic", enrichedVariables, FALLBACK_PROMPTS.topic);
 
       // Single attempt - prohibited terms are now IN the prompt
       try {
         const topicResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -1657,8 +1820,8 @@ Deno.serve(async (req) => {
 
         if (topicResponse.ok) {
           const topicData = await topicResponse.json();
-          const generatedTopic = topicData.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, "") || '';
-          
+          const generatedTopic = topicData.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, "") || "";
+
           if (generatedTopic && generatedTopic.length > 5 && generatedTopic.length <= 100) {
             topic = generatedTopic;
             console.log(`✓ Topic generated: "${topic}"`);
@@ -1669,7 +1832,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error("Topic generation error:", error);
       }
-      
+
       // Fallback if generation failed - expanded list with dedup
       if (!topic) {
         const concreteFallbacks: Record<string, string[]> = {
@@ -1685,7 +1848,7 @@ Deno.serve(async (req) => {
             "Cómo prevenir resfriados en invierno",
             "Guía de hidratación corporal por tipo de piel",
             "Vitaminas esenciales para cada etapa de la vida",
-            "Consejos para mejorar la calidad del sueño"
+            "Consejos para mejorar la calidad del sueño",
           ],
           belleza: [
             "Tendencias en coloración capilar natural",
@@ -1697,7 +1860,7 @@ Deno.serve(async (req) => {
             "Rutina capilar para cabello rizado",
             "Aceites naturales para nutrir el cabello",
             "Cortes de pelo que rejuvenecen",
-            "Cómo elegir el champú adecuado para tu tipo de pelo"
+            "Cómo elegir el champú adecuado para tu tipo de pelo",
           ],
           marketing: [
             "Estructura de una landing page efectiva",
@@ -1709,7 +1872,7 @@ Deno.serve(async (req) => {
             "Copywriting persuasivo para páginas de venta",
             "Automatización de email marketing paso a paso",
             "Optimización de fichas de Google Business",
-            "Cómo generar reseñas positivas de clientes"
+            "Cómo generar reseñas positivas de clientes",
           ],
           hosteleria: [
             "Carta digital y su impacto en el servicio",
@@ -1721,7 +1884,7 @@ Deno.serve(async (req) => {
             "Diseño de menú que maximiza ventas",
             "Experiencia del cliente en hostelería moderna",
             "Ingredientes de proximidad como valor diferencial",
-            "Cómo fotografiar platos para redes sociales"
+            "Cómo fotografiar platos para redes sociales",
           ],
           tecnologia: [
             "Ciberseguridad básica para pequeñas empresas",
@@ -1733,7 +1896,7 @@ Deno.serve(async (req) => {
             "Protección de datos personales en la empresa",
             "Workflows automatizados que ahorran tiempo",
             "Comunicación interna con herramientas digitales",
-            "Gestión de contraseñas segura para equipos"
+            "Gestión de contraseñas segura para equipos",
           ],
           salud: [
             "Hábitos saludables para trabajadores sedentarios",
@@ -1745,7 +1908,7 @@ Deno.serve(async (req) => {
             "Hidratación adecuada según tu actividad",
             "Descanso activo durante la jornada laboral",
             "Rutinas de ejercicio para principiantes",
-            "Cómo crear un espacio de trabajo saludable"
+            "Cómo crear un espacio de trabajo saludable",
           ],
           default: [
             "Cómo mejorar la atención al cliente en tu negocio",
@@ -1759,14 +1922,14 @@ Deno.serve(async (req) => {
             "Consejos para mejorar tu presencia online",
             "Pequeños cambios que mejoran la experiencia del cliente",
             "Planificación estratégica para el próximo trimestre",
-            "Cómo crear una propuesta de valor única"
-          ]
+            "Cómo crear una propuesta de valor única",
+          ],
         };
-        
+
         const fallbacks = concreteFallbacks[sectorCategory] || concreteFallbacks.default;
         // Filter against used topics to avoid duplicates
-        const allUsed = new Set([...usedTopics, ...wpTopics].map(t => t.toLowerCase()));
-        const availableFallbacks = fallbacks.filter(f => !allUsed.has(f.toLowerCase()));
+        const allUsed = new Set([...usedTopics, ...wpTopics].map((t) => t.toLowerCase()));
+        const availableFallbacks = fallbacks.filter((f) => !allUsed.has(f.toLowerCase()));
         const finalList = availableFallbacks.length > 0 ? availableFallbacks : fallbacks;
         topic = finalList[Math.floor(Math.random() * finalList.length)];
         console.log(`Using fallback topic (filtered): "${topic}"`);
@@ -1774,25 +1937,35 @@ Deno.serve(async (req) => {
     }
 
     // Build home URL from blog_url or fallback
-    const homeUrl = site.blog_url 
-      ? (() => { try { const u = new URL(site.blog_url); return `${u.protocol}//${u.host}`; } catch { return site.blog_url; } })()
-      : '#';
-    
+    const homeUrl = site.blog_url
+      ? (() => {
+          try {
+            const u = new URL(site.blog_url);
+            return `${u.protocol}//${u.host}`;
+          } catch {
+            return site.blog_url;
+          }
+        })()
+      : "#";
+
     // Build custom topic directive for article
     const customTopicDirectiveArticle = site.custom_topic
       ? `Enfoque temático del cliente (contexto interno para orientar el contenido, NO copiar literalmente en el texto): "${site.custom_topic}". Usa esto como brújula para el enfoque general, pero redacta de forma natural sin repetir esta frase.`
       : `Sin directriz temática específica. Elige el tema más oportuno para la fecha actual y el sector ${sector}, priorizando búsquedas frecuentes con intención informacional o de consulta práctica. El tema debe ser concreto, no genérico.`;
 
     // Build avoid topics list for article
-    const allProhibitedForArticle = [
-      ...(avoidTopics.length > 0 ? avoidTopics.map(t => `- Tema a evitar: ${t}`) : []),
-      ...(sectorProhibitedTerms.length > 0 ? sectorProhibitedTerms.slice(0, 15).map(t => `- Término prohibido: ${t}`) : [])
-    ].join('\n') || '(ninguno)';
+    const allProhibitedForArticle =
+      [
+        ...(avoidTopics.length > 0 ? avoidTopics.map((t) => `- Tema a evitar: ${t}`) : []),
+        ...(sectorProhibitedTerms.length > 0
+          ? sectorProhibitedTerms.slice(0, 15).map((t) => `- Término prohibido: ${t}`)
+          : []),
+      ].join("\n") || "(ninguno)";
 
     // Build system prompt from database with enriched context
     const systemPrompt = await getPrompt(
       supabase,
-      'saas.article.system',
+      "saas.article.system",
       {
         siteName: site.name,
         sector: sector,
@@ -1803,40 +1976,48 @@ Deno.serve(async (req) => {
         dateContext: dateContext,
         toneType: siteTone,
         toneDescription: toneDescription,
-        targetAudience: targetAudience ? `Perfil de la audiencia (contexto interno para adaptar tono y enfoque, NUNCA mencionar en el texto): ${targetAudience}` : 'Audiencia: público general del sector',
+        targetAudience: targetAudience
+          ? `Perfil de la audiencia (contexto interno para adaptar tono y enfoque, NUNCA mencionar en el texto): ${targetAudience}`
+          : "Audiencia: público general del sector",
         pillarType: currentPillar,
         pillarDescription: pillarDescription,
         lengthWords: lengthTarget.words.toString(),
         lengthDescription: lengthTarget.description,
-        wpStyleNotes: wpStyleNotes ? `Mantener este estilo detectado en su blog: ${wpStyleNotes}` : 'Sin estilo previo detectado.',
+        wpStyleNotes: wpStyleNotes
+          ? `Mantener este estilo detectado en su blog: ${wpStyleNotes}`
+          : "Sin estilo previo detectado.",
         homeUrl: homeUrl,
-        blogUrl: site.blog_url || '',
-        instagramUrl: site.instagram_url || '',
+        blogUrl: site.blog_url || "",
+        instagramUrl: site.instagram_url || "",
         topic: topic,
         customTopicDirective: customTopicDirectiveArticle,
         avoidTopicsList: allProhibitedForArticle,
-        prohibitedTerms: sectorProhibitedTerms.length > 0 
-          ? sectorProhibitedTerms.slice(0, 15).map(t => `- ${t}`).join('\n') 
-          : '(ninguno)',
+        prohibitedTerms:
+          sectorProhibitedTerms.length > 0
+            ? sectorProhibitedTerms
+                .slice(0, 15)
+                .map((t) => `- ${t}`)
+                .join("\n")
+            : "(ninguno)",
       },
-      FALLBACK_PROMPTS.articleSystem
+      FALLBACK_PROMPTS.articleSystem,
     );
 
     // Build user prompt from database
     const userPrompt = await getPrompt(
       supabase,
-      'saas.article.user',
-      { 
+      "saas.article.user",
+      {
         topic: topic,
         pillarType: currentPillar,
         pillarDescription: pillarDescription,
         siteName: site.name,
         homeUrl: homeUrl,
-        blogUrl: site.blog_url || '',
-        instagramUrl: site.instagram_url || '',
+        blogUrl: site.blog_url || "",
+        instagramUrl: site.instagram_url || "",
         lengthWords: lengthTarget.words.toString(),
       },
-      FALLBACK_PROMPTS.articleUser
+      FALLBACK_PROMPTS.articleUser,
     );
 
     console.log("Generating Spanish article...");
@@ -1846,7 +2027,7 @@ Deno.serve(async (req) => {
       const resp = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -1859,26 +2040,26 @@ Deno.serve(async (req) => {
           max_tokens: tokens,
         }),
       });
-      return { content: '', response: resp };
+      return { content: "", response: resp };
     }
 
     // Helper to parse Spanish JSON with robust strategy
     function parseArticleJson(rawContent: string): any {
       let cleanContent = rawContent
-        .replace(/```json\s*/gi, '')
-        .replace(/```\s*/g, '')
+        .replace(/```json\s*/gi, "")
+        .replace(/```\s*/g, "")
         .trim();
-      
-      const firstBrace = cleanContent.indexOf('{');
-      const lastBrace = cleanContent.lastIndexOf('}');
-      
+
+      const firstBrace = cleanContent.indexOf("{");
+      const lastBrace = cleanContent.lastIndexOf("}");
+
       if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
         throw new Error("No JSON object found in response");
       }
-      
+
       const jsonString = cleanContent.substring(firstBrace, lastBrace + 1);
-      const cleanedJson = jsonString.replace(/[\uFEFF\u200B\u200C\u200D]/g, '');
-      
+      const cleanedJson = jsonString.replace(/[\uFEFF\u200B\u200C\u200D]/g, "");
+
       try {
         return JSON.parse(cleanedJson);
       } catch (firstError) {
@@ -1891,19 +2072,25 @@ Deno.serve(async (req) => {
     // Helper to detect truncated JSON
     function isJsonTruncated(error: unknown, rawContent: string): boolean {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("Expected ',' or '}'") || msg.includes("Unterminated string") || msg.includes("Expected property name")) {
+      if (
+        msg.includes("Expected ',' or '}'") ||
+        msg.includes("Unterminated string") ||
+        msg.includes("Expected property name")
+      ) {
         return true;
       }
       // Check if content doesn't end with closing brace (sign of truncation)
-      const trimmed = rawContent?.trim() || '';
-      if (trimmed.length > 100 && !trimmed.endsWith('}')) {
+      const trimmed = rawContent?.trim() || "";
+      if (trimmed.length > 100 && !trimmed.endsWith("}")) {
         return true;
       }
       return false;
     }
 
     let currentMaxTokens = lengthTarget.maxTokens;
-    console.log(`Generating Spanish article with max_tokens=${currentMaxTokens} (preferred_length=${preferredLength})...`);
+    console.log(
+      `Generating Spanish article with max_tokens=${currentMaxTokens} (preferred_length=${preferredLength})...`,
+    );
 
     let spanishArticle;
     let attempts = 0;
@@ -1911,7 +2098,7 @@ Deno.serve(async (req) => {
 
     while (attempts < MAX_ATTEMPTS) {
       attempts++;
-      
+
       const { response: spanishResponse } = await generateSpanishWithTokens(currentMaxTokens);
 
       if (!spanishResponse.ok) {
@@ -1979,7 +2166,7 @@ Deno.serve(async (req) => {
       spanishArticle.meta_description = await fixMetaDescription(
         spanishArticle.meta_description,
         spanishArticle.focus_keyword || topic,
-        LOVABLE_API_KEY!
+        LOVABLE_API_KEY!,
       );
       console.log(`Final Spanish meta_description: ${spanishArticle.meta_description.length} chars`);
     }
@@ -1987,31 +2174,31 @@ Deno.serve(async (req) => {
     // Store Spanish content WITHOUT SEO footer for translation
     const spanishContentWithoutSeo = spanishArticle.content;
     let catalanArticle = null;
-    
+
     if (site.languages?.includes("catalan")) {
       console.log("Generating NATIVE Catalan version (not translation)...");
-      
+
       // Get native Catalan generation prompt from database
       const catalanPrompt = await getPrompt(
         supabase,
-        'saas.translate.catalan',
+        "saas.translate.catalan",
         {
           title: spanishArticle.title,
-          seoTitle: spanishArticle.seo_title || '',
+          seoTitle: spanishArticle.seo_title || "",
           meta: spanishArticle.meta_description,
           excerpt: spanishArticle.excerpt || spanishArticle.meta_description,
-          focusKeyword: spanishArticle.focus_keyword || '',
+          focusKeyword: spanishArticle.focus_keyword || "",
           slug: spanishArticle.slug,
-          content: spanishContentWithoutSeo
+          content: spanishContentWithoutSeo,
         },
-        FALLBACK_PROMPTS.nativeCatalan
+        FALLBACK_PROMPTS.nativeCatalan,
       );
 
       try {
         const catalanResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -2025,37 +2212,35 @@ Deno.serve(async (req) => {
         if (catalanResponse.ok) {
           const catalanData = await catalanResponse.json();
           let catalanContent = catalanData.choices?.[0]?.message?.content;
-          
+
           if (catalanContent) {
-            let cleanCatalan = catalanContent
-              .replace(/^```(?:json)?\s*/i, '')
-              .replace(/\s*```\s*$/i, '');
-            
+            let cleanCatalan = catalanContent.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
+
             const jsonMatch = cleanCatalan.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-              const cleanedCatalanJson = jsonMatch[0].replace(/[\uFEFF\u200B\u200C\u200D]/g, '');
-              
+              const cleanedCatalanJson = jsonMatch[0].replace(/[\uFEFF\u200B\u200C\u200D]/g, "");
+
               try {
                 catalanArticle = JSON.parse(cleanedCatalanJson);
               } catch (firstError) {
                 console.log("Catalan JSON parse failed on first attempt; applying string-only escaping");
                 const repairedCatalanJson = escapeControlCharsInsideStrings(cleanedCatalanJson);
-              catalanArticle = JSON.parse(repairedCatalanJson);
+                catalanArticle = JSON.parse(repairedCatalanJson);
               }
               console.log("Native Catalan article generated successfully");
-              
+
               // Clean any markdown from Catalan content
               if (catalanArticle?.content) {
                 catalanArticle.content = cleanMarkdownFromHtml(catalanArticle.content);
                 console.log("Cleaned markdown from Catalan content");
               }
-              
+
               // Fix meta_description with AI if needed
               if (catalanArticle?.meta_description) {
                 catalanArticle.meta_description = await fixMetaDescription(
                   catalanArticle.meta_description,
                   catalanArticle.focus_keyword || topic,
-                  LOVABLE_API_KEY!
+                  LOVABLE_API_KEY!,
                 );
                 console.log(`Final Catalan meta_description: ${catalanArticle.meta_description.length} chars`);
               }
@@ -2071,12 +2256,12 @@ Deno.serve(async (req) => {
     // ADD INTERNAL LINK TO HOME ON FIRST BRAND MENTION
     // ==========================================
     function escapeRegexChars(str: string): string {
-      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }
 
     function addHomeLinkToContent(content: string, siteName: string, blogUrl: string | null): string {
       if (!blogUrl || !siteName) return content;
-      
+
       // ALWAYS extract the root domain as home URL
       let homeUrl: string;
       try {
@@ -2086,28 +2271,28 @@ Deno.serve(async (req) => {
         console.log("Failed to parse blog URL for home link");
         return content;
       }
-      
+
       console.log(`Adding home link: ${siteName} -> ${homeUrl}`);
-      
+
       // Find first mention of brand name that is NOT inside:
       // 1. An already open <a> tag (not yet closed)
       // 2. An href="..." or src="..." attribute value
       const escapedName = escapeRegexChars(siteName);
-      const regex = new RegExp(`\\b${escapedName}\\b`, 'gi');
-      
+      const regex = new RegExp(`\\b${escapedName}\\b`, "gi");
+
       let match;
       while ((match = regex.exec(content)) !== null) {
         const position = match.index;
         const textBefore = content.substring(0, position);
-        
+
         // Check 1: Are we inside an <a> tag? (open <a without closing </a>)
-        const lastOpenA = textBefore.lastIndexOf('<a ');
-        const lastCloseA = textBefore.lastIndexOf('</a>');
+        const lastOpenA = textBefore.lastIndexOf("<a ");
+        const lastCloseA = textBefore.lastIndexOf("</a>");
         if (lastOpenA > lastCloseA) {
           // We're inside an <a> tag, skip this match
           continue;
         }
-        
+
         // Check 2: Are we inside an href="..." attribute?
         const lastHref = textBefore.lastIndexOf('href="');
         if (lastHref !== -1 && lastHref > textBefore.lastIndexOf('"', textBefore.length - 1)) {
@@ -2119,7 +2304,7 @@ Deno.serve(async (req) => {
             continue;
           }
         }
-        
+
         // Check 3: Are we inside a src="..." attribute?
         const lastSrc = textBefore.lastIndexOf('src="');
         if (lastSrc !== -1 && lastSrc > textBefore.lastIndexOf('"', textBefore.length - 1)) {
@@ -2130,7 +2315,7 @@ Deno.serve(async (req) => {
             continue;
           }
         }
-        
+
         // This occurrence is valid - replace it and return
         const before = content.substring(0, position);
         const after = content.substring(position + match[0].length);
@@ -2138,7 +2323,7 @@ Deno.serve(async (req) => {
         console.log(`Home link added at position ${position}`);
         return before + linkedName + after;
       }
-      
+
       console.log("No valid position found for home link");
       return content;
     }
@@ -2146,7 +2331,7 @@ Deno.serve(async (req) => {
     // Add home link to Spanish content (first mention of brand)
     let processedSpanishContent = spanishContentWithoutSeo;
     processedSpanishContent = addHomeLinkToContent(processedSpanishContent, site.name, site.blog_url || null);
-    
+
     // The closing paragraph with blog/social links is now generated by the AI as part of the article
     // No hardcoded footer needed - the prompt instructs varied closings
     spanishArticle.content = processedSpanishContent;
@@ -2155,14 +2340,14 @@ Deno.serve(async (req) => {
     // Generate image with AI
     let imageResult = null;
     let pexelsQuery = null;
-    
+
     const skipImage = site.include_featured_image === false;
-    
+
     if (!skipImage) {
       console.log("Generating image with AI...");
-      
+
       const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-      
+
       // Random composition style selection
       const COMPOSITION_STYLES = [
         "flat lay with relevant objects from the sector",
@@ -2172,20 +2357,20 @@ Deno.serve(async (req) => {
       ];
       const compositionStyle = COMPOSITION_STYLES[Math.floor(Math.random() * COMPOSITION_STYLES.length)];
       console.log("Selected composition style:", compositionStyle);
-      
+
       // Get image prompt from database
       const imagePrompt = await getPrompt(
         supabase,
-        'saas.image',
+        "saas.image",
         {
           topic: topic,
           sector: sector,
-          description: site.description ? `CONTEXT: ${site.description}` : '',
+          description: site.description ? `CONTEXT: ${site.description}` : "",
           composition_style: compositionStyle,
-          color_palette: site.color_palette || 'warm neutrals',
-          mood: site.mood || 'warm and welcoming',
+          color_palette: site.color_palette || "warm neutrals",
+          mood: site.mood || "warm and welcoming",
         },
-        FALLBACK_PROMPTS.image
+        FALLBACK_PROMPTS.image,
       );
 
       // Helper to attempt AI image generation
@@ -2194,48 +2379,46 @@ Deno.serve(async (req) => {
           const imageResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
               model: "google/gemini-3-pro-image-preview",
               messages: [{ role: "user", content: prompt }],
-              modalities: ["image", "text"]
+              modalities: ["image", "text"],
             }),
           });
 
           console.log(`AI image ${attemptLabel} response status:`, imageResponse.status);
-          
+
           if (imageResponse.ok) {
             const imageData = await imageResponse.json();
             const message = imageData.choices?.[0]?.message;
             const base64Image = message?.images?.[0]?.image_url?.url;
-            
+
             if (base64Image) {
               console.log(`AI image ${attemptLabel} generated successfully, uploading to storage...`);
-              
-              const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-              const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-              
+
+              const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
+              const imageBuffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+
               const timestamp = Date.now();
-              const fileName = `${siteId}/${timestamp}-${topic.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.png`;
-              
+              const fileName = `${siteId}/${timestamp}-${topic.substring(0, 30).replace(/[^a-zA-Z0-9]/g, "-")}.png`;
+
               const { error: uploadError } = await supabaseAdmin.storage
-                .from('article-images')
-                .upload(fileName, imageBuffer, { 
-                  contentType: 'image/png',
-                  upsert: true 
+                .from("article-images")
+                .upload(fileName, imageBuffer, {
+                  contentType: "image/png",
+                  upsert: true,
                 });
-              
+
               if (uploadError) {
                 console.error("Storage upload error:", uploadError);
                 return false;
               }
-              
-              const { data: urlData } = supabaseAdmin.storage
-                .from('article-images')
-                .getPublicUrl(fileName);
-              
+
+              const { data: urlData } = supabaseAdmin.storage.from("article-images").getPublicUrl(fileName);
+
               imageResult = {
                 url: urlData.publicUrl,
                 photographer: "AI Generated",
@@ -2263,8 +2446,8 @@ Deno.serve(async (req) => {
       // Attempt 2: Simplified prompt after delay
       if (!aiSuccess) {
         console.log("AI image attempt 1 failed, retrying with simplified prompt in 2s...");
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
         const simplifiedPrompt = `Generate a professional blog header image for a ${sector} business about "${topic}". Editorial photography style, 16:9 ratio. NO text, NO logos, NO human faces, NO branded products.`;
         aiSuccess = await attemptAIImage(simplifiedPrompt, "attempt 2");
       }
@@ -2272,7 +2455,7 @@ Deno.serve(async (req) => {
       // Fallback: Contextual Unsplash search using AI-generated query
       if (!aiSuccess) {
         console.log("AI image failed after 2 attempts, falling back to contextual Unsplash...");
-        
+
         if (UNSPLASH_ACCESS_KEY) {
           // Generate a contextual search query with AI instead of using generic fallbackQuery
           let contextualQuery = sectorContext.fallbackQuery;
@@ -2280,15 +2463,17 @@ Deno.serve(async (req) => {
             const queryResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: {
-                "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
                 model: "google/gemini-2.5-flash",
-                messages: [{
-                  role: "user",
-                  content: `Generate a short Unsplash search query (3-5 English words) to find a relevant photo for a ${sector} blog post about: "${topic}". Return ONLY the search query, nothing else. Avoid generic terms like "business" or "office". Focus on the specific topic and sector.`
-                }],
+                messages: [
+                  {
+                    role: "user",
+                    content: `Generate a short Unsplash search query (3-5 English words) to find a relevant photo for a ${sector} blog post about: "${topic}". Return ONLY the search query, nothing else. Avoid generic terms like "business" or "office". Focus on the specific topic and sector.`,
+                  },
+                ],
               }),
             });
             if (queryResponse.ok) {
@@ -2302,27 +2487,27 @@ Deno.serve(async (req) => {
           } catch (e) {
             console.error("Failed to generate contextual query, using sector fallback:", e);
           }
-          
+
           pexelsQuery = contextualQuery;
-          
+
           try {
             const searchUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(contextualQuery)}&per_page=20&orientation=landscape`;
             const unsplashResponse = await fetch(searchUrl, {
-              headers: { "Authorization": `Client-ID ${UNSPLASH_ACCESS_KEY}` },
+              headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` },
             });
 
             if (unsplashResponse.ok) {
               const unsplashData = await unsplashResponse.json();
               const photos = unsplashData.results || [];
-              
+
               // Filter out prohibited terms from photo descriptions
               const filteredPhotos = photos.filter((p: any) => {
-                const desc = (p.description || '' + p.alt_description || '').toLowerCase();
-                return !sectorContext.prohibitedTerms.some(term => desc.includes(term.toLowerCase()));
+                const desc = (p.description || "" + p.alt_description || "").toLowerCase();
+                return !sectorContext.prohibitedTerms.some((term) => desc.includes(term.toLowerCase()));
               });
-              
+
               const finalPhotos = filteredPhotos.length > 0 ? filteredPhotos : photos;
-              
+
               if (finalPhotos.length > 0) {
                 const randomIndex = Math.floor(Math.random() * Math.min(finalPhotos.length, 10));
                 const photo = finalPhotos[randomIndex];
@@ -2354,7 +2539,7 @@ Deno.serve(async (req) => {
     // VERIFY AND CLEAN EXTERNAL LINKS
     // ==========================================
     console.log("Verifying external links in generated content...");
-    
+
     if (spanishArticle?.content) {
       spanishArticle.content = await verifyAndCleanExternalLinks(spanishArticle.content);
     }
@@ -2382,23 +2567,17 @@ Deno.serve(async (req) => {
     // Check if article already exists based on site's publish frequency
     // Use service client to check across all users (team members + owner)
     const serviceClientForCheck = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-    let existingQuery = serviceClientForCheck
-      .from('articles')
-      .select('id')
-      .eq('site_id', siteId);
+    let existingQuery = serviceClientForCheck.from("articles").select("id").eq("site_id", siteId);
 
-    if (site.publish_frequency === 'daily') {
+    const normalizedPublishFrequency = normalizeFrequency(site.publish_frequency);
+
+    if (normalizedPublishFrequency === "daily" || normalizedPublishFrequency === "daily_weekdays") {
       const todayStart = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
-      existingQuery = existingQuery.gte('generated_at', todayStart.toISOString());
-    } else if (site.publish_frequency === 'weekly') {
-      existingQuery = existingQuery
-        .eq('week_of_month', weekOfMonth)
-        .eq('month', month)
-        .eq('year', year);
+      existingQuery = existingQuery.gte("generated_at", todayStart.toISOString());
+    } else if (normalizedPublishFrequency === "weekly" || normalizedPublishFrequency === "biweekly") {
+      existingQuery = existingQuery.eq("week_of_month", weekOfMonth).eq("month", month).eq("year", year);
     } else {
-      existingQuery = existingQuery
-        .eq('month', month)
-        .eq('year', year);
+      existingQuery = existingQuery.eq("month", month).eq("year", year);
     }
 
     const { data: existingArticle } = await existingQuery.maybeSingle();
@@ -2407,23 +2586,26 @@ Deno.serve(async (req) => {
     if (existingArticle) {
       // Check if article was created very recently (< 60s) — likely a duplicate invocation
       const { data: existingFull } = await serviceClientForCheck
-        .from('articles')
-        .select('*')
-        .eq('id', existingArticle.id)
+        .from("articles")
+        .select("*")
+        .eq("id", existingArticle.id)
         .single();
 
       if (existingFull) {
         const createdAt = new Date(existingFull.generated_at).getTime();
         const now = Date.now();
         if (now - createdAt < 60000) {
-          console.log("⚠️ Duplicate invocation detected (article created <60s ago). Returning existing article:", existingArticle.id);
+          console.log(
+            "⚠️ Duplicate invocation detected (article created <60s ago). Returning existing article:",
+            existingArticle.id,
+          );
           savedArticle = existingFull;
           // Skip update — return existing article as-is
         } else {
           const { data, error: updateError } = await supabase
-            .from('articles')
+            .from("articles")
             .update(articleData)
-            .eq('id', existingArticle.id)
+            .eq("id", existingArticle.id)
             .select()
             .single();
 
@@ -2437,9 +2619,9 @@ Deno.serve(async (req) => {
       } else {
         // Shouldn't happen but fallback to update
         const { data, error: updateError } = await supabase
-          .from('articles')
+          .from("articles")
           .update(articleData)
-          .eq('id', existingArticle.id)
+          .eq("id", existingArticle.id)
           .select()
           .single();
 
@@ -2451,11 +2633,7 @@ Deno.serve(async (req) => {
         console.log("Updated existing article (fallback):", savedArticle.id);
       }
     } else {
-      const { data, error: insertError } = await supabase
-        .from('articles')
-        .insert(articleData)
-        .select()
-        .single();
+      const { data, error: insertError } = await supabase.from("articles").insert(articleData).select().single();
 
       if (insertError) {
         console.error("Error saving article:", insertError);
@@ -2472,10 +2650,10 @@ Deno.serve(async (req) => {
     if (!providedTopic) {
       // Only update if we auto-generated the topic
       const { error: pillarUpdateError } = await supabase
-        .from('sites')
+        .from("sites")
         .update({ last_pillar_index: currentPillarIndex })
-        .eq('id', siteId);
-      
+        .eq("id", siteId);
+
       if (pillarUpdateError) {
         console.error("Error updating pillar index:", pillarUpdateError);
       } else {
@@ -2484,11 +2662,7 @@ Deno.serve(async (req) => {
     }
 
     // Send notification email to user + team members
-    const { data: userProfile } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('user_id', userId)
-      .single();
+    const { data: userProfile } = await supabase.from("profiles").select("email").eq("user_id", userId).single();
 
     const teamEmails = await getTeamMemberEmails(supabase, userId);
 
@@ -2496,25 +2670,30 @@ Deno.serve(async (req) => {
     // For scheduled generation, the "published" email is sent after WordPress publish
     if (!isScheduled && userProfile?.email) {
       const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
-      const articleExcerpt = spanishArticle?.meta_description || catalanArticle?.meta_description || `Nuevo artículo sobre ${topic}`;
-      
-      sendArticleNotification(
-        userProfile.email,
-        site.name,
-        articleTitle,
-        articleExcerpt,
-        siteId,
-        teamEmails
-      ).catch(err => console.error("Background email error:", err));
+      const articleExcerpt =
+        spanishArticle?.meta_description || catalanArticle?.meta_description || `Nuevo artículo sobre ${topic}`;
+
+      sendArticleNotification(userProfile.email, site.name, articleTitle, articleExcerpt, siteId, teamEmails).catch(
+        (err) => console.error("Background email error:", err),
+      );
     }
+
+    let autoPublishOutcome: {
+      attempted: boolean;
+      success: boolean;
+      attempts: number;
+      reason?: string;
+      error?: string;
+      post_url?: string;
+    } | null = null;
 
     // Auto-publish to WordPress when scheduled (automated generation)
     if (isScheduled) {
       try {
         const { data: wpConfig } = await supabase
-          .from('wordpress_configs')
-          .select('id')
-          .eq('site_id', siteId)
+          .from("wordpress_configs")
+          .select("id")
+          .eq("site_id", siteId)
           .maybeSingle();
 
         if (wpConfig && spanishArticle) {
@@ -2528,74 +2707,159 @@ Deno.serve(async (req) => {
             seo_title: spanishArticle.seo_title,
             content: spanishArticle.content,
             slug: spanishArticle.slug,
-            status: 'publish',
+            status: "publish",
             image_url: imageResult?.url || null,
             image_alt: spanishArticle.title,
             meta_description: spanishArticle.meta_description,
             excerpt: spanishArticle.excerpt || spanishArticle.meta_description,
             focus_keyword: spanishArticle.focus_keyword,
-            lang: 'es',
+            lang: "es",
           };
 
           const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress-saas`;
-          try {
-            const publishRes = await fetch(publishUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${serviceRoleKey}`,
-              },
-              body: JSON.stringify(publishPayload),
-            });
-            console.log(`[auto-publish] Response status: ${publishRes.status}`);
-            if (publishRes.ok) {
-              const result = await publishRes.json();
-              if (result.post_url) {
-                // Update article with wp_post_url
-                await supabase
-                  .from('articles')
-                  .update({ wp_post_url: result.post_url })
-                  .eq('id', savedArticle.id);
-                console.log(`[auto-publish] Updated wp_post_url: ${result.post_url}`);
+          const maxAttempts = 3;
+          let attempts = 0;
+          let lastError = "";
+          let publishedPostUrl: string | undefined;
 
-                if (userProfile?.email) {
-                  const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
-                  await sendPublishedNotification(
-                    userProfile.email,
-                    site.name,
-                    articleTitle,
-                    result.post_url,
-                    siteId,
-                    teamEmails
-                  );
+          while (attempts < maxAttempts) {
+            attempts++;
+            try {
+              const publishRes = await fetch(publishUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${serviceRoleKey}`,
+                },
+                body: JSON.stringify(publishPayload),
+              });
+
+              console.log(`[auto-publish] Attempt ${attempts}/${maxAttempts} status: ${publishRes.status}`);
+
+              if (publishRes.ok) {
+                const result = await publishRes.json();
+                if (result.post_url) {
+                  publishedPostUrl = result.post_url;
+                  break;
                 }
+                lastError = "WordPress respondió OK pero sin post_url";
+                break;
               }
-            } else {
-              console.error(`[auto-publish] Failed with status ${publishRes.status}`);
+
+              const errorBody = await publishRes.text();
+              lastError = `HTTP ${publishRes.status}: ${errorBody.substring(0, 500)}`;
+
+              const retryable = publishRes.status >= 500 || publishRes.status === 429;
+              if (retryable && attempts < maxAttempts) {
+                const waitMs = Math.pow(2, attempts) * 1000;
+                console.log(`[auto-publish] Retryable error, retry in ${waitMs}ms`);
+                await new Promise((resolve) => setTimeout(resolve, waitMs));
+                continue;
+              }
+              break;
+            } catch (publishErr) {
+              lastError = publishErr instanceof Error ? publishErr.message : String(publishErr);
+              console.error(`[auto-publish] Attempt ${attempts} error:`, publishErr);
+              if (attempts < maxAttempts) {
+                const waitMs = Math.pow(2, attempts) * 1000;
+                await new Promise((resolve) => setTimeout(resolve, waitMs));
+              }
             }
-          } catch (publishErr) {
-            console.error('[auto-publish] Error:', publishErr);
+          }
+
+          if (publishedPostUrl) {
+            await supabase.from("articles").update({ wp_post_url: publishedPostUrl }).eq("id", savedArticle.id);
+
+            await logSiteActivity(
+              supabase,
+              siteId,
+              userId,
+              "autopublish_success",
+              "Artículo publicado automáticamente en WordPress",
+              {
+                article_id: savedArticle.id,
+                attempts,
+                post_url: publishedPostUrl,
+              },
+            );
+
+            console.log(`[auto-publish] Updated wp_post_url: ${publishedPostUrl}`);
+            autoPublishOutcome = {
+              attempted: true,
+              success: true,
+              attempts,
+              post_url: publishedPostUrl,
+            };
+
+            if (userProfile?.email) {
+              const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
+              await sendPublishedNotification(
+                userProfile.email,
+                site.name,
+                articleTitle,
+                publishedPostUrl,
+                siteId,
+                teamEmails,
+              );
+            }
+          } else {
+            await logSiteActivity(
+              supabase,
+              siteId,
+              userId,
+              "autopublish_failed",
+              "Falló la publicación automática en WordPress",
+              {
+                article_id: savedArticle.id,
+                attempts,
+                error: lastError || "Unknown publish error",
+              },
+            );
+
+            autoPublishOutcome = {
+              attempted: true,
+              success: false,
+              attempts,
+              error: lastError || "Unknown publish error",
+            };
+            console.error(`[auto-publish] Failed after ${attempts} attempts: ${lastError}`);
           }
         } else {
-          console.log("No WordPress config found or no Spanish content - skipping auto-publish");
+          const reason = !wpConfig ? "no_wordpress_config" : "no_spanish_content";
+          autoPublishOutcome = {
+            attempted: false,
+            success: false,
+            attempts: 0,
+            reason,
+          };
+          console.log(`No WordPress config found or no Spanish content - skipping auto-publish (${reason})`);
         }
       } catch (autoPublishError) {
+        autoPublishOutcome = {
+          attempted: true,
+          success: false,
+          attempts: 0,
+          error: autoPublishError instanceof Error ? autoPublishError.message : String(autoPublishError),
+        };
         console.error("[auto-publish] Non-blocking error:", autoPublishError);
       }
     }
 
-    return new Response(JSON.stringify({
-      success: true,
-      article: savedArticle,
-      content: {
-        spanish: spanishArticle,
-        catalan: catalanArticle,
+    return new Response(
+      JSON.stringify({
+        success: true,
+        article: savedArticle,
+        content: {
+          spanish: spanishArticle,
+          catalan: catalanArticle,
+        },
+        image: imageResult,
+        auto_publish: autoPublishOutcome,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
-      image: imageResult,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-
+    );
   } catch (error) {
     console.error("Error in generate-article-saas:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
