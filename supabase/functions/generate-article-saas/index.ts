@@ -733,6 +733,30 @@ interface RequestBody {
   year: number;
   isScheduled?: boolean;
   userId?: string;
+  generationKey?: string;
+}
+
+/**
+ * Builds a deterministic generation key for deduplication.
+ * Must match the logic in generate-scheduler.
+ */
+function buildGenerationKey(frequency: string, month: number, year: number, now: Date): string {
+  const normalizedFreq = normalizeFrequency(frequency);
+  const m = String(month).padStart(2, "0");
+  const day = String(now.getUTCDate()).padStart(2, "0");
+  const weekOfMonth = Math.ceil(now.getUTCDate() / 7);
+
+  switch (normalizedFreq) {
+    case "daily":
+    case "daily_weekdays":
+      return `${year}-${m}-${day}`;
+    case "weekly":
+    case "biweekly":
+      return `${year}-${m}-w${weekOfMonth}`;
+    case "monthly":
+    default:
+      return `${year}-${m}`;
+  }
 }
 
 interface SectorContext {
@@ -1655,7 +1679,7 @@ Deno.serve(async (req) => {
     const monthNameEs = MONTH_NAMES_ES[month - 1];
     const monthNameCa = MONTH_NAMES_CA[month - 1];
     const today = new Date();
-    const dayOfMonth = today.getDate();
+    const dayOfMonth = today.getUTCDate();
     const dateContext = `${dayOfMonth} de ${monthNameEs} ${year}`;
 
     const { geoContext, locationInfo } = buildGeoContext(site);
@@ -2547,8 +2571,14 @@ Deno.serve(async (req) => {
       catalanArticle.content = await verifyAndCleanExternalLinks(catalanArticle.content);
     }
 
+    // Build generation key for deduplication
+    const normalizedPublishFrequency = normalizeFrequency(site.publish_frequency);
+    const inputGenerationKey = requestBody.generationKey;
+    const generationKey = inputGenerationKey || buildGenerationKey(normalizedPublishFrequency, month, year, today);
+    console.log("Generation key:", generationKey);
+
     // Save article to database
-    const articleData = {
+    const articleData: Record<string, any> = {
       site_id: siteId,
       user_id: userId,
       month,
@@ -2562,62 +2592,32 @@ Deno.serve(async (req) => {
       image_photographer_url: imageResult?.photographer_url || null,
       week_of_month: weekOfMonth,
       day_of_month: dayOfMonth,
+      generation_key: generationKey,
     };
 
-    // Check if article already exists based on site's publish frequency
-    // Use service client to check across all users (team members + owner)
+    // Check if article already exists for this generation key
     const serviceClientForCheck = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-    let existingQuery = serviceClientForCheck.from("articles").select("id").eq("site_id", siteId);
 
-    const normalizedPublishFrequency = normalizeFrequency(site.publish_frequency);
-
-    if (normalizedPublishFrequency === "daily" || normalizedPublishFrequency === "daily_weekdays") {
-      const todayStart = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
-      existingQuery = existingQuery.gte("generated_at", todayStart.toISOString());
-    } else if (normalizedPublishFrequency === "weekly" || normalizedPublishFrequency === "biweekly") {
-      existingQuery = existingQuery.eq("week_of_month", weekOfMonth).eq("month", month).eq("year", year);
-    } else {
-      existingQuery = existingQuery.eq("month", month).eq("year", year);
-    }
-
-    const { data: existingArticle } = await existingQuery.maybeSingle();
+    const { data: existingArticle } = await serviceClientForCheck
+      .from("articles")
+      .select("*")
+      .eq("site_id", siteId)
+      .eq("generation_key", generationKey)
+      .maybeSingle();
 
     let savedArticle;
     if (existingArticle) {
-      // Check if article was created very recently (< 60s) — likely a duplicate invocation
-      const { data: existingFull } = await serviceClientForCheck
-        .from("articles")
-        .select("*")
-        .eq("id", existingArticle.id)
-        .single();
-
-      if (existingFull) {
-        const createdAt = new Date(existingFull.generated_at).getTime();
-        const now = Date.now();
-        if (now - createdAt < 60000) {
-          console.log(
-            "⚠️ Duplicate invocation detected (article created <60s ago). Returning existing article:",
-            existingArticle.id,
-          );
-          savedArticle = existingFull;
-          // Skip update — return existing article as-is
-        } else {
-          const { data, error: updateError } = await supabase
-            .from("articles")
-            .update(articleData)
-            .eq("id", existingArticle.id)
-            .select()
-            .single();
-
-          if (updateError) {
-            console.error("Error updating article:", updateError);
-            throw new Error("Failed to update article");
-          }
-          savedArticle = data;
-          console.log("Updated existing article:", savedArticle.id);
-        }
+      // Article already exists for this period — check if it was a recent duplicate
+      const createdAt = new Date(existingArticle.generated_at).getTime();
+      const now = Date.now();
+      if (now - createdAt < 60000) {
+        console.log(
+          "⚠️ Duplicate invocation detected (article created <60s ago). Returning existing article:",
+          existingArticle.id,
+        );
+        savedArticle = existingArticle;
       } else {
-        // Shouldn't happen but fallback to update
+        // Existing article from a previous run — update it
         const { data, error: updateError } = await supabase
           .from("articles")
           .update(articleData)
@@ -2630,17 +2630,38 @@ Deno.serve(async (req) => {
           throw new Error("Failed to update article");
         }
         savedArticle = data;
-        console.log("Updated existing article (fallback):", savedArticle.id);
+        console.log("Updated existing article:", savedArticle.id);
       }
     } else {
+      // Insert new article
       const { data, error: insertError } = await supabase.from("articles").insert(articleData).select().single();
 
       if (insertError) {
-        console.error("Error saving article:", insertError);
-        throw new Error("Failed to save article");
+        // Handle unique violation (23505) — concurrent insert race condition
+        if (insertError.code === "23505") {
+          console.log("⚠️ Unique constraint violation (23505) — recovering existing article");
+          const { data: recovered } = await serviceClientForCheck
+            .from("articles")
+            .select("*")
+            .eq("site_id", siteId)
+            .eq("generation_key", generationKey)
+            .maybeSingle();
+
+          if (recovered) {
+            console.log("Recovered article after conflict:", recovered.id);
+            savedArticle = recovered;
+          } else {
+            console.error("Could not recover article after 23505 conflict");
+            throw new Error("Failed to save article: unique constraint conflict and recovery failed");
+          }
+        } else {
+          console.error("Error saving article:", insertError);
+          throw new Error("Failed to save article");
+        }
+      } else {
+        savedArticle = data;
+        console.log("Created new article:", savedArticle.id);
       }
-      savedArticle = data;
-      console.log("Created new article:", savedArticle.id);
     }
 
     console.log("=== ARTICLE GENERATION COMPLETE ===");
