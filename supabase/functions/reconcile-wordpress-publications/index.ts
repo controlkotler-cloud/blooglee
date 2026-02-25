@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
 
     let query = supabase
       .from("articles")
-      .select("id, site_id, user_id, content_spanish, image_url, generated_at, wp_post_url, topic")
+      .select("id, site_id, user_id, content_spanish, content_catalan, image_url, generated_at, wp_post_url, topic")
       .is("wp_post_url", null)
       .gte("generated_at", since)
       .order("generated_at", { ascending: true })
@@ -108,6 +108,7 @@ Deno.serve(async (req) => {
         scanned: 0,
         published: 0,
         skipped: 0,
+        skip_reasons: { no_site: 0, no_auto_generate: 0, no_wp_config: 0, missing_title: 0, missing_content: 0, missing_slug: 0 },
         failed: 0,
         dry_run: dryRun,
       });
@@ -132,30 +133,59 @@ Deno.serve(async (req) => {
     let published = 0;
     let failed = 0;
     let skipped = 0;
+    const skipReasons: Record<string, number> = { no_site: 0, no_auto_generate: 0, no_wp_config: 0, missing_title: 0, missing_content: 0, missing_slug: 0 };
     const errors: Array<Record<string, unknown>> = [];
+
+    async function skipWithLog(article: any, reason: string): Promise<void> {
+      skipped++;
+      skipReasons[reason] = (skipReasons[reason] || 0) + 1;
+      if (article.site_id && article.user_id) {
+        await logSiteActivity(
+          supabase,
+          article.site_id,
+          article.user_id,
+          "autopublish_reconcile_skipped",
+          `Artículo omitido por reconciliador: ${reason}`,
+          { article_id: article.id, reason }
+        );
+      }
+    }
 
     for (const article of pendingArticles as any[]) {
       const site = siteMap.get(article.site_id);
 
       if (!site) {
-        skipped++;
+        await skipWithLog(article, "no_site");
         continue;
       }
 
       if (!site.auto_generate) {
-        skipped++;
+        await skipWithLog(article, "no_auto_generate");
         continue;
       }
 
       if (!wpConfiguredSiteIds.has(article.site_id)) {
-        skipped++;
+        await skipWithLog(article, "no_wp_config");
         continue;
       }
 
       const spanish = (article.content_spanish || {}) as SpanishArticleContent;
+      const catalan = (article.content_catalan || {}) as SpanishArticleContent;
 
-      if (!spanish.title || !spanish.content || !spanish.slug) {
-        skipped++;
+      const title = spanish.title || catalan.title;
+      const content = spanish.content || catalan.content;
+      const slug = spanish.slug || catalan.slug;
+
+      if (!title) {
+        await skipWithLog(article, "missing_title");
+        continue;
+      }
+      if (!content) {
+        await skipWithLog(article, "missing_content");
+        continue;
+      }
+      if (!slug) {
+        await skipWithLog(article, "missing_slug");
         continue;
       }
 
@@ -166,17 +196,17 @@ Deno.serve(async (req) => {
 
       const publishPayload = {
         site_id: article.site_id,
-        title: spanish.title,
-        seo_title: spanish.seo_title,
-        content: spanish.content,
-        slug: spanish.slug,
+        title,
+        seo_title: spanish.seo_title || catalan.seo_title,
+        content,
+        slug,
         status: "publish",
         image_url: article.image_url || null,
-        image_alt: spanish.title,
-        meta_description: spanish.meta_description,
-        excerpt: spanish.excerpt || spanish.meta_description,
-        focus_keyword: spanish.focus_keyword,
-        lang: "es",
+        image_alt: title,
+        meta_description: spanish.meta_description || catalan.meta_description,
+        excerpt: spanish.excerpt || catalan.excerpt || spanish.meta_description || catalan.meta_description,
+        focus_keyword: spanish.focus_keyword || catalan.focus_keyword,
+        lang: spanish.title ? "es" : "ca",
       };
 
       try {
@@ -268,6 +298,7 @@ Deno.serve(async (req) => {
       scanned: pendingArticles.length,
       published,
       skipped,
+      skip_reasons: skipReasons,
       failed,
       dry_run: dryRun,
       errors: errors.slice(0, 20),
