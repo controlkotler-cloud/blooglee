@@ -1,32 +1,31 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, CheckCircle2, Calendar, FileText, Bell } from 'lucide-react';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, CheckCircle2, Calendar, FileText, Bell } from "lucide-react";
 
 const FREQUENCIES = [
-  { value: 'weekly', label: '1 artículo por semana', sublabel: '(recomendado)' },
-  { value: 'biweekly', label: '2 artículos por semana', sublabel: '' },
-  { value: 'fortnightly', label: '1 artículo cada dos semanas', sublabel: '' },
-  { value: 'monthly', label: '1 artículo al mes', sublabel: '' },
+  { value: "weekly", label: "1 artículo por semana", sublabel: "(recomendado)" },
+  { value: "biweekly", label: "1 artículo cada dos semanas", sublabel: "" },
+  { value: "monthly", label: "1 artículo al mes", sublabel: "" },
 ];
 
 const DAYS = [
-  { value: '1', label: 'Lunes' },
-  { value: '2', label: 'Martes' },
-  { value: '3', label: 'Miércoles' },
-  { value: '4', label: 'Jueves' },
-  { value: '5', label: 'Viernes' },
-  { value: '6', label: 'Sábado' },
-  { value: '0', label: 'Domingo' },
+  { value: "1", label: "Lunes" },
+  { value: "2", label: "Martes" },
+  { value: "3", label: "Miércoles" },
+  { value: "4", label: "Jueves" },
+  { value: "5", label: "Viernes" },
+  { value: "6", label: "Sábado" },
+  { value: "0", label: "Domingo" },
 ];
 
 const HOURS = Array.from({ length: 13 }, (_, i) => {
   const h = i + 8;
-  return { value: String(h), label: `${String(h).padStart(2, '0')}:00` };
+  return { value: String(h), label: `${String(h).padStart(2, "0")}:00` };
 });
 
 interface AutoPublishStepProps {
@@ -34,25 +33,38 @@ interface AutoPublishStepProps {
     frequency: string;
     dayOfWeek: number;
     hourUtc: number;
-    reviewMode: 'review' | 'auto';
+    reviewMode: "review" | "auto";
     includeFeaturedImage: boolean;
   }) => void;
   onBack: () => void;
 }
 
+function getUserTimezoneOffset(): number {
+  return -new Date().getTimezoneOffset() / 60;
+}
+
+function localToUtc(localHour: number): number {
+  const offset = getUserTimezoneOffset();
+  let utc = localHour - offset;
+  if (utc < 0) utc += 24;
+  if (utc >= 24) utc -= 24;
+  return Math.floor(utc);
+}
+
 export function AutoPublishStep({ onActivate, onBack }: AutoPublishStepProps) {
-  const [frequency, setFrequency] = useState('weekly');
-  const [dayOfWeek, setDayOfWeek] = useState('2'); // Tuesday
-  const [hour, setHour] = useState('10');
-  const [reviewMode, setReviewMode] = useState<'review' | 'auto'>('auto');
+  const [frequency, setFrequency] = useState("weekly");
+  const [dayOfWeek, setDayOfWeek] = useState("2"); // Tuesday
+  const [hour, setHour] = useState("10");
+  const [reviewMode, setReviewMode] = useState<"review" | "auto">("auto");
   const [includeFeaturedImage, setIncludeFeaturedImage] = useState(true);
   const [activated, setActivated] = useState(false);
 
   const handleActivate = () => {
+    const hourUtc = localToUtc(parseInt(hour));
     onActivate({
       frequency,
       dayOfWeek: parseInt(dayOfWeek),
-      hourUtc: parseInt(hour),
+      hourUtc,
       reviewMode,
       includeFeaturedImage,
     });
@@ -67,10 +79,10 @@ export function AutoPublishStep({ onActivate, onBack }: AutoPublishStepProps) {
     const next = new Date(now);
     next.setDate(now.getDate() + daysUntil);
     next.setHours(parseInt(hour), 0, 0, 0);
-    return next.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    return next.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
   };
 
-  const frequencyLabel = FREQUENCIES.find(f => f.value === frequency)?.label ?? frequency;
+  const frequencyLabel = FREQUENCIES.find((f) => f.value === frequency)?.label ?? frequency;
 
   if (activated) {
     return (
@@ -86,13 +98,17 @@ export function AutoPublishStep({ onActivate, onBack }: AutoPublishStepProps) {
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center gap-3">
               <Calendar className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm">Próximo artículo: <strong>{getNextArticleDate()}</strong></span>
+              <span className="text-sm">
+                Próximo artículo: <strong>{getNextArticleDate()}</strong>
+              </span>
             </div>
             <div className="flex items-center gap-3">
               <FileText className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm">Frecuencia: <strong>{frequencyLabel}</strong></span>
+              <span className="text-sm">
+                Frecuencia: <strong>{frequencyLabel}</strong>
+              </span>
             </div>
-            {reviewMode === 'review' && (
+            {reviewMode === "review" && (
               <div className="flex items-center gap-3">
                 <Bell className="w-4 h-4 text-emerald-600" />
                 <span className="text-sm">Te avisaremos antes de publicar</span>
@@ -107,9 +123,7 @@ export function AutoPublishStep({ onActivate, onBack }: AutoPublishStepProps) {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="text-center space-y-2">
-        <h2 className="text-xl font-display font-bold text-foreground">
-          Activa la publicación automática
-        </h2>
+        <h2 className="text-xl font-display font-bold text-foreground">Activa la publicación automática</h2>
         <p className="text-sm text-muted-foreground">
           Blooglee puede generar y publicar artículos en tu blog sin que tengas que hacer nada.
         </p>
@@ -140,21 +154,29 @@ export function AutoPublishStep({ onActivate, onBack }: AutoPublishStepProps) {
         <div className="space-y-2">
           <Label className="text-sm font-medium">Día preferido</Label>
           <Select value={dayOfWeek} onValueChange={setDayOfWeek}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {DAYS.map((d) => (
-                <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                <SelectItem key={d.value} value={d.value}>
+                  {d.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Hora</Label>
+          <Label className="text-sm font-medium">Hora (tu zona horaria)</Label>
           <Select value={hour} onValueChange={setHour}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {HOURS.map((h) => (
-                <SelectItem key={h.value} value={h.value}>{h.label}</SelectItem>
+                <SelectItem key={h.value} value={h.value}>
+                  {h.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -164,7 +186,7 @@ export function AutoPublishStep({ onActivate, onBack }: AutoPublishStepProps) {
       {/* Review mode */}
       <div className="space-y-3">
         <Label className="text-sm font-medium">Revisión</Label>
-        <RadioGroup value={reviewMode} onValueChange={(v) => setReviewMode(v as 'review' | 'auto')}>
+        <RadioGroup value={reviewMode} onValueChange={(v) => setReviewMode(v as "review" | "auto")}>
           <div className="space-y-2">
             <label className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors">
               <RadioGroupItem value="review" className="mt-0.5" />
@@ -180,12 +202,8 @@ export function AutoPublishStep({ onActivate, onBack }: AutoPublishStepProps) {
             <label className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors">
               <RadioGroupItem value="auto" className="mt-0.5" />
               <div>
-                <span className="text-sm font-medium text-foreground">
-                  Publicar directamente sin revisión
-                </span>
-                <p className="text-xs text-muted-foreground">
-                  Confío en Blooglee para publicar automáticamente.
-                </p>
+                <span className="text-sm font-medium text-foreground">Publicar directamente sin revisión</span>
+                <p className="text-xs text-muted-foreground">Confío en Blooglee para publicar automáticamente.</p>
               </div>
             </label>
           </div>
@@ -194,13 +212,8 @@ export function AutoPublishStep({ onActivate, onBack }: AutoPublishStepProps) {
 
       {/* Featured image */}
       <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors">
-        <Checkbox
-          checked={includeFeaturedImage}
-          onCheckedChange={(c) => setIncludeFeaturedImage(!!c)}
-        />
-        <span className="text-sm text-foreground">
-          ☑ Generar imagen destacada con IA para cada artículo
-        </span>
+        <Checkbox checked={includeFeaturedImage} onCheckedChange={(c) => setIncludeFeaturedImage(!!c)} />
+        <span className="text-sm text-foreground">☑ Generar imagen destacada con IA para cada artículo</span>
       </label>
 
       <Button onClick={handleActivate} className="w-full">
