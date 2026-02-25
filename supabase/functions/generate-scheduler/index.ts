@@ -43,6 +43,30 @@ function normalizeFrequency(rawFrequency: string | null | undefined): string {
 }
 
 /**
+ * Builds a deterministic generation key for a site based on its frequency and current UTC time.
+ * Used to prevent duplicate articles for the same period.
+ */
+function buildSiteGenerationKey(frequency: string, now: Date): string {
+  const normalizedFrequency = normalizeFrequency(frequency);
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(now.getUTCDate()).padStart(2, "0");
+  const weekOfMonth = Math.ceil(now.getUTCDate() / 7);
+
+  switch (normalizedFrequency) {
+    case "daily":
+    case "daily_weekdays":
+      return `${year}-${month}-${day}`;
+    case "weekly":
+    case "biweekly":
+      return `${year}-${month}-w${weekOfMonth}`;
+    case "monthly":
+    default:
+      return `${year}-${month}`;
+  }
+}
+
+/**
  * Determines if an entity should generate content today based on frequency (for MKPro)
  * This is the legacy logic for farmacias and empresas
  */
@@ -383,12 +407,14 @@ const handler = async (req: Request): Promise<Response> => {
         );
 
         // For SaaS, we need to pass auth context - use service role for scheduled jobs
+        const generationKey = buildSiteGenerationKey(frequency, now);
         dispatchGeneration(supabaseUrl, supabaseServiceKey, "generate-article-saas", {
           siteId: site.id,
           month,
           year,
           isScheduled: true,
           userId: site.user_id, // Pass user_id for notifications
+          generationKey,
         });
         dispatched.sites++;
       }
