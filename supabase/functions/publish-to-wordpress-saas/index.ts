@@ -1,10 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-  'Access-Control-Max-Age': '86400',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+  "Access-Control-Max-Age": "86400",
 };
 
 interface PublishRequest {
@@ -13,14 +14,14 @@ interface PublishRequest {
   seo_title?: string;
   content: string;
   slug: string;
-  status: 'publish' | 'draft' | 'future';
+  status: "publish" | "draft" | "future";
   date?: string;
   image_url?: string;
   image_alt?: string;
   meta_description?: string;
   excerpt?: string;
   focus_keyword?: string;
-  lang?: 'es' | 'ca';
+  lang?: "es" | "ca";
   category_ids?: number[];
   tag_ids?: number[];
 }
@@ -35,12 +36,14 @@ interface PublishResult {
 
 Deno.serve(async (req) => {
   const requestId = crypto.randomUUID().slice(0, 8);
-  const origin = req.headers.get('origin') || 'unknown';
+  const origin = req.headers.get("origin") || "unknown";
 
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log(`[${requestId}] OPTIONS preflight from origin=${origin}, headers=${req.headers.get('access-control-request-headers')}`);
-    return new Response('ok', { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    console.log(
+      `[${requestId}] OPTIONS preflight from origin=${origin}, headers=${req.headers.get("access-control-request-headers")}`,
+    );
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -48,19 +51,19 @@ Deno.serve(async (req) => {
     console.log(`[${requestId}] Origin: ${origin}`);
 
     // Get authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      console.error('No authorization header');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      console.error("No authorization header");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const token = authHeader.replace('Bearer ', '');
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const token = authHeader.replace("Bearer ", "");
 
     // Parse request body first (needed for scheduler mode check)
     const body: PublishRequest = await req.json();
@@ -72,87 +75,84 @@ Deno.serve(async (req) => {
 
     if (isServiceRole) {
       // Scheduler mode: service_role_key was passed, use it directly
-      console.log('[scheduler-mode] Using service_role auth');
+      console.log("[scheduler-mode] Using service_role auth");
       supabase = createClient(supabaseUrl, supabaseServiceKey);
-      
+
       // In scheduler mode, we need to find the user_id from the site
       const { data: siteData, error: siteError } = await supabase
-        .from('sites')
-        .select('user_id')
-        .eq('id', body.site_id)
+        .from("sites")
+        .select("user_id")
+        .eq("id", body.site_id)
         .single();
-      
+
       if (siteError || !siteData) {
-        console.error('Site not found:', siteError);
-        return new Response(
-          JSON.stringify({ error: 'Site not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error("Site not found:", siteError);
+        return new Response(JSON.stringify({ error: "Site not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       userId = siteData.user_id;
-      console.log('[scheduler-mode] Resolved user_id from site:', userId);
+      console.log("[scheduler-mode] Resolved user_id from site:", userId);
     } else {
       // User mode: validate JWT
       supabase = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } }
+        global: { headers: { Authorization: authHeader } },
       });
 
       const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
       if (claimsError || !claimsData?.claims) {
-        console.error('Invalid token:', claimsError);
-        return new Response(
-          JSON.stringify({ error: 'Unauthorized' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error("Invalid token:", claimsError);
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       userId = claimsData.claims.sub as string;
     }
 
-    console.log('User ID:', userId);
-    console.log('Site ID:', body.site_id);
-    console.log('Title:', body.title);
-    console.log('Status:', body.status);
-    console.log('Language:', body.lang || 'es');
+    console.log("User ID:", userId);
+    console.log("Site ID:", body.site_id);
+    console.log("Title:", body.title);
+    console.log("Status:", body.status);
+    console.log("Language:", body.lang || "es");
 
     // Validate required fields
     if (!body.site_id || !body.title || !body.content || !body.slug) {
-      return new Response(
-        JSON.stringify({ error: 'Faltan campos requeridos: site_id, title, content, slug' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: "Faltan campos requeridos: site_id, title, content, slug" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Get WordPress config for this site
     // In service_role mode, RLS is bypassed so we don't need user_id filter
     // In user mode, RLS ensures only the user's configs are returned
-    let wpQuery = supabase
-      .from('wordpress_configs')
-      .select('*')
-      .eq('site_id', body.site_id);
-    
+    let wpQuery = supabase.from("wordpress_configs").select("*").eq("site_id", body.site_id);
+
     if (!isServiceRole) {
-      wpQuery = wpQuery.eq('user_id', userId);
+      wpQuery = wpQuery.eq("user_id", userId);
     }
-    
+
     const { data: wpConfig, error: wpError } = await wpQuery.maybeSingle();
 
     if (wpError) {
-      console.error('Error fetching WordPress config:', wpError);
-      return new Response(
-        JSON.stringify({ error: 'Error al obtener configuración de WordPress' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error("Error fetching WordPress config:", wpError);
+      return new Response(JSON.stringify({ error: "Error al obtener configuración de WordPress" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     if (!wpConfig) {
-      console.error('WordPress config not found for site:', body.site_id);
-      return new Response(
-        JSON.stringify({ error: 'WordPress no está configurado para este sitio' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error("WordPress config not found for site:", body.site_id);
+      return new Response(JSON.stringify({ error: "WordPress no está configurado para este sitio" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log('WordPress URL:', wpConfig.site_url);
+    console.log("WordPress URL:", wpConfig.site_url);
 
     // Normalize WordPress URL to origin (strip /blog, /wp-admin, etc.)
     let wpUrl = wpConfig.site_url.trim();
@@ -160,20 +160,20 @@ Deno.serve(async (req) => {
       const parsed = new URL(wpUrl);
       wpUrl = parsed.origin;
     } catch {
-      wpUrl = wpUrl.replace(/\/wp-admin\/?$/, '').replace(/\/+$/, '');
+      wpUrl = wpUrl.replace(/\/wp-admin\/?$/, "").replace(/\/+$/, "");
     }
 
     // Create Basic Auth header
     const credentials = btoa(`${wpConfig.wp_username}:${wpConfig.wp_app_password}`);
     const wpHeaders = {
-      'Authorization': `Basic ${credentials}`,
-      'Content-Type': 'application/json',
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/json",
     };
 
     // Upload featured image if provided
     let featuredMediaId: number | undefined;
     if (body.image_url) {
-      console.log('Uploading featured image:', body.image_url);
+      console.log("Uploading featured image:", body.image_url);
       try {
         // Fetch the image
         const imageResponse = await fetch(body.image_url);
@@ -182,60 +182,100 @@ Deno.serve(async (req) => {
           const imageBuffer = await imageBlob.arrayBuffer();
 
           // Determine filename and content type
-          const urlParts = body.image_url.split('/');
-          let filename = urlParts[urlParts.length - 1].split('?')[0] || 'featured-image.jpg';
-          if (!filename.includes('.')) {
-            filename += '.jpg';
+          const urlParts = body.image_url.split("/");
+          let filename = urlParts[urlParts.length - 1].split("?")[0] || "featured-image.jpg";
+          if (!filename.includes(".")) {
+            filename += ".jpg";
           }
-          const contentType = imageBlob.type || 'image/jpeg';
+          const contentType = imageBlob.type || "image/jpeg";
 
-          console.log('Image filename:', filename);
-          console.log('Image content type:', contentType);
+          console.log("Image filename:", filename);
+          console.log("Image content type:", contentType);
 
           // Upload to WordPress media library
           const mediaResponse = await fetch(`${wpUrl}/wp-json/wp/v2/media`, {
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Authorization': `Basic ${credentials}`,
-              'Content-Type': contentType,
-              'Content-Disposition': `attachment; filename="${filename}"`,
+              Authorization: `Basic ${credentials}`,
+              "Content-Type": contentType,
+              "Content-Disposition": `attachment; filename="${filename}"`,
             },
             body: imageBuffer,
           });
 
           const mediaResponseText = await mediaResponse.text();
-          console.log('Media upload response status:', mediaResponse.status);
+          console.log("Media upload response status:", mediaResponse.status);
 
           if (mediaResponse.ok) {
             const mediaData = JSON.parse(mediaResponseText);
             featuredMediaId = mediaData.id;
-            console.log('Featured media ID:', featuredMediaId);
+            console.log("Featured media ID:", featuredMediaId);
 
             // Update alt text if provided
             if (body.image_alt && featuredMediaId) {
               await fetch(`${wpUrl}/wp-json/wp/v2/media/${featuredMediaId}`, {
-                method: 'POST',
+                method: "POST",
                 headers: wpHeaders,
                 body: JSON.stringify({ alt_text: body.image_alt }),
               });
             }
           } else {
-            console.error('Media upload failed:', mediaResponseText);
+            console.error("Media upload failed:", mediaResponseText);
           }
         }
       } catch (imageError) {
-        console.error('Error uploading image:', imageError);
+        console.error("Error uploading image:", imageError);
         // Continue without featured image
       }
     }
 
     // Prepare post data
-    const slug = body.lang === 'ca' ? `${body.slug}-ca` : body.slug;
+    const slug = body.lang === "ca" ? `${body.slug}-ca` : body.slug;
+
+    // Idempotency check: if a post with same slug already exists, return it
+    try {
+      const existingPostRes = await fetch(
+        `${wpUrl}/wp-json/wp/v2/posts?slug=${encodeURIComponent(slug)}&per_page=1&context=edit`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Basic ${credentials}`,
+          },
+        },
+      );
+
+      if (existingPostRes.ok) {
+        const existingPostText = await existingPostRes.text();
+        const existingPosts = JSON.parse(existingPostText);
+
+        if (Array.isArray(existingPosts) && existingPosts.length > 0) {
+          const existing = existingPosts[0];
+          console.log(`[idempotency] Existing post found for slug=${slug}, id=${existing.id}`);
+          return new Response(
+            JSON.stringify({
+              success: true,
+              post_id: existing.id,
+              post_url: existing.link,
+              status: existing.status,
+              idempotent: true,
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      } else {
+        console.log(
+          `[idempotency] Existing slug check returned status=${existingPostRes.status}, continuing with create`,
+        );
+      }
+    } catch (existingCheckError) {
+      console.error("[idempotency] Existing slug check failed, continuing with create:", existingCheckError);
+    }
+
     const postData: Record<string, unknown> = {
       title: body.title,
       content: body.content,
       slug: slug,
-      status: body.status === 'future' ? 'future' : body.status,
+      status: body.status === "future" ? "future" : body.status,
     };
 
     // Add featured image if uploaded
@@ -246,23 +286,23 @@ Deno.serve(async (req) => {
     // Add excerpt (native WordPress field, works without extra config)
     if (body.excerpt) {
       postData.excerpt = body.excerpt.substring(0, 160);
-      console.log('Adding excerpt:', body.excerpt.substring(0, 50) + '...');
+      console.log("Adding excerpt:", body.excerpt.substring(0, 50) + "...");
     }
 
     // Add scheduled date if provided
-    if (body.status === 'future' && body.date) {
+    if (body.status === "future" && body.date) {
       postData.date = body.date;
     }
 
     // Add Yoast SEO meta fields if provided
     if (body.meta_description || body.seo_title || body.focus_keyword) {
       const yoastMeta: Record<string, string> = {};
-      
+
       if (body.meta_description) {
         // Ensure max 160 characters for meta description
         yoastMeta._yoast_wpseo_metadesc = body.meta_description.substring(0, 160);
       }
-      
+
       if (body.seo_title) {
         // Ensure max 60 characters for SEO title
         yoastMeta._yoast_wpseo_title = body.seo_title.substring(0, 60);
@@ -275,9 +315,9 @@ Deno.serve(async (req) => {
       if (body.focus_keyword) {
         yoastMeta._yoast_wpseo_focuskw = body.focus_keyword.substring(0, 50);
       }
-      
+
       postData.meta = yoastMeta;
-      console.log('Yoast meta fields:', yoastMeta);
+      console.log("Yoast meta fields:", yoastMeta);
     }
 
     // Add language parameter for Polylang
@@ -288,62 +328,62 @@ Deno.serve(async (req) => {
     // Add categories if provided
     if (body.category_ids && body.category_ids.length > 0) {
       postData.categories = body.category_ids;
-      console.log('Categories:', body.category_ids);
+      console.log("Categories:", body.category_ids);
     }
 
     // Add tags if provided
     if (body.tag_ids && body.tag_ids.length > 0) {
       postData.tags = body.tag_ids;
-      console.log('Tags:', body.tag_ids);
+      console.log("Tags:", body.tag_ids);
     }
 
-    console.log('Creating post with data:', JSON.stringify(postData, null, 2));
+    console.log("Creating post with data:", JSON.stringify(postData, null, 2));
 
     // Create the post
     const postResponse = await fetch(`${wpUrl}/wp-json/wp/v2/posts`, {
-      method: 'POST',
+      method: "POST",
       headers: wpHeaders,
       body: JSON.stringify(postData),
     });
 
     const postResponseText = await postResponse.text();
-    console.log('Post creation response status:', postResponse.status);
+    console.log("Post creation response status:", postResponse.status);
 
     if (!postResponse.ok) {
-      console.error('Post creation failed:', postResponseText);
-      
+      console.error("Post creation failed:", postResponseText);
+
       // Try to parse error message
-      let errorMessage = 'Error al crear el post en WordPress';
+      let errorMessage = "Error al crear el post en WordPress";
       try {
         const errorData = JSON.parse(postResponseText);
         errorMessage = errorData.message || errorMessage;
       } catch {
         // Check for HTML response (common when URL is wrong)
-        if (postResponseText.includes('<!DOCTYPE') || postResponseText.includes('<html')) {
-          errorMessage = 'La URL de WordPress no es válida o el endpoint REST API no está disponible';
+        if (postResponseText.includes("<!DOCTYPE") || postResponseText.includes("<html")) {
+          errorMessage = "La URL de WordPress no es válida o el endpoint REST API no está disponible";
         }
       }
 
-      return new Response(
-        JSON.stringify({ error: errorMessage }),
-        { status: postResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: errorMessage }), {
+        status: postResponse.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const postData2 = JSON.parse(postResponseText);
-    console.log('Post created successfully!');
-    console.log('Post ID:', postData2.id);
-    console.log('Post URL:', postData2.link);
+    console.log("Post created successfully!");
+    console.log("Post ID:", postData2.id);
+    console.log("Post URL:", postData2.link);
 
     // Update wordpress_context with the new title (auto-sync)
     try {
-      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabaseService = createClient(supabaseUrl, serviceRoleKey);
 
       const { data: siteData, error: siteError } = await supabaseService
-        .from('sites')
-        .select('wordpress_context')
-        .eq('id', body.site_id)
+        .from("sites")
+        .select("wordpress_context")
+        .eq("id", body.site_id)
         .single();
 
       if (!siteError && siteData) {
@@ -354,24 +394,24 @@ Deno.serve(async (req) => {
         const updatedTopics = [body.title, ...currentTopics].slice(0, 25);
 
         const { error: updateError } = await supabaseService
-          .from('sites')
+          .from("sites")
           .update({
             wordpress_context: {
               ...currentContext,
               lastTopics: updatedTopics,
-              last_publish_at: new Date().toISOString()
-            }
+              last_publish_at: new Date().toISOString(),
+            },
           })
-          .eq('id', body.site_id);
+          .eq("id", body.site_id);
 
         if (updateError) {
-          console.error('Error updating wordpress_context:', updateError);
+          console.error("Error updating wordpress_context:", updateError);
         } else {
-          console.log('wordpress_context updated with new topic:', body.title);
+          console.log("wordpress_context updated with new topic:", body.title);
         }
       }
     } catch (contextError) {
-      console.error('Error updating wordpress_context (non-blocking):', contextError);
+      console.error("Error updating wordpress_context (non-blocking):", contextError);
       // Don't fail the publish if context update fails
     }
 
@@ -384,50 +424,48 @@ Deno.serve(async (req) => {
 
     // Fire-and-forget: trigger full WordPress sync to update context
     try {
-      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
       // Get wordpress_config_id for this site
       const supabaseService = createClient(supabaseUrl, serviceRoleKey);
       const { data: wpCfg } = await supabaseService
-        .from('wordpress_configs')
-        .select('id')
-        .eq('site_id', body.site_id)
+        .from("wordpress_configs")
+        .select("id")
+        .eq("site_id", body.site_id)
         .single();
 
       if (wpCfg?.id) {
         const syncUrl = `${supabaseUrl}/functions/v1/sync-wordpress-taxonomies-saas`;
         fetch(syncUrl, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${serviceRoleKey}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceRoleKey}`,
           },
           body: JSON.stringify({
             wordpress_config_id: wpCfg.id,
             analyze_content: true,
           }),
-        }).then(res => {
-          console.log(`[sync-after-publish] Response status: ${res.status}`);
-        }).catch(err => {
-          console.error('[sync-after-publish] Error:', err);
-        });
-        console.log('[sync-after-publish] Triggered full WordPress sync for config:', wpCfg.id);
+        })
+          .then((res) => {
+            console.log(`[sync-after-publish] Response status: ${res.status}`);
+          })
+          .catch((err) => {
+            console.error("[sync-after-publish] Error:", err);
+          });
+        console.log("[sync-after-publish] Triggered full WordPress sync for config:", wpCfg.id);
       }
     } catch (syncError) {
-      console.error('[sync-after-publish] Non-blocking error:', syncError);
+      console.error("[sync-after-publish] Non-blocking error:", syncError);
     }
 
-    return new Response(
-      JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
+    return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: unknown) {
-    console.error('Unexpected error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Error inesperado';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error("Unexpected error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Error inesperado";
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
