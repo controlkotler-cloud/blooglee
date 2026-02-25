@@ -419,12 +419,13 @@ const handler = async (req: Request): Promise<Response> => {
         dispatched.sites++;
       }
     }
-    // Fire-and-forget reconciliation for previously generated but unpublished articles.
-    // This provides eventual consistency for transient WordPress/API failures.
+    // Always dispatch reconciliation — unconditional, never gated by errors or counts.
+    console.log("[scheduler] dispatch reconcile-wordpress-publications start");
     dispatchGeneration(supabaseUrl, supabaseServiceKey, "reconcile-wordpress-publications", {
       lookback_hours: 168,
       batch_size: 100,
     });
+    console.log("[scheduler] dispatch reconcile-wordpress-publications done");
 
     const elapsed = Date.now() - startTime;
     console.log("\n=== SCHEDULER COMPLETE ===");
@@ -440,6 +441,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({
         success: true,
         dispatched,
+        reconcile_dispatched: true,
         elapsed_ms: elapsed,
         timestamp: now.toISOString(),
       }),
