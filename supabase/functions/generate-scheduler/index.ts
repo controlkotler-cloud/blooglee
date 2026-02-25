@@ -427,6 +427,14 @@ const handler = async (req: Request): Promise<Response> => {
     });
     console.log("[scheduler] dispatch reconcile-wordpress-publications done");
 
+    // Always dispatch autopublish health monitor
+    console.log("[scheduler] dispatch monitor-autopublish-health start");
+    dispatchGeneration(supabaseUrl, supabaseServiceKey, "monitor-autopublish-health", {
+      window_minutes: 60,
+      pending_threshold: 1,
+    });
+    console.log("[scheduler] dispatch monitor-autopublish-health done");
+
     const elapsed = Date.now() - startTime;
     console.log("\n=== SCHEDULER COMPLETE ===");
     console.log(`Time elapsed: ${elapsed}ms`);
@@ -442,6 +450,7 @@ const handler = async (req: Request): Promise<Response> => {
         success: true,
         dispatched,
         reconcile_dispatched: true,
+        monitor_dispatched: true,
         elapsed_ms: elapsed,
         timestamp: now.toISOString(),
       }),

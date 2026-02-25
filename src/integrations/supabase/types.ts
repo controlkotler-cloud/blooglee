@@ -395,6 +395,30 @@ export type Database = {
           },
         ]
       }
+      ops_alert_log: {
+        Row: {
+          alert_hour: string
+          alert_type: string
+          created_at: string
+          id: number
+          payload: Json
+        }
+        Insert: {
+          alert_hour: string
+          alert_type: string
+          created_at?: string
+          id?: number
+          payload?: Json
+        }
+        Update: {
+          alert_hour?: string
+          alert_type?: string
+          created_at?: string
+          id?: number
+          payload?: Json
+        }
+        Relationships: []
+      }
       pending_surveys: {
         Row: {
           id: string
