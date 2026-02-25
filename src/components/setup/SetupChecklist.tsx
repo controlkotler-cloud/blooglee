@@ -1,41 +1,41 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useChecklist } from '@/hooks/useChecklist';
-import { useProfile } from '@/hooks/useProfile';
-import { useSites, useUpdateSite, type Site } from '@/hooks/useSites';
-import { useAllArticlesSaas, type ArticleContent } from '@/hooks/useArticlesSaas';
-import { useWordPressConfigsBatch } from '@/hooks/useWordPressConfigSaas';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { SetupProgress } from './SetupProgress';
-import { ChecklistItem } from './ChecklistItem';
-import { FirstPublishStep } from './FirstPublishStep';
-import { ContentProfileStep } from './ContentProfileStep';
-import { AutoPublishStep } from './AutoPublishStep';
-import { track } from '@/lib/analytics';
-import { WordPressSetup } from '@/components/wordpress/WordPressSetup';
-import { CodeSnippetsLibrary } from '@/components/saas/CodeSnippetsLibrary';
-import { MessageCircle, PartyPopper } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { toast } from 'sonner';
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useChecklist } from "@/hooks/useChecklist";
+import { useProfile } from "@/hooks/useProfile";
+import { useSites, useUpdateSite, type Site } from "@/hooks/useSites";
+import { useAllArticlesSaas, type ArticleContent } from "@/hooks/useArticlesSaas";
+import { useWordPressConfigsBatch } from "@/hooks/useWordPressConfigSaas";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { SetupProgress } from "./SetupProgress";
+import { ChecklistItem } from "./ChecklistItem";
+import { FirstPublishStep } from "./FirstPublishStep";
+import { ContentProfileStep } from "./ContentProfileStep";
+import { AutoPublishStep } from "./AutoPublishStep";
+import { track } from "@/lib/analytics";
+import { WordPressSetup } from "@/components/wordpress/WordPressSetup";
+import { CodeSnippetsLibrary } from "@/components/saas/CodeSnippetsLibrary";
+import { MessageCircle, PartyPopper } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner";
 
 const TONE_LABELS: Record<string, string> = {
-  friendly: 'Cercano',
-  professional: 'Profesional',
-  expert: 'Experto',
-  educational: 'Divulgativo',
+  friendly: "Cercano",
+  professional: "Profesional",
+  expert: "Experto",
+  educational: "Divulgativo",
 };
 
 const MOOD_LABELS: Record<string, string> = {
-  'warm and welcoming': 'Cálido',
-  'bold and modern': 'Moderno',
-  'elegant and refined': 'Elegante',
-  'playful and energetic': 'Divertido',
-  'calm and natural': 'Natural',
+  "warm and welcoming": "Cálido",
+  "bold and modern": "Moderno",
+  "elegant and refined": "Elegante",
+  "playful and energetic": "Divertido",
+  "calm and natural": "Natural",
 };
 
-type ActiveStep = null | 'wordpress_connect' | 'first_publish' | 'content_profile' | 'auto_publish' | 'polylang_setup';
+type ActiveStep = null | "wordpress_connect" | "first_publish" | "content_profile" | "auto_publish" | "polylang_setup";
 
 interface SetupChecklistProps {
   site: Site;
@@ -52,7 +52,7 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
 
   const openStep = (step: ActiveStep) => {
     stepStartTimeRef.current = Date.now();
-    if (step) track('checklist_step_started', { step });
+    if (step) track("checklist_step_started", { step });
     setActiveStep(step);
   };
 
@@ -61,115 +61,107 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
   const { data: articles = [] } = useAllArticlesSaas(currentMonth, currentYear);
   const { data: wpConfigsMap = {} } = useWordPressConfigsBatch([site.id]);
 
-  const {
-    checklistItems,
-    progressPercentage,
-    getNextPendingStep,
-    updateStep,
-    isLoading,
-  } = useChecklist(site.id);
+  const { checklistItems, progressPercentage, getNextPendingStep, updateStep, isLoading } = useChecklist(site.id);
 
   const hasWordPress = !!wpConfigsMap[site.id];
   const nextPending = getNextPendingStep();
-  const siteArticle = articles.find(a => a.site_id === site.id);
+  const siteArticle = articles.find((a) => a.site_id === site.id);
   const articleTitle = siteArticle
-    ? (siteArticle.content_spanish as unknown as ArticleContent | null)?.title ?? siteArticle.topic
+    ? ((siteArticle.content_spanish as unknown as ArticleContent | null)?.title ?? siteArticle.topic)
     : null;
 
-  const userName = profile?.email?.split('@')[0] ?? '';
+  const userName = profile?.email?.split("@")[0] ?? "";
 
   if (isLoading || checklistItems.length === 0) return null;
 
   // Check if all steps are completed
-  const allComplete = checklistItems.every(i => i.status === 'completed');
+  const allComplete = checklistItems.every((i) => i.status === "completed");
 
   const markChecklistComplete = async () => {
     if (!user?.id) return;
     await supabase
-      .from('onboarding_progress')
+      .from("onboarding_progress")
       .update({ checklist_completed: true })
-      .eq('user_id', user.id)
-      .eq('site_id', site.id);
+      .eq("user_id", user.id)
+      .eq("site_id", site.id);
   };
 
   const getItemConfig = (stepKey: string) => {
     switch (stepKey) {
-      case 'business_setup':
+      case "business_setup":
         return {
-          title: 'Tu negocio configurado',
-          description: `${site.name}${site.location ? ` · ${site.location}` : ''}${site.tone ? ` · Tono ${TONE_LABELS[site.tone] ?? site.tone}` : ''}`,
-          actionLabel: 'Editar',
+          title: "Tu negocio configurado",
+          description: `${site.name}${site.location ? ` · ${site.location}` : ""}${site.tone ? ` · Tono ${TONE_LABELS[site.tone] ?? site.tone}` : ""}`,
+          actionLabel: "Editar",
           onAction: () => navigate(`/site/${site.id}?tab=settings`),
         };
-      case 'style_setup':
+      case "style_setup":
         return {
-          title: 'Tu estilo definido',
-          description: `Mood: ${MOOD_LABELS[site.mood ?? ''] ?? site.mood ?? 'Sin definir'} · Paleta: ${site.color_palette ?? 'sin definir'}`,
-          actionLabel: 'Editar',
+          title: "Tu estilo definido",
+          description: `Mood: ${MOOD_LABELS[site.mood ?? ""] ?? site.mood ?? "Sin definir"} · Paleta: ${site.color_palette ?? "sin definir"}`,
+          actionLabel: "Editar",
           onAction: () => navigate(`/site/${site.id}?tab=settings`),
         };
-      case 'first_article':
+      case "first_article":
         return {
-          title: 'Tu primer artículo generado',
-          description: articleTitle ? `"${articleTitle}"` : 'Artículo generado',
-          actionLabel: 'Ver artículo',
+          title: "Tu primer artículo generado",
+          description: articleTitle ? `"${articleTitle}"` : "Artículo generado",
+          actionLabel: "Ver artículo",
           onAction: () => navigate(`/site/${site.id}`),
         };
-      case 'wordpress_connect':
+      case "wordpress_connect":
         return {
-          title: 'Conectar tu WordPress',
+          title: "Conectar tu WordPress",
           description: hasWordPress
-            ? 'WordPress conectado ✓'
-            : 'Sin esto, no podemos publicar en tu blog. Tarda unos 5 minutos.',
-          actionLabel: hasWordPress ? 'Configurar' : 'Conectar WordPress →',
-          onAction: () => openStep('wordpress_connect'),
+            ? "WordPress conectado ✓"
+            : "Sin esto, no podemos publicar en tu blog. Tarda unos 5 minutos.",
+          actionLabel: hasWordPress ? "Configurar" : "Conectar WordPress →",
+          onAction: () => openStep("wordpress_connect"),
         };
-      case 'polylang_setup':
+      case "polylang_setup":
         return {
-          title: 'Configurar Polylang para catalán',
-          description: 'Instala el plugin y añade el snippet para publicar en dos idiomas.',
-          actionLabel: 'Ver instrucciones →',
-          onAction: () => openStep('polylang_setup'),
+          title: "Configurar Polylang para catalán",
+          description: "Instala el plugin y añade el snippet para publicar en dos idiomas.",
+          actionLabel: "Ver instrucciones →",
+          onAction: () => openStep("polylang_setup"),
         };
-      case 'first_publish':
+      case "first_publish":
         return {
-          title: 'Publicar tu primer artículo',
-          description: 'Publica el artículo que hemos generado.',
-          actionLabel: 'Publicar →',
-          onAction: () => openStep('first_publish'),
+          title: "Publicar tu primer artículo",
+          description: "Publica el artículo que hemos generado.",
+          actionLabel: "Publicar →",
+          onAction: () => openStep("first_publish"),
           disabled: !hasWordPress,
         };
-      case 'content_profile':
+      case "content_profile":
         return {
-          title: 'Personalizar tu contenido',
-          description: 'Ajusta los temas y el estilo de tus artículos.',
-          actionLabel: 'Personalizar',
-          onAction: () => openStep('content_profile'),
+          title: "Personalizar tu contenido",
+          description: "Ajusta los temas y el estilo de tus artículos.",
+          actionLabel: "Personalizar",
+          onAction: () => openStep("content_profile"),
         };
-      case 'auto_publish':
+      case "auto_publish":
         return {
-          title: 'Activar publicación automática',
-          description: 'Blooglee publicará artículos por ti.',
-          actionLabel: 'Activar →',
-          onAction: () => openStep('auto_publish'),
+          title: "Activar publicación automática",
+          description: "Blooglee publicará artículos por ti.",
+          actionLabel: "Activar →",
+          onAction: () => openStep("auto_publish"),
           disabled: !hasWordPress,
         };
       default:
-        return { title: stepKey, description: '' };
+        return { title: stepKey, description: "" };
     }
   };
 
   // Render active step sub-screens
-  if (activeStep === 'polylang_setup') {
+  if (activeStep === "polylang_setup") {
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
         <div className="space-y-2">
           <Button variant="ghost" size="sm" onClick={() => setActiveStep(null)} className="mb-2">
             ← Volver al checklist
           </Button>
-          <h2 className="text-xl font-display font-bold text-foreground">
-            Configurar Polylang para catalán
-          </h2>
+          <h2 className="text-xl font-display font-bold text-foreground">Configurar Polylang para catalán</h2>
           <p className="text-sm text-muted-foreground">
             Para que Blooglee publique artículos en español y catalán, necesitas hacer 2 cosas en tu WordPress:
           </p>
@@ -179,22 +171,28 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
           <CardContent className="p-5 space-y-4">
             <div className="space-y-3">
               <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center">1</span>
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center">
+                  1
+                </span>
                 <div>
                   <p className="font-semibold text-sm">Instalar el plugin Polylang</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    En tu WordPress, ve a <strong>Plugins → Añadir nuevo</strong>, busca <strong>&quot;Polylang&quot;</strong>, instálalo y actívalo.
-                    Luego configura los idiomas <strong>Español (es)</strong> y <strong>Catalán (ca)</strong> en <strong>Idiomas → Idiomas</strong>.
+                    En tu WordPress, ve a <strong>Plugins → Añadir nuevo</strong>, busca{" "}
+                    <strong>&quot;Polylang&quot;</strong>, instálalo y actívalo. Luego configura los idiomas{" "}
+                    <strong>Español (es)</strong> y <strong>Catalán (ca)</strong> en <strong>Idiomas → Idiomas</strong>.
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center">2</span>
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center">
+                  2
+                </span>
                 <div>
                   <p className="font-semibold text-sm">Añadir el snippet de código PHP</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Instala el plugin gratuito <strong>&quot;Code Snippets&quot;</strong> (Plugins → Añadir nuevo → buscar &quot;Code Snippets&quot;).
-                    Una vez activado, ve a <strong>Snippets → Añadir nuevo</strong> y pega el código de aquí abajo.
+                    Instala el plugin gratuito <strong>&quot;Code Snippets&quot;</strong> (Plugins → Añadir nuevo →
+                    buscar &quot;Code Snippets&quot;). Una vez activado, ve a <strong>Snippets → Añadir nuevo</strong> y
+                    pega el código de aquí abajo.
                   </p>
                 </div>
               </div>
@@ -212,8 +210,11 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
         <div className="flex gap-3">
           <Button
             onClick={() => {
-              updateStep('polylang_setup', 'completed');
-              track('checklist_step_completed', { step: 'polylang_setup', duration_seconds: Math.round((Date.now() - stepStartTimeRef.current) / 1000) });
+              updateStep("polylang_setup", "completed");
+              track("checklist_step_completed", {
+                step: "polylang_setup",
+                duration_seconds: Math.round((Date.now() - stepStartTimeRef.current) / 1000),
+              });
               setActiveStep(null);
             }}
           >
@@ -222,7 +223,7 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
           <Button
             variant="ghost"
             onClick={() => {
-              updateStep('polylang_setup', 'completed', { skipped: true });
+              updateStep("polylang_setup", "completed", { skipped: true });
               setActiveStep(null);
             }}
           >
@@ -233,7 +234,7 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
     );
   }
 
-  if (activeStep === 'wordpress_connect') {
+  if (activeStep === "wordpress_connect") {
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
         <WordPressSetup
@@ -241,21 +242,24 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
           onClose={() => setActiveStep(null)}
           onComplete={() => {
             setActiveStep(null);
-            updateStep('wordpress_connect', 'completed');
-            track('checklist_step_completed', { step: 'wordpress_connect', duration_seconds: Math.round((Date.now() - stepStartTimeRef.current) / 1000) });
+            updateStep("wordpress_connect", "completed");
+            track("checklist_step_completed", {
+              step: "wordpress_connect",
+              duration_seconds: Math.round((Date.now() - stepStartTimeRef.current) / 1000),
+            });
           }}
         />
       </div>
     );
   }
 
-  if (activeStep === 'first_publish') {
+  if (activeStep === "first_publish") {
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
         <FirstPublishStep
           siteId={site.id}
           onComplete={() => {
-            updateStep('first_publish', 'completed');
+            updateStep("first_publish", "completed");
             setActiveStep(null);
           }}
           onBack={() => setActiveStep(null)}
@@ -264,7 +268,7 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
     );
   }
 
-  if (activeStep === 'content_profile') {
+  if (activeStep === "content_profile") {
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
         <ContentProfileStep
@@ -278,12 +282,15 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
               // notes go to target_audience as additional context
               target_audience: data.notes || site.target_audience || undefined,
             });
-            updateStep('content_profile', 'completed', { content_pillars: data.content_pillars, avoid_topics: data.avoid_topics });
-            toast.success('Perfil de contenido guardado');
+            updateStep("content_profile", "completed", {
+              content_pillars: data.content_pillars,
+              avoid_topics: data.avoid_topics,
+            });
+            toast.success("Perfil de contenido guardado");
             setActiveStep(null);
           }}
           onSkip={() => {
-            updateStep('content_profile', 'completed');
+            updateStep("content_profile", "completed");
             setActiveStep(null);
           }}
           onBack={() => setActiveStep(null)}
@@ -292,44 +299,48 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
     );
   }
 
-  if (activeStep === 'auto_publish') {
+  if (activeStep === "auto_publish") {
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
         <AutoPublishStep
           onActivate={async (config) => {
             // Map frequency to sites table format
             const frequencyMap: Record<string, string> = {
-              weekly: 'weekly',
-              biweekly: 'biweekly',
-              fortnightly: 'fortnightly',
-              monthly: 'monthly',
+              weekly: "weekly",
+              biweekly: "biweekly",
+              // Backward compatibility with legacy value used in older UI
+              fortnightly: "biweekly",
+              monthly: "monthly",
             };
 
             await updateSiteMutation.mutateAsync({
               id: site.id,
-              publish_frequency: frequencyMap[config.frequency] ?? 'weekly',
+              publish_frequency: frequencyMap[config.frequency] ?? "weekly",
               publish_day_of_week: config.dayOfWeek,
               publish_hour_utc: config.hourUtc,
               auto_generate: true,
               include_featured_image: config.includeFeaturedImage,
             });
 
-            updateStep('auto_publish', 'completed', {
+            updateStep("auto_publish", "completed", {
               frequency: config.frequency,
               review_mode: config.reviewMode,
             });
-            track('checklist_step_completed', { step: 'auto_publish', duration_seconds: Math.round((Date.now() - stepStartTimeRef.current) / 1000) });
+            track("checklist_step_completed", {
+              step: "auto_publish",
+              duration_seconds: Math.round((Date.now() - stepStartTimeRef.current) / 1000),
+            });
 
             // Check if all steps are now completed
-            const pendingAfter = checklistItems.filter(
-              i => i.status === 'pending' && i.step_key !== 'auto_publish'
-            );
+            const pendingAfter = checklistItems.filter((i) => i.status === "pending" && i.step_key !== "auto_publish");
             if (pendingAfter.length === 0) {
               await markChecklistComplete();
-              track('checklist_completed', { total_duration_seconds: Math.round((Date.now() - checklistStartTimeRef.current) / 1000) });
+              track("checklist_completed", {
+                total_duration_seconds: Math.round((Date.now() - checklistStartTimeRef.current) / 1000),
+              });
             }
 
-            toast.success('Publicación automática activada');
+            toast.success("Publicación automática activada");
             // Don't go back — the component shows its own success state
           }}
           onBack={() => setActiveStep(null)}
@@ -370,7 +381,7 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
     <div className="space-y-6 max-w-2xl mx-auto">
       <div className="space-y-2">
         <h2 className="text-xl font-display font-bold text-foreground">
-          ¡Buen trabajo{userName ? `, ${userName}` : ''}! Ya casi está todo listo.
+          ¡Buen trabajo{userName ? `, ${userName}` : ""}! Ya casi está todo listo.
         </h2>
         <p className="text-sm text-muted-foreground">
           Completa estos pasos para que Blooglee empiece a publicar automáticamente en tu blog.
@@ -394,7 +405,7 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
               isCurrentStep={isCurrent}
               actionLabel={config.actionLabel}
               onAction={config.onAction}
-              disabled={'disabled' in config ? config.disabled : undefined}
+              disabled={"disabled" in config ? config.disabled : undefined}
             />
           );
         })}
