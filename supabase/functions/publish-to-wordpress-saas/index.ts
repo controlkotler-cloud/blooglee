@@ -10,6 +10,7 @@ const corsHeaders = {
 
 interface PublishRequest {
   site_id: string;
+  article_id?: string;
   title: string;
   seo_title?: string;
   content: string;
@@ -32,6 +33,110 @@ interface PublishResult {
   post_url?: string;
   status?: string;
   error?: string;
+  already_published?: boolean;
+  idempotent?: boolean;
+}
+
+interface ExistingPost {
+  id: number;
+  link: string;
+  status: string;
+  slug: string;
+}
+
+// --- Helper: find existing WP post by slug ---
+async function findExistingWpPostBySlug(
+  wpUrl: string,
+  credentials: string,
+  slug: string,
+  requestId: string,
+): Promise<ExistingPost | null> {
+  try {
+    const searchUrl = `${wpUrl}/wp-json/wp/v2/posts?slug=${encodeURIComponent(slug)}&per_page=1&_fields=id,link,status,slug&status=publish,draft,future,pending,private`;
+    console.log(`[${requestId}][idempotency] Checking slug="${slug}"`);
+
+    const res = await fetch(searchUrl, {
+      method: "GET",
+      headers: { Authorization: `Basic ${credentials}` },
+    });
+
+    if (!res.ok) {
+      console.log(`[${requestId}][idempotency] Slug check returned status=${res.status}, treating as not found`);
+      return null;
+    }
+
+    const text = await res.text();
+    const posts = JSON.parse(text);
+
+    if (Array.isArray(posts) && posts.length > 0) {
+      const existing = posts[0];
+      console.log(`[${requestId}][idempotent_hit] Found existing post id=${existing.id} slug="${existing.slug}" status="${existing.status}"`);
+      return {
+        id: existing.id,
+        link: existing.link,
+        status: existing.status,
+        slug: existing.slug,
+      };
+    }
+
+    console.log(`[${requestId}][idempotency] No existing post for slug="${slug}"`);
+    return null;
+  } catch (error) {
+    console.error(`[${requestId}][idempotency] Error checking slug:`, error);
+    return null;
+  }
+}
+
+// --- Helper: persist wp_post_url back to articles table ---
+async function persistWpPostUrl(
+  supabase: any,
+  articleId: string | undefined,
+  siteId: string,
+  slug: string,
+  postUrl: string,
+  requestId: string,
+): Promise<void> {
+  if (articleId) {
+    const { error } = await supabase
+      .from("articles")
+      .update({ wp_post_url: postUrl })
+      .eq("id", articleId);
+    if (error) {
+      console.error(`[${requestId}] Failed to update wp_post_url for article ${articleId}:`, error);
+    } else {
+      console.log(`[${requestId}] Updated wp_post_url for article ${articleId}`);
+    }
+    return;
+  }
+
+  // Fallback: find article by site_id + slug match in content_spanish
+  // This handles cases where article_id wasn't passed (legacy callers)
+  const { data: articles } = await supabase
+    .from("articles")
+    .select("id, content_spanish")
+    .eq("site_id", siteId)
+    .is("wp_post_url", null)
+    .order("generated_at", { ascending: false })
+    .limit(10);
+
+  if (articles) {
+    for (const art of articles) {
+      const cs = art.content_spanish as Record<string, unknown> | null;
+      if (cs && (cs.slug === slug || cs.slug === slug.replace(/-ca$/, ""))) {
+        const { error } = await supabase
+          .from("articles")
+          .update({ wp_post_url: postUrl })
+          .eq("id", art.id);
+        if (error) {
+          console.error(`[${requestId}] Failed to update wp_post_url for matched article ${art.id}:`, error);
+        } else {
+          console.log(`[${requestId}] Updated wp_post_url for matched article ${art.id} via slug fallback`);
+        }
+        return;
+      }
+    }
+  }
+  console.log(`[${requestId}] No matching article found to update wp_post_url (non-blocking)`);
 }
 
 Deno.serve(async (req) => {
@@ -126,8 +231,6 @@ Deno.serve(async (req) => {
     }
 
     // Get WordPress config for this site
-    // In service_role mode, RLS is bypassed so we don't need user_id filter
-    // In user mode, RLS ensures only the user's configs are returned
     let wpQuery = supabase.from("wordpress_configs").select("*").eq("site_id", body.site_id);
 
     if (!isServiceRole) {
@@ -163,25 +266,53 @@ Deno.serve(async (req) => {
       wpUrl = wpUrl.replace(/\/wp-admin\/?$/, "").replace(/\/+$/, "");
     }
 
-    // Create Basic Auth header
+    // Create Basic Auth credentials
     const credentials = btoa(`${wpConfig.wp_username}:${wpConfig.wp_app_password}`);
     const wpHeaders = {
       Authorization: `Basic ${credentials}`,
       "Content-Type": "application/json",
     };
 
-    // Upload featured image if provided
+    // Build the stable slug
+    const slug = body.lang === "ca" ? `${body.slug}-ca` : body.slug;
+
+    // Use service role client for DB updates (bypasses RLS)
+    const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+
+    // =========================================================
+    // STEP 1: Idempotency check — find existing post by slug
+    // =========================================================
+    const existingPost = await findExistingWpPostBySlug(wpUrl, credentials, slug, requestId);
+
+    if (existingPost) {
+      // Post already exists in WP — persist URL back to Supabase and return success
+      await persistWpPostUrl(supabaseService, body.article_id, body.site_id, slug, existingPost.link, requestId);
+
+      const result: PublishResult = {
+        success: true,
+        post_id: existingPost.id,
+        post_url: existingPost.link,
+        status: existingPost.status,
+        already_published: true,
+        idempotent: true,
+      };
+
+      console.log(`[${requestId}][idempotent_hit] Returning existing post id=${existingPost.id} url=${existingPost.link}`);
+      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // =========================================================
+    // STEP 2: Upload featured image if provided
+    // =========================================================
     let featuredMediaId: number | undefined;
     if (body.image_url) {
       console.log("Uploading featured image:", body.image_url);
       try {
-        // Fetch the image
         const imageResponse = await fetch(body.image_url);
         if (imageResponse.ok) {
           const imageBlob = await imageResponse.blob();
           const imageBuffer = await imageBlob.arrayBuffer();
 
-          // Determine filename and content type
           const urlParts = body.image_url.split("/");
           let filename = urlParts[urlParts.length - 1].split("?")[0] || "featured-image.jpg";
           if (!filename.includes(".")) {
@@ -192,7 +323,6 @@ Deno.serve(async (req) => {
           console.log("Image filename:", filename);
           console.log("Image content type:", contentType);
 
-          // Upload to WordPress media library
           const mediaResponse = await fetch(`${wpUrl}/wp-json/wp/v2/media`, {
             method: "POST",
             headers: {
@@ -211,7 +341,6 @@ Deno.serve(async (req) => {
             featuredMediaId = mediaData.id;
             console.log("Featured media ID:", featuredMediaId);
 
-            // Update alt text if provided
             if (body.image_alt && featuredMediaId) {
               await fetch(`${wpUrl}/wp-json/wp/v2/media/${featuredMediaId}`, {
                 method: "POST",
@@ -225,52 +354,12 @@ Deno.serve(async (req) => {
         }
       } catch (imageError) {
         console.error("Error uploading image:", imageError);
-        // Continue without featured image
       }
     }
 
-    // Prepare post data
-    const slug = body.lang === "ca" ? `${body.slug}-ca` : body.slug;
-
-    // Idempotency check: if a post with same slug already exists, return it
-    try {
-      const existingPostRes = await fetch(
-        `${wpUrl}/wp-json/wp/v2/posts?slug=${encodeURIComponent(slug)}&per_page=1&context=edit`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Basic ${credentials}`,
-          },
-        },
-      );
-
-      if (existingPostRes.ok) {
-        const existingPostText = await existingPostRes.text();
-        const existingPosts = JSON.parse(existingPostText);
-
-        if (Array.isArray(existingPosts) && existingPosts.length > 0) {
-          const existing = existingPosts[0];
-          console.log(`[idempotency] Existing post found for slug=${slug}, id=${existing.id}`);
-          return new Response(
-            JSON.stringify({
-              success: true,
-              post_id: existing.id,
-              post_url: existing.link,
-              status: existing.status,
-              idempotent: true,
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
-      } else {
-        console.log(
-          `[idempotency] Existing slug check returned status=${existingPostRes.status}, continuing with create`,
-        );
-      }
-    } catch (existingCheckError) {
-      console.error("[idempotency] Existing slug check failed, continuing with create:", existingCheckError);
-    }
-
+    // =========================================================
+    // STEP 3: Create the post
+    // =========================================================
     const postData: Record<string, unknown> = {
       title: body.title,
       content: body.content,
@@ -278,68 +367,52 @@ Deno.serve(async (req) => {
       status: body.status === "future" ? "future" : body.status,
     };
 
-    // Add featured image if uploaded
     if (featuredMediaId) {
       postData.featured_media = featuredMediaId;
     }
 
-    // Add excerpt (native WordPress field, works without extra config)
     if (body.excerpt) {
       postData.excerpt = body.excerpt.substring(0, 160);
       console.log("Adding excerpt:", body.excerpt.substring(0, 50) + "...");
     }
 
-    // Add scheduled date if provided
     if (body.status === "future" && body.date) {
       postData.date = body.date;
     }
 
-    // Add Yoast SEO meta fields if provided
     if (body.meta_description || body.seo_title || body.focus_keyword) {
       const yoastMeta: Record<string, string> = {};
-
       if (body.meta_description) {
-        // Ensure max 160 characters for meta description
         yoastMeta._yoast_wpseo_metadesc = body.meta_description.substring(0, 160);
       }
-
       if (body.seo_title) {
-        // Ensure max 60 characters for SEO title
         yoastMeta._yoast_wpseo_title = body.seo_title.substring(0, 60);
       } else if (body.title) {
-        // Fallback to regular title if no seo_title
         yoastMeta._yoast_wpseo_title = body.title.substring(0, 60);
       }
-
-      // Add focus keyword for Yoast analysis
       if (body.focus_keyword) {
         yoastMeta._yoast_wpseo_focuskw = body.focus_keyword.substring(0, 50);
       }
-
       postData.meta = yoastMeta;
       console.log("Yoast meta fields:", yoastMeta);
     }
 
-    // Add language parameter for Polylang
     if (body.lang) {
       postData.lang = body.lang;
     }
 
-    // Add categories if provided
     if (body.category_ids && body.category_ids.length > 0) {
       postData.categories = body.category_ids;
       console.log("Categories:", body.category_ids);
     }
 
-    // Add tags if provided
     if (body.tag_ids && body.tag_ids.length > 0) {
       postData.tags = body.tag_ids;
       console.log("Tags:", body.tag_ids);
     }
 
-    console.log("Creating post with data:", JSON.stringify(postData, null, 2));
+    console.log(`[${requestId}] Creating post with slug="${slug}"`);
 
-    // Create the post
     const postResponse = await fetch(`${wpUrl}/wp-json/wp/v2/posts`, {
       method: "POST",
       headers: wpHeaders,
@@ -349,16 +422,46 @@ Deno.serve(async (req) => {
     const postResponseText = await postResponse.text();
     console.log("Post creation response status:", postResponse.status);
 
+    // =========================================================
+    // STEP 3b: Handle slug conflict — retry slug lookup
+    // =========================================================
     if (!postResponse.ok) {
       console.error("Post creation failed:", postResponseText);
 
-      // Try to parse error message
+      // Check if this is a slug conflict (WP returns rest_invalid_param or similar)
+      const isSlugConflict =
+        postResponse.status === 400 ||
+        postResponse.status === 409 ||
+        postResponseText.includes("slug") ||
+        postResponseText.includes("duplicate");
+
+      if (isSlugConflict) {
+        console.log(`[${requestId}][slug_conflict_recovered] Slug conflict detected, retrying lookup`);
+        const recoveredPost = await findExistingWpPostBySlug(wpUrl, credentials, slug, requestId);
+
+        if (recoveredPost) {
+          await persistWpPostUrl(supabaseService, body.article_id, body.site_id, slug, recoveredPost.link, requestId);
+
+          const result: PublishResult = {
+            success: true,
+            post_id: recoveredPost.id,
+            post_url: recoveredPost.link,
+            status: recoveredPost.status,
+            already_published: true,
+            idempotent: true,
+          };
+
+          console.log(`[${requestId}][slug_conflict_recovered] Recovered post id=${recoveredPost.id}`);
+          return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
+
+      // Real error — parse and return
       let errorMessage = "Error al crear el post en WordPress";
       try {
         const errorData = JSON.parse(postResponseText);
         errorMessage = errorData.message || errorMessage;
       } catch {
-        // Check for HTML response (common when URL is wrong)
         if (postResponseText.includes("<!DOCTYPE") || postResponseText.includes("<html")) {
           errorMessage = "La URL de WordPress no es válida o el endpoint REST API no está disponible";
         }
@@ -370,16 +473,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const postData2 = JSON.parse(postResponseText);
-    console.log("Post created successfully!");
-    console.log("Post ID:", postData2.id);
-    console.log("Post URL:", postData2.link);
+    // =========================================================
+    // STEP 4: Post created successfully
+    // =========================================================
+    const createdPost = JSON.parse(postResponseText);
+    console.log(`[${requestId}][created_new_post] Post ID: ${createdPost.id}, URL: ${createdPost.link}`);
+
+    // Persist wp_post_url back to articles
+    await persistWpPostUrl(supabaseService, body.article_id, body.site_id, slug, createdPost.link, requestId);
 
     // Update wordpress_context with the new title (auto-sync)
     try {
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabaseService = createClient(supabaseUrl, serviceRoleKey);
-
       const { data: siteData, error: siteError } = await supabaseService
         .from("sites")
         .select("wordpress_context")
@@ -389,8 +493,6 @@ Deno.serve(async (req) => {
       if (!siteError && siteData) {
         const currentContext = (siteData.wordpress_context as Record<string, unknown>) || {};
         const currentTopics = (currentContext.lastTopics as string[]) || [];
-
-        // Add new title at the beginning, limit to 25
         const updatedTopics = [body.title, ...currentTopics].slice(0, 25);
 
         const { error: updateError } = await supabaseService
@@ -412,22 +514,18 @@ Deno.serve(async (req) => {
       }
     } catch (contextError) {
       console.error("Error updating wordpress_context (non-blocking):", contextError);
-      // Don't fail the publish if context update fails
     }
 
     const result: PublishResult = {
       success: true,
-      post_id: postData2.id,
-      post_url: postData2.link,
-      status: postData2.status,
+      post_id: createdPost.id,
+      post_url: createdPost.link,
+      status: createdPost.status,
+      already_published: false,
     };
 
     // Fire-and-forget: trigger full WordPress sync to update context
     try {
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-      // Get wordpress_config_id for this site
-      const supabaseService = createClient(supabaseUrl, serviceRoleKey);
       const { data: wpCfg } = await supabaseService
         .from("wordpress_configs")
         .select("id")
@@ -440,7 +538,7 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceRoleKey}`,
+            Authorization: `Bearer ${supabaseServiceKey}`,
           },
           body: JSON.stringify({
             wordpress_config_id: wpCfg.id,
