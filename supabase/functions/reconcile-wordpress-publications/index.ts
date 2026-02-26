@@ -79,13 +79,26 @@ async function sendReconcilePublishedEmail(
   postUrl: string,
 ): Promise<void> {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-  if (!RESEND_API_KEY) {
-    console.log("[reconcile] RESEND_API_KEY not configured, skipping email");
-    return;
-  }
 
   let recipients: string[] = [];
   try {
+    if (!RESEND_API_KEY) {
+      console.log("[reconcile] RESEND_API_KEY not configured");
+      // Register dedup row as failed
+      await supabase.from("article_email_notifications").insert({
+        article_id: article.id,
+        notification_type: "autopublish_reconciled",
+        status: "failed",
+        error: "missing_resend_api_key",
+      }).then(({ error: dedupErr }: any) => {
+        if (dedupErr?.code === "23505") {
+          console.log("[reconcile] Dedup: email row already exists");
+        }
+      });
+      await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_failed", "RESEND_API_KEY no configurada", { article_id: article.id, error: "missing_resend_api_key" });
+      return;
+    }
+
     const { data: profile } = await supabase
       .from("profiles")
       .select("email")
@@ -93,7 +106,18 @@ async function sendReconcilePublishedEmail(
       .single();
 
     if (!profile?.email) {
-      console.log("[reconcile] No owner email found, skipping email");
+      console.log("[reconcile] No owner email found");
+      await supabase.from("article_email_notifications").insert({
+        article_id: article.id,
+        notification_type: "autopublish_reconciled",
+        status: "failed",
+        error: "no_owner_email",
+      }).then(({ error: dedupErr }: any) => {
+        if (dedupErr?.code === "23505") {
+          console.log("[reconcile] Dedup: email row already exists");
+        }
+      });
+      await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_failed", "No se encontró email del propietario", { article_id: article.id, error: "no_owner_email" });
       return;
     }
 
@@ -112,6 +136,7 @@ async function sendReconcilePublishedEmail(
 
     if (dedupErr?.code === "23505") {
       console.log("[reconcile] Email already sent for this article, skipping");
+      await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_skipped_duplicate", "Email omitido: ya existía notificación para este artículo", { article_id: article.id });
       return;
     }
     if (dedupErr) {
