@@ -1,41 +1,40 @@
-import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, Shield, Sparkles } from 'lucide-react';
-import { NotificationBell } from '@/components/saas/NotificationBell';
-import { useAuth } from '@/hooks/useAuth';
-import { useProfile, useIsAdmin, useIsSuperAdmin } from '@/hooks/useProfile';
-import { useSites } from '@/hooks/useSites';
-import { useAllArticlesSaas, useGenerateArticleSaas } from '@/hooks/useArticlesSaas';
-import { useAllArticlesForUser } from '@/hooks/useAllArticlesForUser';
-import { useWordPressConfigsBatch } from '@/hooks/useWordPressConfigSaas';
-import { useChecklist } from '@/hooks/useChecklist';
-import { SiteCard } from '@/components/saas/SiteCard';
-import { SitesToolbar, type ViewMode, type SortOption, type FilterOption } from '@/components/saas/SitesToolbar';
-import { SitesTableView } from '@/components/saas/SitesTableView';
-import { AgencyStatsBanner } from '@/components/saas/AgencyStatsBanner';
-import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
-import { PlanBadge, type PlanType } from '@/components/saas/PlanBadge';
+} from "@/components/ui/dropdown-menu";
+import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, Shield, Sparkles } from "lucide-react";
+import { NotificationBell } from "@/components/saas/NotificationBell";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfile, useIsSuperAdmin } from "@/hooks/useProfile";
+import { useSites } from "@/hooks/useSites";
+import { useAllArticlesSaas, useGenerateArticleSaas } from "@/hooks/useArticlesSaas";
+import { useAllArticlesForUser } from "@/hooks/useAllArticlesForUser";
+import { useWordPressConfigsBatch } from "@/hooks/useWordPressConfigSaas";
+import { useChecklist } from "@/hooks/useChecklist";
+import { SiteCard } from "@/components/saas/SiteCard";
+import { SitesToolbar, type ViewMode, type SortOption, type FilterOption } from "@/components/saas/SitesToolbar";
+import { SitesTableView } from "@/components/saas/SitesTableView";
+import { AgencyStatsBanner } from "@/components/saas/AgencyStatsBanner";
+import { BloogleeLogo } from "@/components/saas/BloogleeLogo";
+import { PlanBadge, type PlanType } from "@/components/saas/PlanBadge";
 
-import { SetupChecklist } from '@/components/setup/SetupChecklist';
-import { toast } from 'sonner';
-import { useGeneration } from '@/contexts/GenerationContext';
+import { SetupChecklist } from "@/components/setup/SetupChecklist";
+import { toast } from "sonner";
+import { useGeneration } from "@/contexts/GenerationContext";
 
-const VIEW_MODE_KEY = 'blooglee-view-mode';
+const VIEW_MODE_KEY = "blooglee-view-mode";
 
 export default function SaasDashboard() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { data: profile, isLoading: loadingProfile } = useProfile();
-  const { isAdmin: isAdminRole } = useIsAdmin();
   const { isSuperAdmin } = useIsSuperAdmin();
   const { data: sites = [], isLoading: loadingSites } = useSites();
   const { isGenerating } = useGeneration();
@@ -45,7 +44,7 @@ export default function SaasDashboard() {
   const { data: monthArticles = [] } = useAllArticlesSaas(currentMonth, currentYear);
   const { data: allArticles = [] } = useAllArticlesForUser();
 
-  const siteIds = sites.map(s => s.id);
+  const siteIds = sites.map((s) => s.id);
   const { data: wpConfigsMap = {} } = useWordPressConfigsBatch(siteIds);
 
   const firstSiteId = sites[0]?.id;
@@ -53,30 +52,28 @@ export default function SaasDashboard() {
   const showChecklist = sites.length > 0 && checklistItems.length > 0 && !isChecklistComplete;
 
   const generateMutation = useGenerateArticleSaas();
-  
 
   const sitesLimit = profile?.sites_limit ?? 1;
-  const isAdmin = isSuperAdmin || isAdminRole;
-  const canAddSite = isAdmin || sites.length < sitesLimit;
-  const plan = (profile?.plan || 'free') as PlanType;
+  const canAddSite = isSuperAdmin || sites.length < sitesLimit;
+  const plan = (profile?.plan || "free") as PlanType;
 
   // Toolbar state
-  const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState<FilterOption>('all');
-  const [sortOption, setSortOption] = useState<SortOption>('name-asc');
-  const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 640;
+  const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState<FilterOption>("all");
+  const [sortOption, setSortOption] = useState<SortOption>("name-asc");
+  const isMobileViewport = typeof window !== "undefined" && window.innerWidth < 640;
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (isMobileViewport) return 'cards';
+    if (isMobileViewport) return "cards";
     const saved = localStorage.getItem(VIEW_MODE_KEY);
-    if (saved === 'cards' || saved === 'table') return saved;
-    return sites.length > 6 ? 'table' : 'cards';
+    if (saved === "cards" || saved === "table") return saved;
+    return sites.length > 6 ? "table" : "cards";
   });
 
   // Update default view when sites load
   useEffect(() => {
     const saved = localStorage.getItem(VIEW_MODE_KEY);
     if (!saved) {
-      setViewMode(sites.length > 6 ? 'table' : 'cards');
+      setViewMode(sites.length > 6 ? "table" : "cards");
     }
   }, [sites.length]);
 
@@ -89,7 +86,7 @@ export default function SaasDashboard() {
   const siteDataMap = useMemo(() => {
     const map: Record<string, { articleCount: number; lastArticleDate: string | null }> = {};
     for (const site of sites) {
-      const siteArticles = allArticles.filter(a => a.site_id === site.id);
+      const siteArticles = allArticles.filter((a) => a.site_id === site.id);
       map[site.id] = {
         articleCount: siteArticles.length,
         lastArticleDate: siteArticles.length > 0 ? siteArticles[0].generated_at : null,
@@ -99,15 +96,18 @@ export default function SaasDashboard() {
   }, [sites, allArticles]);
 
   // Filter counts
-  const filterCounts = useMemo(() => ({
-    noWp: sites.filter(s => !wpConfigsMap[s.id]).length,
-    wpConnected: sites.filter(s => !!wpConfigsMap[s.id]).length,
-    noArticles: sites.filter(s => (siteDataMap[s.id]?.articleCount ?? 0) === 0).length,
-  }), [sites, wpConfigsMap, siteDataMap]);
+  const filterCounts = useMemo(
+    () => ({
+      noWp: sites.filter((s) => !wpConfigsMap[s.id]).length,
+      wpConnected: sites.filter((s) => !!wpConfigsMap[s.id]).length,
+      noArticles: sites.filter((s) => (siteDataMap[s.id]?.articleCount ?? 0) === 0).length,
+    }),
+    [sites, wpConfigsMap, siteDataMap],
+  );
 
   // Sites needing attention: no WP, 0 articles, or no activity in 2+ weeks
   const sitesNeedingAttention = useMemo(() => {
-    return sites.filter(s => {
+    return sites.filter((s) => {
       if (!wpConfigsMap[s.id]) return true;
       const data = siteDataMap[s.id];
       if (!data || data.articleCount === 0) return true;
@@ -126,41 +126,42 @@ export default function SaasDashboard() {
     // Search
     if (search.trim()) {
       const q = search.toLowerCase();
-      result = result.filter(s =>
-        s.name.toLowerCase().includes(q) ||
-        (s.sector || '').toLowerCase().includes(q) ||
-        (s.location || '').toLowerCase().includes(q)
+      result = result.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          (s.sector || "").toLowerCase().includes(q) ||
+          (s.location || "").toLowerCase().includes(q),
       );
     }
 
     // Filter
     switch (activeFilter) {
-      case 'no-wp':
-        result = result.filter(s => !wpConfigsMap[s.id]);
+      case "no-wp":
+        result = result.filter((s) => !wpConfigsMap[s.id]);
         break;
-      case 'wp-connected':
-        result = result.filter(s => !!wpConfigsMap[s.id]);
+      case "wp-connected":
+        result = result.filter((s) => !!wpConfigsMap[s.id]);
         break;
-      case 'no-articles':
-        result = result.filter(s => (siteDataMap[s.id]?.articleCount ?? 0) === 0);
+      case "no-articles":
+        result = result.filter((s) => (siteDataMap[s.id]?.articleCount ?? 0) === 0);
         break;
     }
 
     // Sort
     result.sort((a, b) => {
       switch (sortOption) {
-        case 'name-asc':
+        case "name-asc":
           return a.name.localeCompare(b.name);
-        case 'name-desc':
+        case "name-desc":
           return b.name.localeCompare(a.name);
-        case 'activity': {
+        case "activity": {
           const dateA = siteDataMap[a.id]?.lastArticleDate;
           const dateB = siteDataMap[b.id]?.lastArticleDate;
           return (dateB ? new Date(dateB).getTime() : 0) - (dateA ? new Date(dateA).getTime() : 0);
         }
-        case 'articles':
+        case "articles":
           return (siteDataMap[b.id]?.articleCount ?? 0) - (siteDataMap[a.id]?.articleCount ?? 0);
-        case 'wordpress':
+        case "wordpress":
           return (wpConfigsMap[a.id] ? 1 : 0) - (wpConfigsMap[b.id] ? 1 : 0);
         default:
           return 0;
@@ -191,18 +192,19 @@ export default function SaasDashboard() {
   // Grid class based on site count
   const getGridClass = () => {
     const count = filteredSites.length;
-    if (count === 1) return 'max-w-[500px] mx-auto';
-    if (count === 2) return 'grid gap-4 grid-cols-1 sm:grid-cols-2 max-w-[1024px] mx-auto';
-    return 'grid gap-4 md:grid-cols-2 lg:grid-cols-3';
+    if (count === 1) return "max-w-[500px] mx-auto";
+    if (count === 2) return "grid gap-4 grid-cols-1 sm:grid-cols-2 max-w-[1024px] mx-auto";
+    return "grid gap-4 md:grid-cols-2 lg:grid-cols-3";
   };
 
   // Table row data
-  const tableData = filteredSites.map(site => ({
+  const tableData = filteredSites.map((site) => ({
     site,
     articleCount: siteDataMap[site.id]?.articleCount ?? 0,
     wpConfig: wpConfigsMap[site.id] || null,
     lastArticleDate: siteDataMap[site.id]?.lastArticleDate ?? null,
-    needsAttention: !wpConfigsMap[site.id] ||
+    needsAttention:
+      !wpConfigsMap[site.id] ||
       (siteDataMap[site.id]?.articleCount ?? 0) === 0 ||
       (siteDataMap[site.id]?.lastArticleDate
         ? Date.now() - new Date(siteDataMap[site.id].lastArticleDate!).getTime() > 14 * 24 * 60 * 60 * 1000
@@ -233,22 +235,22 @@ export default function SaasDashboard() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => navigate('/account')}>
+                  <DropdownMenuItem onClick={() => navigate("/account")}>
                     <User className="w-4 h-4 mr-2" />
                     Mi cuenta
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/billing')}>
+                  <DropdownMenuItem onClick={() => navigate("/billing")}>
                     <CreditCard className="w-4 h-4 mr-2" />
                     Facturación
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/help')}>
+                  <DropdownMenuItem onClick={() => navigate("/help")}>
                     <HelpCircle className="w-4 h-4 mr-2" />
                     Ayuda
                   </DropdownMenuItem>
                   {isSuperAdmin && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => navigate('/admin')}>
+                      <DropdownMenuItem onClick={() => navigate("/admin")}>
                         <Shield className="w-4 h-4 mr-2" />
                         Panel Admin
                       </DropdownMenuItem>
@@ -274,8 +276,8 @@ export default function SaasDashboard() {
             {/* Title + Add button */}
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Tus sitios</h2>
-              <Button 
-                onClick={() => navigate('/onboarding')} 
+              <Button
+                onClick={() => navigate("/onboarding")}
                 disabled={!canAddSite}
                 title={!canAddSite ? `Límite de ${sitesLimit} sitios alcanzado` : undefined}
               >
@@ -294,7 +296,7 @@ export default function SaasDashboard() {
                 <p className="text-muted-foreground text-center max-w-md mb-6">
                   Añade tu negocio para empezar a generar artículos con IA.
                 </p>
-                <Button size="lg" onClick={() => navigate('/onboarding')}>
+                <Button size="lg" onClick={() => navigate("/onboarding")}>
                   <Plus className="w-5 h-5 mr-2" />
                   Añadir sitio
                 </Button>
@@ -331,12 +333,15 @@ export default function SaasDashboard() {
                     <p className="text-muted-foreground mb-3">No hay sitios que coincidan con tu búsqueda o filtro.</p>
                     <Button
                       variant="outline"
-                      onClick={() => { setSearch(''); setActiveFilter('all'); }}
+                      onClick={() => {
+                        setSearch("");
+                        setActiveFilter("all");
+                      }}
                     >
                       Limpiar filtros
                     </Button>
                   </div>
-                ) : viewMode === 'table' ? (
+                ) : viewMode === "table" ? (
                   /* Table view */
                   <SitesTableView
                     sites={tableData}
@@ -347,7 +352,7 @@ export default function SaasDashboard() {
                   />
                 ) : (
                   /* Cards view */
-                  <div className={filteredSites.length <= 2 ? '' : 'grid gap-4 md:grid-cols-2 lg:grid-cols-3'}>
+                  <div className={filteredSites.length <= 2 ? "" : "grid gap-4 md:grid-cols-2 lg:grid-cols-3"}>
                     {filteredSites.length === 1 ? (
                       <div className="max-w-[500px] mx-auto">
                         <SiteCard
@@ -360,7 +365,7 @@ export default function SaasDashboard() {
                           onViewArticles={() => navigate(`/site/${filteredSites[0].id}`)}
                           onConfigureWordPress={() => navigate(`/site/${filteredSites[0].id}?tab=wordpress`)}
                           onEdit={() => navigate(`/site/${filteredSites[0].id}?tab=settings`)}
-                          onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
+                          onDelete={() => toast.info("Usa la configuración del sitio para eliminarlo")}
                           isGenerating={isGenerating(filteredSites[0].id)}
                           isFirstSite={true}
                         />
@@ -379,7 +384,7 @@ export default function SaasDashboard() {
                             onViewArticles={() => navigate(`/site/${site.id}`)}
                             onConfigureWordPress={() => navigate(`/site/${site.id}?tab=wordpress`)}
                             onEdit={() => navigate(`/site/${site.id}?tab=settings`)}
-                            onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
+                            onDelete={() => toast.info("Usa la configuración del sitio para eliminarlo")}
                             isGenerating={isGenerating(site.id)}
                             isFirstSite={index === 0}
                           />
@@ -398,7 +403,7 @@ export default function SaasDashboard() {
                           onViewArticles={() => navigate(`/site/${site.id}`)}
                           onConfigureWordPress={() => navigate(`/site/${site.id}?tab=wordpress`)}
                           onEdit={() => navigate(`/site/${site.id}?tab=settings`)}
-                          onDelete={() => toast.info('Usa la configuración del sitio para eliminarlo')}
+                          onDelete={() => toast.info("Usa la configuración del sitio para eliminarlo")}
                           isGenerating={isGenerating(site.id)}
                           isFirstSite={index === 0}
                         />
@@ -414,17 +419,14 @@ export default function SaasDashboard() {
                 <CardContent className="py-4 flex items-center justify-between">
                   <div>
                     <p className="font-medium">Has alcanzado el límite de sitios</p>
-                    <p className="text-sm text-muted-foreground">
-                      Actualiza tu plan para gestionar más sitios
-                    </p>
+                    <p className="text-sm text-muted-foreground">Actualiza tu plan para gestionar más sitios</p>
                   </div>
-                  <Button variant="default" onClick={() => navigate('/billing')}>
+                  <Button variant="default" onClick={() => navigate("/billing")}>
                     Actualizar plan
                   </Button>
                 </CardContent>
               </Card>
             )}
-
           </>
         )}
       </main>
