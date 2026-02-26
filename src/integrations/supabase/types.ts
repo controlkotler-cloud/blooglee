@@ -726,10 +726,12 @@ export type Database = {
           publish_day_of_month: number | null
           publish_day_of_week: number | null
           publish_frequency: string
+          publish_hour_local: number | null
           publish_hour_utc: number | null
           publish_week_of_month: number | null
           sector: string | null
           target_audience: string | null
+          timezone: string | null
           tone: string | null
           updated_at: string
           use_brand_colors: boolean | null
@@ -758,10 +760,12 @@ export type Database = {
           publish_day_of_month?: number | null
           publish_day_of_week?: number | null
           publish_frequency?: string
+          publish_hour_local?: number | null
           publish_hour_utc?: number | null
           publish_week_of_month?: number | null
           sector?: string | null
           target_audience?: string | null
+          timezone?: string | null
           tone?: string | null
           updated_at?: string
           use_brand_colors?: boolean | null
@@ -790,10 +794,12 @@ export type Database = {
           publish_day_of_month?: number | null
           publish_day_of_week?: number | null
           publish_frequency?: string
+          publish_hour_local?: number | null
           publish_hour_utc?: number | null
           publish_week_of_month?: number | null
           sector?: string | null
           target_audience?: string | null
+          timezone?: string | null
           tone?: string | null
           updated_at?: string
           use_brand_colors?: boolean | null

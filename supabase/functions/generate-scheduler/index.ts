@@ -34,6 +34,8 @@ interface SiteEntity extends EntityToProcess {
   publish_day_of_month: number | null;
   publish_week_of_month: number | null;
   publish_hour_utc: number | null;
+  publish_hour_local: number | null;
+  timezone: string | null;
 }
 
 function normalizeFrequency(rawFrequency: string | null | undefined): string {
@@ -105,62 +107,95 @@ function shouldGenerateToday(publishFrequency: string, now: Date): boolean {
  * Determines if a SaaS site should generate content NOW based on custom schedule
  * This supports per-site day and hour configuration
  */
-function shouldSiteGenerateNow(site: SiteEntity, now: Date): boolean {
-  const currentHour = now.getUTCHours();
-  const currentDayOfWeek = now.getUTCDay();
-  const currentDayOfMonth = now.getUTCDate();
-  const currentWeekOfMonth = Math.ceil(currentDayOfMonth / 7);
+/**
+ * Converts a UTC Date to local date parts using the site's timezone (IANA).
+ * Handles DST automatically via Intl.DateTimeFormat.
+ */
+function getLocalDateParts(now: Date, timezone: string): {
+  localHour: number;
+  localDayOfWeek: number;
+  localDayOfMonth: number;
+  localWeekOfMonth: number;
+} {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "numeric",
+    hour12: false,
+    weekday: "short",
+    day: "numeric",
+  });
+  const parts = fmt.formatToParts(now);
+  const localHour = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const localDayOfMonth = Number(parts.find((p) => p.type === "day")?.value ?? 1);
 
-  // A late scheduler run should still execute the generation for the same period.
-  // We consider the slot "due" when the configured hour has been reached.
-  const publishHour = site.publish_hour_utc ?? 9;
-  const hourReached = currentHour >= publishHour;
+  // Intl weekday → numeric (Sun=0..Sat=6)
+  const weekdayStr = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
+  const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const localDayOfWeek = weekdayMap[weekdayStr] ?? 1;
+
+  const localWeekOfMonth = Math.ceil(localDayOfMonth / 7);
+
+  return { localHour, localDayOfWeek, localDayOfMonth, localWeekOfMonth };
+}
+
+/**
+ * Determines if a SaaS site should generate content NOW based on custom schedule.
+ * Uses the site's local timezone (with DST) when publish_hour_local is set.
+ */
+function shouldSiteGenerateNow(site: SiteEntity, now: Date): { due: boolean; localHour: number; targetHour: number; tz: string } {
+  const tz = site.timezone || "Europe/Madrid";
+  const { localHour, localDayOfWeek, localDayOfMonth, localWeekOfMonth } = getLocalDateParts(now, tz);
+
+  // Resolve target hour: prefer local, fallback to UTC legacy
+  const targetHour = site.publish_hour_local ?? site.publish_hour_utc ?? 9;
+  const hourReached = localHour >= targetHour;
   const frequency = normalizeFrequency(site.publish_frequency);
 
+  let due = false;
   switch (frequency) {
     case "daily":
-      return hourReached;
+      due = hourReached;
+      break;
 
     case "daily_weekdays":
-      return currentDayOfWeek >= 1 && currentDayOfWeek <= 5 && hourReached;
+      due = localDayOfWeek >= 1 && localDayOfWeek <= 5 && hourReached;
+      break;
 
     case "weekly":
-      // Generate once the configured day/hour has been reached this week.
-      return (
-        currentDayOfWeek > (site.publish_day_of_week ?? 1) ||
-        (currentDayOfWeek === (site.publish_day_of_week ?? 1) && hourReached)
-      );
+      due =
+        localDayOfWeek > (site.publish_day_of_week ?? 1) ||
+        (localDayOfWeek === (site.publish_day_of_week ?? 1) && hourReached);
+      break;
 
     case "biweekly":
-      // Generate on weeks 1 and 3 once the configured day/hour has been reached.
-      if (currentWeekOfMonth !== 1 && currentWeekOfMonth !== 3) {
-        return false;
+      if (localWeekOfMonth !== 1 && localWeekOfMonth !== 3) {
+        due = false;
+      } else {
+        due =
+          localDayOfWeek > (site.publish_day_of_week ?? 1) ||
+          (localDayOfWeek === (site.publish_day_of_week ?? 1) && hourReached);
       }
-      return (
-        currentDayOfWeek > (site.publish_day_of_week ?? 1) ||
-        (currentDayOfWeek === (site.publish_day_of_week ?? 1) && hourReached)
-      );
+      break;
 
     case "monthly":
-      // Two modes: fixed day of month OR specific weekday of a specific week
       if (site.publish_day_of_month !== null && site.publish_day_of_month !== undefined) {
-        // Fixed day mode (e.g., "day 15 of each month"), with catch-up if run is late.
-        return (
-          currentDayOfMonth > site.publish_day_of_month ||
-          (currentDayOfMonth === site.publish_day_of_month && hourReached)
-        );
+        due =
+          localDayOfMonth > site.publish_day_of_month ||
+          (localDayOfMonth === site.publish_day_of_month && hourReached);
       } else {
-        // Weekday mode (e.g., "first Monday of each month"), with catch-up.
         const targetDayOfWeek = site.publish_day_of_week ?? 1;
         const targetWeekOfMonth = site.publish_week_of_month ?? 1;
-        if (currentWeekOfMonth > targetWeekOfMonth) return true;
-        if (currentWeekOfMonth < targetWeekOfMonth) return false;
-        return currentDayOfWeek > targetDayOfWeek || (currentDayOfWeek === targetDayOfWeek && hourReached);
+        if (localWeekOfMonth > targetWeekOfMonth) due = true;
+        else if (localWeekOfMonth < targetWeekOfMonth) due = false;
+        else due = localDayOfWeek > targetDayOfWeek || (localDayOfWeek === targetDayOfWeek && hourReached);
       }
+      break;
 
     default:
-      return false;
+      due = false;
   }
+
+  return { due, localHour, targetHour, tz };
 }
 
 /**
@@ -370,7 +405,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: sites, error: sitesError } = await supabase
       .from("sites")
       .select(
-        "id, name, user_id, sector, location, languages, auto_generate, publish_frequency, publish_day_of_week, publish_day_of_month, publish_week_of_month, publish_hour_utc",
+        "id, name, user_id, sector, location, languages, auto_generate, publish_frequency, publish_day_of_week, publish_day_of_month, publish_week_of_month, publish_hour_utc, publish_hour_local, timezone",
       )
       .eq("auto_generate", true);
 
@@ -385,11 +420,10 @@ const handler = async (req: Request): Promise<Response> => {
       for (const site of sites as SiteEntity[]) {
         const frequency = normalizeFrequency(site.publish_frequency || "monthly");
 
-        // Use new per-site scheduling logic
-        if (!shouldSiteGenerateNow(site, now)) {
-          const configuredHour = site.publish_hour_utc ?? 9;
+        const schedResult = shouldSiteGenerateNow(site, now);
+        if (!schedResult.due) {
           console.log(
-            `Skipping site ${site.name} - not scheduled now (freq: ${frequency}, hour: ${configuredHour}, day_of_week: ${site.publish_day_of_week}, day_of_month: ${site.publish_day_of_month})`,
+            `Skipping site ${site.name} - not scheduled now (freq: ${frequency}, tz: ${schedResult.tz}, localHour: ${schedResult.localHour}, targetHour: ${schedResult.targetHour}, day_of_week: ${site.publish_day_of_week}, day_of_month: ${site.publish_day_of_month}, utc: ${now.toISOString()})`,
           );
           continue;
         }
@@ -403,17 +437,16 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         console.log(
-          `Dispatching generation for site ${site.name} (scheduled at hour ${site.publish_hour_utc ?? 9} UTC)`,
+          `Dispatching generation for site ${site.name} (tz: ${schedResult.tz}, localHour: ${schedResult.localHour}, targetHour: ${schedResult.targetHour})`,
         );
 
-        // For SaaS, we need to pass auth context - use service role for scheduled jobs
         const generationKey = buildSiteGenerationKey(frequency, now);
         dispatchGeneration(supabaseUrl, supabaseServiceKey, "generate-article-saas", {
           siteId: site.id,
           month,
           year,
           isScheduled: true,
-          userId: site.user_id, // Pass user_id for notifications
+          userId: site.user_id,
           generationKey,
         });
         dispatched.sites++;
