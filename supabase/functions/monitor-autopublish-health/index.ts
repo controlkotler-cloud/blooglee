@@ -55,11 +55,12 @@ Deno.serve(async (req: Request) => {
     const failedCount = failedReconcile ?? 0;
 
     // --- Metric 2: Pending publishable articles (last 24h) ---
-    // Articles with no wp_post_url, whose site has auto_generate=true AND a wordpress_config
+    // Articles with no wp_post_url, created by scheduler, whose site has auto_generate=true AND a wordpress_config
     const { data: pendingArticles, error: pendingErr } = await supabase
       .from("articles")
       .select("id, site_id, topic, generated_at")
       .is("wp_post_url", null)
+      .eq("autopublish_enabled", true)
       .gte("generated_at", last24h.toISOString())
       .order("generated_at", { ascending: false })
       .limit(100);
@@ -72,19 +73,12 @@ Deno.serve(async (req: Request) => {
     if (pendingArticles && pendingArticles.length > 0) {
       // Get sites with auto_generate=true
       const siteIds = [...new Set(pendingArticles.map((a: any) => a.site_id))];
-      const { data: autoSites } = await supabase
-        .from("sites")
-        .select("id")
-        .in("id", siteIds)
-        .eq("auto_generate", true);
+      const { data: autoSites } = await supabase.from("sites").select("id").in("id", siteIds).eq("auto_generate", true);
 
       const autoSiteIds = new Set((autoSites || []).map((s: any) => s.id));
 
       // Get sites with wordpress config
-      const { data: wpConfigs } = await supabase
-        .from("wordpress_configs")
-        .select("site_id")
-        .in("site_id", siteIds);
+      const { data: wpConfigs } = await supabase.from("wordpress_configs").select("site_id").in("site_id", siteIds);
 
       const wpConfiguredSiteIds = new Set((wpConfigs || []).map((c: any) => c.site_id));
 
@@ -122,7 +116,9 @@ Deno.serve(async (req: Request) => {
         lastSchedulerRunAt = lastRun.started_at;
         schedulerDelayMinutes = Math.round((now.getTime() - new Date(lastRun.started_at).getTime()) / 60000);
         schedulerWatchdogTriggered = schedulerDelayMinutes > 30;
-        console.log(`${TAG} Scheduler watchdog: last_run=${lastSchedulerRunAt}, delay=${schedulerDelayMinutes}min, triggered=${schedulerWatchdogTriggered}`);
+        console.log(
+          `${TAG} Scheduler watchdog: last_run=${lastSchedulerRunAt}, delay=${schedulerDelayMinutes}min, triggered=${schedulerWatchdogTriggered}`,
+        );
       } else {
         // No runs ever recorded — trigger watchdog
         schedulerWatchdogTriggered = true;
@@ -158,7 +154,10 @@ Deno.serve(async (req: Request) => {
         console.error(`${TAG} Error inserting watchdog alert:`, wdInsertErr);
       } else {
         // Send watchdog email
-        const wdRecipients = opsAlertEmails.split(",").map((e: string) => e.trim()).filter((e: string) => e.length > 0);
+        const wdRecipients = opsAlertEmails
+          .split(",")
+          .map((e: string) => e.trim())
+          .filter((e: string) => e.length > 0);
         if (wdRecipients.length > 0 && resendApiKey) {
           try {
             await fetch("https://api.resend.com/emails", {
