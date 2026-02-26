@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX idx_article_email_notifications_unique 
+ON public.article_email_notifications (article_id, notification_type);

@@ -2814,21 +2814,48 @@ Deno.serve(async (req) => {
 
             if (userProfile?.email) {
               const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
-              try {
-                await sendPublishedNotification(
-                  userProfile.email,
-                  site.name,
-                  articleTitle,
-                  publishedPostUrl,
-                  siteId,
-                  teamEmails,
-                );
-                const emailRecipients = [userProfile.email, ...teamEmails.filter((e: string) => e !== userProfile.email)];
-                await logSiteActivity(supabase, siteId, userId, "autopublish_email_sent", "Email de artículo publicado enviado", { article_id: savedArticle.id, post_url: publishedPostUrl, recipients: emailRecipients });
-              } catch (emailErr) {
-                const emailErrMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
-                console.error("[auto-publish] Email notification error:", emailErrMsg);
-                await logSiteActivity(supabase, siteId, userId, "autopublish_email_failed", "Falló envío de email tras auto-publicación", { article_id: savedArticle.id, error: emailErrMsg });
+              const emailRecipients = [userProfile.email, ...teamEmails.filter((e: string) => e !== userProfile.email)];
+
+              // Dedup: attempt insert into article_email_notifications
+              const { error: dedupErr } = await supabase
+                .from("article_email_notifications")
+                .insert({
+                  article_id: savedArticle.id,
+                  notification_type: "autopublish_success",
+                  status: "pending",
+                  sent_to: emailRecipients,
+                });
+
+              if (dedupErr?.code === "23505") {
+                console.log("[auto-publish] Email already sent for this article, skipping");
+              } else if (dedupErr) {
+                console.error("[auto-publish] Dedup insert error:", dedupErr.message);
+              } else {
+                try {
+                  await sendPublishedNotification(
+                    userProfile.email,
+                    site.name,
+                    articleTitle,
+                    publishedPostUrl,
+                    siteId,
+                    teamEmails,
+                  );
+                  await supabase
+                    .from("article_email_notifications")
+                    .update({ status: "sent", sent_to: emailRecipients })
+                    .eq("article_id", savedArticle.id)
+                    .eq("notification_type", "autopublish_success");
+                  await logSiteActivity(supabase, siteId, userId, "autopublish_email_sent", "Email de artículo publicado enviado", { article_id: savedArticle.id, post_url: publishedPostUrl, recipients: emailRecipients });
+                } catch (emailErr) {
+                  const emailErrMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+                  console.error("[auto-publish] Email notification error:", emailErrMsg);
+                  await supabase
+                    .from("article_email_notifications")
+                    .update({ status: "failed", error: emailErrMsg })
+                    .eq("article_id", savedArticle.id)
+                    .eq("notification_type", "autopublish_success");
+                  await logSiteActivity(supabase, siteId, userId, "autopublish_email_failed", "Falló envío de email tras auto-publicación", { article_id: savedArticle.id, error: emailErrMsg });
+                }
               }
             }
           } else {

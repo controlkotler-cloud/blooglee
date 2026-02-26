@@ -100,6 +100,25 @@ async function sendReconcilePublishedEmail(
     const teamEmails = await getTeamMemberEmails(supabase, article.user_id);
     recipients = [profile.email, ...teamEmails.filter((e: string) => e !== profile.email)];
 
+    // Dedup: attempt insert into article_email_notifications
+    const { error: dedupErr } = await supabase
+      .from("article_email_notifications")
+      .insert({
+        article_id: article.id,
+        notification_type: "autopublish_reconciled",
+        status: "pending",
+        sent_to: recipients,
+      });
+
+    if (dedupErr?.code === "23505") {
+      console.log("[reconcile] Email already sent for this article, skipping");
+      return;
+    }
+    if (dedupErr) {
+      console.error("[reconcile] Dedup insert error:", dedupErr.message);
+      return;
+    }
+
     const siteUrl = "https://blooglee.lovable.app";
     const spanish = (article as any).content_spanish || {};
     const catalan = (article as any).content_catalan || {};
@@ -141,14 +160,29 @@ async function sendReconcilePublishedEmail(
 
     if (error) {
       console.error("[reconcile] Email send error:", error);
+      await supabase
+        .from("article_email_notifications")
+        .update({ status: "failed", error: JSON.stringify(error) })
+        .eq("article_id", article.id)
+        .eq("notification_type", "autopublish_reconciled");
       await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_failed", "Falló envío de email tras reconciliación", { article_id: article.id, error: JSON.stringify(error) });
     } else {
       console.log(`[reconcile] Published email sent to: ${recipients.join(", ")}`);
+      await supabase
+        .from("article_email_notifications")
+        .update({ status: "sent", sent_to: recipients })
+        .eq("article_id", article.id)
+        .eq("notification_type", "autopublish_reconciled");
       await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_sent", "Email de artículo publicado enviado por reconciliador", { article_id: article.id, post_url: postUrl, recipients });
     }
   } catch (emailErr) {
     const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
     console.error("[reconcile] Email exception:", msg);
+    await supabase
+      .from("article_email_notifications")
+      .update({ status: "failed", error: msg })
+      .eq("article_id", article.id)
+      .eq("notification_type", "autopublish_reconciled");
     await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_failed", "Excepción enviando email tras reconciliación", { article_id: article.id, error: msg });
   }
 }
@@ -285,9 +319,6 @@ Deno.serve(async (req) => {
       }
 
       if (dryRun) {
-        // Send published email (non-blocking for publish count)
-        await sendReconcilePublishedEmail(supabase, article, site.name, result.post_url);
-
         published++;
         continue;
       }
@@ -368,6 +399,9 @@ Deno.serve(async (req) => {
             idempotent: Boolean(result.idempotent),
           }
         );
+
+        // Send email notification (non-blocking)
+        await sendReconcilePublishedEmail(supabase, article, site.name, result.post_url);
 
         published++;
       } catch (error) {
