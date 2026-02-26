@@ -1586,23 +1586,49 @@ Deno.serve(async (req) => {
     if (ownedSite) {
       site = ownedSite;
     } else {
-      // Check team membership: fetch the site and verify team access
+      // Check team membership OR admin/superadmin role
       const serviceClient = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
       const { data: teamSite } = await serviceClient.from("sites").select("*").eq("id", siteId).single();
 
       if (teamSite) {
-        // Verify the user is a team member of the site owner
-        const { data: membership } = await serviceClient
-          .from("team_members")
-          .select("id")
-          .eq("owner_id", teamSite.user_id)
-          .eq("member_id", userId)
-          .single();
+        // 1) Check if user is admin/superadmin (full access)
+        const { data: adminRole } = await serviceClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .in("role", ["admin", "superadmin"])
+          .limit(1);
 
-        if (membership) {
+        if (adminRole && adminRole.length > 0) {
           site = teamSite;
           siteOwnerUserId = teamSite.user_id;
-          console.log(`Team member ${userId} accessing site owned by ${siteOwnerUserId}`);
+          console.log(`Admin/superadmin ${userId} accessing site owned by ${siteOwnerUserId}`);
+        } else {
+          // 2) Check if user is a team member of the site owner
+          const { data: membership } = await serviceClient
+            .from("team_members")
+            .select("id")
+            .eq("owner_id", teamSite.user_id)
+            .eq("member_id", userId)
+            .single();
+
+          // 3) Check if user is team owner and site belongs to their member
+          const { data: ownerMembership } = await serviceClient
+            .from("team_members")
+            .select("id")
+            .eq("owner_id", userId)
+            .eq("member_id", teamSite.user_id)
+            .single();
+
+          if (membership) {
+            site = teamSite;
+            siteOwnerUserId = teamSite.user_id;
+            console.log(`Team member ${userId} accessing site owned by ${siteOwnerUserId}`);
+          } else if (ownerMembership) {
+            site = teamSite;
+            siteOwnerUserId = teamSite.user_id;
+            console.log(`Team owner ${userId} accessing site of member ${siteOwnerUserId}`);
+          }
         }
       }
     }
