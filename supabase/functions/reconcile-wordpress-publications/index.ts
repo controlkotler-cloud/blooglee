@@ -3,7 +3,8 @@ import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
   "Access-Control-Max-Age": "86400",
 };
@@ -38,18 +39,16 @@ async function logSiteActivity(
   userId: string,
   actionType: string,
   description: string,
-  metadata: Record<string, unknown> = {}
+  metadata: Record<string, unknown> = {},
 ): Promise<void> {
   try {
-    const { error } = await supabase
-      .from("site_activity_log")
-      .insert({
-        site_id: siteId,
-        user_id: userId,
-        action_type: actionType,
-        description,
-        metadata,
-      });
+    const { error } = await supabase.from("site_activity_log").insert({
+      site_id: siteId,
+      user_id: userId,
+      action_type: actionType,
+      description,
+      metadata,
+    });
 
     if (error) {
       console.error(`[site-activity] Failed to log ${actionType}:`, error);
@@ -85,39 +84,55 @@ async function sendReconcilePublishedEmail(
     if (!RESEND_API_KEY) {
       console.log("[reconcile] RESEND_API_KEY not configured");
       // Register dedup row as failed
-      await supabase.from("article_email_notifications").insert({
-        article_id: article.id,
-        notification_type: "autopublish_reconciled",
-        status: "failed",
-        error: "missing_resend_api_key",
-      }).then(({ error: dedupErr }: any) => {
-        if (dedupErr?.code === "23505") {
-          console.log("[reconcile] Dedup: email row already exists");
-        }
-      });
-      await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_failed", "RESEND_API_KEY no configurada", { article_id: article.id, error: "missing_resend_api_key" });
+      await supabase
+        .from("article_email_notifications")
+        .insert({
+          article_id: article.id,
+          notification_type: "autopublish_reconciled",
+          status: "failed",
+          error: "missing_resend_api_key",
+        })
+        .then(({ error: dedupErr }: any) => {
+          if (dedupErr?.code === "23505") {
+            console.log("[reconcile] Dedup: email row already exists");
+          }
+        });
+      await logSiteActivity(
+        supabase,
+        article.site_id,
+        article.user_id,
+        "autopublish_reconcile_email_failed",
+        "RESEND_API_KEY no configurada",
+        { article_id: article.id, error: "missing_resend_api_key" },
+      );
       return;
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("user_id", article.user_id)
-      .single();
+    const { data: profile } = await supabase.from("profiles").select("email").eq("user_id", article.user_id).single();
 
     if (!profile?.email) {
       console.log("[reconcile] No owner email found");
-      await supabase.from("article_email_notifications").insert({
-        article_id: article.id,
-        notification_type: "autopublish_reconciled",
-        status: "failed",
-        error: "no_owner_email",
-      }).then(({ error: dedupErr }: any) => {
-        if (dedupErr?.code === "23505") {
-          console.log("[reconcile] Dedup: email row already exists");
-        }
-      });
-      await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_failed", "No se encontró email del propietario", { article_id: article.id, error: "no_owner_email" });
+      await supabase
+        .from("article_email_notifications")
+        .insert({
+          article_id: article.id,
+          notification_type: "autopublish_reconciled",
+          status: "failed",
+          error: "no_owner_email",
+        })
+        .then(({ error: dedupErr }: any) => {
+          if (dedupErr?.code === "23505") {
+            console.log("[reconcile] Dedup: email row already exists");
+          }
+        });
+      await logSiteActivity(
+        supabase,
+        article.site_id,
+        article.user_id,
+        "autopublish_reconcile_email_failed",
+        "No se encontró email del propietario",
+        { article_id: article.id, error: "no_owner_email" },
+      );
       return;
     }
 
@@ -125,18 +140,23 @@ async function sendReconcilePublishedEmail(
     recipients = [profile.email, ...teamEmails.filter((e: string) => e !== profile.email)];
 
     // Dedup: attempt insert into article_email_notifications
-    const { error: dedupErr } = await supabase
-      .from("article_email_notifications")
-      .insert({
-        article_id: article.id,
-        notification_type: "autopublish_reconciled",
-        status: "pending",
-        sent_to: recipients,
-      });
+    const { error: dedupErr } = await supabase.from("article_email_notifications").insert({
+      article_id: article.id,
+      notification_type: "autopublish_reconciled",
+      status: "pending",
+      sent_to: recipients,
+    });
 
     if (dedupErr?.code === "23505") {
       console.log("[reconcile] Email already sent for this article, skipping");
-      await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_skipped_duplicate", "Email omitido: ya existía notificación para este artículo", { article_id: article.id });
+      await logSiteActivity(
+        supabase,
+        article.site_id,
+        article.user_id,
+        "autopublish_reconcile_email_skipped_duplicate",
+        "Email omitido: ya existía notificación para este artículo",
+        { article_id: article.id },
+      );
       return;
     }
     if (dedupErr) {
@@ -190,7 +210,14 @@ async function sendReconcilePublishedEmail(
         .update({ status: "failed", error: JSON.stringify(error) })
         .eq("article_id", article.id)
         .eq("notification_type", "autopublish_reconciled");
-      await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_failed", "Falló envío de email tras reconciliación", { article_id: article.id, error: JSON.stringify(error) });
+      await logSiteActivity(
+        supabase,
+        article.site_id,
+        article.user_id,
+        "autopublish_reconcile_email_failed",
+        "Falló envío de email tras reconciliación",
+        { article_id: article.id, error: JSON.stringify(error) },
+      );
     } else {
       console.log(`[reconcile] Published email sent to: ${recipients.join(", ")}`);
       await supabase
@@ -198,7 +225,14 @@ async function sendReconcilePublishedEmail(
         .update({ status: "sent", sent_to: recipients })
         .eq("article_id", article.id)
         .eq("notification_type", "autopublish_reconciled");
-      await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_sent", "Email de artículo publicado enviado por reconciliador", { article_id: article.id, post_url: postUrl, recipients });
+      await logSiteActivity(
+        supabase,
+        article.site_id,
+        article.user_id,
+        "autopublish_reconcile_email_sent",
+        "Email de artículo publicado enviado por reconciliador",
+        { article_id: article.id, post_url: postUrl, recipients },
+      );
     }
   } catch (emailErr) {
     const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
@@ -208,7 +242,14 @@ async function sendReconcilePublishedEmail(
       .update({ status: "failed", error: msg })
       .eq("article_id", article.id)
       .eq("notification_type", "autopublish_reconciled");
-    await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_failed", "Excepción enviando email tras reconciliación", { article_id: article.id, error: msg });
+    await logSiteActivity(
+      supabase,
+      article.site_id,
+      article.user_id,
+      "autopublish_reconcile_email_failed",
+      "Excepción enviando email tras reconciliación",
+      { article_id: article.id, error: msg },
+    );
   }
 }
 
@@ -237,8 +278,11 @@ Deno.serve(async (req) => {
 
     let query = supabase
       .from("articles")
-      .select("id, site_id, user_id, content_spanish, content_catalan, image_url, generated_at, wp_post_url, topic")
+      .select(
+        "id, site_id, user_id, content_spanish, content_catalan, image_url, generated_at, wp_post_url, topic, autopublish_enabled",
+      )
       .is("wp_post_url", null)
+      .eq("autopublish_enabled", true)
       .gte("generated_at", since)
       .order("generated_at", { ascending: true })
       .limit(batchSize);
@@ -262,7 +306,14 @@ Deno.serve(async (req) => {
         scanned: 0,
         published: 0,
         skipped: 0,
-        skip_reasons: { no_site: 0, no_auto_generate: 0, no_wp_config: 0, missing_title: 0, missing_content: 0, missing_slug: 0 },
+        skip_reasons: {
+          no_site: 0,
+          no_auto_generate: 0,
+          no_wp_config: 0,
+          missing_title: 0,
+          missing_content: 0,
+          missing_slug: 0,
+        },
         failed: 0,
         dry_run: dryRun,
       });
@@ -271,14 +322,8 @@ Deno.serve(async (req) => {
     const siteIds = [...new Set(pendingArticles.map((a: any) => a.site_id))];
 
     const [{ data: sites }, { data: wpConfigs }] = await Promise.all([
-      supabase
-        .from("sites")
-        .select("id, name, auto_generate")
-        .in("id", siteIds),
-      supabase
-        .from("wordpress_configs")
-        .select("site_id")
-        .in("site_id", siteIds),
+      supabase.from("sites").select("id, name, auto_generate").in("id", siteIds),
+      supabase.from("wordpress_configs").select("site_id").in("site_id", siteIds),
     ]);
 
     const siteMap = new Map((sites || []).map((s: any) => [s.id, s]));
@@ -287,7 +332,14 @@ Deno.serve(async (req) => {
     let published = 0;
     let failed = 0;
     let skipped = 0;
-    const skipReasons: Record<string, number> = { no_site: 0, no_auto_generate: 0, no_wp_config: 0, missing_title: 0, missing_content: 0, missing_slug: 0 };
+    const skipReasons: Record<string, number> = {
+      no_site: 0,
+      no_auto_generate: 0,
+      no_wp_config: 0,
+      missing_title: 0,
+      missing_content: 0,
+      missing_slug: 0,
+    };
     const errors: Array<Record<string, unknown>> = [];
 
     async function skipWithLog(article: any, reason: string): Promise<void> {
@@ -300,7 +352,7 @@ Deno.serve(async (req) => {
           article.user_id,
           "autopublish_reconcile_skipped",
           `Artículo omitido por reconciliador: ${reason}`,
-          { article_id: article.id, reason }
+          { article_id: article.id, reason },
         );
       }
     }
@@ -368,7 +420,7 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${serviceRoleKey}`,
+            Authorization: `Bearer ${serviceRoleKey}`,
           },
           body: JSON.stringify(publishPayload),
         });
@@ -376,7 +428,11 @@ Deno.serve(async (req) => {
         if (!publishRes.ok) {
           const errorText = await publishRes.text();
           failed++;
-          errors.push({ article_id: article.id, site_id: article.site_id, error: `HTTP ${publishRes.status}: ${errorText.substring(0, 400)}` });
+          errors.push({
+            article_id: article.id,
+            site_id: article.site_id,
+            error: `HTTP ${publishRes.status}: ${errorText.substring(0, 400)}`,
+          });
 
           await logSiteActivity(
             supabase,
@@ -388,7 +444,7 @@ Deno.serve(async (req) => {
               article_id: article.id,
               http_status: publishRes.status,
               error: errorText.substring(0, 500),
-            }
+            },
           );
           continue;
         }
@@ -397,7 +453,11 @@ Deno.serve(async (req) => {
 
         if (!result?.post_url) {
           failed++;
-          errors.push({ article_id: article.id, site_id: article.site_id, error: "publish-to-wordpress-saas respondió sin post_url" });
+          errors.push({
+            article_id: article.id,
+            site_id: article.site_id,
+            error: "publish-to-wordpress-saas respondió sin post_url",
+          });
           continue;
         }
 
@@ -408,7 +468,11 @@ Deno.serve(async (req) => {
 
         if (updateError) {
           failed++;
-          errors.push({ article_id: article.id, site_id: article.site_id, error: `Error actualizando wp_post_url: ${updateError.message}` });
+          errors.push({
+            article_id: article.id,
+            site_id: article.site_id,
+            error: `Error actualizando wp_post_url: ${updateError.message}`,
+          });
           continue;
         }
 
@@ -422,7 +486,7 @@ Deno.serve(async (req) => {
             article_id: article.id,
             post_url: result.post_url,
             idempotent: Boolean(result.idempotent),
-          }
+          },
         );
 
         // Send email notification (non-blocking)
@@ -443,7 +507,7 @@ Deno.serve(async (req) => {
           {
             article_id: article.id,
             error: message,
-          }
+          },
         );
       }
     }
