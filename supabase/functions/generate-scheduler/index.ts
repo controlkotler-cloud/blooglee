@@ -301,11 +301,31 @@ const handler = async (req: Request): Promise<Response> => {
   console.log("=== GENERATE SCHEDULER STARTED ===");
   console.log("Time:", new Date().toISOString());
 
+  let supabase: any;
+  let runId: number | null = null;
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Record scheduler run start
+    try {
+      const { data: runRow, error: runErr } = await supabase
+        .from("scheduler_runs")
+        .insert({ started_at: new Date().toISOString() })
+        .select("id")
+        .single();
+      if (runErr) {
+        console.error("[scheduler] Failed to insert scheduler_runs:", runErr.message);
+      } else {
+        runId = runRow.id;
+        console.log(`[scheduler] Run recorded: id=${runId}`);
+      }
+    } catch (e) {
+      console.error("[scheduler] Exception inserting scheduler_runs:", e);
+    }
 
     const now = new Date();
     const month = now.getUTCMonth() + 1;
@@ -478,6 +498,28 @@ const handler = async (req: Request): Promise<Response> => {
       `Skipped (already generated): ${dispatched.skipped.farmacias} farmacias, ${dispatched.skipped.empresas} empresas, ${dispatched.skipped.sites} sites`,
     );
 
+    // Finalize scheduler_runs on success
+    if (runId && supabase) {
+      try {
+        await supabase
+          .from("scheduler_runs")
+          .update({
+            finished_at: new Date().toISOString(),
+            success: true,
+            dispatched_farmacias: dispatched.farmacias,
+            dispatched_empresas: dispatched.empresas,
+            dispatched_sites: dispatched.sites,
+            skipped_farmacias: dispatched.skipped.farmacias,
+            skipped_empresas: dispatched.skipped.empresas,
+            skipped_sites: dispatched.skipped.sites,
+            metadata: { elapsed_ms: elapsed },
+          })
+          .eq("id", runId);
+      } catch (e) {
+        console.error("[scheduler] Failed to update scheduler_runs:", e);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -486,6 +528,7 @@ const handler = async (req: Request): Promise<Response> => {
         monitor_dispatched: true,
         elapsed_ms: elapsed,
         timestamp: now.toISOString(),
+        run_id: runId,
       }),
       {
         status: 200,
@@ -495,6 +538,22 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Scheduler error:", error);
+
+    // Finalize scheduler_runs on failure
+    if (runId && supabase) {
+      try {
+        await supabase
+          .from("scheduler_runs")
+          .update({
+            finished_at: new Date().toISOString(),
+            success: false,
+            error: errorMessage,
+          })
+          .eq("id", runId);
+      } catch (e) {
+        console.error("[scheduler] Failed to update scheduler_runs on error:", e);
+      }
+    }
 
     return new Response(JSON.stringify({ success: false, error: errorMessage }), {
       status: 500,

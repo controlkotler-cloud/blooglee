@@ -105,15 +105,102 @@ Deno.serve(async (req: Request) => {
 
     console.log(`${TAG} Metrics: failed_reconcile=${failedCount}, pending_publishable=${pendingPublishable}`);
 
+    // --- Metric 3: Scheduler watchdog ---
+    let schedulerDelayMinutes = 0;
+    let lastSchedulerRunAt: string | null = null;
+    let schedulerWatchdogTriggered = false;
+
+    try {
+      const { data: lastRun } = await supabase
+        .from("scheduler_runs")
+        .select("started_at")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (lastRun?.started_at) {
+        lastSchedulerRunAt = lastRun.started_at;
+        schedulerDelayMinutes = Math.round((now.getTime() - new Date(lastRun.started_at).getTime()) / 60000);
+        schedulerWatchdogTriggered = schedulerDelayMinutes > 30;
+        console.log(`${TAG} Scheduler watchdog: last_run=${lastSchedulerRunAt}, delay=${schedulerDelayMinutes}min, triggered=${schedulerWatchdogTriggered}`);
+      } else {
+        // No runs ever recorded — trigger watchdog
+        schedulerWatchdogTriggered = true;
+        console.warn(`${TAG} Scheduler watchdog: no runs found in scheduler_runs`);
+      }
+    } catch (e) {
+      console.error(`${TAG} Error querying scheduler_runs:`, e);
+    }
+
     // --- Evaluate alert condition ---
     const shouldAlert = failedCount > 0 || pendingPublishable > pendingThreshold;
 
+    // --- Scheduler watchdog alert (separate dedup) ---
+    if (schedulerWatchdogTriggered) {
+      const watchdogAlertHour = new Date(now);
+      watchdogAlertHour.setUTCMinutes(0, 0, 0);
+
+      const watchdogPayload = {
+        last_scheduler_run_at: lastSchedulerRunAt,
+        scheduler_delay_minutes: schedulerDelayMinutes,
+        checked_at: now.toISOString(),
+      };
+
+      const { error: wdInsertErr } = await supabase.from("ops_alert_log").insert({
+        alert_type: "scheduler_watchdog",
+        alert_hour: watchdogAlertHour.toISOString(),
+        payload: watchdogPayload,
+      });
+
+      if (wdInsertErr?.code === "23505") {
+        console.log(`${TAG} Scheduler watchdog alert skipped (already sent this hour)`);
+      } else if (wdInsertErr) {
+        console.error(`${TAG} Error inserting watchdog alert:`, wdInsertErr);
+      } else {
+        // Send watchdog email
+        const wdRecipients = opsAlertEmails.split(",").map((e: string) => e.trim()).filter((e: string) => e.length > 0);
+        if (wdRecipients.length > 0 && resendApiKey) {
+          try {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${resendApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: alertFromEmail,
+                to: wdRecipients,
+                subject: "[Blooglee Alert] Scheduler sin ejecuciones recientes",
+                html: `
+                  <h2>⚠️ Scheduler Watchdog Alert</h2>
+                  <p><strong>Hora:</strong> ${now.toISOString()}</p>
+                  <hr/>
+                  <table style="border-collapse:collapse; width:100%;">
+                    <tr><td style="padding:8px; border:1px solid #ddd;"><strong>Última ejecución del scheduler</strong></td><td style="padding:8px; border:1px solid #ddd;">${lastSchedulerRunAt || "Nunca"}</td></tr>
+                    <tr><td style="padding:8px; border:1px solid #ddd;"><strong>Retraso (minutos)</strong></td><td style="padding:8px; border:1px solid #ddd;">${schedulerDelayMinutes}</td></tr>
+                  </table>
+                  <p>El scheduler no ha ejecutado en más de 30 minutos. Revisa el cron job y los logs de la función <code>generate-scheduler</code>.</p>
+                  <p style="color:#888; font-size:12px;">Este email se envía máximo 1 vez por hora.</p>
+                `,
+              }),
+            });
+            console.log(`${TAG} Scheduler watchdog email sent`);
+          } catch (emailErr) {
+            console.error(`${TAG} Failed to send watchdog email:`, emailErr);
+          }
+        }
+      }
+    }
+
     if (!shouldAlert) {
-      console.log(`${TAG} No alert needed. All healthy.`);
+      console.log(`${TAG} No autopublish alert needed. All healthy.`);
       return new Response(
         JSON.stringify({
           success: true,
           alerted: false,
+          scheduler_watchdog: schedulerWatchdogTriggered,
+          last_scheduler_run_at: lastSchedulerRunAt,
+          scheduler_delay_minutes: schedulerDelayMinutes,
           failed_reconcile: failedCount,
           pending_publishable: pendingPublishable,
         }),
@@ -222,6 +309,9 @@ Deno.serve(async (req: Request) => {
         success: true,
         alerted: true,
         emailed: true,
+        scheduler_watchdog: schedulerWatchdogTriggered,
+        last_scheduler_run_at: lastSchedulerRunAt,
+        scheduler_delay_minutes: schedulerDelayMinutes,
         failed_reconcile: failedCount,
         pending_publishable: pendingPublishable,
       }),
