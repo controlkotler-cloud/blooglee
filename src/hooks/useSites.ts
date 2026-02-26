@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { toast } from 'sonner';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
+import { toast } from "sonner";
 
 export interface WordPressContext {
   avgLength?: number;
@@ -20,7 +20,7 @@ export interface Site {
   sector: string | null;
   description: string | null;
   location: string | null;
-  geographic_scope: 'local' | 'regional' | 'national' | 'international';
+  geographic_scope: "local" | "regional" | "national" | "international";
   languages: string[];
   blog_url: string | null;
   instagram_url: string | null;
@@ -51,7 +51,7 @@ export interface SiteInput {
   sector?: string | null;
   description?: string | null;
   location?: string | null;
-  geographic_scope?: 'local' | 'regional' | 'national' | 'international';
+  geographic_scope?: "local" | "regional" | "national" | "international";
   languages?: string[];
   blog_url?: string | null;
   instagram_url?: string | null;
@@ -73,22 +73,40 @@ export interface SiteInput {
   mood?: string | null;
 }
 
+async function resolveEffectiveOwnerId(userId: string): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from("team_members")
+      .select("owner_id")
+      .eq("member_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    if (error) {
+      console.error("Error resolving effective owner:", error);
+      return userId;
+    }
+
+    return data?.[0]?.owner_id || userId;
+  } catch (error) {
+    console.error("Exception resolving effective owner:", error);
+    return userId;
+  }
+}
+
 export function useSites() {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ['sites', user?.id],
+    queryKey: ["sites", user?.id],
     queryFn: async (): Promise<Site[]> => {
       if (!user?.id) return [];
 
       // RLS handles access control (own sites + team sites)
-      const { data, error } = await supabase
-        .from('sites')
-        .select('*')
-        .order('name', { ascending: true });
+      const { data, error } = await supabase.from("sites").select("*").order("name", { ascending: true });
 
       if (error) {
-        console.error('Error fetching sites:', error);
+        console.error("Error fetching sites:", error);
         throw error;
       }
 
@@ -104,24 +122,25 @@ export function useCreateSite() {
 
   return useMutation({
     mutationFn: async (site: SiteInput): Promise<Site> => {
-      if (!user?.id) throw new Error('No user logged in');
+      if (!user?.id) throw new Error("No user logged in");
+      const effectiveOwnerId = await resolveEffectiveOwnerId(user.id);
 
       const { data, error } = await supabase
-        .from('sites')
+        .from("sites")
         .insert({
-          user_id: user.id,
+          user_id: effectiveOwnerId,
           name: site.name,
           sector: site.sector ?? null,
           description: site.description ?? null,
           location: site.location ?? null,
-          geographic_scope: site.geographic_scope ?? 'local',
-          languages: site.languages ?? ['spanish'],
+          geographic_scope: site.geographic_scope ?? "local",
+          languages: site.languages ?? ["spanish"],
           blog_url: site.blog_url ?? null,
           instagram_url: site.instagram_url ?? null,
           auto_generate: site.auto_generate ?? true,
           custom_topic: site.custom_topic ?? null,
           include_featured_image: site.include_featured_image ?? true,
-          publish_frequency: site.publish_frequency ?? 'monthly',
+          publish_frequency: site.publish_frequency ?? "monthly",
         })
         .select()
         .single();
@@ -130,12 +149,13 @@ export function useCreateSite() {
       return data as Site;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sites'] });
-      toast.success('Sitio creado correctamente');
+      queryClient.invalidateQueries({ queryKey: ["sites"] });
+      toast.success("Sitio creado correctamente");
     },
     onError: (error) => {
-      console.error('Error creating site:', error);
-      toast.error('Error al crear el sitio');
+      console.error("Error creating site:", error);
+      const message = error instanceof Error ? error.message : "Error al crear el sitio";
+      toast.error(message);
     },
   });
 }
@@ -147,23 +167,19 @@ export function useUpdateSite() {
     mutationFn: async (site: Partial<SiteInput> & { id: string }): Promise<Site> => {
       const { id, ...updates } = site;
 
-      const { data, error } = await supabase
-        .from('sites')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+      const { data, error } = await supabase.from("sites").update(updates).eq("id", id).select().single();
 
       if (error) throw error;
       return data as Site;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sites'] });
-      toast.success('Sitio actualizado');
+      queryClient.invalidateQueries({ queryKey: ["sites"] });
+      toast.success("Sitio actualizado");
     },
     onError: (error) => {
-      console.error('Error updating site:', error);
-      toast.error('Error al actualizar el sitio');
+      console.error("Error updating site:", error);
+      const message = error instanceof Error ? error.message : "Error al actualizar el sitio";
+      toast.error(message);
     },
   });
 }
@@ -173,21 +189,18 @@ export function useDeleteSite() {
 
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      const { error } = await supabase
-        .from('sites')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from("sites").delete().eq("id", id);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sites'] });
-      queryClient.invalidateQueries({ queryKey: ['articles'] });
-      toast.success('Sitio eliminado');
+      queryClient.invalidateQueries({ queryKey: ["sites"] });
+      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      toast.success("Sitio eliminado");
     },
     onError: (error) => {
-      console.error('Error deleting site:', error);
-      toast.error('Error al eliminar el sitio');
+      console.error("Error deleting site:", error);
+      toast.error("Error al eliminar el sitio");
     },
   });
 }
@@ -198,39 +211,38 @@ export function useImportSites() {
 
   return useMutation({
     mutationFn: async (sites: SiteInput[]): Promise<Site[]> => {
-      if (!user?.id) throw new Error('No user logged in');
-      
-      const sitesToInsert = sites.map(site => ({
-        user_id: user.id,
+      if (!user?.id) throw new Error("No user logged in");
+      const effectiveOwnerId = await resolveEffectiveOwnerId(user.id);
+
+      const sitesToInsert = sites.map((site) => ({
+        user_id: effectiveOwnerId,
         name: site.name,
         sector: site.sector ?? null,
         description: site.description ?? null,
         location: site.location ?? null,
-        geographic_scope: site.geographic_scope ?? 'local',
-        languages: site.languages ?? ['spanish'],
+        geographic_scope: site.geographic_scope ?? "local",
+        languages: site.languages ?? ["spanish"],
         blog_url: site.blog_url ?? null,
         instagram_url: site.instagram_url ?? null,
         auto_generate: site.auto_generate ?? true,
         custom_topic: site.custom_topic ?? null,
         include_featured_image: site.include_featured_image ?? true,
-        publish_frequency: site.publish_frequency ?? 'monthly',
+        publish_frequency: site.publish_frequency ?? "monthly",
       }));
 
-      const { data, error } = await supabase
-        .from('sites')
-        .insert(sitesToInsert)
-        .select();
+      const { data, error } = await supabase.from("sites").insert(sitesToInsert).select();
 
       if (error) throw error;
       return data as Site[];
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['sites'] });
+      queryClient.invalidateQueries({ queryKey: ["sites"] });
       toast.success(`${data.length} sitios importados correctamente`);
     },
     onError: (error) => {
-      console.error('Error importing sites:', error);
-      toast.error('Error al importar sitios');
+      console.error("Error importing sites:", error);
+      const message = error instanceof Error ? error.message : "Error al importar sitios";
+      toast.error(message);
     },
   });
 }
