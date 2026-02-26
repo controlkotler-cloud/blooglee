@@ -1,18 +1,12 @@
-import { useState } from 'react';
-import DOMPurify from 'dompurify';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Upload, ExternalLink, ImagePlus, Loader2 } from 'lucide-react';
-import type { Article } from '@/hooks/useArticlesSaas';
-import { useRegenerateImageSaas } from '@/hooks/useArticlesSaas';
-import { useIsAdmin } from '@/hooks/useProfile';
+import { useState } from "react";
+import DOMPurify from "dompurify";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Upload, ExternalLink, ImagePlus, Loader2 } from "lucide-react";
+import type { Article } from "@/hooks/useArticlesSaas";
+import { useRegenerateImageSaas } from "@/hooks/useArticlesSaas";
 
 interface ArticlePreviewDialogProps {
   article: Article | null;
@@ -22,34 +16,27 @@ interface ArticlePreviewDialogProps {
   siteSector?: string;
 }
 
-export function ArticlePreviewDialog({
-  article,
-  open,
-  onClose,
-  onPublish,
-  siteSector,
-}: ArticlePreviewDialogProps) {
-  const [selectedLang, setSelectedLang] = useState<'spanish' | 'catalan'>('spanish');
+export function ArticlePreviewDialog({ article, open, onClose, onPublish, siteSector }: ArticlePreviewDialogProps) {
+  const [selectedLang, setSelectedLang] = useState<"spanish" | "catalan">("spanish");
   const regenerateMutation = useRegenerateImageSaas();
-  const { isAdmin } = useIsAdmin();
 
   if (!article) return null;
 
-  const content = selectedLang === 'spanish' ? article.content_spanish : article.content_catalan;
+  const content = selectedLang === "spanish" ? article.content_spanish : article.content_catalan;
   const hasSpanish = !!article.content_spanish;
   const hasCatalan = !!article.content_catalan;
   const isPublished = !!article.wp_post_url;
 
   const handleRegenerateImage = () => {
     if (!article) return;
-    
+
     regenerateMutation.mutate({
       articleId: article.id,
       pexelsQuery: article.pexels_query || article.topic,
       articleTitle: article.content_spanish?.title,
       articleContent: article.content_spanish?.content,
       companySector: siteSector,
-      usedImageUrls: article.image_url ? [article.image_url] : []
+      usedImageUrls: article.image_url ? [article.image_url] : [],
     });
   };
 
@@ -67,7 +54,7 @@ export function ArticlePreviewDialog({
         {/* Language tabs */}
         <Tabs
           value={selectedLang}
-          onValueChange={(v) => setSelectedLang(v as 'spanish' | 'catalan')}
+          onValueChange={(v) => setSelectedLang(v as "spanish" | "catalan")}
           className="flex-1 flex flex-col overflow-hidden"
         >
           <div className="flex items-center justify-between mb-4">
@@ -99,12 +86,7 @@ export function ArticlePreviewDialog({
             {/* Featured image */}
             {article.image_url && (
               <div className="space-y-2">
-                <a
-                  href={article.image_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block relative group"
-                >
+                <a href={article.image_url} target="_blank" rel="noopener noreferrer" className="block relative group">
                   <img
                     src={article.image_url}
                     alt={content?.title || article.topic}
@@ -118,9 +100,9 @@ export function ArticlePreviewDialog({
                 <div className="flex items-center justify-between">
                   {article.image_photographer && (
                     <p className="text-xs text-muted-foreground">
-                      Foto por{' '}
+                      Foto por{" "}
                       <a
-                        href={article.image_photographer_url || '#'}
+                        href={article.image_photographer_url || "#"}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:underline"
@@ -129,7 +111,7 @@ export function ArticlePreviewDialog({
                       </a>
                     </p>
                   )}
-                  {(!isPublished || isAdmin) && (
+                  {!isPublished && (
                     <Button
                       onClick={handleRegenerateImage}
                       disabled={isRegeneratingImage}
@@ -153,9 +135,7 @@ export function ArticlePreviewDialog({
               {article.content_spanish ? (
                 <ArticleContentView content={article.content_spanish} />
               ) : (
-                <p className="text-muted-foreground text-center py-8">
-                  No hay contenido en español
-                </p>
+                <p className="text-muted-foreground text-center py-8">No hay contenido en español</p>
               )}
             </TabsContent>
 
@@ -163,9 +143,7 @@ export function ArticlePreviewDialog({
               {article.content_catalan ? (
                 <ArticleContentView content={article.content_catalan} />
               ) : (
-                <p className="text-muted-foreground text-center py-8">
-                  No hay contenido en catalán
-                </p>
+                <p className="text-muted-foreground text-center py-8">No hay contenido en catalán</p>
               )}
             </TabsContent>
           </div>
@@ -193,9 +171,7 @@ function ArticleContentView({ content }: ArticleContentViewProps) {
           <Badge variant="outline" className="text-xs">
             Meta description
           </Badge>
-          <span className="text-xs text-muted-foreground">
-            {content.meta_description.length}/160 caracteres
-          </span>
+          <span className="text-xs text-muted-foreground">{content.meta_description.length}/160 caracteres</span>
         </div>
         <p className="text-sm">{content.meta_description}</p>
       </div>
@@ -205,19 +181,45 @@ function ArticleContentView({ content }: ArticleContentViewProps) {
         <Badge variant="secondary" className="text-xs">
           Slug
         </Badge>
-        <code className="bg-muted px-2 py-0.5 rounded text-xs">
-          {content.slug}
-        </code>
+        <code className="bg-muted px-2 py-0.5 rounded text-xs">{content.slug}</code>
       </div>
 
       {/* Content */}
       <div
         className="prose prose-sm dark:prose-invert max-w-none"
-        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content.content, {
-          ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'strong', 'em', 'a', 'blockquote', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'div', 'span', 'hr', 'img', 'br'],
-          ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'id', 'src', 'alt'],
-          ALLOW_DATA_ATTR: false,
-        }) }}
+        dangerouslySetInnerHTML={{
+          __html: DOMPurify.sanitize(content.content, {
+            ALLOWED_TAGS: [
+              "p",
+              "h1",
+              "h2",
+              "h3",
+              "h4",
+              "ul",
+              "ol",
+              "li",
+              "strong",
+              "em",
+              "a",
+              "blockquote",
+              "code",
+              "pre",
+              "table",
+              "thead",
+              "tbody",
+              "tr",
+              "td",
+              "th",
+              "div",
+              "span",
+              "hr",
+              "img",
+              "br",
+            ],
+            ALLOWED_ATTR: ["href", "target", "rel", "class", "id", "src", "alt"],
+            ALLOW_DATA_ATTR: false,
+          }),
+        }}
       />
     </div>
   );
