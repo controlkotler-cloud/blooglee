@@ -797,6 +797,25 @@ const LENGTH_TARGETS: Record<string, { words: number; description: string; maxTo
   long: { words: 2500, description: "~2500 palabras, guía completa de 10+ minutos", maxTokens: 16000 },
 };
 
+type PreferredLength = "short" | "medium" | "long";
+
+function normalizePreferredLength(value: string | null | undefined): PreferredLength {
+  if (value === "short" || value === "medium" || value === "long") return value;
+  return "medium";
+}
+
+function getMaxPreferredLengthForPlan(plan: string, isSuperAdmin: boolean): PreferredLength {
+  if (isSuperAdmin) return "long";
+  if (plan === "free") return "short";
+  if (plan === "starter") return "medium";
+  return "long";
+}
+
+function clampPreferredLength(preferred: PreferredLength, maxAllowed: PreferredLength): PreferredLength {
+  const rank: Record<PreferredLength, number> = { short: 1, medium: 2, long: 3 };
+  return rank[preferred] <= rank[maxAllowed] ? preferred : maxAllowed;
+}
+
 // ==========================================
 // SECTOR CONTEXTS
 // ==========================================
@@ -1042,22 +1061,6 @@ function buildGeoContext(site: SiteData): { geoContext: string; locationInfo: st
   }
 }
 
-async function isUserAdmin(supabaseClient: any, userId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabaseClient.from("user_roles").select("role").eq("user_id", userId);
-
-    if (error) {
-      console.error("Error checking admin role:", error);
-      return false;
-    }
-
-    return data?.some((r: { role: string }) => r.role === "admin") || false;
-  } catch (e) {
-    console.error("Exception checking admin role:", e);
-    return false;
-  }
-}
-
 async function getUserProfile(
   supabaseClient: any,
   userId: string,
@@ -1078,6 +1081,27 @@ async function getUserProfile(
   } catch (e) {
     console.error("Exception fetching profile:", e);
     return null;
+  }
+}
+
+async function isUserSuperAdmin(supabaseClient: any, userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabaseClient
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("role", "superadmin")
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error checking superadmin role:", error);
+      return false;
+    }
+
+    return Boolean(data);
+  } catch (e) {
+    console.error("Exception checking superadmin role:", e);
+    return false;
   }
 }
 
@@ -1515,19 +1539,42 @@ Deno.serve(async (req) => {
     const requestBody: RequestBody = await req.json();
     const { isScheduled, userId: schedulerUserId } = requestBody;
 
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const isServiceRole = token === SUPABASE_SERVICE_ROLE_KEY;
+
     let supabase: any;
     let userId: string;
 
-    if (isScheduled && schedulerUserId && SUPABASE_SERVICE_ROLE_KEY) {
+    if (isServiceRole) {
+      if (!isScheduled) {
+        return new Response(JSON.stringify({ error: "Forbidden: internal auth requires scheduled mode" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!schedulerUserId) {
+        return new Response(JSON.stringify({ error: "Missing scheduler user context" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       console.log("=== SCHEDULER MODE ===");
       supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
       userId = schedulerUserId;
       console.log("Using scheduler userId:", userId);
     } else {
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader?.startsWith("Bearer ")) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
+      if (isScheduled) {
+        return new Response(JSON.stringify({ error: "Forbidden: isScheduled is reserved for internal scheduler" }), {
+          status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -1536,7 +1583,6 @@ Deno.serve(async (req) => {
         global: { headers: { Authorization: authHeader } },
       });
 
-      const token = authHeader.replace("Bearer ", "");
       const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
 
       if (claimsError || !claimsData?.claims) {
@@ -1571,12 +1617,14 @@ Deno.serve(async (req) => {
     console.log("Site ID:", siteId);
     console.log("Month/Year:", month, year);
 
+    const serviceClient = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
     // Fetch site and validate ownership or team membership
     let site: any = null;
     let siteOwnerUserId: string = userId;
 
     // First try direct ownership
-    const { data: ownedSite, error: ownedSiteError } = await supabase
+    const { data: ownedSite } = await supabase
       .from("sites")
       .select("*")
       .eq("id", siteId)
@@ -1585,50 +1633,24 @@ Deno.serve(async (req) => {
 
     if (ownedSite) {
       site = ownedSite;
+      siteOwnerUserId = ownedSite.user_id;
     } else {
-      // Check team membership OR admin/superadmin role
-      const serviceClient = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+      // Check team membership (member -> owner only) without any cross-account bypass
       const { data: teamSite } = await serviceClient.from("sites").select("*").eq("id", siteId).single();
 
       if (teamSite) {
-        // 1) Check if user is admin/superadmin (full access)
-        const { data: adminRole } = await serviceClient
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", userId)
-          .in("role", ["admin", "superadmin"])
-          .limit(1);
+        // Check if user is a team member of the site owner.
+        const { data: membership } = await serviceClient
+          .from("team_members")
+          .select("id")
+          .eq("owner_id", teamSite.user_id)
+          .eq("member_id", userId)
+          .maybeSingle();
 
-        if (adminRole && adminRole.length > 0) {
+        if (membership) {
           site = teamSite;
           siteOwnerUserId = teamSite.user_id;
-          console.log(`Admin/superadmin ${userId} accessing site owned by ${siteOwnerUserId}`);
-        } else {
-          // 2) Check if user is a team member of the site owner
-          const { data: membership } = await serviceClient
-            .from("team_members")
-            .select("id")
-            .eq("owner_id", teamSite.user_id)
-            .eq("member_id", userId)
-            .single();
-
-          // 3) Check if user is team owner and site belongs to their member
-          const { data: ownerMembership } = await serviceClient
-            .from("team_members")
-            .select("id")
-            .eq("owner_id", userId)
-            .eq("member_id", teamSite.user_id)
-            .single();
-
-          if (membership) {
-            site = teamSite;
-            siteOwnerUserId = teamSite.user_id;
-            console.log(`Team member ${userId} accessing site owned by ${siteOwnerUserId}`);
-          } else if (ownerMembership) {
-            site = teamSite;
-            siteOwnerUserId = teamSite.user_id;
-            console.log(`Team owner ${userId} accessing site of member ${siteOwnerUserId}`);
-          }
+          console.log(`Team member ${userId} accessing site owned by ${siteOwnerUserId}`);
         }
       }
     }
@@ -1644,35 +1666,56 @@ Deno.serve(async (req) => {
     console.log("Site:", site.name);
     console.log("Sector:", site.sector);
 
-    // Check admin status for bypass (check both the acting user and the site owner)
-    const isAdmin =
-      (await isUserAdmin(supabase, userId)) ||
-      (siteOwnerUserId !== userId && (await isUserAdmin(supabase, siteOwnerUserId)));
-    console.log("Is admin:", isAdmin);
-
     // Check plan limits using the SITE OWNER's profile (not the team member's)
-    if (!isAdmin) {
-      const profile = await getUserProfile(supabase, siteOwnerUserId);
-      if (!profile) {
-        return new Response(JSON.stringify({ error: "Profile not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    const profile = await getUserProfile(serviceClient, siteOwnerUserId);
+    if (!profile) {
+      return new Response(JSON.stringify({ error: "Profile not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
+    const siteOwnerIsSuperAdmin = await isUserSuperAdmin(serviceClient, siteOwnerUserId);
+
+    if (siteOwnerIsSuperAdmin) {
+      console.log("Superadmin account: unlimited sites/posts on own account");
+    } else {
       // Free plan: lifetime limit of 1 article total (not per month)
       if (profile.plan === "free") {
-        const totalArticles = await countTotalArticles(supabase, siteOwnerUserId);
+        const totalArticles = await countTotalArticles(serviceClient, siteOwnerUserId);
         console.log(`Free plan: total articles ever: ${totalArticles}`);
 
         if (totalArticles >= 1) {
           return new Response(
             JSON.stringify({
-              error: "Has usado tu artículo de prueba. Pasa a Starter para generar artículos automáticamente.",
+              error:
+                "Ya has usado tu artículo de prueba. Si quieres seguir publicando, te ayudamos a ampliar tu plan desde Facturación.",
               limit: 1,
               current: totalArticles,
               plan: "free",
               isLifetimeLimit: true,
+              upgrade_url: "/billing",
+            }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      } else if (profile.plan !== "agency") {
+        // Paid non-agency plans: monthly limit
+        const articlesThisMonth = await countArticlesThisMonth(serviceClient, siteOwnerUserId, month, year);
+        console.log(`Articles this month: ${articlesThisMonth}/${profile.posts_limit}`);
+
+        if (articlesThisMonth >= profile.posts_limit) {
+          return new Response(
+            JSON.stringify({
+              error:
+                "Has alcanzado el límite mensual de tu plan. Si quieres seguir publicando este mes, te ayudamos a ampliar tu plan desde Facturación.",
+              limit: profile.posts_limit,
+              current: articlesThisMonth,
+              plan: profile.plan,
+              upgrade_url: "/billing",
             }),
             {
               status: 403,
@@ -1681,27 +1724,8 @@ Deno.serve(async (req) => {
           );
         }
       } else {
-        // Paid plans: monthly limit
-        const articlesThisMonth = await countArticlesThisMonth(supabase, siteOwnerUserId, month, year);
-        console.log(`Articles this month: ${articlesThisMonth}/${profile.posts_limit}`);
-
-        if (articlesThisMonth >= profile.posts_limit) {
-          return new Response(
-            JSON.stringify({
-              error: "Has alcanzado tu límite mensual de artículos",
-              limit: profile.posts_limit,
-              current: articlesThisMonth,
-              plan: profile.plan,
-            }),
-            {
-              status: 403,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
+        console.log("Agency plan: unlimited monthly posts");
       }
-    } else {
-      console.log("Admin bypass: skipping limit check");
     }
 
     const monthNameEs = MONTH_NAMES_ES[month - 1];
@@ -1744,8 +1768,15 @@ Deno.serve(async (req) => {
     const toneDescription = TONE_DESCRIPTIONS[siteTone] || TONE_DESCRIPTIONS.casual;
     const targetAudience = site.target_audience || "";
     const avoidTopics = site.avoid_topics || [];
-    const preferredLength = site.preferred_length || "medium";
-    const lengthTarget = LENGTH_TARGETS[preferredLength] || LENGTH_TARGETS.medium;
+    const requestedLength = normalizePreferredLength(site.preferred_length);
+    const maxAllowedLength = getMaxPreferredLengthForPlan(profile.plan, siteOwnerIsSuperAdmin);
+    const effectivePreferredLength = clampPreferredLength(requestedLength, maxAllowedLength);
+    const lengthTarget = LENGTH_TARGETS[effectivePreferredLength] || LENGTH_TARGETS.medium;
+    if (effectivePreferredLength !== requestedLength) {
+      console.log(
+        `Length adjusted by plan: requested=${requestedLength}, allowed=${maxAllowedLength}, using=${effectivePreferredLength}`,
+      );
+    }
 
     // WordPress context if available
     const wpContext = site.wordpress_context || null;
@@ -2141,7 +2172,7 @@ Deno.serve(async (req) => {
 
     let currentMaxTokens = lengthTarget.maxTokens;
     console.log(
-      `Generating Spanish article with max_tokens=${currentMaxTokens} (preferred_length=${preferredLength})...`,
+      `Generating Spanish article with max_tokens=${currentMaxTokens} (preferred_length=${effectivePreferredLength})...`,
     );
 
     let spanishArticle;
@@ -2608,7 +2639,7 @@ Deno.serve(async (req) => {
     // Save article to database
     const articleData: Record<string, any> = {
       site_id: siteId,
-      user_id: userId,
+      user_id: siteOwnerUserId,
       month,
       year,
       topic,
@@ -2713,9 +2744,13 @@ Deno.serve(async (req) => {
     }
 
     // Send notification email to user + team members
-    const { data: userProfile } = await supabase.from("profiles").select("email").eq("user_id", userId).single();
+    const { data: userProfile } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("user_id", siteOwnerUserId)
+      .single();
 
-    const teamEmails = await getTeamMemberEmails(supabase, userId);
+    const teamEmails = await getTeamMemberEmails(supabase, siteOwnerUserId);
 
     // Only send "article ready" email if NOT scheduled (manual generation)
     // For scheduled generation, the "published" email is sent after WordPress publish
