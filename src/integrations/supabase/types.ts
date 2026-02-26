@@ -629,6 +629,51 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduler_runs: {
+        Row: {
+          dispatched_empresas: number | null
+          dispatched_farmacias: number | null
+          dispatched_sites: number | null
+          error: string | null
+          finished_at: string | null
+          id: number
+          metadata: Json | null
+          skipped_empresas: number | null
+          skipped_farmacias: number | null
+          skipped_sites: number | null
+          started_at: string
+          success: boolean | null
+        }
+        Insert: {
+          dispatched_empresas?: number | null
+          dispatched_farmacias?: number | null
+          dispatched_sites?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: number
+          metadata?: Json | null
+          skipped_empresas?: number | null
+          skipped_farmacias?: number | null
+          skipped_sites?: number | null
+          started_at?: string
+          success?: boolean | null
+        }
+        Update: {
+          dispatched_empresas?: number | null
+          dispatched_farmacias?: number | null
+          dispatched_sites?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: number
+          metadata?: Json | null
+          skipped_empresas?: number | null
+          skipped_farmacias?: number | null
+          skipped_sites?: number | null
+          started_at?: string
+          success?: boolean | null
+        }
+        Relationships: []
+      }
       sector_contexts: {
         Row: {
           created_at: string
