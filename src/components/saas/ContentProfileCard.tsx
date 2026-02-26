@@ -1,52 +1,63 @@
-import { UseFormWatch, UseFormSetValue } from 'react-hook-form';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Sparkles, Users, FileText, Ban } from 'lucide-react';
+import { UseFormWatch, UseFormSetValue } from "react-hook-form";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Sparkles, Users, FileText, Ban } from "lucide-react";
 
 const TONE_OPTIONS = [
-  { value: 'formal', label: 'Formal y profesional', description: 'Lenguaje institucional y serio' },
-  { value: 'casual', label: 'Cercano pero experto', description: 'Accesible sin perder autoridad' },
-  { value: 'technical', label: 'Técnico y especializado', description: 'Para audiencia experta' },
-  { value: 'educational', label: 'Divulgativo y accesible', description: 'Explica conceptos complejos' },
+  { value: "formal", label: "Formal y profesional", description: "Lenguaje institucional y serio" },
+  { value: "casual", label: "Cercano pero experto", description: "Accesible sin perder autoridad" },
+  { value: "technical", label: "Técnico y especializado", description: "Para audiencia experta" },
+  { value: "educational", label: "Divulgativo y accesible", description: "Explica conceptos complejos" },
 ];
 
 const PILLAR_OPTIONS = [
-  { value: 'educational', label: 'Educativo', description: 'Guías, tutoriales, how-to' },
-  { value: 'trends', label: 'Tendencias', description: 'Novedades, innovación del sector' },
-  { value: 'cases', label: 'Casos prácticos', description: 'Ejemplos reales, testimonios' },
-  { value: 'seasonal', label: 'Estacional', description: 'Adaptado a la época del año' },
-  { value: 'opinion', label: 'Opinión/Análisis', description: 'Perspectivas del sector' },
+  { value: "educational", label: "Educativo", description: "Guías, tutoriales, how-to" },
+  { value: "trends", label: "Tendencias", description: "Novedades, innovación del sector" },
+  { value: "cases", label: "Casos prácticos", description: "Ejemplos reales, testimonios" },
+  { value: "seasonal", label: "Estacional", description: "Adaptado a la época del año" },
+  { value: "opinion", label: "Opinión/Análisis", description: "Perspectivas del sector" },
 ];
 
 const LENGTH_OPTIONS = [
-  { value: 'short', label: 'Corto (~800 palabras)', description: 'Lectura rápida, ideal para móvil' },
-  { value: 'medium', label: 'Medio (~1500 palabras)', description: 'Equilibrado para SEO' },
-  { value: 'long', label: 'Largo (~2500 palabras)', description: 'SEO intensivo, guías completas' },
+  { value: "short", label: "Corto (~800 palabras)", description: "Lectura rápida, ideal para móvil" },
+  { value: "medium", label: "Medio (~1500 palabras)", description: "Equilibrado para SEO" },
+  { value: "long", label: "Largo (~2500 palabras)", description: "SEO intensivo, guías completas" },
 ];
 
 interface ContentProfileCardProps {
   watch: UseFormWatch<any>;
   setValue: UseFormSetValue<any>;
   register: any;
+  plan: "free" | "starter" | "pro" | "agency";
 }
 
-export function ContentProfileCard({ watch, setValue, register }: ContentProfileCardProps) {
-  const watchedTone = watch('tone') || 'casual';
-  const watchedPillars = watch('content_pillars') || ['educational', 'trends', 'seasonal'];
-  const watchedLength = watch('preferred_length') || 'medium';
+export function ContentProfileCard({ watch, setValue, register, plan }: ContentProfileCardProps) {
+  const watchedTone = watch("tone") || "casual";
+  const watchedPillars = watch("content_pillars") || ["educational", "trends", "seasonal"];
+  const watchedLength = watch("preferred_length") || "medium";
+
+  const isLengthAllowed = (value: string) => {
+    if (plan === "free") return value === "short";
+    if (plan === "starter") return value === "short" || value === "medium";
+    return value === "short" || value === "medium" || value === "long";
+  };
 
   const togglePillar = (pillar: string) => {
     const current = watchedPillars || [];
     if (current.includes(pillar)) {
       if (current.length > 1) {
-        setValue('content_pillars', current.filter((p: string) => p !== pillar), { shouldDirty: true });
+        setValue(
+          "content_pillars",
+          current.filter((p: string) => p !== pillar),
+          { shouldDirty: true },
+        );
       }
     } else {
       if (current.length < 4) {
-        setValue('content_pillars', [...current, pillar], { shouldDirty: true });
+        setValue("content_pillars", [...current, pillar], { shouldDirty: true });
       }
     }
   };
@@ -58,9 +69,7 @@ export function ContentProfileCard({ watch, setValue, register }: ContentProfile
           <Sparkles className="w-5 h-5 text-violet-500" />
           Perfil de contenido
         </CardTitle>
-        <CardDescription>
-          Personaliza cómo se generan los artículos para tu sitio
-        </CardDescription>
+        <CardDescription>Personaliza cómo se generan los artículos para tu sitio</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Tone selection */}
@@ -71,7 +80,7 @@ export function ContentProfileCard({ watch, setValue, register }: ContentProfile
           </Label>
           <RadioGroup
             value={watchedTone}
-            onValueChange={(v) => setValue('tone', v, { shouldDirty: true })}
+            onValueChange={(v) => setValue("tone", v, { shouldDirty: true })}
             className="grid gap-2"
           >
             {TONE_OPTIONS.map((option) => (
@@ -97,12 +106,10 @@ export function ContentProfileCard({ watch, setValue, register }: ContentProfile
           <Textarea
             id="target_audience"
             placeholder="Ej: Profesionales del sector salud, 35-55 años, interesados en mejorar su práctica diaria..."
-            {...register('target_audience')}
+            {...register("target_audience")}
             rows={2}
           />
-          <p className="text-xs text-muted-foreground">
-            Describe quién leerá tu contenido para personalizarlo mejor
-          </p>
+          <p className="text-xs text-muted-foreground">Describe quién leerá tu contenido para personalizarlo mejor</p>
         </div>
 
         {/* Content pillars */}
@@ -140,7 +147,7 @@ export function ContentProfileCard({ watch, setValue, register }: ContentProfile
           <Textarea
             id="avoid_topics"
             placeholder="Ej: competencia directa, precios específicos, temas políticos..."
-            {...register('avoid_topics')}
+            {...register("avoid_topics")}
             rows={2}
           />
           <p className="text-xs text-muted-foreground">
@@ -153,21 +160,42 @@ export function ContentProfileCard({ watch, setValue, register }: ContentProfile
           <Label>Longitud preferida</Label>
           <RadioGroup
             value={watchedLength}
-            onValueChange={(v) => setValue('preferred_length', v, { shouldDirty: true })}
+            onValueChange={(v) => setValue("preferred_length", v, { shouldDirty: true })}
             className="grid gap-2"
           >
             {LENGTH_OPTIONS.map((option) => (
               <div key={option.value} className="flex items-start space-x-3">
-                <RadioGroupItem value={option.value} id={`length-${option.value}`} className="mt-1" />
+                <RadioGroupItem
+                  value={option.value}
+                  id={`length-${option.value}`}
+                  className="mt-1"
+                  disabled={!isLengthAllowed(option.value)}
+                />
                 <div className="grid gap-0.5">
-                  <Label htmlFor={`length-${option.value}`} className="font-normal cursor-pointer">
+                  <Label
+                    htmlFor={`length-${option.value}`}
+                    className={`font-normal ${isLengthAllowed(option.value) ? "cursor-pointer" : "cursor-not-allowed text-muted-foreground"}`}
+                  >
                     {option.label}
                   </Label>
                   <p className="text-xs text-muted-foreground">{option.description}</p>
+                  {!isLengthAllowed(option.value) && (
+                    <p className="text-xs text-amber-600">Disponible en un plan superior</p>
+                  )}
                 </div>
               </div>
             ))}
           </RadioGroup>
+          {plan === "free" && (
+            <p className="text-xs text-amber-600">
+              Free permite hasta 800 palabras. Si quieres más longitud, te ayudamos a ampliar el plan desde Facturación.
+            </p>
+          )}
+          {plan === "starter" && (
+            <p className="text-xs text-amber-600">
+              Starter permite hasta 1.500 palabras. Para 2.500 palabras necesitas Pro o Agency.
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
