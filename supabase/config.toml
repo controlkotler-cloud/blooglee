@@ -1,13 +1,1 @@
-project_id = "czccftspeoenzgzgeqyb"
-
-[functions.extract-color-palette]
-verify_jwt = false
-
-[functions.suggest-topics]
-verify_jwt = false
-
-[functions.check-wordpress]
-verify_jwt = false
-
-[functions.test-wordpress-auth]
-verify_jwt = false
+project_id = "gqtikajhhggyoiypkbgw"
