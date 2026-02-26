@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,6 +56,100 @@ async function logSiteActivity(
     }
   } catch (error) {
     console.error(`[site-activity] Exception logging ${actionType}:`, error);
+  }
+}
+
+async function getTeamMemberEmails(supabase: any, ownerId: string): Promise<string[]> {
+  try {
+    const { data: teamMembers } = await supabase.from("team_members").select("member_id").eq("owner_id", ownerId);
+    if (!teamMembers || teamMembers.length === 0) return [];
+    const memberIds = teamMembers.map((m: { member_id: string }) => m.member_id);
+    const { data: profiles } = await supabase.from("profiles").select("email").in("user_id", memberIds);
+    return profiles?.map((p: { email: string }) => p.email).filter(Boolean) || [];
+  } catch (e) {
+    console.error("Error fetching team member emails:", e);
+    return [];
+  }
+}
+
+async function sendReconcilePublishedEmail(
+  supabase: any,
+  article: { id: string; site_id: string; user_id: string; topic: string },
+  siteName: string,
+  postUrl: string,
+): Promise<void> {
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  if (!RESEND_API_KEY) {
+    console.log("[reconcile] RESEND_API_KEY not configured, skipping email");
+    return;
+  }
+
+  let recipients: string[] = [];
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("user_id", article.user_id)
+      .single();
+
+    if (!profile?.email) {
+      console.log("[reconcile] No owner email found, skipping email");
+      return;
+    }
+
+    const teamEmails = await getTeamMemberEmails(supabase, article.user_id);
+    recipients = [profile.email, ...teamEmails.filter((e: string) => e !== profile.email)];
+
+    const siteUrl = "https://blooglee.lovable.app";
+    const spanish = (article as any).content_spanish || {};
+    const catalan = (article as any).content_catalan || {};
+    const articleTitle = spanish.title || catalan.title || article.topic;
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f5f3ff;">
+<div style="max-width:600px;margin:20px auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+<header style="background:linear-gradient(135deg,#8B5CF6 0%,#D946EF 50%,#F97316 100%);padding:40px 30px;text-align:center;">
+<h1 style="color:white;margin:0;font-size:28px;font-weight:700;">🚀 Artículo publicado</h1>
+</header>
+<main style="padding:40px 30px;">
+<p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 20px;">¡Buenas noticias!</p>
+<p style="color:#374151;font-size:16px;line-height:1.6;margin:0 0 24px;">Tu artículo para <strong style="color:#8B5CF6;">${siteName}</strong> se ha publicado automáticamente en WordPress:</p>
+<div style="background:linear-gradient(to right,#f0fdf4,#ecfdf5);padding:24px;border-radius:12px;border-left:4px solid #22c55e;margin:24px 0;">
+<h2 style="color:#1f2937;margin:0 0 12px;font-size:20px;font-weight:600;">${articleTitle}</h2>
+<a href="${postUrl}" style="color:#8B5CF6;font-size:14px;word-break:break-all;">${postUrl}</a>
+</div>
+<div style="text-align:center;margin:32px 0;">
+<a href="${postUrl}" style="display:inline-block;background:linear-gradient(135deg,#22c55e 0%,#16a34a 100%);color:white;padding:16px 32px;border-radius:10px;text-decoration:none;font-weight:600;font-size:16px;box-shadow:0 4px 14px 0 rgba(34,197,94,0.4);">Ver artículo en tu blog</a>
+</div>
+<div style="text-align:center;">
+<a href="${siteUrl}/site/${article.site_id}" style="color:#8B5CF6;text-decoration:none;font-size:14px;">Ver en tu panel de Blooglee →</a>
+</div>
+</main>
+<footer style="background-color:#faf5ff;padding:24px 30px;text-align:center;border-top:1px solid #e9d5ff;">
+<p style="color:#9ca3af;font-size:12px;margin:0;">Blooglee - Automatiza tu blog con IA</p>
+<p style="margin:8px 0 0;"><a href="https://www.instagram.com/blooglee_/" style="color:#8B5CF6;text-decoration:none;font-size:12px;">Síguenos en Instagram</a></p>
+</footer>
+</div></body></html>`;
+
+    const resend = new Resend(RESEND_API_KEY);
+    const { error } = await resend.emails.send({
+      from: "Blooglee <noreply@blooglee.com>",
+      to: recipients,
+      subject: `🚀 Artículo publicado en ${siteName}`,
+      html,
+    });
+
+    if (error) {
+      console.error("[reconcile] Email send error:", error);
+      await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_failed", "Falló envío de email tras reconciliación", { article_id: article.id, error: JSON.stringify(error) });
+    } else {
+      console.log(`[reconcile] Published email sent to: ${recipients.join(", ")}`);
+      await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_sent", "Email de artículo publicado enviado por reconciliador", { article_id: article.id, post_url: postUrl, recipients });
+    }
+  } catch (emailErr) {
+    const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+    console.error("[reconcile] Email exception:", msg);
+    await logSiteActivity(supabase, article.site_id, article.user_id, "autopublish_reconcile_email_failed", "Excepción enviando email tras reconciliación", { article_id: article.id, error: msg });
   }
 }
 
@@ -190,6 +285,9 @@ Deno.serve(async (req) => {
       }
 
       if (dryRun) {
+        // Send published email (non-blocking for publish count)
+        await sendReconcilePublishedEmail(supabase, article, site.name, result.post_url);
+
         published++;
         continue;
       }

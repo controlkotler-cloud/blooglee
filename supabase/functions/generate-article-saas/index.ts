@@ -2814,14 +2814,22 @@ Deno.serve(async (req) => {
 
             if (userProfile?.email) {
               const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
-              await sendPublishedNotification(
-                userProfile.email,
-                site.name,
-                articleTitle,
-                publishedPostUrl,
-                siteId,
-                teamEmails,
-              );
+              try {
+                await sendPublishedNotification(
+                  userProfile.email,
+                  site.name,
+                  articleTitle,
+                  publishedPostUrl,
+                  siteId,
+                  teamEmails,
+                );
+                const emailRecipients = [userProfile.email, ...teamEmails.filter((e: string) => e !== userProfile.email)];
+                await logSiteActivity(supabase, siteId, userId, "autopublish_email_sent", "Email de artículo publicado enviado", { article_id: savedArticle.id, post_url: publishedPostUrl, recipients: emailRecipients });
+              } catch (emailErr) {
+                const emailErrMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+                console.error("[auto-publish] Email notification error:", emailErrMsg);
+                await logSiteActivity(supabase, siteId, userId, "autopublish_email_failed", "Falló envío de email tras auto-publicación", { article_id: savedArticle.id, error: emailErrMsg });
+              }
             }
           } else {
             await logSiteActivity(
