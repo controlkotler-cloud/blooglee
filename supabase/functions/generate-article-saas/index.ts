@@ -617,7 +617,9 @@ async function sendPublishedNotification(
   extraEmails: string[] = [],
 ): Promise<void> {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-  if (!RESEND_API_KEY) return;
+  if (!RESEND_API_KEY) {
+    throw new Error("missing_resend_api_key");
+  }
 
   try {
     const resend = new Resend(RESEND_API_KEY);
@@ -2812,9 +2814,12 @@ Deno.serve(async (req) => {
               post_url: publishedPostUrl,
             };
 
-            if (userProfile?.email) {
+            // === EMAIL TRACKING (always register result) ===
+            {
               const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
-              const emailRecipients = [userProfile.email, ...teamEmails.filter((e: string) => e !== userProfile.email)];
+              const emailRecipients = userProfile?.email
+                ? [userProfile.email, ...teamEmails.filter((e: string) => e !== userProfile.email)]
+                : [];
 
               // Dedup: attempt insert into article_email_notifications
               const { error: dedupErr } = await supabase
@@ -2828,8 +2833,14 @@ Deno.serve(async (req) => {
 
               if (dedupErr?.code === "23505") {
                 console.log("[auto-publish] Email already sent for this article, skipping");
+                await logSiteActivity(supabase, siteId, userId, "autopublish_email_skipped_duplicate", "Email omitido: ya existía notificación para este artículo", { article_id: savedArticle.id });
               } else if (dedupErr) {
                 console.error("[auto-publish] Dedup insert error:", dedupErr.message);
+                await logSiteActivity(supabase, siteId, userId, "autopublish_email_failed", "Error insertando dedup de email", { article_id: savedArticle.id, error: dedupErr.message });
+              } else if (!userProfile?.email) {
+                console.log("[auto-publish] No owner email found, marking failed");
+                await supabase.from("article_email_notifications").update({ status: "failed", error: "no_owner_email" }).eq("article_id", savedArticle.id).eq("notification_type", "autopublish_success");
+                await logSiteActivity(supabase, siteId, userId, "autopublish_email_failed", "No se encontró email del propietario", { article_id: savedArticle.id, error: "no_owner_email" });
               } else {
                 try {
                   await sendPublishedNotification(
