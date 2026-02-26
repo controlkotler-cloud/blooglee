@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      article_email_notifications: {
+        Row: {
+          article_id: string
+          created_at: string
+          error: string | null
+          id: number
+          notification_type: string
+          sent_to: string[]
+          status: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          error?: string | null
+          id?: number
+          notification_type: string
+          sent_to?: string[]
+          status: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          error?: string | null
+          id?: number
+          notification_type?: string
+          sent_to?: string[]
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_email_notifications_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       articles: {
         Row: {
           content_catalan: Json | null
