@@ -1,28 +1,38 @@
-import { useState } from 'react';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { CalendarClock, Zap, Clock } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { track } from '@/lib/analytics';
-import { useProfile } from '@/hooks/useProfile';
-import { OnboardingNavButtons } from '../OnboardingNavButtons';
-import type { OnboardingStepData } from '@/hooks/useOnboarding';
+import { useState } from "react";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CalendarClock, Zap, Clock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { track } from "@/lib/analytics";
+import { useProfile } from "@/hooks/useProfile";
+import { OnboardingNavButtons } from "../OnboardingNavButtons";
+import type { OnboardingStepData } from "@/hooks/useOnboarding";
 
 const DAYS_OF_WEEK = [
-  { value: '1', label: 'Lunes' }, { value: '2', label: 'Martes' }, { value: '3', label: 'Miércoles' },
-  { value: '4', label: 'Jueves' }, { value: '5', label: 'Viernes' }, { value: '6', label: 'Sábado' }, { value: '0', label: 'Domingo' },
+  { value: "1", label: "Lunes" },
+  { value: "2", label: "Martes" },
+  { value: "3", label: "Miércoles" },
+  { value: "4", label: "Jueves" },
+  { value: "5", label: "Viernes" },
+  { value: "6", label: "Sábado" },
+  { value: "0", label: "Domingo" },
 ];
 const WEEKS_OF_MONTH = [
-  { value: '1', label: 'Primera semana' }, { value: '2', label: 'Segunda semana' },
-  { value: '3', label: 'Tercera semana' }, { value: '4', label: 'Cuarta semana' },
+  { value: "1", label: "Primera semana" },
+  { value: "2", label: "Segunda semana" },
+  { value: "3", label: "Tercera semana" },
+  { value: "4", label: "Cuarta semana" },
 ];
-const HOURS = Array.from({ length: 24 }, (_, i) => ({ value: String(i), label: `${String(i).padStart(2, '0')}:00` }));
+const HOURS = Array.from({ length: 24 }, (_, i) => ({ value: String(i), label: `${String(i).padStart(2, "0")}:00` }));
 
-function localToUtc(localHour: number): number { const now = new Date(); now.setHours(localHour, 0, 0, 0); return now.getUTCHours(); }
+function localToUtc(localHour: number): number {
+  const now = new Date();
+  now.setHours(localHour, 0, 0, 0);
+  return now.getUTCHours();
+}
 
 interface SchedulingStepProps {
   onNext: () => void;
@@ -34,39 +44,54 @@ interface SchedulingStepProps {
 
 export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId }: SchedulingStepProps) {
   const { data: profile } = useProfile();
-  const userPlan = profile?.plan ?? 'free';
+  const userPlan = profile?.plan ?? "free";
+  const isFreePlan = userPlan === "free";
   const saved = stepData?.step_scheduling as Record<string, unknown> | undefined;
 
   const [autoGenerate, setAutoGenerate] = useState<boolean>((saved?.auto_generate as boolean) ?? true);
-  const [frequency, setFrequency] = useState<string>((saved?.frequency as string) ?? 'monthly');
-  const [dayOfWeek, setDayOfWeek] = useState<string>((saved?.day_of_week as string) ?? '2');
-  const [localHour, setLocalHour] = useState<string>((saved?.local_hour as string) ?? '9');
-  const [weekOfMonth, setWeekOfMonth] = useState<string>((saved?.week_of_month as string) ?? '1');
+  const [frequency, setFrequency] = useState<string>((saved?.frequency as string) ?? "monthly");
+  const [dayOfWeek, setDayOfWeek] = useState<string>((saved?.day_of_week as string) ?? "2");
+  const [localHour, setLocalHour] = useState<string>((saved?.local_hour as string) ?? "9");
+  const [weekOfMonth, setWeekOfMonth] = useState<string>((saved?.week_of_month as string) ?? "1");
   const [isSaving, setIsSaving] = useState(false);
-
-  const isWeeklyRestricted = frequency === 'weekly' && (userPlan === 'free' || userPlan === 'starter');
 
   const handleNext = async () => {
     setIsSaving(true);
     try {
       const utcHour = localToUtc(Number(localHour));
-      const effectiveFrequency = isWeeklyRestricted ? 'biweekly' : frequency;
+      const effectiveFrequency = frequency;
+      const effectiveAutoGenerate = isFreePlan ? false : autoGenerate;
 
-      await saveStepData('step_scheduling', { auto_generate: autoGenerate, frequency: effectiveFrequency, day_of_week: dayOfWeek, local_hour: localHour, week_of_month: weekOfMonth });
-      track('onboarding_scheduling', { auto_generate: autoGenerate, frequency: effectiveFrequency, plan: userPlan });
+      await saveStepData("step_scheduling", {
+        auto_generate: effectiveAutoGenerate,
+        frequency: effectiveFrequency,
+        day_of_week: dayOfWeek,
+        local_hour: localHour,
+        week_of_month: weekOfMonth,
+      });
+      track("onboarding_scheduling", {
+        auto_generate: effectiveAutoGenerate,
+        frequency: effectiveFrequency,
+        plan: userPlan,
+      });
 
       if (siteId) {
-        await supabase.from('sites').update({
-          auto_generate: autoGenerate, publish_frequency: effectiveFrequency,
-          publish_day_of_week: Number(dayOfWeek), publish_hour_utc: utcHour,
-          publish_week_of_month: effectiveFrequency === 'monthly' ? Number(weekOfMonth) : null,
-        }).eq('id', siteId);
+        await supabase
+          .from("sites")
+          .update({
+            auto_generate: effectiveAutoGenerate,
+            publish_frequency: effectiveFrequency,
+            publish_day_of_week: Number(dayOfWeek),
+            publish_hour_utc: utcHour,
+            publish_week_of_month: effectiveFrequency === "monthly" ? Number(weekOfMonth) : null,
+          })
+          .eq("id", siteId);
       }
 
       onNext();
     } catch (err) {
-      console.error('Error in SchedulingStep:', err);
-      toast.error('Error al guardar. Inténtalo de nuevo.');
+      console.error("Error in SchedulingStep:", err);
+      toast.error("Error al guardar. Inténtalo de nuevo.");
     } finally {
       setIsSaving(false);
     }
@@ -90,11 +115,25 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
           <Zap className="w-4 h-4 text-primary" />
           <Label className="text-sm font-semibold">Publicación automática</Label>
         </div>
-        <p className="text-xs text-muted-foreground">Cuando se genere un artículo, se publicará automáticamente en tu WordPress.</p>
+        <p className="text-xs text-muted-foreground">
+          Cuando se genere un artículo, se publicará automáticamente en tu WordPress.
+        </p>
         <div className="flex items-center justify-between">
-          <label htmlFor="auto-generate" className="text-sm cursor-pointer">Publicar automáticamente</label>
-          <Switch id="auto-generate" checked={autoGenerate} onCheckedChange={setAutoGenerate} />
+          <label htmlFor="auto-generate" className="text-sm cursor-pointer">
+            Publicar automáticamente
+          </label>
+          <Switch
+            id="auto-generate"
+            checked={isFreePlan ? false : autoGenerate}
+            onCheckedChange={setAutoGenerate}
+            disabled={isFreePlan}
+          />
         </div>
+        {isFreePlan && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            El plan Free no incluye publicación automática. Puedes activarla al pasar a Starter.
+          </p>
+        )}
       </div>
 
       {/* Frequency */}
@@ -107,26 +146,23 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
         <RadioGroup value={frequency} onValueChange={setFrequency} className="space-y-2">
           <div className="flex items-center gap-3">
             <RadioGroupItem value="monthly" id="freq-monthly" />
-            <label htmlFor="freq-monthly" className="text-sm cursor-pointer">Mensual <span className="text-muted-foreground text-xs">· 1 artículo/mes</span></label>
+            <label htmlFor="freq-monthly" className="text-sm cursor-pointer">
+              Mensual <span className="text-muted-foreground text-xs">· 1 artículo/mes</span>
+            </label>
           </div>
           <div className="flex items-center gap-3">
             <RadioGroupItem value="biweekly" id="freq-biweekly" />
-            <label htmlFor="freq-biweekly" className="text-sm cursor-pointer">Quincenal <span className="text-muted-foreground text-xs">· 2 artículos/mes</span></label>
+            <label htmlFor="freq-biweekly" className="text-sm cursor-pointer">
+              Quincenal <span className="text-muted-foreground text-xs">· 2 artículos/mes</span>
+            </label>
           </div>
           <div className="flex items-center gap-3">
             <RadioGroupItem value="weekly" id="freq-weekly" />
-            <label htmlFor="freq-weekly" className="text-sm cursor-pointer flex items-center gap-2 flex-wrap">
+            <label htmlFor="freq-weekly" className="text-sm cursor-pointer">
               Semanal <span className="text-muted-foreground text-xs">· 4 artículos/mes</span>
-              {isWeeklyRestricted && <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 dark:text-amber-400">Requiere Pro</Badge>}
             </label>
           </div>
         </RadioGroup>
-        {isWeeklyRestricted && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">
-            Tu plan actual ({userPlan === 'free' ? 'Free' : 'Starter'}) permite hasta quincenal.{' '}
-            <a href="/pricing" target="_blank" className="underline font-medium">Ver planes</a>
-          </p>
-        )}
       </div>
 
       {/* Day, Week & Hour */}
@@ -136,28 +172,54 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
           <Label className="text-sm font-semibold">Día y hora preferidos</Label>
         </div>
         <p className="text-xs text-muted-foreground">Elige cuándo prefieres que se publiquen tus artículos.</p>
-        <div className={`grid gap-3 ${frequency === 'monthly' ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
+        <div
+          className={`grid gap-3 ${frequency === "monthly" ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}
+        >
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Día de la semana</Label>
             <Select value={dayOfWeek} onValueChange={setDayOfWeek}>
-              <SelectTrigger className="h-12 sm:h-11 text-base sm:text-sm rounded-lg"><SelectValue /></SelectTrigger>
-              <SelectContent>{DAYS_OF_WEEK.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
+              <SelectTrigger className="h-12 sm:h-11 text-base sm:text-sm rounded-lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DAYS_OF_WEEK.map((d) => (
+                  <SelectItem key={d.value} value={d.value}>
+                    {d.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
-          {frequency === 'monthly' && (
+          {frequency === "monthly" && (
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Semana del mes</Label>
               <Select value={weekOfMonth} onValueChange={setWeekOfMonth}>
-                <SelectTrigger className="h-12 sm:h-11 text-base sm:text-sm rounded-lg"><SelectValue /></SelectTrigger>
-                <SelectContent>{WEEKS_OF_MONTH.map((w) => <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>)}</SelectContent>
+                <SelectTrigger className="h-12 sm:h-11 text-base sm:text-sm rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {WEEKS_OF_MONTH.map((w) => (
+                    <SelectItem key={w.value} value={w.value}>
+                      {w.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
           )}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Hora (tu zona horaria)</Label>
             <Select value={localHour} onValueChange={setLocalHour}>
-              <SelectTrigger className="h-12 sm:h-11 text-base sm:text-sm rounded-lg"><SelectValue /></SelectTrigger>
-              <SelectContent>{HOURS.map((h) => <SelectItem key={h.value} value={h.value}>{h.label}</SelectItem>)}</SelectContent>
+              <SelectTrigger className="h-12 sm:h-11 text-base sm:text-sm rounded-lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {HOURS.map((h) => (
+                  <SelectItem key={h.value} value={h.value}>
+                    {h.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
         </div>
