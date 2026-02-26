@@ -2621,6 +2621,8 @@ Deno.serve(async (req) => {
       week_of_month: weekOfMonth,
       day_of_month: dayOfMonth,
       generation_key: generationKey,
+      // Guardrail: only scheduler-generated articles can be reconciled/autopublished later.
+      autopublish_enabled: Boolean(isScheduled),
     };
 
     // Check if article already exists for this generation key
@@ -2848,25 +2850,48 @@ Deno.serve(async (req) => {
                 : [];
 
               // Dedup: attempt insert into article_email_notifications
-              const { error: dedupErr } = await supabase
-                .from("article_email_notifications")
-                .insert({
-                  article_id: savedArticle.id,
-                  notification_type: "autopublish_success",
-                  status: "pending",
-                  sent_to: emailRecipients,
-                });
+              const { error: dedupErr } = await supabase.from("article_email_notifications").insert({
+                article_id: savedArticle.id,
+                notification_type: "autopublish_success",
+                status: "pending",
+                sent_to: emailRecipients,
+              });
 
               if (dedupErr?.code === "23505") {
                 console.log("[auto-publish] Email already sent for this article, skipping");
-                await logSiteActivity(supabase, siteId, userId, "autopublish_email_skipped_duplicate", "Email omitido: ya existía notificación para este artículo", { article_id: savedArticle.id });
+                await logSiteActivity(
+                  supabase,
+                  siteId,
+                  userId,
+                  "autopublish_email_skipped_duplicate",
+                  "Email omitido: ya existía notificación para este artículo",
+                  { article_id: savedArticle.id },
+                );
               } else if (dedupErr) {
                 console.error("[auto-publish] Dedup insert error:", dedupErr.message);
-                await logSiteActivity(supabase, siteId, userId, "autopublish_email_failed", "Error insertando dedup de email", { article_id: savedArticle.id, error: dedupErr.message });
+                await logSiteActivity(
+                  supabase,
+                  siteId,
+                  userId,
+                  "autopublish_email_failed",
+                  "Error insertando dedup de email",
+                  { article_id: savedArticle.id, error: dedupErr.message },
+                );
               } else if (!userProfile?.email) {
                 console.log("[auto-publish] No owner email found, marking failed");
-                await supabase.from("article_email_notifications").update({ status: "failed", error: "no_owner_email" }).eq("article_id", savedArticle.id).eq("notification_type", "autopublish_success");
-                await logSiteActivity(supabase, siteId, userId, "autopublish_email_failed", "No se encontró email del propietario", { article_id: savedArticle.id, error: "no_owner_email" });
+                await supabase
+                  .from("article_email_notifications")
+                  .update({ status: "failed", error: "no_owner_email" })
+                  .eq("article_id", savedArticle.id)
+                  .eq("notification_type", "autopublish_success");
+                await logSiteActivity(
+                  supabase,
+                  siteId,
+                  userId,
+                  "autopublish_email_failed",
+                  "No se encontró email del propietario",
+                  { article_id: savedArticle.id, error: "no_owner_email" },
+                );
               } else {
                 try {
                   await sendPublishedNotification(
@@ -2882,7 +2907,14 @@ Deno.serve(async (req) => {
                     .update({ status: "sent", sent_to: emailRecipients })
                     .eq("article_id", savedArticle.id)
                     .eq("notification_type", "autopublish_success");
-                  await logSiteActivity(supabase, siteId, userId, "autopublish_email_sent", "Email de artículo publicado enviado", { article_id: savedArticle.id, post_url: publishedPostUrl, recipients: emailRecipients });
+                  await logSiteActivity(
+                    supabase,
+                    siteId,
+                    userId,
+                    "autopublish_email_sent",
+                    "Email de artículo publicado enviado",
+                    { article_id: savedArticle.id, post_url: publishedPostUrl, recipients: emailRecipients },
+                  );
                 } catch (emailErr) {
                   const emailErrMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
                   console.error("[auto-publish] Email notification error:", emailErrMsg);
@@ -2891,7 +2923,14 @@ Deno.serve(async (req) => {
                     .update({ status: "failed", error: emailErrMsg })
                     .eq("article_id", savedArticle.id)
                     .eq("notification_type", "autopublish_success");
-                  await logSiteActivity(supabase, siteId, userId, "autopublish_email_failed", "Falló envío de email tras auto-publicación", { article_id: savedArticle.id, error: emailErrMsg });
+                  await logSiteActivity(
+                    supabase,
+                    siteId,
+                    userId,
+                    "autopublish_email_failed",
+                    "Falló envío de email tras auto-publicación",
+                    { article_id: savedArticle.id, error: emailErrMsg },
+                  );
                 }
               }
             }
