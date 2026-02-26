@@ -1,22 +1,16 @@
-import { useMemo } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,32 +21,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Loader2, Save, Trash2, Clock, Calendar } from 'lucide-react';
-import { ContentProfileCard } from './ContentProfileCard';
-import { PaletteSelector } from './PaletteSelector';
-import { useUpdateSite, useDeleteSite, type Site } from '@/hooks/useSites';
+} from "@/components/ui/alert-dialog";
+import { Loader2, Save, Trash2, Clock, Calendar } from "lucide-react";
+import { ContentProfileCard } from "./ContentProfileCard";
+import { PaletteSelector } from "./PaletteSelector";
+import { useUpdateSite, useDeleteSite, type Site } from "@/hooks/useSites";
+import { useProfile } from "@/hooks/useProfile";
 
 const DAYS_OF_WEEK = [
-  { value: 1, label: 'Lunes' },
-  { value: 2, label: 'Martes' },
-  { value: 3, label: 'Miércoles' },
-  { value: 4, label: 'Jueves' },
-  { value: 5, label: 'Viernes' },
-  { value: 6, label: 'Sábado' },
-  { value: 0, label: 'Domingo' },
+  { value: 1, label: "Lunes" },
+  { value: 2, label: "Martes" },
+  { value: 3, label: "Miércoles" },
+  { value: 4, label: "Jueves" },
+  { value: 5, label: "Viernes" },
+  { value: 6, label: "Sábado" },
+  { value: 0, label: "Domingo" },
 ];
 
 const WEEKS_OF_MONTH = [
-  { value: 1, label: '1ª semana' },
-  { value: 2, label: '2ª semana' },
-  { value: 3, label: '3ª semana' },
-  { value: 4, label: '4ª semana' },
+  { value: 1, label: "1ª semana" },
+  { value: 2, label: "2ª semana" },
+  { value: 3, label: "3ª semana" },
+  { value: 4, label: "4ª semana" },
 ];
 
 const HOURS = Array.from({ length: 24 }, (_, i) => ({
   value: i,
-  label: `${i.toString().padStart(2, '0')}:00`,
+  label: `${i.toString().padStart(2, "0")}:00`,
 }));
 
 // Get user's timezone offset in hours
@@ -79,37 +74,36 @@ function utcToLocal(utcHour: number): number {
 }
 
 const MOOD_OPTIONS = [
-  { value: 'warm_and_welcoming', label: 'Cercano y cálido', icon: '🌅' },
-  { value: 'clean_and_clinical', label: 'Profesional y limpio', icon: '🏢' },
-  { value: 'energetic', label: 'Dinámico y activo', icon: '⚡' },
-  { value: 'calm_and_trustworthy', label: 'Natural y tranquilo', icon: '🌿' },
+  { value: "warm_and_welcoming", label: "Cercano y cálido", icon: "🌅" },
+  { value: "clean_and_clinical", label: "Profesional y limpio", icon: "🏢" },
+  { value: "energetic", label: "Dinámico y activo", icon: "⚡" },
+  { value: "calm_and_trustworthy", label: "Natural y tranquilo", icon: "🌿" },
 ];
 
-
 const formSchema = z.object({
-  name: z.string().min(1, 'El nombre es obligatorio').max(100),
+  name: z.string().min(1, "El nombre es obligatorio").max(100),
   sector: z.string().optional(),
   description: z.string().optional(),
   location: z.string().optional(),
-  geographic_scope: z.enum(['local', 'regional', 'national', 'international']),
-  languages: z.array(z.string()).min(1, 'Selecciona al menos un idioma'),
+  geographic_scope: z.enum(["local", "regional", "national", "international"]),
+  languages: z.array(z.string()).min(1, "Selecciona al menos un idioma"),
   publish_frequency: z.string(),
   publish_day_of_week: z.number().nullable(),
   publish_day_of_month: z.number().nullable(),
   publish_week_of_month: z.number().nullable(),
   publish_hour_local: z.number(),
-  monthly_mode: z.enum(['fixed_day', 'weekday']),
+  monthly_mode: z.enum(["fixed_day", "weekday"]),
   custom_topic: z.string().optional(),
   auto_generate: z.boolean(),
   include_featured_image: z.boolean(),
-  blog_url: z.string().url().optional().or(z.literal('')),
-  instagram_url: z.string().url().optional().or(z.literal('')),
+  blog_url: z.string().url().optional().or(z.literal("")),
+  instagram_url: z.string().url().optional().or(z.literal("")),
   // Content profile fields
   tone: z.string(),
   target_audience: z.string().optional(),
   content_pillars: z.array(z.string()).min(1),
   avoid_topics: z.string().optional(),
-  preferred_length: z.string(),
+  preferred_length: z.enum(["short", "medium", "long"]),
   // Image style fields
   color_palette: z.string(),
   mood: z.string(),
@@ -125,10 +119,22 @@ export function SiteSettings({ site }: SiteSettingsProps) {
   const navigate = useNavigate();
   const updateMutation = useUpdateSite();
   const deleteMutation = useDeleteSite();
+  const { data: profile } = useProfile();
+  const userPlan = profile?.plan ?? "free";
+  const canUseAutoGenerate = userPlan !== "free";
+  const canUseDailyFrequency = userPlan === "pro" || userPlan === "agency";
+  const maxPreferredLength = userPlan === "free" ? "short" : userPlan === "starter" ? "medium" : "long";
+
+  const clampPreferredLengthByPlan = (value: string): "short" | "medium" | "long" => {
+    const normalized = value === "short" || value === "medium" || value === "long" ? value : "medium";
+    if (maxPreferredLength === "short") return "short";
+    if (maxPreferredLength === "medium") return normalized === "long" ? "medium" : normalized;
+    return normalized;
+  };
 
   // Determine initial monthly mode
-  const initialMonthlyMode = site.publish_day_of_month ? 'fixed_day' : 'weekday';
-  
+  const initialMonthlyMode = site.publish_day_of_month ? "fixed_day" : "weekday";
+
   const {
     register,
     handleSubmit,
@@ -139,9 +145,9 @@ export function SiteSettings({ site }: SiteSettingsProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: site.name,
-      sector: site.sector || '',
-      description: site.description || '',
-      location: site.location || '',
+      sector: site.sector || "",
+      description: site.description || "",
+      location: site.location || "",
       geographic_scope: site.geographic_scope,
       languages: site.languages,
       publish_frequency: site.publish_frequency,
@@ -150,28 +156,49 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       publish_week_of_month: site.publish_week_of_month,
       publish_hour_local: utcToLocal(site.publish_hour_utc ?? 9),
       monthly_mode: initialMonthlyMode,
-      custom_topic: site.custom_topic || '',
+      custom_topic: site.custom_topic || "",
       auto_generate: site.auto_generate,
       include_featured_image: site.include_featured_image,
-      blog_url: site.blog_url || '',
-      instagram_url: site.instagram_url || '',
+      blog_url: site.blog_url || "",
+      instagram_url: site.instagram_url || "",
       // Content profile fields
-      tone: site.tone || 'casual',
-      target_audience: site.target_audience || '',
-      content_pillars: site.content_pillars || ['educational', 'trends', 'seasonal'],
-      avoid_topics: (site.avoid_topics || []).join(', '),
-      preferred_length: site.preferred_length || 'medium',
-      color_palette: site.color_palette || '',
-      mood: site.mood || 'warm_and_welcoming',
+      tone: site.tone || "casual",
+      target_audience: site.target_audience || "",
+      content_pillars: site.content_pillars || ["educational", "trends", "seasonal"],
+      avoid_topics: (site.avoid_topics || []).join(", "),
+      preferred_length: clampPreferredLengthByPlan(site.preferred_length || "medium"),
+      color_palette: site.color_palette || "",
+      mood: site.mood || "warm_and_welcoming",
     },
   });
 
-  const watchedLanguages = watch('languages');
-  const watchedAutoGenerate = watch('auto_generate');
-  const watchedIncludeImage = watch('include_featured_image');
-  const watchedFrequency = watch('publish_frequency');
-  const watchedMonthlyMode = watch('monthly_mode');
-  const watchedHourLocal = watch('publish_hour_local');
+  const watchedLanguages = watch("languages");
+  const watchedAutoGenerate = watch("auto_generate");
+  const watchedIncludeImage = watch("include_featured_image");
+  const watchedFrequency = watch("publish_frequency");
+  const watchedMonthlyMode = watch("monthly_mode");
+  const watchedHourLocal = watch("publish_hour_local");
+  const watchedPreferredLength = watch("preferred_length");
+
+  useEffect(() => {
+    if (!canUseAutoGenerate && watchedAutoGenerate) {
+      setValue("auto_generate", false, { shouldDirty: true });
+    }
+  }, [canUseAutoGenerate, watchedAutoGenerate, setValue]);
+
+  useEffect(() => {
+    if (!canUseDailyFrequency && (watchedFrequency === "daily" || watchedFrequency === "daily_weekdays")) {
+      setValue("publish_frequency", "weekly", { shouldDirty: true });
+    }
+  }, [canUseDailyFrequency, watchedFrequency, setValue]);
+
+  useEffect(() => {
+    if (!watchedPreferredLength) return;
+    const clamped = clampPreferredLengthByPlan(watchedPreferredLength);
+    if (clamped !== watchedPreferredLength) {
+      setValue("preferred_length", clamped, { shouldDirty: false });
+    }
+  }, [userPlan, watchedPreferredLength, setValue]);
 
   // Get user's timezone name for display
   const timezoneName = useMemo(() => {
@@ -179,18 +206,25 @@ export function SiteSettings({ site }: SiteSettingsProps) {
   }, []);
 
   const onSubmit = (data: FormData) => {
+    const effectiveAutoGenerate = canUseAutoGenerate ? data.auto_generate : false;
+    const effectiveFrequency =
+      !canUseDailyFrequency && (data.publish_frequency === "daily" || data.publish_frequency === "daily_weekdays")
+        ? "weekly"
+        : data.publish_frequency;
+    const effectivePreferredLength = clampPreferredLengthByPlan(data.preferred_length);
+
     // Convert local hour to UTC
     const publishHourUtc = localToUtc(data.publish_hour_local);
-    
+
     // Prepare scheduling fields based on frequency
     let publishDayOfWeek: number | null = null;
     let publishDayOfMonth: number | null = null;
     let publishWeekOfMonth: number | null = null;
 
-    if (data.publish_frequency === 'weekly' || data.publish_frequency === 'biweekly') {
+    if (effectiveFrequency === "weekly" || effectiveFrequency === "biweekly") {
       publishDayOfWeek = data.publish_day_of_week ?? 1;
-    } else if (data.publish_frequency === 'monthly') {
-      if (data.monthly_mode === 'fixed_day') {
+    } else if (effectiveFrequency === "monthly") {
+      if (data.monthly_mode === "fixed_day") {
         publishDayOfMonth = data.publish_day_of_month ?? 1;
         publishDayOfWeek = null;
         publishWeekOfMonth = null;
@@ -203,7 +237,10 @@ export function SiteSettings({ site }: SiteSettingsProps) {
 
     // Parse avoid_topics from comma-separated string to array
     const avoidTopicsArray = data.avoid_topics
-      ? data.avoid_topics.split(',').map((t) => t.trim()).filter(Boolean)
+      ? data.avoid_topics
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
       : [];
 
     updateMutation.mutate({
@@ -214,13 +251,13 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       location: data.location || null,
       geographic_scope: data.geographic_scope,
       languages: data.languages,
-      publish_frequency: data.publish_frequency,
+      publish_frequency: effectiveFrequency,
       publish_day_of_week: publishDayOfWeek,
       publish_day_of_month: publishDayOfMonth,
       publish_week_of_month: publishWeekOfMonth,
       publish_hour_utc: publishHourUtc,
       custom_topic: data.custom_topic || null,
-      auto_generate: data.auto_generate,
+      auto_generate: effectiveAutoGenerate,
       include_featured_image: data.include_featured_image,
       blog_url: data.blog_url || null,
       instagram_url: data.instagram_url || null,
@@ -229,7 +266,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       target_audience: data.target_audience || null,
       content_pillars: data.content_pillars,
       avoid_topics: avoidTopicsArray,
-      preferred_length: data.preferred_length || null,
+      preferred_length: effectivePreferredLength,
       // Image style fields
       color_palette: data.color_palette || null,
       mood: data.mood || null,
@@ -238,7 +275,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
 
   const handleDelete = () => {
     deleteMutation.mutate(site.id, {
-      onSuccess: () => navigate('/dashboard'),
+      onSuccess: () => navigate("/dashboard"),
     });
   };
 
@@ -246,18 +283,24 @@ export function SiteSettings({ site }: SiteSettingsProps) {
     const current = watchedLanguages || [];
     if (current.includes(lang)) {
       if (current.length > 1) {
-        setValue('languages', current.filter((l) => l !== lang), { shouldDirty: true });
+        setValue(
+          "languages",
+          current.filter((l) => l !== lang),
+          { shouldDirty: true },
+        );
       }
     } else {
-      setValue('languages', [...current, lang], { shouldDirty: true });
+      setValue("languages", [...current, lang], { shouldDirty: true });
     }
   };
 
   // Determine which scheduling options to show
-  const showDayOfWeek = watchedFrequency === 'weekly' || watchedFrequency === 'biweekly' || 
-    (watchedFrequency === 'monthly' && watchedMonthlyMode === 'weekday');
-  const showMonthlyOptions = watchedFrequency === 'monthly';
-  const showWeekOfMonth = watchedFrequency === 'monthly' && watchedMonthlyMode === 'weekday';
+  const showDayOfWeek =
+    watchedFrequency === "weekly" ||
+    watchedFrequency === "biweekly" ||
+    (watchedFrequency === "monthly" && watchedMonthlyMode === "weekday");
+  const showMonthlyOptions = watchedFrequency === "monthly";
+  const showWeekOfMonth = watchedFrequency === "monthly" && watchedMonthlyMode === "weekday";
 
   return (
     <div className="space-y-6">
@@ -270,28 +313,18 @@ export function SiteSettings({ site }: SiteSettingsProps) {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre del sitio *</Label>
-              <Input id="name" {...register('name')} />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name.message}</p>
-              )}
+              <Input id="name" {...register("name")} />
+              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="sector">Sector</Label>
-                <Input
-                  id="sector"
-                  placeholder="Ej: Tecnología, Salud, Moda..."
-                  {...register('sector')}
-                />
+                <Input id="sector" placeholder="Ej: Tecnología, Salud, Moda..." {...register("sector")} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="location">Ubicación</Label>
-                <Input
-                  id="location"
-                  placeholder="Ej: Barcelona, España"
-                  {...register('location')}
-                />
+                <Input id="location" placeholder="Ej: Barcelona, España" {...register("location")} />
               </div>
             </div>
 
@@ -300,7 +333,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
               <Textarea
                 id="description"
                 placeholder="Ej: Ecosistema digital de referencia para farmacias en España..."
-                {...register('description')}
+                {...register("description")}
                 rows={3}
               />
               <p className="text-xs text-muted-foreground">
@@ -311,8 +344,8 @@ export function SiteSettings({ site }: SiteSettingsProps) {
             <div className="space-y-2">
               <Label>Alcance geográfico</Label>
               <Select
-                value={watch('geographic_scope')}
-                onValueChange={(v) => setValue('geographic_scope', v as any, { shouldDirty: true })}
+                value={watch("geographic_scope")}
+                onValueChange={(v) => setValue("geographic_scope", v as any, { shouldDirty: true })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -340,8 +373,8 @@ export function SiteSettings({ site }: SiteSettingsProps) {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={watchedLanguages?.includes('spanish') ?? true}
-                    onChange={() => toggleLanguage('spanish')}
+                    checked={watchedLanguages?.includes("spanish") ?? true}
+                    onChange={() => toggleLanguage("spanish")}
                     className="rounded border-input"
                   />
                   <span className="text-sm">Español</span>
@@ -349,16 +382,14 @@ export function SiteSettings({ site }: SiteSettingsProps) {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={watchedLanguages?.includes('catalan') ?? false}
-                    onChange={() => toggleLanguage('catalan')}
+                    checked={watchedLanguages?.includes("catalan") ?? false}
+                    onChange={() => toggleLanguage("catalan")}
                     className="rounded border-input"
                   />
                   <span className="text-sm">Català</span>
                 </label>
               </div>
-              {errors.languages && (
-                <p className="text-sm text-destructive">{errors.languages.message}</p>
-              )}
+              {errors.languages && <p className="text-sm text-destructive">{errors.languages.message}</p>}
             </div>
 
             <div className="space-y-2">
@@ -366,55 +397,55 @@ export function SiteSettings({ site }: SiteSettingsProps) {
               <Textarea
                 id="custom_topic"
                 placeholder="Ej: Consejos prácticos de salud para familias jóvenes, novedades del sector tech..."
-                {...register('custom_topic')}
+                {...register("custom_topic")}
                 rows={3}
               />
               <p className="text-xs text-muted-foreground">
-                Define la dirección temática de tus artículos. Si lo dejas vacío, la IA elegirá los mejores temas según tu sector y pilares de contenido.
+                Define la dirección temática de tus artículos. Si lo dejas vacío, la IA elegirá los mejores temas según
+                tu sector y pilares de contenido.
               </p>
             </div>
 
             <div className="flex items-center justify-between py-2">
               <div>
                 <Label>Generación automática</Label>
-                <p className="text-sm text-muted-foreground">
-                  Generar artículos automáticamente según la programación
-                </p>
+                <p className="text-sm text-muted-foreground">Generar artículos automáticamente según la programación</p>
               </div>
               <Switch
                 checked={watchedAutoGenerate}
-                onCheckedChange={(checked) => setValue('auto_generate', checked, { shouldDirty: true })}
+                onCheckedChange={(checked) => setValue("auto_generate", checked, { shouldDirty: true })}
+                disabled={!canUseAutoGenerate}
               />
             </div>
+            {!canUseAutoGenerate && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                El plan Free no incluye publicación automática. Actualiza tu plan para activarla.
+              </p>
+            )}
 
             <div className="flex items-center justify-between py-2">
               <div>
                 <Label>Imagen destacada</Label>
-                <p className="text-sm text-muted-foreground">
-                  Incluir imagen destacada generada por IA
-                </p>
+                <p className="text-sm text-muted-foreground">Incluir imagen destacada generada por IA</p>
               </div>
               <Switch
                 checked={watchedIncludeImage}
-                onCheckedChange={(checked) => setValue('include_featured_image', checked, { shouldDirty: true })}
+                onCheckedChange={(checked) => setValue("include_featured_image", checked, { shouldDirty: true })}
               />
             </div>
 
             {watchedIncludeImage && (
               <div className="space-y-4 pt-2 border-t">
                 <PaletteSelector
-                  value={watch('color_palette')}
-                  onChange={(v) => setValue('color_palette', v, { shouldDirty: true })}
-                  mood={watch('mood')}
+                  value={watch("color_palette")}
+                  onChange={(v) => setValue("color_palette", v, { shouldDirty: true })}
+                  mood={watch("mood")}
                 />
 
                 {/* Mood — visual select */}
                 <div className="space-y-2">
                   <Label>Estilo visual de tus imágenes</Label>
-                  <Select
-                    value={watch('mood')}
-                    onValueChange={(v) => setValue('mood', v, { shouldDirty: true })}
-                  >
+                  <Select value={watch("mood")} onValueChange={(v) => setValue("mood", v, { shouldDirty: true })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -439,29 +470,36 @@ export function SiteSettings({ site }: SiteSettingsProps) {
               <Calendar className="w-5 h-5" />
               Programación de publicación
             </CardTitle>
-            <CardDescription>
-              Configura cuándo se generarán automáticamente los artículos
-            </CardDescription>
+            <CardDescription>Configura cuándo se generarán automáticamente los artículos</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Frequency */}
             <div className="space-y-2">
               <Label>Frecuencia de publicación</Label>
               <Select
-                value={watch('publish_frequency')}
-                onValueChange={(v) => setValue('publish_frequency', v, { shouldDirty: true })}
+                value={watch("publish_frequency")}
+                onValueChange={(v) => setValue("publish_frequency", v, { shouldDirty: true })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="daily">Diario (todos los días)</SelectItem>
-                  <SelectItem value="daily_weekdays">Diario (L-V)</SelectItem>
+                  <SelectItem value="daily" disabled={!canUseDailyFrequency}>
+                    Diario (todos los días)
+                  </SelectItem>
+                  <SelectItem value="daily_weekdays" disabled={!canUseDailyFrequency}>
+                    Diario (L-V)
+                  </SelectItem>
                   <SelectItem value="weekly">Semanal</SelectItem>
                   <SelectItem value="biweekly">Quincenal</SelectItem>
                   <SelectItem value="monthly">Mensual</SelectItem>
                 </SelectContent>
               </Select>
+              {!canUseDailyFrequency && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  La frecuencia diaria está disponible desde el plan Pro.
+                </p>
+              )}
             </div>
 
             {/* Monthly mode selection */}
@@ -470,7 +508,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
                 <Label>Tipo de programación mensual</Label>
                 <RadioGroup
                   value={watchedMonthlyMode}
-                  onValueChange={(v) => setValue('monthly_mode', v as 'fixed_day' | 'weekday', { shouldDirty: true })}
+                  onValueChange={(v) => setValue("monthly_mode", v as "fixed_day" | "weekday", { shouldDirty: true })}
                   className="flex flex-col gap-2"
                 >
                   <div className="flex items-center space-x-2">
@@ -490,12 +528,12 @@ export function SiteSettings({ site }: SiteSettingsProps) {
             )}
 
             {/* Fixed day of month */}
-            {showMonthlyOptions && watchedMonthlyMode === 'fixed_day' && (
+            {showMonthlyOptions && watchedMonthlyMode === "fixed_day" && (
               <div className="space-y-2">
                 <Label>Día del mes</Label>
                 <Select
-                  value={String(watch('publish_day_of_month') ?? 1)}
-                  onValueChange={(v) => setValue('publish_day_of_month', parseInt(v), { shouldDirty: true })}
+                  value={String(watch("publish_day_of_month") ?? 1)}
+                  onValueChange={(v) => setValue("publish_day_of_month", parseInt(v), { shouldDirty: true })}
                 >
                   <SelectTrigger className="w-32">
                     <SelectValue />
@@ -519,8 +557,8 @@ export function SiteSettings({ site }: SiteSettingsProps) {
               <div className="space-y-2">
                 <Label>Día de la semana</Label>
                 <Select
-                  value={String(watch('publish_day_of_week') ?? 1)}
-                  onValueChange={(v) => setValue('publish_day_of_week', parseInt(v), { shouldDirty: true })}
+                  value={String(watch("publish_day_of_week") ?? 1)}
+                  onValueChange={(v) => setValue("publish_day_of_week", parseInt(v), { shouldDirty: true })}
                 >
                   <SelectTrigger className="w-40">
                     <SelectValue />
@@ -541,8 +579,8 @@ export function SiteSettings({ site }: SiteSettingsProps) {
               <div className="space-y-2">
                 <Label>Semana del mes</Label>
                 <Select
-                  value={String(watch('publish_week_of_month') ?? 1)}
-                  onValueChange={(v) => setValue('publish_week_of_month', parseInt(v), { shouldDirty: true })}
+                  value={String(watch("publish_week_of_month") ?? 1)}
+                  onValueChange={(v) => setValue("publish_week_of_month", parseInt(v), { shouldDirty: true })}
                 >
                   <SelectTrigger className="w-40">
                     <SelectValue />
@@ -567,7 +605,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
               <div className="flex items-center gap-3">
                 <Select
                   value={String(watchedHourLocal)}
-                  onValueChange={(v) => setValue('publish_hour_local', parseInt(v), { shouldDirty: true })}
+                  onValueChange={(v) => setValue("publish_hour_local", parseInt(v), { shouldDirty: true })}
                 >
                   <SelectTrigger className="w-32">
                     <SelectValue />
@@ -580,12 +618,10 @@ export function SiteSettings({ site }: SiteSettingsProps) {
                     ))}
                   </SelectContent>
                 </Select>
-                <span className="text-sm text-muted-foreground">
-                  ({timezoneName})
-                </span>
+                <span className="text-sm text-muted-foreground">({timezoneName})</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Se guardará como {localToUtc(watchedHourLocal).toString().padStart(2, '0')}:00 UTC
+                Se guardará como {localToUtc(watchedHourLocal).toString().padStart(2, "0")}:00 UTC
               </p>
             </div>
           </CardContent>
@@ -595,19 +631,12 @@ export function SiteSettings({ site }: SiteSettingsProps) {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Enlaces</CardTitle>
-            <CardDescription>
-              URLs para incluir en el contenido generado
-            </CardDescription>
+            <CardDescription>URLs para incluir en el contenido generado</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="blog_url">URL del blog</Label>
-              <Input
-                id="blog_url"
-                type="url"
-                placeholder="https://..."
-                {...register('blog_url')}
-              />
+              <Input id="blog_url" type="url" placeholder="https://..." {...register("blog_url")} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="instagram_url">Enlace a tu mejor red social</Label>
@@ -615,18 +644,14 @@ export function SiteSettings({ site }: SiteSettingsProps) {
                 id="instagram_url"
                 type="url"
                 placeholder="https://instagram.com/tusitio o tu red social preferida"
-                {...register('instagram_url')}
+                {...register("instagram_url")}
               />
             </div>
           </CardContent>
         </Card>
 
         {/* Content Profile Card */}
-        <ContentProfileCard
-          watch={watch}
-          setValue={setValue}
-          register={register}
-        />
+        <ContentProfileCard watch={watch} setValue={setValue} register={register} plan={userPlan} />
 
         {/* Save button */}
         <Button type="submit" disabled={!isDirty || updateMutation.isPending}>
@@ -643,9 +668,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       <Card className="border-destructive/50">
         <CardHeader>
           <CardTitle className="text-lg text-destructive">Zona de peligro</CardTitle>
-          <CardDescription>
-            Acciones irreversibles
-          </CardDescription>
+          <CardDescription>Acciones irreversibles</CardDescription>
         </CardHeader>
         <CardContent>
           <AlertDialog>
