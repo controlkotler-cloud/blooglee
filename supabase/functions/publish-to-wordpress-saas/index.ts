@@ -70,7 +70,9 @@ async function findExistingWpPostBySlug(
 
     if (Array.isArray(posts) && posts.length > 0) {
       const existing = posts[0];
-      console.log(`[${requestId}][idempotent_hit] Found existing post id=${existing.id} slug="${existing.slug}" status="${existing.status}"`);
+      console.log(
+        `[${requestId}][idempotent_hit] Found existing post id=${existing.id} slug="${existing.slug}" status="${existing.status}"`,
+      );
       return {
         id: existing.id,
         link: existing.link,
@@ -97,10 +99,7 @@ async function persistWpPostUrl(
   requestId: string,
 ): Promise<void> {
   if (articleId) {
-    const { error } = await supabase
-      .from("articles")
-      .update({ wp_post_url: postUrl })
-      .eq("id", articleId);
+    const { error } = await supabase.from("articles").update({ wp_post_url: postUrl }).eq("id", articleId);
     if (error) {
       console.error(`[${requestId}] Failed to update wp_post_url for article ${articleId}:`, error);
     } else {
@@ -123,10 +122,7 @@ async function persistWpPostUrl(
     for (const art of articles) {
       const cs = art.content_spanish as Record<string, unknown> | null;
       if (cs && (cs.slug === slug || cs.slug === slug.replace(/-ca$/, ""))) {
-        const { error } = await supabase
-          .from("articles")
-          .update({ wp_post_url: postUrl })
-          .eq("id", art.id);
+        const { error } = await supabase.from("articles").update({ wp_post_url: postUrl }).eq("id", art.id);
         if (error) {
           console.error(`[${requestId}] Failed to update wp_post_url for matched article ${art.id}:`, error);
         } else {
@@ -297,7 +293,9 @@ Deno.serve(async (req) => {
         idempotent: true,
       };
 
-      console.log(`[${requestId}][idempotent_hit] Returning existing post id=${existingPost.id} url=${existingPost.link}`);
+      console.log(
+        `[${requestId}][idempotent_hit] Returning existing post id=${existingPost.id} url=${existingPost.link}`,
+      );
       return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -452,7 +450,9 @@ Deno.serve(async (req) => {
           };
 
           console.log(`[${requestId}][slug_conflict_recovered] Recovered post id=${recoveredPost.id}`);
-          return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(JSON.stringify(result), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
       }
 
