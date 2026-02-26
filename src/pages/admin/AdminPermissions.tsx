@@ -1,17 +1,17 @@
-import { AdminLayout } from '@/components/admin/AdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Check, X } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Check, X } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-const roles = ['superadmin', 'admin', 'beta', 'user'] as const;
+const roles = ["superadmin", "admin", "beta", "user"] as const;
 
 const roleColors: Record<string, string> = {
-  superadmin: 'bg-red-500/10 text-red-600 border-red-200',
-  admin: 'bg-purple-500/10 text-purple-600 border-purple-200',
-  beta: 'bg-green-500/10 text-green-600 border-green-200',
-  user: 'bg-gray-500/10 text-gray-600 border-gray-200',
+  superadmin: "bg-red-500/10 text-red-600 border-red-200",
+  admin: "bg-purple-500/10 text-purple-600 border-purple-200",
+  beta: "bg-green-500/10 text-green-600 border-green-200",
+  user: "bg-gray-500/10 text-gray-600 border-gray-200",
 };
 
 type CellValue = boolean | string;
@@ -27,30 +27,142 @@ interface PermissionRow {
 
 const permissions: PermissionRow[] = [
   // Acceso
-  { category: 'Acceso', action: 'SaaS (/dashboard, /site/:id)', superadmin: true, admin: true, beta: true, user: true },
-  { category: 'Acceso', action: 'Panel Admin (/admin/*)', superadmin: true, admin: false, beta: false, user: false },
+  { category: "Acceso", action: "SaaS (/dashboard, /site/:id)", superadmin: true, admin: true, beta: true, user: true },
+  { category: "Acceso", action: "Panel Admin (/admin/*)", superadmin: true, admin: false, beta: false, user: false },
   // Artículos
-  { category: 'Artículos', action: 'Generar artículos', superadmin: 'Sin límite', admin: 'Sin límite', beta: 'Según plan', user: 'Según plan' },
-  { category: 'Artículos', action: 'Regenerar tras publicación', superadmin: true, admin: true, beta: false, user: false },
-  { category: 'Artículos', action: 'Republicar artículo publicado', superadmin: true, admin: true, beta: false, user: false },
-  { category: 'Artículos', action: 'Eliminar artículo publicado', superadmin: true, admin: true, beta: false, user: false },
-  { category: 'Artículos', action: 'Copiar contenido de artículo', superadmin: true, admin: true, beta: false, user: false },
-  { category: 'Artículos', action: 'Regenerar imagen', superadmin: 'Siempre', admin: 'Siempre', beta: 'Solo no publicados', user: 'Solo no publicados' },
+  {
+    category: "Artículos",
+    action: "Generar artículos",
+    superadmin: "Ilimitado en su cuenta propia",
+    admin: "Según plan de la cuenta owner",
+    beta: "Según plan",
+    user: "Según plan",
+  },
+  {
+    category: "Artículos",
+    action: "Regenerar tras publicación",
+    superadmin: false,
+    admin: false,
+    beta: false,
+    user: false,
+  },
+  {
+    category: "Artículos",
+    action: "Republicar artículo publicado",
+    superadmin: false,
+    admin: false,
+    beta: false,
+    user: false,
+  },
+  {
+    category: "Artículos",
+    action: "Eliminar artículo publicado",
+    superadmin: false,
+    admin: false,
+    beta: false,
+    user: false,
+  },
+  {
+    category: "Artículos",
+    action: "Copiar contenido de artículo",
+    superadmin: true,
+    admin: true,
+    beta: false,
+    user: false,
+  },
+  {
+    category: "Artículos",
+    action: "Regenerar imagen",
+    superadmin: "Solo no publicados",
+    admin: "Solo no publicados",
+    beta: "Solo no publicados",
+    user: "Solo no publicados",
+  },
   // Límites
-  { category: 'Límites', action: 'Límite de sitios', superadmin: 'Bypass', admin: 'Bypass', beta: 'Según plan (1)', user: 'Según plan' },
-  { category: 'Límites', action: 'Límite de artículos/mes', superadmin: 'Bypass', admin: 'Bypass', beta: 'Según plan (4)', user: 'Según plan' },
-  { category: 'Límites', action: 'Free: límite lifetime (1 art.)', superadmin: 'Bypass', admin: 'Bypass', beta: 'N/A', user: 'Enforced' },
+  {
+    category: "Límites",
+    action: "Límite de sitios",
+    superadmin: "Ilimitado (solo cuenta propia)",
+    admin: "Según plan de la cuenta owner",
+    beta: "Según plan",
+    user: "Según plan",
+  },
+  {
+    category: "Límites",
+    action: "Límite de artículos/mes",
+    superadmin: "Ilimitado (solo cuenta propia)",
+    admin: "Según plan de la cuenta owner",
+    beta: "Según plan",
+    user: "Según plan",
+  },
+  {
+    category: "Límites",
+    action: "Free: límite lifetime (1 art.)",
+    superadmin: "No aplica en su cuenta",
+    admin: "Se aplica si la cuenta está en Free",
+    beta: "N/A",
+    user: "Enforced",
+  },
   // Funcionalidades
-  { category: 'Funcionalidades', action: 'Publicación automática WP', superadmin: true, admin: true, beta: 'Si plan lo permite', user: 'Si plan lo permite' },
-  { category: 'Funcionalidades', action: 'Perfil de contenido avanzado', superadmin: true, admin: true, beta: 'Starter+', user: 'Starter+' },
-  { category: 'Funcionalidades', action: 'Paleta editable en imagen', superadmin: true, admin: true, beta: 'Starter+', user: 'Starter+' },
-  { category: 'Funcionalidades', action: 'Soporte Bloobot', superadmin: true, admin: true, beta: true, user: true },
+  {
+    category: "Funcionalidades",
+    action: "Publicación automática WP",
+    superadmin: true,
+    admin: true,
+    beta: "Si plan lo permite",
+    user: "Si plan lo permite",
+  },
+  {
+    category: "Funcionalidades",
+    action: "Perfil de contenido avanzado",
+    superadmin: true,
+    admin: true,
+    beta: "Starter+",
+    user: "Starter+",
+  },
+  {
+    category: "Funcionalidades",
+    action: "Paleta editable en imagen",
+    superadmin: true,
+    admin: true,
+    beta: "Starter+",
+    user: "Starter+",
+  },
+  { category: "Funcionalidades", action: "Soporte Bloobot", superadmin: true, admin: true, beta: true, user: true },
   // Administración
-  { category: 'Administración', action: 'Ver todos los profiles (BD)', superadmin: true, admin: false, beta: false, user: false },
-  { category: 'Administración', action: 'Gestionar roles (BD)', superadmin: true, admin: false, beta: false, user: false },
-  { category: 'Administración', action: 'Gestionar beta invitations', superadmin: true, admin: false, beta: false, user: false },
-  { category: 'Administración', action: 'Gestionar social content', superadmin: true, admin: false, beta: false, user: false },
-  { category: 'Administración', action: 'Gestionar prompts', superadmin: true, admin: false, beta: false, user: false },
+  {
+    category: "Administración",
+    action: "Ver todos los profiles (BD)",
+    superadmin: true,
+    admin: false,
+    beta: false,
+    user: false,
+  },
+  {
+    category: "Administración",
+    action: "Gestionar roles (BD)",
+    superadmin: true,
+    admin: false,
+    beta: false,
+    user: false,
+  },
+  {
+    category: "Administración",
+    action: "Gestionar beta invitations",
+    superadmin: true,
+    admin: false,
+    beta: false,
+    user: false,
+  },
+  {
+    category: "Administración",
+    action: "Gestionar social content",
+    superadmin: true,
+    admin: false,
+    beta: false,
+    user: false,
+  },
+  { category: "Administración", action: "Gestionar prompts", superadmin: true, admin: false, beta: false, user: false },
 ];
 
 function CellRenderer({ value }: { value: CellValue }) {
@@ -65,7 +177,7 @@ function MobilePermissionCard({ row }: { row: PermissionRow }) {
       <CardContent className="p-3">
         <p className="text-sm font-medium mb-2">{row.action}</p>
         <div className="grid grid-cols-4 gap-1 text-center">
-          {roles.map(role => (
+          {roles.map((role) => (
             <div key={role} className="flex flex-col items-center gap-0.5">
               <span className="text-[9px] text-muted-foreground truncate w-full">{role}</span>
               <CellRenderer value={row[role]} />
@@ -79,13 +191,19 @@ function MobilePermissionCard({ row }: { row: PermissionRow }) {
 
 export default function AdminPermissions() {
   const isMobile = useIsMobile();
-  let lastCategory = '';
+  let lastCategory = "";
 
   const roleDescriptions = [
-    { role: 'superadmin', desc: 'Acceso total sin restricciones, incluido panel admin' },
-    { role: 'admin', desc: 'Como superadmin pero sin panel /admin/*' },
-    { role: 'beta', desc: 'Usuario con plan Starter temporal (3 meses, controlado por beta_expires_at)' },
-    { role: 'user', desc: 'Acceso normal al SaaS, limitado por su plan (Free/Starter/Pro/Agency)' },
+    {
+      role: "superadmin",
+      desc: "Acceso al panel admin. En SaaS tiene ilimitado solo dentro de su propia cuenta (sin acceso SaaS a cuentas ajenas).",
+    },
+    {
+      role: "admin",
+      desc: "Rol operativo dentro de la cuenta owner a la que pertenece. Sin acceso a /admin ni bypass global.",
+    },
+    { role: "beta", desc: "Usuario con plan Starter temporal (3 meses, controlado por beta_expires_at)" },
+    { role: "user", desc: "Acceso normal al SaaS, limitado por su plan (Free/Starter/Pro/Agency)" },
   ];
 
   return (
@@ -93,9 +211,7 @@ export default function AdminPermissions() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Permisos por Rol</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Matriz de acciones y permisos de cada perfil de usuario
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">Matriz de acciones y permisos de cada perfil de usuario</p>
         </div>
 
         {/* Role descriptions */}
@@ -103,7 +219,9 @@ export default function AdminPermissions() {
           {roleDescriptions.map(({ role, desc }) => (
             <Card key={role}>
               <CardContent className="p-3">
-                <Badge variant="outline" className={`mb-1.5 ${roleColors[role]}`}>{role}</Badge>
+                <Badge variant="outline" className={`mb-1.5 ${roleColors[role]}`}>
+                  {role}
+                </Badge>
                 <p className="text-xs text-muted-foreground">{desc}</p>
               </CardContent>
             </Card>
@@ -138,9 +256,11 @@ export default function AdminPermissions() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[250px]">Acción</TableHead>
-                    {roles.map(role => (
+                    {roles.map((role) => (
                       <TableHead key={role} className="text-center">
-                        <Badge variant="outline" className={`text-xs ${roleColors[role]}`}>{role}</Badge>
+                        <Badge variant="outline" className={`text-xs ${roleColors[role]}`}>
+                          {role}
+                        </Badge>
                       </TableHead>
                     ))}
                   </TableRow>
@@ -152,14 +272,17 @@ export default function AdminPermissions() {
                       <>
                         {showCategory && (
                           <TableRow key={`cat-${row.category}`} className="bg-muted/30 hover:bg-muted/30">
-                            <TableCell colSpan={5} className="py-2 font-semibold text-xs uppercase tracking-wider text-muted-foreground">
+                            <TableCell
+                              colSpan={5}
+                              className="py-2 font-semibold text-xs uppercase tracking-wider text-muted-foreground"
+                            >
                               {row.category}
                             </TableCell>
                           </TableRow>
                         )}
                         <TableRow key={i}>
                           <TableCell className="text-sm">{row.action}</TableCell>
-                          {roles.map(role => (
+                          {roles.map((role) => (
                             <TableCell key={role} className="text-center">
                               <CellRenderer value={row[role]} />
                             </TableCell>
