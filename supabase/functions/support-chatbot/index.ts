@@ -532,58 +532,14 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const authUser = await resolveAuthUser(supabase, req.headers.get("Authorization"), user_metadata, error_context);
+    const metadataUserId = (user_metadata?.userId || "").trim();
+    const metadataUserIdIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      metadataUserId,
+    );
+    const effectiveUserId = authUser?.id || (metadataUserIdIsUuid ? metadataUserId : null);
 
-    const clientIp =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "anonymous";
-    const rateId = authUser?.id || clientIp;
-    const rateLimitResult = checkRateLimit(rateId);
-    if (!rateLimitResult.allowed) {
-      return new Response(JSON.stringify({ error: "Demasiadas peticiones. Por favor, espera un momento." }), {
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-          "Retry-After": String(rateLimitResult.retryAfter || 60),
-        },
-      });
-    }
-
-    const errorCode = error_context?.code?.toString() || extractErrorCode(userQuery);
-    const pluginHints = extractPluginHints(`${userQuery} ${error_context?.message || ""}`);
-
-    const relevantArticles = await searchKnowledgeBase(supabase, userQuery, errorCode, pluginHints);
-    const articlesContext = buildArticlesContext(relevantArticles);
-
-    const errorContextStr = error_context
-      ? `CONTEXTO DEL ERROR:\n- Código: ${error_context.code || "No especificado"}\n- Acción: ${error_context.action || "No especificada"}\n- Mensaje: ${error_context.message || "No especificado"}`
-      : "CONTEXTO DEL ERROR: no proporcionado.";
-
-    const diagnosticsContext = await buildDiagnosticsContext(supabase, error_context?.siteId);
-
-    const userContext = user_metadata
-      ? `CONTEXTO DEL USUARIO:\n- Plan: ${user_metadata.plan || "free"}\n- Sitios: ${user_metadata.sitesCount ?? "?"}\n- Email: ${user_metadata.email || "No disponible"}`
-      : "";
-
-    const template = await getSystemPrompt(supabase);
-    let enhancedSystemPrompt = interpolateTemplate(template, {
-      articlesContext,
-      errorContext: errorContextStr,
-      diagnosticsContext,
-      userContext,
-    });
-
-    if (!template.includes("{{articlesContext}}")) {
-      enhancedSystemPrompt += `\n\n${articlesContext}`;
-    }
-    if (!template.includes("{{errorContext}}")) {
-      enhancedSystemPrompt += `\n\n${errorContextStr}`;
-    }
-    if (!template.includes("{{diagnosticsContext}}") && diagnosticsContext) {
-      enhancedSystemPrompt += `\n\n${diagnosticsContext}`;
-    }
-
-    const activeConversationId = authUser?.id
-      ? await upsertConversation(supabase, authUser.id, conversation_id, error_context)
+    const activeConversationId = effectiveUserId
+      ? await upsertConversation(supabase, effectiveUserId, conversation_id, error_context)
       : null;
 
     if (activeConversationId) {
