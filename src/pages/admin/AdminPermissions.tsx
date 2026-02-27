@@ -103,6 +103,23 @@ const permissions: PermissionRow[] = [
     beta: "N/A",
     user: "Enforced",
   },
+  // Equipo
+  {
+    category: "Equipo",
+    action: "Añadir/eliminar members por email",
+    superadmin: "Sí (solo en su cuenta)",
+    admin: false,
+    beta: false,
+    user: "Sí, si es owner Agency",
+  },
+  {
+    category: "Equipo",
+    action: "Límite de members",
+    superadmin: "Ilimitado en su cuenta propia",
+    admin: "No aplica",
+    beta: "No aplica",
+    user: "Agency: 5 incluidos",
+  },
   // Funcionalidades
   {
     category: "Funcionalidades",
@@ -203,7 +220,10 @@ export default function AdminPermissions() {
       desc: "Rol operativo dentro de la cuenta owner a la que pertenece. Sin acceso a /admin ni bypass global.",
     },
     { role: "beta", desc: "Usuario con plan Starter temporal (3 meses, controlado por beta_expires_at)" },
-    { role: "user", desc: "Acceso normal al SaaS, limitado por su plan (Free/Starter/Pro/Agency)" },
+    {
+      role: "user",
+      desc: "Acceso normal al SaaS según plan. Si es owner de cuenta Agency puede gestionar members de su equipo.",
+    },
   ];
 
   return (
