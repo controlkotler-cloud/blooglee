@@ -507,7 +507,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const authUser = await resolveAuthUser(supabase, req.headers.get("Authorization"));
+    const authUser = await resolveAuthUser(supabase, req.headers.get("Authorization"), user_metadata);
 
     const clientIp =
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "anonymous";
