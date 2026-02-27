@@ -210,7 +210,7 @@ const Auth = () => {
                 type="button"
                 onClick={async () => {
                   const { error } = await lovable.auth.signInWithOAuth("google", {
-                    redirect_uri: "${window.location.origin}/dashboard",
+                    redirect_uri: window.location.origin,
                   });
                   if (error) {
                     toast({
