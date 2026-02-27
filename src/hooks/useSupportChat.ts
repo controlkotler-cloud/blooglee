@@ -14,6 +14,7 @@ interface ErrorContext {
 }
 
 interface UserMetadata {
+  userId?: string;
   plan?: string;
   sitesCount?: number;
   email?: string;

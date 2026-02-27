@@ -9,6 +9,7 @@ import { useSites } from "@/hooks/useSites";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import { useParams } from "react-router-dom";
+import { useAuth } from '@/hooks/useAuth';
 
 interface ErrorContext {
   code?: number | string;
@@ -45,6 +46,7 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
   const { messages, isLoading, error, sendMessage, clearMessages } = useSupportChat();
   const { data: profile } = useProfile();
   const { data: sites = [] } = useSites();
+  const { user } = useAuth();
   const { id: routeSiteId } = useParams();
   const [input, setInput] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -58,14 +60,14 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
     };
   }, [errorContext, routeSiteId]);
 
-  const userMetadata = useMemo(
-    () => ({
-      plan: profile?.plan || "free",
-      sitesCount: sites.length,
-      email: profile?.email || "",
-      registeredAt: profile?.created_at || "",
-    }),
-    [profile, sites.length],
+  const userMetadata = useMemo(() => ({
+  userId: user?.id || '',
+  plan: profile?.plan || 'free',
+  sitesCount: sites.length,
+  email: profile?.email || '',
+  registeredAt: profile?.created_at || '',
+}), [user?.id, profile, sites.length]);
+
   );
 
   // Auto-scroll to bottom when messages change
