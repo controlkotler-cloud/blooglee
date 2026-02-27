@@ -103,6 +103,7 @@ interface ErrorContext {
 }
 
 interface UserMetadata {
+  userId?: string;
   plan?: string;
   sitesCount?: number;
   email?: string;
@@ -365,29 +366,52 @@ async function resolveAuthUser(
   supabase: ReturnType<typeof createClient>,
   authHeader: string | null,
   userMetadata?: UserMetadata,
+  errorContext?: ErrorContext,
 ): Promise<{ id: string } | null> {
-  try {
-    if (!authHeader?.toLowerCase().startsWith("bearer ")) return null;
-    const token = authHeader.slice(7).trim();
-    if (!token || token.split(".").length !== 3) return null;
+  const token = authHeader?.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
 
-    const { data, error } = await supabase.auth.getUser(token);
-    if (error || !data.user) return null;
-    return { id: data.user.id };
-  } catch {
-    // continue with metadata fallback
+  if (token && token.split(".").length === 3) {
+    try {
+      const { data, error } = await supabase.auth.getUser(token);
+      if (!error && data.user) {
+        return { id: data.user.id };
+      }
+    } catch {
+      // continue with fallbacks
+    }
+  }
+
+  const metadataUserId = userMetadata?.userId?.trim();
+  if (
+    metadataUserId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(metadataUserId)
+  ) {
+    return { id: metadataUserId };
   }
 
   const email = userMetadata?.email?.trim().toLowerCase();
-  if (!email) return null;
+  if (email) {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .ilike("email", email)
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data?.user_id) {
+        return { id: data.user_id as string };
+      }
+    } catch {
+      // continue with site fallback
+    }
+  }
+
+  const siteId = errorContext?.siteId?.trim();
+  if (!siteId) return null;
 
   try {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("user_id")
-      .ilike("email", email)
-      .limit(1)
-      .maybeSingle();
+    const { data, error } = await supabase.from("sites").select("user_id").eq("id", siteId).limit(1).maybeSingle();
 
     if (error || !data?.user_id) return null;
     return { id: data.user_id as string };
@@ -507,7 +531,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const authUser = await resolveAuthUser(supabase, req.headers.get("Authorization"), user_metadata);
+    const authUser = await resolveAuthUser(supabase, req.headers.get("Authorization"), user_metadata, error_context);
 
     const clientIp =
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "anonymous";
