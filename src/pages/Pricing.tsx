@@ -2,45 +2,72 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, X, Sparkles, Building2, Users, Rocket, ArrowRight, HelpCircle, ChevronDown } from "lucide-react";
 import { PublicLayout } from "@/components/marketing/PublicLayout";
-import { SEOHead, FAQSchema, ProductSchema } from '@/components/seo';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { SEOHead, FAQSchema, ProductSchema } from "@/components/seo";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 // FAQ data
 const pricingFaqs = [
   {
-    question: '¿Puedo cambiar de plan en cualquier momento?',
-    answer: 'Sí, puedes subir o bajar de plan cuando quieras. El cambio se aplica inmediatamente y se prorratea.',
+    question: "¿Puedo cambiar de plan en cualquier momento?",
+    answer: "Sí, puedes subir o bajar de plan cuando quieras. El cambio se aplica inmediatamente y se prorratea.",
   },
   {
-    question: '¿Qué pasa cuando uso mi artículo de prueba en Free?',
-    answer: 'Puedes ver cómo queda publicado en tu blog. Para seguir generando artículos automáticamente, pasa a Starter.',
+    question: "¿Qué pasa cuando uso mi artículo de prueba en Free?",
+    answer:
+      "Puedes ver cómo queda publicado en tu blog. Para seguir generando artículos automáticamente, pasa a Starter.",
   },
   {
-    question: '¿Puedo añadir más sitios en el plan Pro?',
-    answer: 'Sí, puedes añadir sitios adicionales por 6€/mes cada uno, hasta un máximo de 15 sitios. Si necesitas más, el plan Agency incluye 25 sitios.',
+    question: "¿Puedo añadir más sitios en el plan Pro?",
+    answer:
+      "Sí, puedes añadir sitios adicionales por 6€/mes cada uno, hasta un máximo de 15 sitios. Si necesitas más, el plan Agency incluye 25 sitios.",
   },
   {
-    question: '¿Hay permanencia?',
-    answer: 'No, puedes cancelar cuando quieras sin compromiso. Tu plan sigue activo hasta fin del periodo pagado.',
+    question: "¿Hay permanencia?",
+    answer: "No, puedes cancelar cuando quieras sin compromiso. Tu plan sigue activo hasta fin del periodo pagado.",
   },
   {
-    question: '¿Los artículos son míos?',
-    answer: 'Sí, el contenido generado es 100% tuyo. Blooglee no aparece en ningún sitio en tus artículos publicados.',
+    question: "¿Los artículos son míos?",
+    answer: "Sí, el contenido generado es 100% tuyo. Blooglee no aparece en ningún sitio en tus artículos publicados.",
   },
   {
-    question: '¿Qué frecuencias de publicación hay?',
-    answer: 'Semanal (4 artículos/mes), quincenal (2/mes) y mensual (1/mes) en todos los planes de pago. A partir de Pro también puedes publicar a diario.',
+    question: "¿Qué frecuencias de publicación hay?",
+    answer:
+      "Semanal (4 artículos/mes), quincenal (2/mes) y mensual (1/mes) en todos los planes de pago. A partir de Pro también puedes publicar a diario.",
+  },
+  {
+    question: "¿El plan Agency incluye members del equipo?",
+    answer: "Sí. Agency incluye 5 members para gestionar la cuenta. Podrás ampliar members con add-ons próximamente.",
   },
 ];
 
 // ProductSchema data
 const pricingPlans = [
-  { name: 'Free', description: '1 artículo de prueba para ver cómo queda', price: 0, features: ['1 sitio', '1 artículo de prueba'] },
-  { name: 'Starter', description: '1 sitio, hasta 4 artículos/mes, publicación automática', price: 19, features: ['1 sitio', '4 artículos/mes'] },
-  { name: 'Pro', description: '5 sitios, hasta 46 artículos/mes, contenido premium', price: 39, features: ['5 sitios', '46 artículos/mes'] },
-  { name: 'Agency', description: '25 sitios, artículos ilimitados para agencias', price: 99, features: ['25 sitios', 'Ilimitados'] },
+  {
+    name: "Free",
+    description: "1 artículo de prueba para ver cómo queda",
+    price: 0,
+    features: ["1 sitio", "1 artículo de prueba"],
+  },
+  {
+    name: "Starter",
+    description: "1 sitio, hasta 4 artículos/mes, publicación automática",
+    price: 19,
+    features: ["1 sitio", "4 artículos/mes"],
+  },
+  {
+    name: "Pro",
+    description: "5 sitios, hasta 46 artículos/mes, contenido premium",
+    price: 39,
+    features: ["5 sitios", "46 artículos/mes"],
+  },
+  {
+    name: "Agency",
+    description: "25 sitios, artículos ilimitados y 5 members para agencias",
+    price: 99,
+    features: ["25 sitios", "Ilimitados", "5 members"],
+  },
 ];
 
 const plans = [
@@ -93,12 +120,7 @@ const plans = [
       "Notificaciones por email",
       "Soporte por email (<24h, L-V 9-20h)",
     ],
-    excluded: [
-      "Más de 1 sitio web",
-      "Artículos de 2.500 palabras",
-      "Publicación diaria",
-      "Soporte prioritario",
-    ],
+    excluded: ["Más de 1 sitio web", "Artículos de 2.500 palabras", "Publicación diaria", "Soporte prioritario"],
     cta: "Elegir Starter",
     ctaLink: "/waitlist",
     popular: false,
@@ -120,11 +142,7 @@ const plans = [
       "Soporte prioritario (<8h, L-V 9-20h)",
       "Sitios adicionales: +6€/mes (hasta 15)",
     ],
-    excluded: [
-      "Más de 15 sitios",
-      "Artículos ilimitados",
-      "Soporte preferente",
-    ],
+    excluded: ["Más de 15 sitios", "Artículos ilimitados", "Soporte preferente"],
     cta: "Elegir Pro",
     ctaLink: "/waitlist",
     popular: true,
@@ -141,6 +159,8 @@ const plans = [
       "Todo lo de Pro +",
       "Hasta 25 sitios web",
       "Artículos ilimitados",
+      "Hasta 5 members de equipo incluidos",
+      "Invitación y gestión de members por email",
       "Soporte preferente (<4h, L-V 9-20h)",
     ],
     excluded: [],
@@ -157,6 +177,8 @@ const comparisonRows = [
   { label: "Sitios web", free: "1", starter: "1", pro: "5 (+extra a 6€)", agency: "25" },
   { label: "Artículos", free: "1 total", starter: "Hasta 4/mes", pro: "Hasta 46/mes", agency: "Ilimitados" },
   { label: "Palabras por artículo", free: "800", starter: "1.500", pro: "2.500", agency: "2.500" },
+  { label: "Members de equipo", free: "0", starter: "0", pro: "0", agency: "5" },
+  { label: "Gestión de members por email", free: false, starter: false, pro: false, agency: true },
   { label: "Publicación automática", free: false, starter: true, pro: true, agency: true },
   { label: "Frecuencia", free: "—", starter: "Semanal / quincenal / mensual", pro: "+ Diaria", agency: "+ Diaria" },
   { label: "SEO optimizado", free: true, starter: true, pro: true, agency: true },
@@ -169,7 +191,7 @@ const comparisonRows = [
 ];
 
 const ComparisonCell = ({ value }: { value: boolean | string }) => {
-  if (typeof value === 'boolean') {
+  if (typeof value === "boolean") {
     return value ? (
       <Check className="w-4 h-4 text-emerald-500 mx-auto" />
     ) : (
@@ -231,9 +253,11 @@ const Pricing = () => {
               }`}
             >
               Anual
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                isAnnual ? "bg-white/20" : "bg-green-500/20 text-green-600"
-              }`}>
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full ${
+                  isAnnual ? "bg-white/20" : "bg-green-500/20 text-green-600"
+                }`}
+              >
                 2 meses gratis
               </span>
             </button>
@@ -248,9 +272,8 @@ const Pricing = () => {
             {plans.map((plan, index) => {
               const Icon = plan.icon;
               const price = isAnnual ? plan.annualPrice : plan.monthlyPrice;
-              const annualSavings = isAnnual && plan.monthlyPrice > 0
-                ? (plan.monthlyPrice * 12) - (plan.annualTotal ?? 0)
-                : 0;
+              const annualSavings =
+                isAnnual && plan.monthlyPrice > 0 ? plan.monthlyPrice * 12 - (plan.annualTotal ?? 0) : 0;
 
               return (
                 <div
@@ -269,7 +292,7 @@ const Pricing = () => {
                   <div
                     className={cn(
                       "h-full glass-card-strong rounded-3xl p-6 sm:p-8 transition-all duration-500 hover:scale-[1.02] flex flex-col",
-                      plan.popular && "ring-2 ring-violet-500/50 shadow-[0_0_40px_rgba(139,92,246,0.15)]"
+                      plan.popular && "ring-2 ring-violet-500/50 shadow-[0_0_40px_rgba(139,92,246,0.15)]",
                     )}
                   >
                     {/* Header */}
@@ -279,9 +302,7 @@ const Pricing = () => {
                       >
                         <Icon className="w-6 h-6 text-white" />
                       </div>
-                      <h3 className="text-xl font-display font-bold text-foreground mb-1">
-                        {plan.name}
-                      </h3>
+                      <h3 className="text-xl font-display font-bold text-foreground mb-1">{plan.name}</h3>
                       <p className="text-sm text-foreground/60 italic">{plan.tagline}</p>
                     </div>
 
@@ -291,26 +312,23 @@ const Pricing = () => {
                         <span className="text-4xl sm:text-5xl font-display font-bold text-foreground">
                           {price === 0 ? "Gratis" : `${price}€`}
                         </span>
-                        {price > 0 && (
-                          <span className="text-foreground/50 text-sm">/mes</span>
-                        )}
+                        {price > 0 && <span className="text-foreground/50 text-sm">/mes</span>}
                       </div>
                       {isAnnual && plan.annualTotal && (
                         <div className="mt-1 space-y-0.5">
-                          <p className="text-xs text-foreground/50">
-                            Facturado anualmente: {plan.annualTotal}€/año
-                          </p>
+                          <p className="text-xs text-foreground/50">Facturado anualmente: {plan.annualTotal}€/año</p>
                           {annualSavings > 0 && (
-                            <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px]" variant="outline">
+                            <Badge
+                              className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px]"
+                              variant="outline"
+                            >
                               Ahorra {annualSavings}€/año
                             </Badge>
                           )}
                         </div>
                       )}
                       {plan.name === "Free" && (
-                        <p className="text-xs text-green-600 font-medium mt-1">
-                          Sin tarjeta de crédito
-                        </p>
+                        <p className="text-xs text-green-600 font-medium mt-1">Sin tarjeta de crédito</p>
                       )}
                     </div>
 
@@ -318,7 +336,9 @@ const Pricing = () => {
                     <ul className="space-y-2.5 mb-4 flex-1">
                       {plan.features.map((feature) => (
                         <li key={feature} className="flex items-start gap-3">
-                          <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${plan.color} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                          <div
+                            className={`w-5 h-5 rounded-full bg-gradient-to-br ${plan.color} flex items-center justify-center flex-shrink-0 mt-0.5`}
+                          >
                             <Check className="w-3 h-3 text-white" />
                           </div>
                           <span className="text-sm text-foreground/80">{feature}</span>
@@ -335,11 +355,7 @@ const Pricing = () => {
                     </ul>
 
                     {/* Note */}
-                    {plan.note && (
-                      <p className="text-xs text-foreground/50 text-center mb-3">
-                        {plan.note}
-                      </p>
-                    )}
+                    {plan.note && <p className="text-xs text-foreground/50 text-center mb-3">{plan.note}</p>}
 
                     {/* CTA */}
                     <Link
@@ -349,8 +365,8 @@ const Pricing = () => {
                         plan.popular
                           ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:shadow-lg hover:shadow-violet-500/25 hover:-translate-y-0.5"
                           : plan.name === "Free"
-                          ? "bg-foreground/5 text-foreground hover:bg-foreground/10"
-                          : `bg-gradient-to-r ${plan.color} text-white hover:shadow-lg hover:-translate-y-0.5`
+                            ? "bg-foreground/5 text-foreground hover:bg-foreground/10"
+                            : `bg-gradient-to-r ${plan.color} text-white hover:shadow-lg hover:-translate-y-0.5`,
                       )}
                     >
                       {plan.cta}
@@ -359,9 +375,7 @@ const Pricing = () => {
 
                     {/* Footer note */}
                     {plan.footerNote && (
-                      <p className="text-xs text-foreground/50 text-center mt-3 italic">
-                        {plan.footerNote}
-                      </p>
+                      <p className="text-xs text-foreground/50 text-center mt-3 italic">{plan.footerNote}</p>
                     )}
                   </div>
                 </div>
@@ -400,10 +414,18 @@ const Pricing = () => {
                     {comparisonRows.map((row, i) => (
                       <tr key={i} className={cn("border-b border-border/30", i % 2 === 0 && "bg-muted/20")}>
                         <td className="p-4 font-medium text-foreground/80">{row.label}</td>
-                        <td className="p-4 text-center"><ComparisonCell value={row.free} /></td>
-                        <td className="p-4 text-center"><ComparisonCell value={row.starter} /></td>
-                        <td className="p-4 text-center bg-violet-500/5"><ComparisonCell value={row.pro} /></td>
-                        <td className="p-4 text-center"><ComparisonCell value={row.agency} /></td>
+                        <td className="p-4 text-center">
+                          <ComparisonCell value={row.free} />
+                        </td>
+                        <td className="p-4 text-center">
+                          <ComparisonCell value={row.starter} />
+                        </td>
+                        <td className="p-4 text-center bg-violet-500/5">
+                          <ComparisonCell value={row.pro} />
+                        </td>
+                        <td className="p-4 text-center">
+                          <ComparisonCell value={row.agency} />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -449,9 +471,7 @@ const Pricing = () => {
               <HelpCircle className="w-4 h-4 text-violet-500" />
               <span className="text-sm font-medium text-violet-600">Preguntas frecuentes</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-display font-bold mb-4">
-              Resolvemos tus dudas
-            </h2>
+            <h2 className="text-2xl sm:text-3xl font-display font-bold mb-4">Resolvemos tus dudas</h2>
           </div>
 
           <div className="glass-card-strong rounded-3xl p-6 sm:p-8">
@@ -465,9 +485,7 @@ const Pricing = () => {
                   <AccordionTrigger className="text-left font-medium hover:no-underline py-4">
                     {faq.question}
                   </AccordionTrigger>
-                  <AccordionContent className="text-foreground/70 pb-4">
-                    {faq.answer}
-                  </AccordionContent>
+                  <AccordionContent className="text-foreground/70 pb-4">{faq.answer}</AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>
@@ -479,17 +497,12 @@ const Pricing = () => {
       <section className="pb-20 sm:pb-32 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <div className="glass-card-strong rounded-3xl p-8 sm:p-12">
-            <h2 className="text-2xl sm:text-3xl font-display font-bold mb-4">
-              ¿Necesitas un plan personalizado?
-            </h2>
+            <h2 className="text-2xl sm:text-3xl font-display font-bold mb-4">¿Necesitas un plan personalizado?</h2>
             <p className="text-foreground/70 mb-6 max-w-xl mx-auto">
-              Si tienes más de 25 sitios o necesitas funcionalidades específicas,
-              contacta con nuestro equipo para un plan a medida.
+              Si tienes más de 25 sitios o necesitas funcionalidades específicas, contacta con nuestro equipo para un
+              plan a medida.
             </p>
-            <a
-              href="mailto:hola@blooglee.com"
-              className="inline-flex items-center gap-2 btn-glass font-semibold"
-            >
+            <a href="mailto:hola@blooglee.com" className="inline-flex items-center gap-2 btn-glass font-semibold">
               Contactar equipo
               <ArrowRight className="w-4 h-4" />
             </a>
