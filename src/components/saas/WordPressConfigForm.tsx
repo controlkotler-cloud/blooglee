@@ -596,12 +596,15 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
 
         {/* Panel condicional: estado si conectado, troubleshoot si no */}
         <WordPressTroubleshootPanel
-          isConnected={!!config}
-          siteUrl={config?.site_url ? (() => { try { return new URL(config.site_url).origin; } catch { return config.site_url; } })() : undefined}
-          onResync={config ? () => syncMutation.mutate(config.id) : undefined}
-          isSyncing={syncMutation.isPending}
-          lastSync={wordpressContext?.analyzed_at}
-        />
+          <WordPressTroubleshootPanel
+  siteId={siteId}
+  isConnected={!!config}
+  siteUrl={config?.site_url ? (() => { try { return new URL(config.site_url).origin; } catch { return config.site_url; } })() : undefined}
+  onResync={config ? () => syncMutation.mutate(config.id) : undefined}
+  isSyncing={syncMutation.isPending}
+  lastSync={wordpressContext?.analyzed_at}
+/>
+
       </CardContent>
     </Card>
   );
