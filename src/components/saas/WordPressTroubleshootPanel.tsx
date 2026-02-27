@@ -1,12 +1,26 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { AlertTriangle, Shield, Globe, Key, MessageSquare, HelpCircle, Copy, Check, FileCode, CheckCircle2, ExternalLink, RefreshCw, Tags } from 'lucide-react';
-import { CODE_SNIPPETS, getSnippetById } from '@/data/codeSnippets';
-import { useChatWidget } from '@/components/saas/SupportChatWidget';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  AlertTriangle,
+  Shield,
+  Globe,
+  Key,
+  MessageSquare,
+  HelpCircle,
+  Copy,
+  Check,
+  FileCode,
+  CheckCircle2,
+  ExternalLink,
+  RefreshCw,
+  Tags,
+} from "lucide-react";
+import { CODE_SNIPPETS, getSnippetById } from "@/data/codeSnippets";
+import { useChatWidget } from "@/components/saas/SupportChatWidget";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface TroubleshootButtonProps {
   icon: React.ElementType;
@@ -48,10 +62,10 @@ function SnippetDialog({ snippetId, onClose }: SnippetDialogProps) {
     try {
       await navigator.clipboard.writeText(snippet.code);
       setCopied(true);
-      toast.success('Código copiado al portapapeles');
+      toast.success("Código copiado al portapapeles");
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Error al copiar');
+      toast.error("Error al copiar");
     }
   };
 
@@ -71,7 +85,9 @@ function SnippetDialog({ snippetId, onClose }: SnippetDialogProps) {
         <div className="flex-1 overflow-auto space-y-4">
           <div className="space-y-2">
             <h4 className="font-medium text-sm flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 flex items-center justify-center text-xs font-bold">?</span>
+              <span className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 flex items-center justify-center text-xs font-bold">
+                ?
+              </span>
               Cómo usar
             </h4>
             <div className="text-sm text-muted-foreground whitespace-pre-line bg-muted/50 p-3 rounded-lg">
@@ -82,12 +98,12 @@ function SnippetDialog({ snippetId, onClose }: SnippetDialogProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="font-medium text-sm flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 flex items-center justify-center text-xs font-bold">&lt;/&gt;</span>
+                <span className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 flex items-center justify-center text-xs font-bold">
+                  &lt;/&gt;
+                </span>
                 Código
                 {snippet.fileName && (
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                    {snippet.fileName}
-                  </span>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">{snippet.fileName}</span>
                 )}
               </h4>
               <Button variant="outline" size="sm" onClick={handleCopy} className="gap-2">
@@ -116,6 +132,7 @@ function SnippetDialog({ snippetId, onClose }: SnippetDialogProps) {
 
 // ── Connected status card ──
 interface ConnectedStatusProps {
+  siteId?: string;
   siteUrl: string;
   taxonomiesCount?: { categories: number; tags: number };
   lastSync?: string;
@@ -123,7 +140,14 @@ interface ConnectedStatusProps {
   isSyncing?: boolean;
 }
 
-function WordPressConnectedStatus({ siteUrl, taxonomiesCount, lastSync, onResync, isSyncing }: ConnectedStatusProps) {
+function WordPressConnectedStatus({
+  siteId,
+  siteUrl,
+  taxonomiesCount,
+  lastSync,
+  onResync,
+  isSyncing,
+}: ConnectedStatusProps) {
   const { openChat } = useChatWidget();
   const navigate = useNavigate();
 
@@ -145,7 +169,7 @@ function WordPressConnectedStatus({ siteUrl, taxonomiesCount, lastSync, onResync
             rel="noopener noreferrer"
             className="text-violet-600 dark:text-violet-400 hover:underline truncate"
           >
-            {siteUrl.replace(/^https?:\/\//, '')}
+            {siteUrl.replace(/^https?:\/\//, "")}
           </a>
           <ExternalLink className="w-3 h-3 text-muted-foreground flex-shrink-0" />
         </div>
@@ -154,46 +178,49 @@ function WordPressConnectedStatus({ siteUrl, taxonomiesCount, lastSync, onResync
         {taxonomiesCount && (taxonomiesCount.categories > 0 || taxonomiesCount.tags > 0) && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Tags className="w-4 h-4" />
-            <span>{taxonomiesCount.categories} categorías · {taxonomiesCount.tags} tags sincronizados</span>
+            <span>
+              {taxonomiesCount.categories} categorías · {taxonomiesCount.tags} tags sincronizados
+            </span>
           </div>
         )}
 
         {/* Last sync */}
         {lastSync && (
           <p className="text-xs text-muted-foreground">
-            Última sincronización: {new Date(lastSync).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            Última sincronización:{" "}
+            {new Date(lastSync).toLocaleDateString("es-ES", {
+              day: "numeric",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </p>
         )}
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-emerald-200 dark:border-emerald-800">
           {onResync && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onResync}
-              disabled={isSyncing}
-              className="gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Sincronizando...' : 'Re-sincronizar'}
+            <Button variant="outline" size="sm" onClick={onResync} disabled={isSyncing} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
+              {isSyncing ? "Sincronizando..." : "Re-sincronizar"}
             </Button>
           )}
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => openChat({ action: 'wordpress_connection' })}
+            onClick={() =>
+              openChat({
+                action: "wordpress_connection",
+                message: "Necesito ayuda con una conexión WordPress ya configurada",
+                siteId,
+              })
+            }
             className="gap-2"
           >
             <MessageSquare className="w-4 h-4" />
             Hablar con Bloobot
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/help')}
-            className="gap-2"
-          >
+          <Button variant="ghost" size="sm" onClick={() => navigate("/help")} className="gap-2">
             <HelpCircle className="w-4 h-4" />
             Centro de ayuda
           </Button>
@@ -205,6 +232,7 @@ function WordPressConnectedStatus({ siteUrl, taxonomiesCount, lastSync, onResync
 
 // ── Main export (conditional) ──
 interface WordPressTroubleshootPanelProps {
+  siteId?: string;
   isConnected?: boolean;
   siteUrl?: string;
   taxonomiesCount?: { categories: number; tags: number };
@@ -214,6 +242,7 @@ interface WordPressTroubleshootPanelProps {
 }
 
 export function WordPressTroubleshootPanel({
+  siteId,
   isConnected = false,
   siteUrl,
   taxonomiesCount,
@@ -229,6 +258,7 @@ export function WordPressTroubleshootPanel({
   if (isConnected && siteUrl) {
     return (
       <WordPressConnectedStatus
+        siteId={siteId}
         siteUrl={siteUrl}
         taxonomiesCount={taxonomiesCount}
         lastSync={lastSync}
@@ -240,10 +270,25 @@ export function WordPressTroubleshootPanel({
 
   // ── Not connected: troubleshoot ──
   const troubleshootItems = [
-    { icon: Shield, title: 'Wordfence bloquea', description: 'Añadir excepciones al firewall', snippetId: 'wordfence-whitelist' },
-    { icon: Globe, title: 'Polylang / WPML', description: 'Configurar publicación en varios idiomas', snippetId: 'polylang-api-support' },
-    { icon: Key, title: 'Sin contraseñas de app', description: 'Habilitar en wp-config.php', snippetId: 'force-app-passwords' },
-    { icon: Shield, title: 'iThemes Security', description: 'Reactivar API REST', snippetId: 'ithemes-api-enable' },
+    {
+      icon: Shield,
+      title: "Wordfence bloquea",
+      description: "Añadir excepciones al firewall",
+      snippetId: "wordfence-whitelist",
+    },
+    {
+      icon: Globe,
+      title: "Polylang / WPML",
+      description: "Configurar publicación en varios idiomas",
+      snippetId: "polylang-api-support",
+    },
+    {
+      icon: Key,
+      title: "Sin contraseñas de app",
+      description: "Habilitar en wp-config.php",
+      snippetId: "force-app-passwords",
+    },
+    { icon: Shield, title: "iThemes Security", description: "Reactivar API REST", snippetId: "ithemes-api-enable" },
   ];
 
   return (
@@ -259,7 +304,7 @@ export function WordPressTroubleshootPanel({
           <p className="text-sm text-muted-foreground">
             Los plugins de seguridad pueden bloquear la conexión. Aquí tienes soluciones rápidas:
           </p>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {troubleshootItems.map((item) => (
               <TroubleshootButton
@@ -272,23 +317,24 @@ export function WordPressTroubleshootPanel({
               />
             ))}
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-amber-200 dark:border-amber-800">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
-              onClick={() => openChat({ action: 'wordpress_connection' })}
+              onClick={() =>
+                openChat({
+                  action: "wordpress_connection",
+                  message: "No puedo conectar WordPress con Blooglee",
+                  siteId,
+                })
+              }
               className="gap-2"
             >
               <MessageSquare className="w-4 h-4" />
               Hablar con Bloobot
             </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate('/help')}
-              className="gap-2"
-            >
+            <Button variant="ghost" size="sm" onClick={() => navigate("/help")} className="gap-2">
               <HelpCircle className="w-4 h-4" />
               Centro de ayuda
             </Button>
@@ -296,10 +342,7 @@ export function WordPressTroubleshootPanel({
         </CardContent>
       </Card>
 
-      <SnippetDialog 
-        snippetId={selectedSnippet} 
-        onClose={() => setSelectedSnippet(null)} 
-      />
+      <SnippetDialog snippetId={selectedSnippet} onClose={() => setSelectedSnippet(null)} />
     </>
   );
 }
