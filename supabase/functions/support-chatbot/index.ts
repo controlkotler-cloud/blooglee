@@ -2,168 +2,442 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
   "Access-Control-Max-Age": "86400",
+  "Access-Control-Expose-Headers": "x-conversation-id",
 };
 
-// Simple in-memory rate limiting
-// Note: This resets on function cold starts, but provides basic protection
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 15; // 15 requests per minute
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 20;
+
+const promptCache: Map<string, string> = new Map();
+let cachedPromptVersion = 0;
+
+const STOPWORDS = new Set([
+  "de",
+  "la",
+  "el",
+  "los",
+  "las",
+  "un",
+  "una",
+  "unos",
+  "unas",
+  "y",
+  "o",
+  "u",
+  "en",
+  "con",
+  "sin",
+  "por",
+  "para",
+  "que",
+  "como",
+  "del",
+  "al",
+  "mi",
+  "tu",
+  "su",
+  "es",
+  "se",
+  "me",
+  "te",
+  "lo",
+  "no",
+  "si",
+  "ya",
+  "muy",
+  "mas",
+  "más",
+  "sobre",
+  "desde",
+  "hasta",
+  "entre",
+  "tengo",
+  "tener",
+  "error",
+  "problema",
+  "wordpress",
+  "blooglee",
+]);
+
+const FALLBACK_SYSTEM_PROMPT = `Eres Bloobot, asistente técnico de Blooglee especializado en WordPress.
+
+Tu trabajo es resolver incidencias reales de integración y publicación.
+
+Reglas de respuesta:
+1. Responde en español, claro y directo.
+2. Si faltan datos para diagnosticar, pide SOLO 1-2 datos críticos.
+3. Da pasos accionables numerados y específicos del panel de WordPress.
+4. Si hay código de error (401/403/404/500...), prioriza la causa más probable y su prueba de verificación.
+5. Si detectas plugins de seguridad (Wordfence, iThemes, Sucuri), prioriza whitelist/firewall.
+6. Si detectas Polylang/WPML, prioriza configuración multiidioma REST.
+7. Nunca inventes rutas ni funcionalidades no incluidas en el contexto.
+8. Si no hay solución fiable, deriva a soporte@blooglee.com con qué datos enviar.
+
+Formato:
+- Usa markdown
+- Usa listas numeradas para pasos
+- Usa **negrita** en acciones clave
+- Termina con "Comprobación final" (1-2 checks)
+
+Usa este contexto de forma estricta:
+{{articlesContext}}
+{{errorContext}}
+{{diagnosticsContext}}
+{{userContext}}`;
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface ErrorContext {
+  code?: number | string;
+  action?: string;
+  message?: string;
+  siteId?: string;
+}
+
+interface UserMetadata {
+  plan?: string;
+  sitesCount?: number;
+  email?: string;
+  registeredAt?: string;
+}
+
+interface RequestBody {
+  messages: ChatMessage[];
+  error_context?: ErrorContext;
+  user_metadata?: UserMetadata;
+  conversation_id?: string;
+}
+
+interface KnowledgeArticle {
+  id: string;
+  slug: string;
+  category: string;
+  priority: "alta" | "media" | "baja";
+  error_code: string | null;
+  title: string;
+  symptoms: string[] | null;
+  cause: string | null;
+  solution: string;
+  snippet_code: string | null;
+  related_plugins: string[] | null;
+  keywords: string[] | null;
+  help_url: string | null;
+}
 
 function checkRateLimit(identifier: string): { allowed: boolean; retryAfter?: number } {
   const now = Date.now();
   const record = rateLimitMap.get(identifier);
-  
-  // Clean up old entries periodically
-  if (rateLimitMap.size > 1000) {
+
+  if (rateLimitMap.size > 2000) {
     for (const [key, value] of rateLimitMap.entries()) {
-      if (now > value.resetTime) {
-        rateLimitMap.delete(key);
-      }
+      if (now > value.resetTime) rateLimitMap.delete(key);
     }
   }
-  
+
   if (!record || now > record.resetTime) {
-    // New window
     rateLimitMap.set(identifier, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
     return { allowed: true };
   }
-  
+
   if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
     const retryAfter = Math.ceil((record.resetTime - now) / 1000);
     return { allowed: false, retryAfter };
   }
-  
-  record.count++;
+
+  record.count += 1;
   return { allowed: true };
 }
 
-const SYSTEM_PROMPT = `Eres Bloobot, el asistente de soporte de Blooglee. Tu objetivo es ayudar a los usuarios a resolver problemas de integración con WordPress y responder preguntas sobre planes y precios.
+function normalizeText(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
 
-REGLAS IMPORTANTES:
-1. Sé amable, profesional y conciso
-2. Si detectas un código de error (401, 403, 404, 500, etc.), da soluciones específicas basadas en la base de conocimiento
-3. Ofrece pasos numerados y claros
-4. Si el problema requiere cambios en WordPress, indica exactamente dónde ir en el panel de administración
-5. Si el usuario menciona un plugin de seguridad (Wordfence, iThemes, Sucuri), prioriza soluciones relacionadas con ese plugin
-6. Si el usuario menciona un plugin multiidioma (Polylang, WPML), guíalo hacia la configuración correcta
-7. Si no puedes resolver el problema, sugiere contactar a soporte@blooglee.com
-8. NUNCA inventes soluciones - basa tus respuestas únicamente en la información proporcionada
+function tokenize(text: string): string[] {
+  const normalized = normalizeText(text);
+  const parts = normalized.split(/[^a-z0-9]+/g).filter(Boolean);
+  return [...new Set(parts.filter((p) => p.length >= 3 && !STOPWORDS.has(p)))];
+}
 
-CONTEXTO DE BLOOGLEE:
-- Blooglee es una plataforma que genera artículos SEO automáticamente y los publica en WordPress
-- Usamos la API REST de WordPress con contraseñas de aplicación para autenticarnos
-- Los problemas más comunes son: firewalls bloqueando la API, permisos insuficientes, plugins multiidioma mal configurados
+function extractErrorCode(text: string): string | undefined {
+  const patterns = [
+    /error\s*(\d{3})/i,
+    /(\d{3})\s*error/i,
+    /status\s*(\d{3})/i,
+    /codigo\s*(\d{3})/i,
+    /código\s*(\d{3})/i,
+    /\b(401|403|404|405|409|422|429|500|502|503)\b/,
+  ];
 
-PLANES DE BLOOGLEE:
-- Free (0€): 1 sitio, 1 artículo de prueba (único, no se renueva), hasta 800 palabras, publicación manual.
-- Starter (19€/mes o 16€/mes anual): 1 sitio, hasta 4 artículos/mes, hasta 1.500 palabras, publicación automática, soporte por email (<24h, L-V 9-20h).
-- Pro (39€/mes o 33€/mes anual): Hasta 5 sitios (+extra a 6€/mes, máx 15), hasta 46 artículos/mes, hasta 2.500 palabras, publicación diaria, perfil avanzado, soporte prioritario (<8h, L-V 9-20h).
-- Agency (99€/mes o 83€/mes anual): Hasta 25 sitios, artículos ilimitados, hasta 2.500 palabras, soporte preferente (<4h, L-V 9-20h).
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+  return undefined;
+}
 
-REGLAS SOBRE PLANES:
-- El plan Free incluye solo 1 artículo de prueba en total (no se renueva cada mes)
-- Para seguir generando artículos, el usuario debe pasar a Starter o superior
-- Para más de 25 sitios, contactar ventas en hola@blooglee.com
-- La facturación anual supone 2 meses gratis (~17% ahorro)
-- SEO es igual en todos los planes, no hay "SEO básico" vs "SEO avanzado"
-- White-label: Blooglee no aparece en los artículos publicados en ningún plan
+function extractPluginHints(text: string): string[] {
+  const t = normalizeText(text);
+  const hints: string[] = [];
+  if (t.includes("wordfence")) hints.push("wordfence");
+  if (t.includes("ithemes")) hints.push("ithemes");
+  if (t.includes("sucuri")) hints.push("sucuri");
+  if (t.includes("polylang")) hints.push("polylang");
+  if (t.includes("wpml")) hints.push("wpml");
+  return hints;
+}
 
-FORMATO DE RESPUESTA:
-- Usa markdown para formatear
-- Usa listas numeradas para pasos
-- Usa **negrita** para destacar acciones importantes
-- Incluye links a artículos de ayuda cuando sea relevante`;
+function interpolateTemplate(template: string, vars: Record<string, string>): string {
+  let out = template;
+  for (const [key, value] of Object.entries(vars)) {
+    const safe = value ?? "";
+    out = out.replaceAll(`{{${key}}}`, safe);
+  }
+  return out;
+}
 
-async function searchKnowledgeBase(supabase: any, query: string, errorCode?: string): Promise<any[]> {
-  // Extract keywords from query
-  const queryLower = query.toLowerCase();
-  const keywords = queryLower.split(/\s+/).filter(w => w.length > 3);
-  
-  // Map common error codes to search terms
-  const errorMappings: Record<string, string[]> = {
-    "401": ["autenticación", "credenciales", "unauthorized", "contraseña"],
-    "403": ["forbidden", "firewall", "bloqueado", "wordfence", "seguridad"],
-    "404": ["not found", "api rest", "permalinks"],
-    "500": ["servidor", "error interno", "hosting"],
-  };
+async function getPromptVersion(supabase: ReturnType<typeof createClient>): Promise<number> {
+  try {
+    const { data } = await supabase.from("prompt_cache_version").select("version").eq("id", 1).single();
+    return data?.version ?? 1;
+  } catch {
+    return 1;
+  }
+}
 
-  if (errorCode && errorMappings[errorCode]) {
-    keywords.push(...errorMappings[errorCode]);
+async function getSystemPrompt(supabase: ReturnType<typeof createClient>): Promise<string> {
+  const currentVersion = await getPromptVersion(supabase);
+  if (currentVersion !== cachedPromptVersion) {
+    promptCache.clear();
+    cachedPromptVersion = currentVersion;
   }
 
-  // Search by keywords overlap
+  const cacheKey = "support-chatbot.system";
+  const fromCache = promptCache.get(cacheKey);
+  if (fromCache) return fromCache;
+
+  try {
+    const { data } = await supabase
+      .from("prompts")
+      .select("content")
+      .eq("key", cacheKey)
+      .eq("is_active", true)
+      .single();
+
+    const content = data?.content?.trim() || FALLBACK_SYSTEM_PROMPT;
+    promptCache.set(cacheKey, content);
+    return content;
+  } catch {
+    return FALLBACK_SYSTEM_PROMPT;
+  }
+}
+
+function scoreArticle(article: KnowledgeArticle, tokens: string[], errorCode?: string, pluginHints?: string[]): number {
+  let score = 0;
+  const title = normalizeText(article.title || "");
+  const cause = normalizeText(article.cause || "");
+  const solution = normalizeText(article.solution || "");
+  const symptoms = normalizeText((article.symptoms || []).join(" "));
+  const keywords = normalizeText((article.keywords || []).join(" "));
+  const plugins = normalizeText((article.related_plugins || []).join(" "));
+
+  if (errorCode && article.error_code === errorCode) score += 12;
+
+  for (const token of tokens) {
+    if (title.includes(token)) score += 5;
+    if (keywords.includes(token)) score += 4;
+    if (symptoms.includes(token)) score += 3;
+    if (cause.includes(token)) score += 2;
+    if (solution.includes(token)) score += 2;
+  }
+
+  for (const hint of pluginHints || []) {
+    if (plugins.includes(hint) || title.includes(hint) || solution.includes(hint)) {
+      score += 5;
+    }
+  }
+
+  if (article.priority === "alta") score += 2;
+  if (article.priority === "media") score += 1;
+
+  return score;
+}
+
+async function searchKnowledgeBase(
+  supabase: ReturnType<typeof createClient>,
+  query: string,
+  errorCode?: string,
+  pluginHints: string[] = [],
+): Promise<KnowledgeArticle[]> {
+  const tokens = tokenize(query);
+
   const { data: articles, error } = await supabase
     .from("knowledge_base")
-    .select("*")
-    .order("priority", { ascending: true }); // alta first
+    .select(
+      "id, slug, category, priority, error_code, title, symptoms, cause, solution, snippet_code, related_plugins, keywords, help_url",
+    )
+    .limit(400);
 
   if (error || !articles) {
     console.error("Error searching knowledge base:", error);
     return [];
   }
 
-  // Score articles by keyword match
-  const scoredArticles = articles.map((article: any) => {
-    let score = 0;
-    const articleText = [
-      article.title,
-      article.cause,
-      article.solution,
-      ...(article.symptoms || []),
-      ...(article.keywords || []),
-      ...(article.related_plugins || []),
-    ].join(" ").toLowerCase();
+  const scored = (articles as KnowledgeArticle[])
+    .map((article) => ({
+      article,
+      score: scoreArticle(article, tokens, errorCode, pluginHints),
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+    .map((item) => item.article);
 
-    for (const keyword of keywords) {
-      if (articleText.includes(keyword)) {
-        score += 1;
+  return scored;
+}
+
+function buildArticlesContext(articles: KnowledgeArticle[]): string {
+  if (!articles.length) {
+    return "ARTÍCULOS RELEVANTES DE LA BASE DE CONOCIMIENTO: no se encontraron coincidencias directas.";
+  }
+
+  let out = "ARTÍCULOS RELEVANTES DE LA BASE DE CONOCIMIENTO:\n";
+  for (const article of articles) {
+    out += `\n- Título: ${article.title}`;
+    out += `\n  Categoría: ${article.category} | Prioridad: ${article.priority}`;
+    if (article.error_code) out += ` | Error: ${article.error_code}`;
+    out += `\n  Solución: ${article.solution}`;
+    if (article.snippet_code) out += `\n  Incluye snippet PHP disponible`;
+    out += `\n  Link ayuda: /help/article/${article.slug}`;
+    if (article.help_url) out += `\n  Link externo: ${article.help_url}`;
+    out += "\n";
+  }
+  return out;
+}
+
+async function buildDiagnosticsContext(supabase: ReturnType<typeof createClient>, siteId?: string): Promise<string> {
+  if (!siteId) return "";
+
+  try {
+    const { data, error } = await supabase
+      .from("wordpress_diagnostics")
+      .select("check_type, status, message, checked_at, raw_response")
+      .eq("site_id", siteId)
+      .order("checked_at", { ascending: false })
+      .limit(5);
+
+    if (error || !data || data.length === 0) {
+      return "";
+    }
+
+    let context = "DIAGNÓSTICOS RECIENTES DE WORDPRESS:\n";
+
+    for (const row of data) {
+      context += `\n- Tipo: ${row.check_type} | Estado: ${row.status} | Fecha: ${row.checked_at || "n/d"}`;
+      if (row.message) context += `\n  Mensaje: ${row.message}`;
+
+      const raw = row.raw_response as Record<string, unknown> | null;
+      if (raw && typeof raw === "object") {
+        const errors = Array.isArray(raw.errors) ? raw.errors.slice(0, 3).join(" | ") : "";
+        if (errors) context += `\n  Errores detectados: ${errors}`;
+      }
+      context += "\n";
+    }
+
+    return context;
+  } catch (e) {
+    console.error("Error building diagnostics context:", e);
+    return "";
+  }
+}
+
+async function resolveAuthUser(
+  supabase: ReturnType<typeof createClient>,
+  authHeader: string | null,
+): Promise<{ id: string } | null> {
+  try {
+    if (!authHeader?.toLowerCase().startsWith("bearer ")) return null;
+    const token = authHeader.slice(7).trim();
+    if (!token || token.split(".").length !== 3) return null;
+
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) return null;
+    return { id: data.user.id };
+  } catch {
+    return null;
+  }
+}
+
+async function upsertConversation(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  providedConversationId?: string,
+  errorContext?: ErrorContext,
+): Promise<string | null> {
+  try {
+    if (providedConversationId) {
+      const { data: existing } = await supabase
+        .from("support_conversations")
+        .select("id, user_id")
+        .eq("id", providedConversationId)
+        .maybeSingle();
+
+      if (existing?.id && existing.user_id === userId) {
+        return existing.id;
       }
     }
 
-    // Boost score for error code match
-    if (errorCode && article.error_code === errorCode) {
-      score += 5;
+    const { data, error } = await supabase
+      .from("support_conversations")
+      .insert({
+        user_id: userId,
+        site_id: errorContext?.siteId || null,
+        status: "active",
+        error_context: errorContext || null,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("Error creating support conversation:", error);
+      return null;
     }
 
-    // Boost for high priority
-    if (article.priority === "alta") {
-      score += 2;
-    } else if (article.priority === "media") {
-      score += 1;
-    }
-
-    return { ...article, score };
-  });
-
-  // Return top 3 matching articles
-  return scoredArticles
-    .filter((a: any) => a.score > 0)
-    .sort((a: any, b: any) => b.score - a.score)
-    .slice(0, 3);
+    return data?.id || null;
+  } catch (e) {
+    console.error("Exception upserting conversation:", e);
+    return null;
+  }
 }
 
-function extractErrorCode(text: string): string | undefined {
-  // Common error patterns
-  const patterns = [
-    /error\s*(\d{3})/i,
-    /(\d{3})\s*error/i,
-    /status\s*(\d{3})/i,
-    /código\s*(\d{3})/i,
-    /\b(401|403|404|500|502|503)\b/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) {
-      return match[1];
-    }
+async function insertSupportMessage(
+  supabase: ReturnType<typeof createClient>,
+  conversationId: string,
+  role: "user" | "assistant",
+  content: string,
+  suggestedArticles?: string[],
+): Promise<void> {
+  try {
+    if (!content?.trim()) return;
+    await supabase.from("support_messages").insert({
+      conversation_id: conversationId,
+      role,
+      content,
+      suggested_articles: suggestedArticles ?? [],
+    });
+  } catch (e) {
+    console.error("Error inserting support message:", e);
   }
-
-  return undefined;
 }
 
 Deno.serve(async (req) => {
@@ -172,43 +446,38 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get client IP for rate limiting
-    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
-                     req.headers.get("x-real-ip") || 
-                     "anonymous";
-    
-    // Check rate limit
-    const rateLimitResult = checkRateLimit(clientIp);
-    if (!rateLimitResult.allowed) {
-      console.log(`Rate limit exceeded for IP: ${clientIp}`);
-      return new Response(
-        JSON.stringify({ error: "Demasiadas peticiones. Por favor, espera un momento." }),
-        { 
-          status: 429, 
-          headers: { 
-            ...corsHeaders, 
-            "Content-Type": "application/json",
-            "Retry-After": String(rateLimitResult.retryAfter || 60)
-          } 
-        }
-      );
-    }
-
-    const { messages, error_context, user_metadata } = await req.json();
+    const body = (await req.json()) as RequestBody;
+    const { messages, error_context, user_metadata, conversation_id } = body;
 
     if (!messages || !Array.isArray(messages)) {
-      return new Response(
-        JSON.stringify({ error: "messages array is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "messages array is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Validate message count to prevent abuse
-    if (messages.length > 20) {
-      return new Response(
-        JSON.stringify({ error: "Demasiados mensajes en la conversación" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (messages.length > 30) {
+      return new Response(JSON.stringify({ error: "Demasiados mensajes en la conversación" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+    const userQuery = lastUserMessage?.content?.trim() || "";
+
+    if (!userQuery) {
+      return new Response(JSON.stringify({ error: "Mensaje vacío" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (userQuery.length > 3000) {
+      return new Response(JSON.stringify({ error: "Mensaje demasiado largo" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -220,117 +489,183 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get the last user message for context
-    const lastUserMessage = [...messages].reverse().find((m: any) => m.role === "user");
-    const userQuery = lastUserMessage?.content || "";
+    const authUser = await resolveAuthUser(supabase, req.headers.get("Authorization"));
 
-    // Validate message content length
-    if (userQuery.length > 2000) {
-      return new Response(
-        JSON.stringify({ error: "Mensaje demasiado largo" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    const clientIp =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "anonymous";
+    const rateId = authUser?.id || clientIp;
+    const rateLimitResult = checkRateLimit(rateId);
+    if (!rateLimitResult.allowed) {
+      return new Response(JSON.stringify({ error: "Demasiadas peticiones. Por favor, espera un momento." }), {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "Retry-After": String(rateLimitResult.retryAfter || 60),
+        },
+      });
+    }
+
+    const errorCode = error_context?.code?.toString() || extractErrorCode(userQuery);
+    const pluginHints = extractPluginHints(`${userQuery} ${error_context?.message || ""}`);
+
+    const relevantArticles = await searchKnowledgeBase(supabase, userQuery, errorCode, pluginHints);
+    const articlesContext = buildArticlesContext(relevantArticles);
+
+    const errorContextStr = error_context
+      ? `CONTEXTO DEL ERROR:\n- Código: ${error_context.code || "No especificado"}\n- Acción: ${error_context.action || "No especificada"}\n- Mensaje: ${error_context.message || "No especificado"}`
+      : "CONTEXTO DEL ERROR: no proporcionado.";
+
+    const diagnosticsContext = await buildDiagnosticsContext(supabase, error_context?.siteId);
+
+    const userContext = user_metadata
+      ? `CONTEXTO DEL USUARIO:\n- Plan: ${user_metadata.plan || "free"}\n- Sitios: ${user_metadata.sitesCount ?? "?"}\n- Email: ${user_metadata.email || "No disponible"}`
+      : "";
+
+    const template = await getSystemPrompt(supabase);
+    let enhancedSystemPrompt = interpolateTemplate(template, {
+      articlesContext,
+      errorContext: errorContextStr,
+      diagnosticsContext,
+      userContext,
+    });
+
+    if (!template.includes("{{articlesContext}}")) {
+      enhancedSystemPrompt += `\n\n${articlesContext}`;
+    }
+    if (!template.includes("{{errorContext}}")) {
+      enhancedSystemPrompt += `\n\n${errorContextStr}`;
+    }
+    if (!template.includes("{{diagnosticsContext}}") && diagnosticsContext) {
+      enhancedSystemPrompt += `\n\n${diagnosticsContext}`;
+    }
+
+    const activeConversationId = authUser?.id
+      ? await upsertConversation(supabase, authUser.id, conversation_id, error_context)
+      : null;
+
+    if (activeConversationId) {
+      await insertSupportMessage(
+        supabase,
+        activeConversationId,
+        "user",
+        userQuery,
+        relevantArticles.map((a) => a.id),
       );
     }
 
-    // Extract error code from context or message
-    const errorCode = error_context?.code?.toString() || extractErrorCode(userQuery);
-
-    // Search knowledge base for relevant articles
-    const relevantArticles = await searchKnowledgeBase(supabase, userQuery, errorCode);
-    console.log(`Found ${relevantArticles.length} relevant articles for query`);
-
-    // Build context from articles
-    let articlesContext = "";
-    if (relevantArticles.length > 0) {
-      articlesContext = "\n\nARTÍCULOS RELEVANTES DE LA BASE DE CONOCIMIENTO:\n";
-      for (const article of relevantArticles) {
-        articlesContext += `\n---\nTítulo: ${article.title}\n`;
-        articlesContext += `Categoría: ${article.category}\n`;
-        articlesContext += `Prioridad: ${article.priority}\n`;
-        if (article.symptoms?.length > 0) {
-          articlesContext += `Síntomas: ${article.symptoms.join(", ")}\n`;
-        }
-        if (article.cause) {
-          articlesContext += `Causa: ${article.cause}\n`;
-        }
-        articlesContext += `Solución: ${article.solution}\n`;
-        if (article.snippet_code) {
-          articlesContext += `Código: \n\`\`\`php\n${article.snippet_code}\n\`\`\`\n`;
-        }
-        articlesContext += `Slug para link: /help/article/${article.slug}\n`;
-      }
-    }
-
-    // Add error context if available
-    let errorContextStr = "";
-    if (error_context) {
-      errorContextStr = `\n\nCONTEXTO DEL ERROR:\n- Código: ${error_context.code || "No especificado"}\n- Acción: ${error_context.action || "No especificada"}\n- Mensaje: ${error_context.message || "No especificado"}`;
-    }
-
-    // Add user metadata for support prioritization
-    let userMetadataStr = "";
-    if (user_metadata) {
-      userMetadataStr = `\n\nDATOS DEL USUARIO (para priorización interna, NO mostrar al usuario):
-- Plan: ${user_metadata.plan || "free"}
-- Sitios: ${user_metadata.sitesCount ?? "?"}
-- Email: ${user_metadata.email || "No disponible"}
-- Fecha registro: ${user_metadata.registeredAt || "No disponible"}
-Prioridad de respuesta según plan: Agency(<4h) > Pro(<8h) > Starter(<24h) > Free(solo centro de ayuda).`;
-    }
-
-    // Build final system prompt with context
-    const enhancedSystemPrompt = SYSTEM_PROMPT + articlesContext + errorContextStr + userMetadataStr;
-
-    // Call Lovable AI
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: enhancedSystemPrompt },
-          ...messages,
-        ],
+        messages: [{ role: "system", content: enhancedSystemPrompt }, ...messages],
         stream: true,
       }),
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+    if (!upstream.ok || !upstream.body) {
+      if (upstream.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Service limit reached. Please contact support." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      if (upstream.status === 402) {
+        return new Response(JSON.stringify({ error: "Service limit reached. Please contact support." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
+
+      const txt = await upstream.text().catch(() => "");
+      console.error("AI gateway error:", upstream.status, txt);
+      throw new Error(`AI gateway error: ${upstream.status}`);
     }
 
-    // Return streaming response
-    return new Response(response.body, {
+    const transform = new TransformStream<Uint8Array, Uint8Array>();
+    const reader = upstream.body.getReader();
+    const writer = transform.writable.getWriter();
+
+    let assistantContent = "";
+    let buffer = "";
+    const decoder = new TextDecoder();
+
+    (async () => {
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+
+          await writer.write(value);
+
+          buffer += decoder.decode(value, { stream: true });
+          let newlineIdx = buffer.indexOf("\n");
+
+          while (newlineIdx !== -1) {
+            let line = buffer.slice(0, newlineIdx);
+            buffer = buffer.slice(newlineIdx + 1);
+
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (!line.startsWith("data: ")) {
+              newlineIdx = buffer.indexOf("\n");
+              continue;
+            }
+
+            const payload = line.slice(6).trim();
+            if (payload && payload !== "[DONE]") {
+              try {
+                const parsed = JSON.parse(payload);
+                const delta = parsed?.choices?.[0]?.delta?.content as string | undefined;
+                if (delta) assistantContent += delta;
+              } catch {
+                // ignore partial/incompatible chunks
+              }
+            }
+
+            newlineIdx = buffer.indexOf("\n");
+          }
+        }
+
+        await writer.close();
+
+        if (activeConversationId && assistantContent.trim()) {
+          await insertSupportMessage(
+            supabase,
+            activeConversationId,
+            "assistant",
+            assistantContent,
+            relevantArticles.map((a) => a.id),
+          );
+        }
+      } catch (streamErr) {
+        console.error("Streaming transform error:", streamErr);
+        try {
+          await writer.abort(streamErr);
+        } catch {
+          // no-op
+        }
+      }
+    })();
+
+    return new Response(transform.readable, {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
+        "x-conversation-id": activeConversationId || "",
       },
     });
-
   } catch (error) {
     console.error("Support chatbot error:", error);
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Unknown error" 
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
