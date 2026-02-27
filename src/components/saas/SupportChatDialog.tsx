@@ -1,13 +1,14 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { X, Minimize2, Send, Loader2, RefreshCw, MessageSquare, Plug, FileText, Globe } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useSupportChat } from '@/hooks/useSupportChat';
-import { useProfile } from '@/hooks/useProfile';
-import { useSites } from '@/hooks/useSites';
-import { cn } from '@/lib/utils';
-import ReactMarkdown from 'react-markdown';
+import { useState, useRef, useEffect, useMemo } from "react";
+import { X, Minimize2, Send, Loader2, RefreshCw, MessageSquare, Plug, FileText, Globe } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSupportChat } from "@/hooks/useSupportChat";
+import { useProfile } from "@/hooks/useProfile";
+import { useSites } from "@/hooks/useSites";
+import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import { useParams } from "react-router-dom";
 
 interface ErrorContext {
   code?: number | string;
@@ -23,34 +24,54 @@ interface SupportChatDialogProps {
 }
 
 const QUICK_ACTIONS = [
-  { icon: Plug, label: 'Problemas de conexión WordPress', message: 'Tengo problemas para conectar mi WordPress con Blooglee' },
-  { icon: FileText, label: 'Errores al publicar artículos', message: 'No puedo publicar artículos en mi WordPress' },
-  { icon: Globe, label: 'Configuración de idiomas', message: 'Necesito ayuda configurando los idiomas para publicar en español y catalán' },
+  {
+    icon: Plug,
+    label: "Problemas de conexión WordPress",
+    message: "Tengo problemas para conectar mi WordPress con Blooglee",
+  },
+  { icon: FileText, label: "Errores al publicar artículos", message: "No puedo publicar artículos en mi WordPress" },
+  {
+    icon: Globe,
+    label: "Configuración de idiomas",
+    message: "Necesito ayuda configurando los idiomas para publicar en español y catalán",
+  },
 ];
 
 const SUPPORT_LINKS = [
-  { icon: Send, label: 'Enviar email', href: 'mailto:soporte@blooglee.com?subject=Soporte%20Blooglee', external: true },
+  { icon: Send, label: "Enviar email", href: "mailto:soporte@blooglee.com?subject=Soporte%20Blooglee", external: true },
 ];
 
 export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChatDialogProps) {
   const { messages, isLoading, error, sendMessage, clearMessages } = useSupportChat();
   const { data: profile } = useProfile();
   const { data: sites = [] } = useSites();
-  const [input, setInput] = useState('');
+  const { id: routeSiteId } = useParams();
+  const [input, setInput] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const userMetadata = useMemo(() => ({
-    plan: profile?.plan || 'free',
-    sitesCount: sites.length,
-    email: profile?.email || '',
-    registeredAt: profile?.created_at || '',
-  }), [profile, sites.length]);
+  const effectiveErrorContext = useMemo(() => {
+    if (!errorContext && !routeSiteId) return undefined;
+    return {
+      ...errorContext,
+      siteId: errorContext?.siteId || routeSiteId,
+    };
+  }, [errorContext, routeSiteId]);
+
+  const userMetadata = useMemo(
+    () => ({
+      plan: profile?.plan || "free",
+      sitesCount: sites.length,
+      email: profile?.email || "",
+      registeredAt: profile?.created_at || "",
+    }),
+    [profile, sites.length],
+  );
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (scrollAreaRef.current) {
-      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      const scrollContainer = scrollAreaRef.current.querySelector("[data-radix-scroll-area-viewport]");
       if (scrollContainer) {
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
@@ -66,21 +87,21 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
 
   // Send initial message if there's error context and no messages
   useEffect(() => {
-    if (isOpen && errorContext && messages.length === 0) {
-      const contextMessage = `Estoy teniendo un problema: ${errorContext.message || 'Error'} (Código: ${errorContext.code || 'desconocido'})`;
-      sendMessage(contextMessage, errorContext, userMetadata);
+    if (isOpen && effectiveErrorContext && messages.length === 0) {
+      const contextMessage = `Estoy teniendo un problema: ${effectiveErrorContext.message || "Error"} (Código: ${effectiveErrorContext.code || "desconocido"})`;
+      sendMessage(contextMessage, effectiveErrorContext, userMetadata);
     }
-  }, [isOpen, errorContext, messages.length, sendMessage, userMetadata]);
+  }, [isOpen, effectiveErrorContext, messages.length, sendMessage, userMetadata]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
-    sendMessage(input, errorContext, userMetadata);
-    setInput('');
+    sendMessage(input, effectiveErrorContext, userMetadata);
+    setInput("");
   };
 
   const handleQuickAction = (message: string) => {
-    sendMessage(message, errorContext, userMetadata);
+    sendMessage(message, effectiveErrorContext, userMetadata);
   };
 
   if (!isOpen) return null;
@@ -88,10 +109,10 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
   return (
     <div className="fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-48px)] h-[550px] max-h-[calc(100vh-100px)] flex flex-col rounded-2xl shadow-2xl bg-card border overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
       {/* Header */}
-      <div 
+      <div
         className="flex items-center justify-between px-4 py-3 text-white"
         style={{
-          background: 'linear-gradient(135deg, hsl(265, 89%, 58%) 0%, hsl(330, 85%, 60%) 100%)',
+          background: "linear-gradient(135deg, hsl(265, 89%, 58%) 0%, hsl(330, 85%, 60%) 100%)",
         }}
       >
         <div className="flex items-center gap-2">
@@ -126,20 +147,20 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
       <ScrollArea className="flex-1 px-4" ref={scrollAreaRef}>
         <div className="py-4 space-y-4">
           {/* Welcome message */}
-          {messages.length === 0 && !errorContext && (
+          {messages.length === 0 && !effectiveErrorContext && (
             <>
               <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{
-                    background: 'linear-gradient(135deg, hsl(265, 89%, 58%) 0%, hsl(330, 85%, 60%) 100%)',
+                    background: "linear-gradient(135deg, hsl(265, 89%, 58%) 0%, hsl(330, 85%, 60%) 100%)",
                   }}
                 >
                   <MessageSquare className="w-4 h-4 text-white" />
                 </div>
                 <div className="flex-1 bg-muted/50 rounded-lg rounded-tl-none p-3">
                   <p className="text-sm">
-                    👋 ¡Hola! Soy <strong>Bloobot</strong>, tu asistente de soporte.
-                    ¿En qué puedo ayudarte hoy?
+                    👋 ¡Hola! Soy <strong>Bloobot</strong>, tu asistente de soporte. ¿En qué puedo ayudarte hoy?
                   </p>
                 </div>
               </div>
@@ -153,9 +174,7 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
                     className="w-full flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors text-left group"
                   >
                     <action.icon className="w-4 h-4 text-primary" />
-                    <span className="text-sm group-hover:text-primary transition-colors">
-                      {action.label}
-                    </span>
+                    <span className="text-sm group-hover:text-primary transition-colors">{action.label}</span>
                   </button>
                 ))}
               </div>
@@ -183,18 +202,12 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
 
           {/* Messages */}
           {messages.map((message, index) => (
-            <div
-              key={index}
-              className={cn(
-                "flex gap-3",
-                message.role === 'user' && "flex-row-reverse"
-              )}
-            >
-              {message.role === 'assistant' && (
-                <div 
+            <div key={index} className={cn("flex gap-3", message.role === "user" && "flex-row-reverse")}>
+              {message.role === "assistant" && (
+                <div
                   className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{
-                    background: 'linear-gradient(135deg, hsl(265, 89%, 58%) 0%, hsl(330, 85%, 60%) 100%)',
+                    background: "linear-gradient(135deg, hsl(265, 89%, 58%) 0%, hsl(330, 85%, 60%) 100%)",
                   }}
                 >
                   <MessageSquare className="w-4 h-4 text-white" />
@@ -203,12 +216,12 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
               <div
                 className={cn(
                   "flex-1 rounded-lg p-3 max-w-[85%]",
-                  message.role === 'user'
+                  message.role === "user"
                     ? "bg-primary text-primary-foreground rounded-tr-none ml-auto"
-                    : "bg-muted/50 rounded-tl-none"
+                    : "bg-muted/50 rounded-tl-none",
                 )}
               >
-                {message.role === 'assistant' ? (
+                {message.role === "assistant" ? (
                   <div className="text-sm prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0">
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
@@ -222,10 +235,10 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
           {/* Loading indicator */}
           {isLoading && (
             <div className="flex gap-3">
-              <div 
+              <div
                 className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{
-                  background: 'linear-gradient(135deg, hsl(265, 89%, 58%) 0%, hsl(330, 85%, 60%) 100%)',
+                  background: "linear-gradient(135deg, hsl(265, 89%, 58%) 0%, hsl(330, 85%, 60%) 100%)",
                 }}
               >
                 <MessageSquare className="w-4 h-4 text-white" />
@@ -233,6 +246,13 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
               <div className="bg-muted/50 rounded-lg rounded-tl-none p-3">
                 <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
               </div>
+            </div>
+          )}
+
+          {/* Request-level error */}
+          {error && (
+            <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-2">
+              {error}
             </div>
           )}
         </div>
@@ -254,9 +274,10 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
             size="icon"
             disabled={!input.trim() || isLoading}
             style={{
-              background: input.trim() && !isLoading 
-                ? 'linear-gradient(135deg, hsl(265, 89%, 58%) 0%, hsl(330, 85%, 60%) 100%)'
-                : undefined,
+              background:
+                input.trim() && !isLoading
+                  ? "linear-gradient(135deg, hsl(265, 89%, 58%) 0%, hsl(330, 85%, 60%) 100%)"
+                  : undefined,
             }}
           >
             <Send className="w-4 h-4" />
