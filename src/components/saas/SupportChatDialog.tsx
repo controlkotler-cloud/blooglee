@@ -9,7 +9,7 @@ import { useSites } from "@/hooks/useSites";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import { useParams } from "react-router-dom";
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from "@/hooks/useAuth";
 
 interface ErrorContext {
   code?: number | string;
@@ -60,15 +60,15 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
     };
   }, [errorContext, routeSiteId]);
 
-  const userMetadata = useMemo(() => ({
-  userId: user?.id || '',
-  plan: profile?.plan || 'free',
-  sitesCount: sites.length,
-  email: profile?.email || '',
-  registeredAt: profile?.created_at || '',
-}), [user?.id, profile, sites.length]);
-
-  );
+  const userMetadata = useMemo(() => {
+    return {
+      userId: user?.id || "",
+      plan: profile?.plan || "free",
+      sitesCount: sites.length,
+      email: profile?.email || user?.email || "",
+      registeredAt: profile?.created_at || "",
+    };
+  }, [user?.id, user?.email, profile, sites.length]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
