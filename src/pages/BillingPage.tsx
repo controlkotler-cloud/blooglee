@@ -1,491 +1,322 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
-import {
-  ArrowLeft, Check, X, Crown, Sparkles, CreditCard, FileText, Receipt,
-} from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useProfile } from '@/hooks/useProfile';
-import { useSites } from '@/hooks/useSites';
-import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
-import { PlanBadge, type PlanType } from '@/components/saas/PlanBadge';
-import { useAllArticlesSaas } from '@/hooks/useArticlesSaas';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { cn } from '@/lib/utils';
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Check, X } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-interface PlanDef {
-  id: PlanType;
-  name: string;
-  monthlyPrice: number;
-  annualPrice: number;
-  features: string[];
-  excluded: string[];
-  sites: string;
-  articles: string;
-  popular: boolean;
-  postsLimit: number | null;
-  sitesLimit: number;
+const roles = ["superadmin", "admin", "beta", "user"] as const;
+
+const roleColors: Record<string, string> = {
+  superadmin: "bg-red-500/10 text-red-600 border-red-200",
+  admin: "bg-purple-500/10 text-purple-600 border-purple-200",
+  beta: "bg-green-500/10 text-green-600 border-green-200",
+  user: "bg-gray-500/10 text-gray-600 border-gray-200",
+};
+
+type CellValue = boolean | string;
+
+interface PermissionRow {
+  action: string;
+  category: string;
+  superadmin: CellValue;
+  admin: CellValue;
+  beta: CellValue;
+  user: CellValue;
 }
 
-const PLANS: PlanDef[] = [
+const permissions: PermissionRow[] = [
+  // Acceso
+  { category: "Acceso", action: "SaaS (/dashboard, /site/:id)", superadmin: true, admin: true, beta: true, user: true },
+  { category: "Acceso", action: "Panel Admin (/admin/*)", superadmin: true, admin: false, beta: false, user: false },
+  // Artículos
   {
-    id: 'free',
-    name: 'Free',
-    monthlyPrice: 0,
-    annualPrice: 0,
-    sites: '1 sitio',
-    articles: '1 artículo de prueba',
-    sitesLimit: 1,
-    postsLimit: 1,
-    features: [
-      '1 sitio web',
-      '1 artículo de prueba (único)',
-      'Hasta 800 palabras',
-      'SEO optimizado',
-      'Imagen IA + paleta + mood',
-      'Publicación manual',
-    ],
-    excluded: [
-      'Publicación automática',
-      'Programación de publicaciones',
-      'Notificaciones por email',
-      'Soporte dedicado',
-    ],
-    popular: false,
+    category: "Artículos",
+    action: "Generar artículos",
+    superadmin: "Ilimitado en su cuenta propia",
+    admin: "Según plan de la cuenta owner",
+    beta: "Según plan",
+    user: "Según plan",
   },
   {
-    id: 'starter',
-    name: 'Starter',
-    monthlyPrice: 19,
-    annualPrice: 16,
-    sites: '1 sitio',
-    articles: 'Hasta 4/mes',
-    sitesLimit: 1,
-    postsLimit: 4,
-    features: [
-      '1 sitio web',
-      'Hasta 4 artículos/mes',
-      'Hasta 1.500 palabras',
-      'SEO optimizado',
-      'Imagen IA + paleta + mood',
-      'Publicación automática',
-      'Programación: semanal/quincenal/mensual',
-      'Notificaciones por email',
-      'Soporte por email (<24h)',
-    ],
-    excluded: [
-      'Más de 1 sitio',
-      'Artículos de 2.500 palabras',
-      'Publicación diaria',
-      'Perfil avanzado',
-    ],
-    popular: false,
+    category: "Artículos",
+    action: "Regenerar tras publicación",
+    superadmin: false,
+    admin: false,
+    beta: false,
+    user: false,
   },
   {
-    id: 'pro',
-    name: 'Pro',
-    monthlyPrice: 39,
-    annualPrice: 33,
-    sites: '5 sitios',
-    articles: 'Hasta 46/mes',
-    sitesLimit: 5,
-    postsLimit: 46,
-    features: [
-      'Hasta 5 sitios (+extra a 6€/mes)',
-      'Hasta 46 artículos/mes',
-      'Hasta 2.500 palabras',
-      'Todo lo de Starter +',
-      'Publicación diaria disponible',
-      'Perfil de contenido avanzado',
-      'Soporte prioritario (<8h)',
-    ],
-    excluded: [
-      'Más de 15 sitios',
-      'Artículos ilimitados',
-    ],
-    popular: true,
+    category: "Artículos",
+    action: "Republicar artículo publicado",
+    superadmin: false,
+    admin: false,
+    beta: false,
+    user: false,
   },
   {
-    id: 'agency',
-    name: 'Agency',
-    monthlyPrice: 99,
-    annualPrice: 83,
-    sites: '25 sitios',
-    articles: 'Ilimitados',
-    sitesLimit: 25,
-    postsLimit: null,
-    features: [
-      'Hasta 25 sitios',
-      'Artículos ilimitados',
-      'Hasta 2.500 palabras',
-      'Todo lo de Pro +',
-      'Publicación diaria',
-      'Soporte preferente (<4h)',
-    ],
-    excluded: [],
-    popular: false,
+    category: "Artículos",
+    action: "Eliminar artículo publicado",
+    superadmin: false,
+    admin: false,
+    beta: false,
+    user: false,
   },
+  {
+    category: "Artículos",
+    action: "Copiar contenido de artículo",
+    superadmin: true,
+    admin: true,
+    beta: false,
+    user: false,
+  },
+  {
+    category: "Artículos",
+    action: "Regenerar imagen",
+    superadmin: "Solo no publicados",
+    admin: "Solo no publicados",
+    beta: "Solo no publicados",
+    user: "Solo no publicados",
+  },
+  // Límites
+  {
+    category: "Límites",
+    action: "Límite de sitios",
+    superadmin: "Ilimitado (solo cuenta propia)",
+    admin: "Según plan de la cuenta owner",
+    beta: "Según plan",
+    user: "Según plan",
+  },
+  {
+    category: "Límites",
+    action: "Límite de artículos/mes",
+    superadmin: "Ilimitado (solo cuenta propia)",
+    admin: "Según plan de la cuenta owner",
+    beta: "Según plan",
+    user: "Según plan",
+  },
+  {
+    category: "Límites",
+    action: "Free: límite lifetime (1 art.)",
+    superadmin: "No aplica en su cuenta",
+    admin: "Se aplica si la cuenta está en Free",
+    beta: "N/A",
+    user: "Enforced",
+  },
+  // Equipo
+  {
+    category: "Equipo",
+    action: "Añadir/eliminar members por email",
+    superadmin: "Sí (solo en su cuenta)",
+    admin: false,
+    beta: false,
+    user: "Sí, si es owner Agency",
+  },
+  {
+    category: "Equipo",
+    action: "Límite de members",
+    superadmin: "Ilimitado en su cuenta propia",
+    admin: "No aplica",
+    beta: "No aplica",
+    user: "Agency: 5 incluidos",
+  },
+  // Funcionalidades
+  {
+    category: "Funcionalidades",
+    action: "Publicación automática WP",
+    superadmin: true,
+    admin: true,
+    beta: "Si plan lo permite",
+    user: "Si plan lo permite",
+  },
+  {
+    category: "Funcionalidades",
+    action: "Perfil de contenido avanzado",
+    superadmin: true,
+    admin: true,
+    beta: "Starter+",
+    user: "Starter+",
+  },
+  {
+    category: "Funcionalidades",
+    action: "Paleta editable en imagen",
+    superadmin: true,
+    admin: true,
+    beta: "Starter+",
+    user: "Starter+",
+  },
+  { category: "Funcionalidades", action: "Soporte Bloobot", superadmin: true, admin: true, beta: true, user: true },
+  // Administración
+  {
+    category: "Administración",
+    action: "Ver todos los profiles (BD)",
+    superadmin: true,
+    admin: false,
+    beta: false,
+    user: false,
+  },
+  {
+    category: "Administración",
+    action: "Gestionar roles (BD)",
+    superadmin: true,
+    admin: false,
+    beta: false,
+    user: false,
+  },
+  {
+    category: "Administración",
+    action: "Gestionar beta invitations",
+    superadmin: true,
+    admin: false,
+    beta: false,
+    user: false,
+  },
+  {
+    category: "Administración",
+    action: "Gestionar social content",
+    superadmin: true,
+    admin: false,
+    beta: false,
+    user: false,
+  },
+  { category: "Administración", action: "Gestionar prompts", superadmin: true, admin: false, beta: false, user: false },
 ];
 
-const PLAN_ORDER: PlanType[] = ['free', 'starter', 'pro', 'agency'];
+function CellRenderer({ value }: { value: CellValue }) {
+  if (value === true) return <Check className="h-4 w-4 text-green-500 mx-auto" />;
+  if (value === false) return <X className="h-4 w-4 text-red-400 mx-auto" />;
+  return <span className="text-xs text-center block">{value}</span>;
+}
 
-export default function BillingPage() {
-  const navigate = useNavigate();
-  const { data: profile } = useProfile();
-  const { data: sites = [] } = useSites();
-  const queryClient = useQueryClient();
+function MobilePermissionCard({ row }: { row: PermissionRow }) {
+  return (
+    <Card className="mb-2">
+      <CardContent className="p-3">
+        <p className="text-sm font-medium mb-2">{row.action}</p>
+        <div className="grid grid-cols-4 gap-1 text-center">
+          {roles.map((role) => (
+            <div key={role} className="flex flex-col items-center gap-0.5">
+              <span className="text-[9px] text-muted-foreground truncate w-full">{role}</span>
+              <CellRenderer value={row[role]} />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-  const currentMonth = new Date().getMonth() + 1;
-  const currentYear = new Date().getFullYear();
-  const { data: articles = [] } = useAllArticlesSaas(currentMonth, currentYear);
+export default function AdminPermissions() {
+  const isMobile = useIsMobile();
+  let lastCategory = "";
 
-  const currentPlan = (profile?.plan || 'free') as PlanType;
-  const currentPlanDef = PLANS.find(p => p.id === currentPlan)!;
-
-  const [isAnnual, setIsAnnual] = useState(false);
-
-  // Billing data form (pre-filled from profile)
-  const [companyName, setCompanyName] = useState('');
-  const [taxId, setTaxId] = useState('');
-  const [billingAddress, setBillingAddress] = useState('');
-
-  useEffect(() => {
-    if (profile) {
-      setCompanyName(profile.company_name || '');
-      setTaxId(profile.tax_id || '');
-      setBillingAddress(profile.billing_address || '');
-    }
-  }, [profile]);
-
-  const billingDirty = useMemo(() => {
-    if (!profile) return false;
-    return (
-      companyName !== (profile.company_name || '') ||
-      taxId !== (profile.tax_id || '') ||
-      billingAddress !== (profile.billing_address || '')
-    );
-  }, [profile, companyName, taxId, billingAddress]);
-
-  const saveBilling = useMutation({
-    mutationFn: async () => {
-      if (!profile?.user_id) throw new Error('No user');
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          company_name: companyName || null,
-          tax_id: taxId || null,
-          billing_address: billingAddress || null,
-        })
-        .eq('user_id', profile.user_id);
-      if (error) throw error;
+  const roleDescriptions = [
+    {
+      role: "superadmin",
+      desc: "Acceso al panel admin. En SaaS tiene ilimitado solo dentro de su propia cuenta (sin acceso SaaS a cuentas ajenas).",
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
-      toast.success('Datos de facturación guardados');
+    {
+      role: "admin",
+      desc: "Rol operativo dentro de la cuenta owner a la que pertenece. Sin acceso a /admin ni bypass global.",
     },
-    onError: () => toast.error('Error al guardar'),
-  });
-
-  // Usage stats
-  const sitesPercentage = Math.min((sites.length / (profile?.sites_limit ?? 1)) * 100, 100);
-  const postsLimit = currentPlanDef.postsLimit;
-  const postsPercentage = postsLimit ? Math.min((articles.length / postsLimit) * 100, 100) : 0;
+    { role: "beta", desc: "Usuario con plan Starter temporal (3 meses, controlado por beta_expires_at)" },
+    {
+      role: "user",
+      desc: "Acceso normal al SaaS según plan. Si es owner de cuenta Agency puede gestionar members de su equipo.",
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <BloogleeLogo size="md" />
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-6 max-w-6xl space-y-8 pb-16">
-        {/* PART 1 — Current Plan Banner */}
-        <Card className="border-primary/20 bg-primary/[0.03]">
-          <CardContent className="py-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <PlanBadge plan={currentPlan} size="lg" />
-                <div>
-                  <p className="font-semibold">Tu plan actual: {currentPlanDef.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {currentPlanDef.monthlyPrice === 0 ? 'Gratis' : `${currentPlanDef.monthlyPrice}€/mes`}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-col sm:items-end gap-1 text-sm">
-                <span className="text-muted-foreground">
-                  {sites.length}/{profile?.sites_limit ?? 1} sitios · {articles.length}/{postsLimit ?? '∞'} artículos este mes
-                </span>
-                {currentPlan !== 'free' && (
-                  <span className="text-muted-foreground text-xs">
-                    Se renueva el 1 de cada mes
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Usage bars */}
-            <div className="grid sm:grid-cols-2 gap-4 mt-4">
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Sitios</span>
-                  <span>{sites.length} de {profile?.sites_limit ?? 1}</span>
-                </div>
-                <Progress
-                  value={sitesPercentage}
-                  className={cn(
-                    'h-2',
-                    sitesPercentage >= 100 ? '[&>div]:bg-destructive' : sitesPercentage >= 80 ? '[&>div]:bg-orange-500' : ''
-                  )}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Artículos este mes</span>
-                  <span>{articles.length} de {postsLimit ?? '∞'}</span>
-                </div>
-                {postsLimit ? (
-                  <Progress
-                    value={postsPercentage}
-                    className={cn(
-                      'h-2',
-                      postsPercentage >= 100 ? '[&>div]:bg-destructive' : postsPercentage >= 80 ? '[&>div]:bg-orange-500' : ''
-                    )}
-                  />
-                ) : (
-                  <Progress value={0} className="h-2" />
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* PART 2 — Plan Comparison */}
+    <AdminLayout>
+      <div className="space-y-6">
         <div>
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold font-display mb-2">Planes y facturación</h1>
-            <p className="text-muted-foreground mb-4">Elige el plan que mejor se adapte a tu negocio</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Permisos por Rol</h1>
+          <p className="text-sm text-muted-foreground mt-1">Matriz de acciones y permisos de cada perfil de usuario</p>
+        </div>
 
-            {/* Toggle */}
-            <div className="inline-flex items-center rounded-full border p-1 bg-muted/50">
-              <button
-                onClick={() => setIsAnnual(false)}
-                className={cn(
-                  'px-4 py-2 rounded-full text-sm font-medium transition-all',
-                  !isAnnual ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                Mensual
-              </button>
-              <button
-                onClick={() => setIsAnnual(true)}
-                className={cn(
-                  'px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-1.5',
-                  isAnnual ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                Anual
-                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">2 meses gratis</Badge>
-              </button>
-            </div>
-          </div>
+        {/* Role descriptions */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {roleDescriptions.map(({ role, desc }) => (
+            <Card key={role}>
+              <CardContent className="p-3">
+                <Badge variant="outline" className={`mb-1.5 ${roleColors[role]}`}>
+                  {role}
+                </Badge>
+                <p className="text-xs text-muted-foreground">{desc}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-          {/* Plan cards grid */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {PLANS.map((plan) => {
-              const isCurrent = plan.id === currentPlan;
-              const currentIdx = PLAN_ORDER.indexOf(currentPlan);
-              const planIdx = PLAN_ORDER.indexOf(plan.id);
-              const isUpgrade = planIdx > currentIdx;
-              const isDowngrade = planIdx < currentIdx;
-              const price = isAnnual ? plan.annualPrice : plan.monthlyPrice;
-              const showStrikethrough = isAnnual && plan.monthlyPrice > 0;
-
-              return (
-                <Card
-                  key={plan.id}
-                  className={cn(
-                    'relative flex flex-col',
-                    plan.popular && 'border-primary shadow-lg ring-1 ring-primary/20',
-                    isCurrent && 'border-primary/50 bg-primary/[0.03]'
-                  )}
-                >
-                  {plan.popular && (
-                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground shadow-sm">
-                      Más popular
-                    </Badge>
-                  )}
-                  {isCurrent && (
-                    <Badge variant="outline" className="absolute -top-3 right-4 bg-card border-primary/50 text-primary text-[10px]">
-                      Tu plan actual
-                    </Badge>
-                  )}
-
-                  <CardHeader className="pb-2 text-center">
-                    <CardTitle className="text-lg font-display">{plan.name}</CardTitle>
-                  </CardHeader>
-
-                  <CardContent className="flex flex-col flex-1">
-                    {/* Price */}
-                    <div className="text-center mb-5">
-                      {showStrikethrough && (
-                        <span className="text-sm line-through text-muted-foreground mr-1.5">
-                          {plan.monthlyPrice}€
-                        </span>
-                      )}
-                      <span className="text-3xl font-bold font-display">
-                        {price === 0 ? 'Gratis' : `${price}€`}
-                      </span>
-                      {price > 0 && (
-                        <span className="text-sm text-muted-foreground">/mes</span>
-                      )}
-                      {isAnnual && price > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Facturado anualmente ({price * 12}€/año)
+        {/* Matrix */}
+        <Card>
+          <CardHeader className="p-4 sm:p-6 pb-0">
+            <CardTitle className="text-base sm:text-lg">Matriz de Permisos</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            {isMobile ? (
+              <div>
+                {permissions.map((row, i) => {
+                  const showCategory = row.category !== lastCategory;
+                  lastCategory = row.category;
+                  return (
+                    <div key={i}>
+                      {showCategory && (
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2 first:mt-0">
+                          {row.category}
                         </p>
                       )}
+                      <MobilePermissionCard row={row} />
                     </div>
-
-                    <Separator className="mb-4" />
-
-                    {/* Features */}
-                    <ul className="space-y-2.5 mb-6 flex-1">
-                      {plan.features.map((f, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                          <span>{f}</span>
-                        </li>
-                      ))}
-                      {plan.excluded.map((f, i) => (
-                        <li key={`ex-${i}`} className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <X className="w-4 h-4 shrink-0 mt-0.5 opacity-40" />
-                          <span className="line-through">{f}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    {/* CTA */}
-                    <Button
-                      className="w-full mt-auto"
-                      variant={isCurrent ? 'secondary' : plan.popular ? 'default' : 'outline'}
-                      disabled={isCurrent}
-                    >
-                      {isCurrent ? (
-                        'Plan actual'
-                      ) : isUpgrade ? (
-                        <>
-                          <Crown className="w-4 h-4 mr-1" />
-                          Elegir {plan.name}
-                        </>
-                      ) : isDowngrade ? (
-                        'Downgrade'
-                      ) : (
-                        `Elegir ${plan.name}`
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* PART 3 — Billing History */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Receipt className="w-5 h-5" />
-              Historial de facturación
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <FileText className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">
-                El historial de facturación estará disponible próximamente.
-              </p>
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[250px]">Acción</TableHead>
+                    {roles.map((role) => (
+                      <TableHead key={role} className="text-center">
+                        <Badge variant="outline" className={`text-xs ${roleColors[role]}`}>
+                          {role}
+                        </Badge>
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {permissions.map((row, i) => {
+                    const showCategory = i === 0 || permissions[i - 1].category !== row.category;
+                    return (
+                      <>
+                        {showCategory && (
+                          <TableRow key={`cat-${row.category}`} className="bg-muted/30 hover:bg-muted/30">
+                            <TableCell
+                              colSpan={5}
+                              className="py-2 font-semibold text-xs uppercase tracking-wider text-muted-foreground"
+                            >
+                              {row.category}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        <TableRow key={i}>
+                          <TableCell className="text-sm">{row.action}</TableCell>
+                          {roles.map((role) => (
+                            <TableCell key={role} className="text-center">
+                              <CellRenderer value={row[role]} />
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
-
-        {/* PART 4 — Billing Data */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Datos de facturación</CardTitle>
-            <CardDescription>Estos datos aparecerán en tus facturas mensuales</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="billingCompany">Nombre o razón social</Label>
-                <Input
-                  id="billingCompany"
-                  value={companyName}
-                  onChange={e => setCompanyName(e.target.value)}
-                  placeholder="Mi empresa S.L."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="billingTaxId">NIF/CIF</Label>
-                <Input
-                  id="billingTaxId"
-                  value={taxId}
-                  onChange={e => setTaxId(e.target.value)}
-                  placeholder="B12345678"
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="billingAddr">Dirección de facturación</Label>
-                <Input
-                  id="billingAddr"
-                  value={billingAddress}
-                  onChange={e => setBillingAddress(e.target.value)}
-                  placeholder="Calle, nº, CP, Ciudad"
-                />
-              </div>
-            </div>
-            <Button
-              onClick={() => saveBilling.mutate()}
-              disabled={!billingDirty || saveBilling.isPending}
-              className="w-full sm:w-auto"
-            >
-              {saveBilling.isPending ? 'Guardando...' : 'Guardar datos de facturación'}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* PART 5 — Payment Method */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CreditCard className="w-5 h-5" />
-              Método de pago
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <CreditCard className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-muted-foreground text-sm">
-                La gestión de pagos estará disponible próximamente.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
