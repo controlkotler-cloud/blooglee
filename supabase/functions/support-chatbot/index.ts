@@ -364,6 +364,7 @@ async function buildDiagnosticsContext(supabase: ReturnType<typeof createClient>
 async function resolveAuthUser(
   supabase: ReturnType<typeof createClient>,
   authHeader: string | null,
+  userMetadata?: UserMetadata,
 ): Promise<{ id: string } | null> {
   try {
     if (!authHeader?.toLowerCase().startsWith("bearer ")) return null;
@@ -373,6 +374,23 @@ async function resolveAuthUser(
     const { data, error } = await supabase.auth.getUser(token);
     if (error || !data.user) return null;
     return { id: data.user.id };
+  } catch {
+    // continue with metadata fallback
+  }
+
+  const email = userMetadata?.email?.trim().toLowerCase();
+  if (!email) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("user_id")
+      .ilike("email", email)
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data?.user_id) return null;
+    return { id: data.user_id as string };
   } catch {
     return null;
   }
