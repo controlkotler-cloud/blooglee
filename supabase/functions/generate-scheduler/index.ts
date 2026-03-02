@@ -8,28 +8,11 @@ const corsHeaders = {
   "Access-Control-Max-Age": "86400",
 };
 
-interface EntityToProcess {
+interface SiteEntity {
   id: string;
   name: string;
-  publish_frequency: string;
-}
-
-interface FarmaciaEntity extends EntityToProcess {
-  location: string;
-  languages: string[];
-}
-
-interface EmpresaEntity extends EntityToProcess {
-  sector: string | null;
-  location: string | null;
-  languages: string[];
-}
-
-interface SiteEntity extends EntityToProcess {
   user_id: string;
-  sector: string | null;
-  location: string | null;
-  languages: string[];
+  publish_frequency: string;
   publish_day_of_week: number | null;
   publish_day_of_month: number | null;
   publish_week_of_month: number | null;
@@ -44,10 +27,6 @@ function normalizeFrequency(rawFrequency: string | null | undefined): string {
   return rawFrequency;
 }
 
-/**
- * Builds a deterministic generation key for a site based on its frequency and current UTC time.
- * Used to prevent duplicate articles for the same period.
- */
 function buildSiteGenerationKey(frequency: string, now: Date): string {
   const normalizedFrequency = normalizeFrequency(frequency);
   const year = now.getUTCFullYear();
@@ -68,49 +47,6 @@ function buildSiteGenerationKey(frequency: string, now: Date): string {
   }
 }
 
-/**
- * Determines if an entity should generate content today based on frequency (for MKPro)
- * This is the legacy logic for farmacias and empresas
- */
-function shouldGenerateToday(publishFrequency: string, now: Date): boolean {
-  const normalizedFrequency = normalizeFrequency(publishFrequency);
-  const dayOfWeek = now.getUTCDay(); // 0 = Sunday, 1 = Monday, etc.
-  const dayOfMonth = now.getUTCDate();
-
-  switch (normalizedFrequency) {
-    case "daily":
-      return true;
-
-    case "daily_weekdays":
-      // Monday (1) to Friday (5)
-      return dayOfWeek >= 1 && dayOfWeek <= 5;
-
-    case "weekly":
-      // Only on Mondays
-      return dayOfWeek === 1;
-
-    case "biweekly":
-      // 1st and 3rd Monday of the month
-      const weekNumber = Math.ceil(dayOfMonth / 7);
-      return dayOfWeek === 1 && (weekNumber === 1 || weekNumber === 3);
-
-    case "monthly":
-      // First Monday of the month
-      return dayOfWeek === 1 && dayOfMonth <= 7;
-
-    default:
-      return false;
-  }
-}
-
-/**
- * Determines if a SaaS site should generate content NOW based on custom schedule
- * This supports per-site day and hour configuration
- */
-/**
- * Converts a UTC Date to local date parts using the site's timezone (IANA).
- * Handles DST automatically via Intl.DateTimeFormat.
- */
 function getLocalDateParts(
   now: Date,
   timezone: string,
@@ -131,20 +67,14 @@ function getLocalDateParts(
   const localHour = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
   const localDayOfMonth = Number(parts.find((p) => p.type === "day")?.value ?? 1);
 
-  // Intl weekday → numeric (Sun=0..Sat=6)
   const weekdayStr = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
   const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
   const localDayOfWeek = weekdayMap[weekdayStr] ?? 1;
-
   const localWeekOfMonth = Math.ceil(localDayOfMonth / 7);
 
   return { localHour, localDayOfWeek, localDayOfMonth, localWeekOfMonth };
 }
 
-/**
- * Determines if a SaaS site should generate content NOW based on custom schedule.
- * Uses the site's local timezone (with DST) when publish_hour_local is set.
- */
 function shouldSiteGenerateNow(
   site: SiteEntity,
   now: Date,
@@ -152,7 +82,6 @@ function shouldSiteGenerateNow(
   const tz = site.timezone || "Europe/Madrid";
   const { localHour, localDayOfWeek, localDayOfMonth, localWeekOfMonth } = getLocalDateParts(now, tz);
 
-  // Resolve target hour: prefer local, fallback to UTC legacy
   const targetHour = site.publish_hour_local ?? site.publish_hour_utc ?? 9;
   const hourReached = localHour >= targetHour;
   const frequency = normalizeFrequency(site.publish_frequency);
@@ -162,17 +91,14 @@ function shouldSiteGenerateNow(
     case "daily":
       due = hourReached;
       break;
-
     case "daily_weekdays":
       due = localDayOfWeek >= 1 && localDayOfWeek <= 5 && hourReached;
       break;
-
     case "weekly":
       due =
         localDayOfWeek > (site.publish_day_of_week ?? 1) ||
         (localDayOfWeek === (site.publish_day_of_week ?? 1) && hourReached);
       break;
-
     case "biweekly":
       if (localWeekOfMonth !== 1 && localWeekOfMonth !== 3) {
         due = false;
@@ -182,7 +108,6 @@ function shouldSiteGenerateNow(
           (localDayOfWeek === (site.publish_day_of_week ?? 1) && hourReached);
       }
       break;
-
     case "monthly":
       if (site.publish_day_of_month !== null && site.publish_day_of_month !== undefined) {
         due =
@@ -195,7 +120,6 @@ function shouldSiteGenerateNow(
         else due = localDayOfWeek > targetDayOfWeek || (localDayOfWeek === targetDayOfWeek && hourReached);
       }
       break;
-
     default:
       due = false;
   }
@@ -203,84 +127,50 @@ function shouldSiteGenerateNow(
   return { due, localHour, targetHour, tz };
 }
 
-/**
- * Check if entity already has an article for today's period
- */
-async function hasArticleForPeriod(
-  supabase: any,
-  entityType: "farmacia" | "empresa" | "site",
-  entityId: string,
-  frequency: string,
-  now: Date,
-): Promise<boolean> {
+async function hasSiteArticleForPeriod(supabase: any, siteId: string, frequency: string, now: Date): Promise<boolean> {
   const normalizedFrequency = normalizeFrequency(frequency);
   const month = now.getUTCMonth() + 1;
   const year = now.getUTCFullYear();
   const dayOfMonth = now.getUTCDate();
   const weekOfMonth = Math.ceil(dayOfMonth / 7);
 
-  let table = "";
-  let entityColumn = "";
-
-  switch (entityType) {
-    case "farmacia":
-      table = "articulos";
-      entityColumn = "farmacia_id";
-      break;
-    case "empresa":
-      table = "articulos_empresas";
-      entityColumn = "empresa_id";
-      break;
-    case "site":
-      table = "articles";
-      entityColumn = "site_id";
-      break;
-  }
-
   try {
     let query = supabase
-      .from(table)
+      .from("articles")
       .select("id", { count: "exact", head: true })
-      .eq(entityColumn, entityId)
+      .eq("site_id", siteId)
       .eq("month", month)
       .eq("year", year);
 
-    // Apply period-specific filters
     if (normalizedFrequency === "daily" || normalizedFrequency === "daily_weekdays") {
       query = query.eq("day_of_month", dayOfMonth);
     } else if (normalizedFrequency === "weekly" || normalizedFrequency === "biweekly") {
       query = query.eq("week_of_month", weekOfMonth);
     }
-    // For monthly, just checking month/year is enough
 
     const { count, error } = await query;
-
     if (error) {
-      console.error(`Error checking existing article for ${entityType} ${entityId}:`, error);
-      return false; // Allow generation on error
+      console.error(`Error checking existing article for site ${siteId}:`, error);
+      return false;
     }
 
     return (count || 0) > 0;
   } catch (e) {
-    console.error(`Exception checking existing article:`, e);
+    console.error("Exception checking existing site article:", e);
     return false;
   }
 }
 
-/**
- * Dispatch article generation for a single entity (fire-and-forget)
- */
 function dispatchGeneration(
   supabaseUrl: string,
   supabaseServiceKey: string,
   endpoint: string,
-  payload: Record<string, any>,
+  payload: Record<string, unknown>,
 ): void {
   const url = `${supabaseUrl}/functions/v1/${endpoint}`;
 
   console.log(`Dispatching to ${endpoint} with payload:`, JSON.stringify(payload));
 
-  // Fire-and-forget - don't await
   fetch(url, {
     method: "POST",
     headers: {
@@ -315,7 +205,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Record scheduler run start
     try {
       const { data: runRow, error: runErr } = await supabase
         .from("scheduler_runs")
@@ -337,100 +226,17 @@ const handler = async (req: Request): Promise<Response> => {
     const year = now.getUTCFullYear();
 
     const dispatched = {
-      farmacias: 0,
-      empresas: 0,
       sites: 0,
       skipped: {
-        farmacias: 0,
-        empresas: 0,
         sites: 0,
       },
     };
 
-    // ===== FARMACIAS (MKPro) =====
-    console.log("\n--- Processing Farmacias ---");
-    const { data: farmacias, error: farmaciasError } = await supabase
-      .from("farmacias")
-      .select("id, name, location, languages, auto_generate")
-      .eq("auto_generate", true);
-
-    if (farmaciasError) {
-      console.error("Error fetching farmacias:", farmaciasError);
-    } else if (farmacias && farmacias.length > 0) {
-      console.log(`Found ${farmacias.length} farmacias with auto_generate=true`);
-
-      // Farmacias are monthly by default
-      const farmaciaFrequency = "monthly";
-
-      if (shouldGenerateToday(farmaciaFrequency, now)) {
-        for (const farmacia of farmacias) {
-          const hasExisting = await hasArticleForPeriod(supabase, "farmacia", farmacia.id, farmaciaFrequency, now);
-
-          if (hasExisting) {
-            console.log(`Skipping farmacia ${farmacia.name} - already has article this period`);
-            dispatched.skipped.farmacias++;
-            continue;
-          }
-
-          // Dispatch generation
-          dispatchGeneration(supabaseUrl, supabaseServiceKey, "generate-article", {
-            pharmacyId: farmacia.id,
-            month,
-            year,
-            isScheduled: true,
-          });
-          dispatched.farmacias++;
-        }
-      } else {
-        console.log(`Today is not a generation day for monthly frequency`);
-      }
-    }
-
-    // ===== EMPRESAS (MKPro) =====
-    console.log("\n--- Processing Empresas ---");
-    const { data: empresas, error: empresasError } = await supabase
-      .from("empresas")
-      .select("id, name, sector, location, languages, auto_generate, publish_frequency")
-      .eq("auto_generate", true);
-
-    if (empresasError) {
-      console.error("Error fetching empresas:", empresasError);
-    } else if (empresas && empresas.length > 0) {
-      console.log(`Found ${empresas.length} empresas with auto_generate=true`);
-
-      for (const empresa of empresas) {
-        const frequency = normalizeFrequency(empresa.publish_frequency || "monthly");
-
-        if (!shouldGenerateToday(frequency, now)) {
-          console.log(`Skipping empresa ${empresa.name} - not a generation day for ${frequency}`);
-          continue;
-        }
-
-        const hasExisting = await hasArticleForPeriod(supabase, "empresa", empresa.id, frequency, now);
-
-        if (hasExisting) {
-          console.log(`Skipping empresa ${empresa.name} - already has article this period`);
-          dispatched.skipped.empresas++;
-          continue;
-        }
-
-        // Dispatch generation
-        dispatchGeneration(supabaseUrl, supabaseServiceKey, "generate-article-empresa", {
-          empresaId: empresa.id,
-          month,
-          year,
-          isScheduled: true,
-        });
-        dispatched.empresas++;
-      }
-    }
-
-    // ===== SITES (Blooglee SaaS) =====
     console.log("\n--- Processing Sites ---");
     const { data: sites, error: sitesError } = await supabase
       .from("sites")
       .select(
-        "id, name, user_id, sector, location, languages, auto_generate, publish_frequency, publish_day_of_week, publish_day_of_month, publish_week_of_month, publish_hour_utc, publish_hour_local, timezone",
+        "id, name, user_id, auto_generate, publish_frequency, publish_day_of_week, publish_day_of_month, publish_week_of_month, publish_hour_utc, publish_hour_local, timezone",
       )
       .eq("auto_generate", true);
 
@@ -444,8 +250,8 @@ const handler = async (req: Request): Promise<Response> => {
 
       for (const site of sites as SiteEntity[]) {
         const frequency = normalizeFrequency(site.publish_frequency || "monthly");
-
         const schedResult = shouldSiteGenerateNow(site, now);
+
         if (!schedResult.due) {
           console.log(
             `Skipping site ${site.name} - not scheduled now (freq: ${frequency}, tz: ${schedResult.tz}, localHour: ${schedResult.localHour}, targetHour: ${schedResult.targetHour}, day_of_week: ${site.publish_day_of_week}, day_of_month: ${site.publish_day_of_month}, utc: ${now.toISOString()})`,
@@ -453,8 +259,7 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        const hasExisting = await hasArticleForPeriod(supabase, "site", site.id, frequency, now);
-
+        const hasExisting = await hasSiteArticleForPeriod(supabase, site.id, frequency, now);
         if (hasExisting) {
           console.log(`Skipping site ${site.name} - already has article this period`);
           dispatched.skipped.sites++;
@@ -477,6 +282,7 @@ const handler = async (req: Request): Promise<Response> => {
         dispatched.sites++;
       }
     }
+
     const shouldRunHourlyMaintenance = now.getUTCMinutes() === 0;
 
     if (shouldRunHourlyMaintenance) {
@@ -500,14 +306,9 @@ const handler = async (req: Request): Promise<Response> => {
     const elapsed = Date.now() - startTime;
     console.log("\n=== SCHEDULER COMPLETE ===");
     console.log(`Time elapsed: ${elapsed}ms`);
-    console.log(
-      `Dispatched: ${dispatched.farmacias} farmacias, ${dispatched.empresas} empresas, ${dispatched.sites} sites`,
-    );
-    console.log(
-      `Skipped (already generated): ${dispatched.skipped.farmacias} farmacias, ${dispatched.skipped.empresas} empresas, ${dispatched.skipped.sites} sites`,
-    );
+    console.log(`Dispatched: ${dispatched.sites} sites`);
+    console.log(`Skipped (already generated): ${dispatched.skipped.sites} sites`);
 
-    // Finalize scheduler_runs on success
     if (runId && supabase) {
       try {
         await supabase
@@ -515,13 +316,12 @@ const handler = async (req: Request): Promise<Response> => {
           .update({
             finished_at: new Date().toISOString(),
             success: true,
-            dispatched_farmacias: dispatched.farmacias,
-            dispatched_empresas: dispatched.empresas,
             dispatched_sites: dispatched.sites,
-            skipped_farmacias: dispatched.skipped.farmacias,
-            skipped_empresas: dispatched.skipped.empresas,
             skipped_sites: dispatched.skipped.sites,
-            metadata: { elapsed_ms: elapsed },
+            metadata: {
+              elapsed_ms: elapsed,
+              hourly_maintenance: shouldRunHourlyMaintenance,
+            },
           })
           .eq("id", runId);
       } catch (e) {
@@ -533,8 +333,8 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({
         success: true,
         dispatched,
-        reconcile_dispatched: true,
-        monitor_dispatched: true,
+        reconcile_dispatched: shouldRunHourlyMaintenance,
+        monitor_dispatched: shouldRunHourlyMaintenance,
         elapsed_ms: elapsed,
         timestamp: now.toISOString(),
         run_id: runId,
@@ -548,7 +348,6 @@ const handler = async (req: Request): Promise<Response> => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Scheduler error:", error);
 
-    // Finalize scheduler_runs on failure
     if (runId && supabase) {
       try {
         await supabase
