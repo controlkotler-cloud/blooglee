@@ -111,7 +111,10 @@ function shouldGenerateToday(publishFrequency: string, now: Date): boolean {
  * Converts a UTC Date to local date parts using the site's timezone (IANA).
  * Handles DST automatically via Intl.DateTimeFormat.
  */
-function getLocalDateParts(now: Date, timezone: string): {
+function getLocalDateParts(
+  now: Date,
+  timezone: string,
+): {
   localHour: number;
   localDayOfWeek: number;
   localDayOfMonth: number;
@@ -142,7 +145,10 @@ function getLocalDateParts(now: Date, timezone: string): {
  * Determines if a SaaS site should generate content NOW based on custom schedule.
  * Uses the site's local timezone (with DST) when publish_hour_local is set.
  */
-function shouldSiteGenerateNow(site: SiteEntity, now: Date): { due: boolean; localHour: number; targetHour: number; tz: string } {
+function shouldSiteGenerateNow(
+  site: SiteEntity,
+  now: Date,
+): { due: boolean; localHour: number; targetHour: number; tz: string } {
   const tz = site.timezone || "Europe/Madrid";
   const { localHour, localDayOfWeek, localDayOfMonth, localWeekOfMonth } = getLocalDateParts(now, tz);
 
@@ -180,8 +186,7 @@ function shouldSiteGenerateNow(site: SiteEntity, now: Date): { due: boolean; loc
     case "monthly":
       if (site.publish_day_of_month !== null && site.publish_day_of_month !== undefined) {
         due =
-          localDayOfMonth > site.publish_day_of_month ||
-          (localDayOfMonth === site.publish_day_of_month && hourReached);
+          localDayOfMonth > site.publish_day_of_month || (localDayOfMonth === site.publish_day_of_month && hourReached);
       } else {
         const targetDayOfWeek = site.publish_day_of_week ?? 1;
         const targetWeekOfMonth = site.publish_week_of_month ?? 1;
@@ -472,21 +477,25 @@ const handler = async (req: Request): Promise<Response> => {
         dispatched.sites++;
       }
     }
-    // Always dispatch reconciliation — unconditional, never gated by errors or counts.
-    console.log("[scheduler] dispatch reconcile-wordpress-publications start");
-    dispatchGeneration(supabaseUrl, supabaseServiceKey, "reconcile-wordpress-publications", {
-      lookback_hours: 168,
-      batch_size: 100,
-    });
-    console.log("[scheduler] dispatch reconcile-wordpress-publications done");
+    const shouldRunHourlyMaintenance = now.getUTCMinutes() === 0;
 
-    // Always dispatch autopublish health monitor
-    console.log("[scheduler] dispatch monitor-autopublish-health start");
-    dispatchGeneration(supabaseUrl, supabaseServiceKey, "monitor-autopublish-health", {
-      window_minutes: 60,
-      pending_threshold: 1,
-    });
-    console.log("[scheduler] dispatch monitor-autopublish-health done");
+    if (shouldRunHourlyMaintenance) {
+      console.log("[scheduler] dispatch reconcile-wordpress-publications start");
+      dispatchGeneration(supabaseUrl, supabaseServiceKey, "reconcile-wordpress-publications", {
+        lookback_hours: 168,
+        batch_size: 100,
+      });
+      console.log("[scheduler] dispatch reconcile-wordpress-publications done");
+
+      console.log("[scheduler] dispatch monitor-autopublish-health start");
+      dispatchGeneration(supabaseUrl, supabaseServiceKey, "monitor-autopublish-health", {
+        window_minutes: 60,
+        pending_threshold: 1,
+      });
+      console.log("[scheduler] dispatch monitor-autopublish-health done");
+    } else {
+      console.log(`[scheduler] skip hourly maintenance at minute ${now.getUTCMinutes()}`);
+    }
 
     const elapsed = Date.now() - startTime;
     console.log("\n=== SCHEDULER COMPLETE ===");
