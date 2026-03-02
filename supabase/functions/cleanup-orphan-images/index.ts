@@ -25,9 +25,7 @@ Deno.serve(async (req) => {
 
     while (folders.length > 0) {
       const folder = folders.pop()!;
-      const { data: files, error } = await supabase.storage
-        .from("article-images")
-        .list(folder, { limit: 1000 });
+      const { data: files, error } = await supabase.storage.from("article-images").list(folder, { limit: 1000 });
 
       if (error) {
         console.error(`Error listing folder "${folder}":`, error);
@@ -50,8 +48,6 @@ Deno.serve(async (req) => {
     // 2. Collect all referenced image_urls from 5 tables
     const tables = [
       { table: "articles", column: "image_url" },
-      { table: "articulos", column: "image_url" },
-      { table: "articulos_empresas", column: "image_url" },
       { table: "blog_posts", column: "image_url" },
       { table: "social_content", column: "image_url" },
     ];
@@ -59,10 +55,7 @@ Deno.serve(async (req) => {
     const referencedPaths = new Set<string>();
 
     for (const { table, column } of tables) {
-      const { data, error } = await supabase
-        .from(table)
-        .select(column)
-        .not(column, "is", null);
+      const { data, error } = await supabase.from(table).select(column).not(column, "is", null);
 
       if (error) {
         console.error(`Error querying ${table}:`, error);
@@ -102,9 +95,7 @@ Deno.serve(async (req) => {
 
     for (let i = 0; i < orphans.length; i += 100) {
       const batch = orphans.slice(i, i + 100);
-      const { error } = await supabase.storage
-        .from("article-images")
-        .remove(batch);
+      const { error } = await supabase.storage.from("article-images").remove(batch);
 
       if (error) {
         errors.push(`Batch ${i / 100}: ${error.message}`);
@@ -128,9 +119,9 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("cleanup-orphan-images error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
