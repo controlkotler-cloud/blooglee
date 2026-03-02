@@ -74,6 +74,7 @@ export type Database = {
           content_spanish?: Json | null;
           day_of_month?: number | null;
           generated_at?: string;
+          generation_source?: string;
           generation_key?: string | null;
           id?: string;
           image_photographer?: string | null;
@@ -94,6 +95,7 @@ export type Database = {
           content_spanish?: Json | null;
           day_of_month?: number | null;
           generated_at?: string;
+          generation_source?: string;
           generation_key?: string | null;
           id?: string;
           image_photographer?: string | null;
