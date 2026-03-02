@@ -199,17 +199,47 @@ const BlogIndex = () => {
                     <span className="hidden sm:inline">Anterior</span>
                   </Button>
                   <div className="flex items-center gap-0.5 sm:gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <Button
-                        key={page}
-                        size="sm"
-                        variant={page === currentPage ? 'default' : 'ghost'}
-                        className={`min-w-[32px] px-2 sm:px-3 ${page === currentPage ? 'bg-violet-500 hover:bg-violet-600' : ''}`}
-                        onClick={() => handlePageChange(page)}
-                      >
-                        {page}
-                      </Button>
-                    ))}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                      // On mobile, show: first, last, current, and neighbors
+                      const isFirst = page === 1;
+                      const isLast = page === totalPages;
+                      const isCurrent = page === currentPage;
+                      const isNeighbor = Math.abs(page - currentPage) === 1;
+                      const showOnMobile = isFirst || isLast || isCurrent || isNeighbor;
+                      const prevPage = page - 1;
+                      const isEllipsisBefore = !showOnMobile && (prevPage === 1 || prevPage === currentPage - 1 || prevPage === currentPage || prevPage === currentPage + 1 || prevPage === totalPages);
+
+                      if (!showOnMobile && totalPages > 5) {
+                        // Show ellipsis only at transition points
+                        if (isEllipsisBefore) {
+                          return <span key={page} className="sm:hidden text-muted-foreground px-1">…</span>;
+                        }
+                        // Desktop: always show all pages
+                        return (
+                          <Button
+                            key={page}
+                            size="sm"
+                            variant="ghost"
+                            className="hidden sm:inline-flex min-w-[32px] px-3"
+                            onClick={() => handlePageChange(page)}
+                          >
+                            {page}
+                          </Button>
+                        );
+                      }
+
+                      return (
+                        <Button
+                          key={page}
+                          size="sm"
+                          variant={isCurrent ? 'default' : 'ghost'}
+                          className={`min-w-[32px] px-2 sm:px-3 ${isCurrent ? 'bg-violet-500 hover:bg-violet-600' : ''}`}
+                          onClick={() => handlePageChange(page)}
+                        >
+                          {page}
+                        </Button>
+                      );
+                    })}
                   </div>
                   <Button 
                     variant="outline" 

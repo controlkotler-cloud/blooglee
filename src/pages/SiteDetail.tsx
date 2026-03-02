@@ -125,48 +125,49 @@ export default function SiteDetail() {
       {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-                <ArrowLeft className="w-4 h-4" />
+          {/* Row 1: Back + Logo */}
+          <div className="flex items-center gap-3 mb-3 sm:mb-0">
+            <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate("/dashboard")}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <BloogleeLogo size="sm" />
+          </div>
+
+          {/* Row 2 (mobile) / inline (desktop): Status badges */}
+          <div className="flex items-center gap-2 flex-wrap sm:mt-0 mt-1 sm:justify-end">
+            {renderWpStatus()}
+
+            {hasPublishedArticle ? (
+              <Badge variant="outline" className="text-emerald-600 border-emerald-500/30 px-3 py-1.5">
+                <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                <span className="hidden sm:inline">Publicado este periodo</span>
+                <span className="sm:hidden">Publicado</span>
+              </Badge>
+            ) : (
+              <Button
+                onClick={handleGenerateArticle}
+                disabled={isGenerating}
+                size="sm"
+                className={
+                  canGenerate
+                    ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
+                    : "border-amber-500/50 text-amber-700 hover:bg-amber-50"
+                }
+                variant={canGenerate ? "default" : "outline"}
+              >
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
+                ) : canGenerate ? (
+                  <Sparkles className="w-4 h-4 sm:mr-2" />
+                ) : (
+                  <Lock className="w-4 h-4 sm:mr-2" />
+                )}
+                <span className="hidden sm:inline">
+                  {isGenerating ? "Generando..." : canGenerate ? "Generar artículo" : "Configura WP primero"}
+                </span>
+                <span className="sm:hidden">{isGenerating ? "" : canGenerate ? "Generar" : "WP"}</span>
               </Button>
-              <BloogleeLogo size="md" />
-            </div>
-
-            <div className="flex items-center gap-3">
-              {renderWpStatus()}
-
-              {hasPublishedArticle ? (
-                <Badge variant="outline" className="text-emerald-600 border-emerald-500/30 px-3 py-1.5">
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Publicado este periodo</span>
-                  <span className="sm:hidden">Publicado</span>
-                </Badge>
-              ) : (
-                <Button
-                  onClick={handleGenerateArticle}
-                  disabled={isGenerating}
-                  className={
-                    canGenerate
-                      ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600"
-                      : "border-amber-500/50 text-amber-700 hover:bg-amber-50"
-                  }
-                  variant={canGenerate ? "default" : "outline"}
-                >
-                  {isGenerating ? (
-                    <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
-                  ) : canGenerate ? (
-                    <Sparkles className="w-4 h-4 sm:mr-2" />
-                  ) : (
-                    <Lock className="w-4 h-4 sm:mr-2" />
-                  )}
-                  <span className="hidden sm:inline">
-                    {isGenerating ? "Generando..." : canGenerate ? "Generar artículo" : "Configura WP primero"}
-                  </span>
-                  <span className="sm:hidden">{isGenerating ? "" : canGenerate ? "Generar" : "WP"}</span>
-                </Button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </header>
@@ -209,15 +210,17 @@ export default function SiteDetail() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="articles">Artículos</TabsTrigger>
-            <TabsTrigger value="activity" className="gap-1.5">
-              <History className="w-3.5 h-3.5" />
-              Actividad
-            </TabsTrigger>
-            <TabsTrigger value="settings">Configuración</TabsTrigger>
-            <TabsTrigger value="wordpress">WordPress</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <TabsList className="mb-6 w-max sm:w-auto">
+              <TabsTrigger value="articles">Artículos</TabsTrigger>
+              <TabsTrigger value="activity" className="gap-1.5">
+                <History className="w-3.5 h-3.5" />
+                Actividad
+              </TabsTrigger>
+              <TabsTrigger value="settings">Configuración</TabsTrigger>
+              <TabsTrigger value="wordpress">WordPress</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="articles">
             <SiteArticles
