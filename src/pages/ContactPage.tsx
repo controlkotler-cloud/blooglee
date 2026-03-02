@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Mail, MapPin, Clock, Send, CheckCircle2 } from 'lucide-react';
 import { z } from 'zod';
 import { SEOHead } from '@/components/seo';
+import { supabase } from '@/integrations/supabase/client';
 
 const contactSchema = z.object({
   name: z.string().trim().min(1, 'El nombre es requerido').max(100, 'Nombre demasiado largo'),
@@ -59,12 +60,29 @@ const ContactPage = () => {
 
     setIsSubmitting(true);
     
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-    toast.success('Mensaje enviado correctamente. Te responderemos pronto.');
+    try {
+      const { data, error } = await supabase.functions.invoke('send-contact-form', {
+        body: {
+          name: result.data.name,
+          email: result.data.email,
+          subject: result.data.subject,
+          message: result.data.message,
+          gdprConsent: result.data.gdprConsent,
+          marketingConsent: result.data.marketingConsent,
+        },
+      });
+
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error(data?.error || 'Error desconocido');
+
+      setIsSubmitted(true);
+      toast.success('Mensaje enviado correctamente. Te responderemos pronto.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al enviar el mensaje';
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
