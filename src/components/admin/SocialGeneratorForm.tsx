@@ -30,11 +30,6 @@ const PLATFORMS = [
   { id: 'tiktok', label: 'TikTok' },
 ];
 
-const CONTENT_TYPES = [
-  { id: 'post', label: 'Post' },
-  { id: 'reel_script', label: '🎬 Reel' },
-];
-
 export function SocialGeneratorForm({ onGenerate, isGenerating }: Props) {
   const { toast } = useToast();
   const [mode, setMode] = useState<'blog' | 'bulk' | 'custom'>('blog');
@@ -43,7 +38,6 @@ export function SocialGeneratorForm({ onGenerate, isGenerating }: Props) {
   const [language, setLanguage] = useState('spanish');
   const [customTopic, setCustomTopic] = useState('');
   const [customPlatform, setCustomPlatform] = useState('instagram');
-  const [contentType, setContentType] = useState('post');
   const [bulkGenerating, setBulkGenerating] = useState<string | null>(null);
 
   const { data: blogPosts = [] } = useQuery({
@@ -82,13 +76,13 @@ export function SocialGeneratorForm({ onGenerate, isGenerating }: Props) {
   const handleGenerateFromBlog = async () => {
     if (!selectedPost || selectedPlatforms.length === 0) return;
     for (const platform of selectedPlatforms) {
-      await onGenerate({ blogPostId: selectedPost, platform, contentType, language });
+      await onGenerate({ blogPostId: selectedPost, platform, contentType: 'post', language });
     }
   };
 
   const handleGenerateCustom = async () => {
     if (!customTopic.trim()) return;
-    await onGenerate({ platform: customPlatform, contentType, language, customTopic });
+    await onGenerate({ platform: customPlatform, contentType: 'post', language, customTopic });
   };
 
   const handleGenerateAllPlatforms = async (post: typeof blogPosts[0]) => {
@@ -202,29 +196,16 @@ export function SocialGeneratorForm({ onGenerate, isGenerating }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Idioma</Label>
-                <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="spanish">Español</SelectItem>
-                    <SelectItem value="catalan">Catalán</SelectItem>
-                    <SelectItem value="english">Inglés</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Tipo</Label>
-                <Select value={contentType} onValueChange={setContentType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CONTENT_TYPES.map(ct => (
-                      <SelectItem key={ct.id} value={ct.id}>{ct.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Idioma</Label>
+              <Select value={language} onValueChange={setLanguage}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="spanish">Español</SelectItem>
+                  <SelectItem value="catalan">Catalán</SelectItem>
+                  <SelectItem value="english">Inglés</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <Button
@@ -233,7 +214,7 @@ export function SocialGeneratorForm({ onGenerate, isGenerating }: Props) {
               className="w-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 text-white"
             >
               {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-              Generar {contentType === 'reel_script' ? 'reel' : `${selectedPlatforms.length} adaptación(es)`}
+              Generar {selectedPlatforms.length} adaptación(es)
             </Button>
           </TabsContent>
 
@@ -260,29 +241,16 @@ export function SocialGeneratorForm({ onGenerate, isGenerating }: Props) {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Idioma</Label>
-                <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="spanish">Español</SelectItem>
-                    <SelectItem value="catalan">Catalán</SelectItem>
-                    <SelectItem value="english">Inglés</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Tipo</Label>
-                <Select value={contentType} onValueChange={setContentType}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CONTENT_TYPES.map(ct => (
-                      <SelectItem key={ct.id} value={ct.id}>{ct.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Idioma</Label>
+              <Select value={language} onValueChange={setLanguage}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="spanish">Español</SelectItem>
+                  <SelectItem value="catalan">Catalán</SelectItem>
+                  <SelectItem value="english">Inglés</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <Button
@@ -291,7 +259,7 @@ export function SocialGeneratorForm({ onGenerate, isGenerating }: Props) {
               className="w-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 text-white"
             >
               {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-              Generar {contentType === 'reel_script' ? 'reel' : 'post'}
+              Generar
             </Button>
           </TabsContent>
         </Tabs>
