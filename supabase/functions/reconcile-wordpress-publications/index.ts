@@ -58,6 +58,30 @@ async function logSiteActivity(
   }
 }
 
+async function hasRecentSkipLog(supabase: any, siteId: string, articleId: string, reason: string): Promise<boolean> {
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from("site_activity_log")
+      .select("id")
+      .eq("site_id", siteId)
+      .eq("action_type", "autopublish_reconcile_skipped")
+      .contains("metadata", { article_id: articleId, reason })
+      .gte("created_at", since)
+      .limit(1);
+
+    if (error) {
+      console.error("[reconcile] Error checking duplicate skip log:", error);
+      return false;
+    }
+
+    return Boolean(data && data.length > 0);
+  } catch (error) {
+    console.error("[reconcile] Exception checking duplicate skip log:", error);
+    return false;
+  }
+}
+
 async function getTeamMemberEmails(supabase: any, ownerId: string): Promise<string[]> {
   try {
     const { data: teamMembers } = await supabase.from("team_members").select("member_id").eq("owner_id", ownerId);
@@ -83,7 +107,6 @@ async function sendReconcilePublishedEmail(
   try {
     if (!RESEND_API_KEY) {
       console.log("[reconcile] RESEND_API_KEY not configured");
-      // Register dedup row as failed
       await supabase
         .from("article_email_notifications")
         .insert({
@@ -139,7 +162,6 @@ async function sendReconcilePublishedEmail(
     const teamEmails = await getTeamMemberEmails(supabase, article.user_id);
     recipients = [profile.email, ...teamEmails.filter((e: string) => e !== profile.email)];
 
-    // Dedup: attempt insert into article_email_notifications
     const { error: dedupErr } = await supabase.from("article_email_notifications").insert({
       article_id: article.id,
       notification_type: "autopublish_reconciled",
@@ -218,30 +240,35 @@ async function sendReconcilePublishedEmail(
         "Falló envío de email tras reconciliación",
         { article_id: article.id, error: JSON.stringify(error) },
       );
-    } else {
-      console.log(`[reconcile] Published email sent to: ${recipients.join(", ")}`);
-      await supabase
-        .from("article_email_notifications")
-        .update({ status: "sent", sent_to: recipients })
-        .eq("article_id", article.id)
-        .eq("notification_type", "autopublish_reconciled");
-      await logSiteActivity(
-        supabase,
-        article.site_id,
-        article.user_id,
-        "autopublish_reconcile_email_sent",
-        "Email de artículo publicado enviado por reconciliador",
-        { article_id: article.id, post_url: postUrl, recipients },
-      );
+      return;
     }
-  } catch (emailErr) {
-    const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
-    console.error("[reconcile] Email exception:", msg);
+
     await supabase
       .from("article_email_notifications")
-      .update({ status: "failed", error: msg })
+      .update({ status: "sent" })
       .eq("article_id", article.id)
       .eq("notification_type", "autopublish_reconciled");
+
+    await logSiteActivity(
+      supabase,
+      article.site_id,
+      article.user_id,
+      "autopublish_reconcile_email_sent",
+      "Email enviado tras reconciliación automática",
+      { article_id: article.id, sent_to: recipients },
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[reconcile] Exception sending email:", e);
+
+    try {
+      await supabase
+        .from("article_email_notifications")
+        .update({ status: "failed", error: msg })
+        .eq("article_id", article.id)
+        .eq("notification_type", "autopublish_reconciled");
+    } catch {}
+
     await logSiteActivity(
       supabase,
       article.site_id,
@@ -279,10 +306,10 @@ Deno.serve(async (req) => {
     let query = supabase
       .from("articles")
       .select(
-        "id, site_id, user_id, content_spanish, content_catalan, image_url, generated_at, wp_post_url, topic, autopublish_enabled",
+        "id, site_id, user_id, content_spanish, content_catalan, image_url, generated_at, wp_post_url, topic, autopublish_enabled, generation_source",
       )
       .is("wp_post_url", null)
-      .eq("autopublish_enabled", true)
+      .eq("generation_source", "scheduled")
       .gte("generated_at", since)
       .order("generated_at", { ascending: true })
       .limit(batchSize);
@@ -346,6 +373,10 @@ Deno.serve(async (req) => {
       skipped++;
       skipReasons[reason] = (skipReasons[reason] || 0) + 1;
       if (article.site_id && article.user_id) {
+        const alreadyLogged = await hasRecentSkipLog(supabase, article.site_id, article.id, reason);
+        if (alreadyLogged) {
+          return;
+        }
         await logSiteActivity(
           supabase,
           article.site_id,
@@ -431,33 +462,41 @@ Deno.serve(async (req) => {
           errors.push({
             article_id: article.id,
             site_id: article.site_id,
-            error: `HTTP ${publishRes.status}: ${errorText.substring(0, 400)}`,
+            error: `HTTP ${publishRes.status}: ${errorText.substring(0, 500)}`,
           });
-
           await logSiteActivity(
             supabase,
             article.site_id,
             article.user_id,
             "autopublish_reconcile_failed",
-            "Falló el reconciliador de publicación en WordPress",
+            "Falló publicación en reconciliador",
             {
               article_id: article.id,
-              http_status: publishRes.status,
-              error: errorText.substring(0, 500),
+              error: `HTTP ${publishRes.status}: ${errorText.substring(0, 500)}`,
             },
           );
           continue;
         }
 
         const result = await publishRes.json();
-
         if (!result?.post_url) {
           failed++;
           errors.push({
             article_id: article.id,
             site_id: article.site_id,
-            error: "publish-to-wordpress-saas respondió sin post_url",
+            error: "Respuesta sin post_url",
           });
+          await logSiteActivity(
+            supabase,
+            article.site_id,
+            article.user_id,
+            "autopublish_reconcile_failed",
+            "WordPress respondió sin post_url",
+            {
+              article_id: article.id,
+              error: "missing_post_url",
+            },
+          );
           continue;
         }
 
@@ -473,9 +512,21 @@ Deno.serve(async (req) => {
             site_id: article.site_id,
             error: `Error actualizando wp_post_url: ${updateError.message}`,
           });
+          await logSiteActivity(
+            supabase,
+            article.site_id,
+            article.user_id,
+            "autopublish_reconcile_failed",
+            "Error actualizando wp_post_url tras reconciliación",
+            {
+              article_id: article.id,
+              error: `Error actualizando wp_post_url: ${updateError.message}`,
+            },
+          );
           continue;
         }
 
+        published++;
         await logSiteActivity(
           supabase,
           article.site_id,
@@ -485,28 +536,29 @@ Deno.serve(async (req) => {
           {
             article_id: article.id,
             post_url: result.post_url,
-            idempotent: Boolean(result.idempotent),
+            idempotent: false,
           },
         );
 
-        // Send email notification (non-blocking)
-        await sendReconcilePublishedEmail(supabase, article, site.name, result.post_url);
-
-        published++;
+        const siteName = site.name || "tu sitio";
+        await sendReconcilePublishedEmail(supabase, article, siteName, result.post_url);
       } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
         failed++;
-        const message = error instanceof Error ? error.message : String(error);
-        errors.push({ article_id: article.id, site_id: article.site_id, error: message });
-
+        errors.push({
+          article_id: article.id,
+          site_id: article.site_id,
+          error: msg,
+        });
         await logSiteActivity(
           supabase,
           article.site_id,
           article.user_id,
           "autopublish_reconcile_failed",
-          "Excepción en reconciliador de publicación",
+          "Excepción publicando en reconciliador",
           {
             article_id: article.id,
-            error: message,
+            error: msg,
           },
         );
       }
@@ -521,12 +573,12 @@ Deno.serve(async (req) => {
       skipped,
       skip_reasons: skipReasons,
       failed,
+      errors,
       dry_run: dryRun,
-      errors: errors.slice(0, 20),
     });
   } catch (error) {
-    console.error("Unexpected reconcile error:", error);
-    const message = error instanceof Error ? error.message : String(error);
-    return jsonResponse({ error: message }, 500);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("reconcile-wordpress-publications error:", error);
+    return jsonResponse({ error: msg }, 500);
   }
 });
