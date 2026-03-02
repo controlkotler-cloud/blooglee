@@ -1,9 +1,10 @@
-import { Copy, Trash2, RefreshCw, Instagram, Linkedin, Facebook, ExternalLink, Send, CheckCircle, Clock } from 'lucide-react';
+import { Copy, Trash2, RefreshCw, Instagram, Linkedin, Facebook, ExternalLink, Send, CheckCircle, Clock, Film } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { SocialContent } from '@/hooks/useAdminSocialContent';
+import { parseReelData } from '@/components/admin/social/types';
 
 const platformConfig: Record<string, { icon: any; label: string; color: string }> = {
   instagram: { icon: Instagram, label: 'Instagram', color: 'bg-pink-500/10 text-pink-600' },
@@ -23,19 +24,24 @@ interface Props {
   onDelete: (id: string) => void;
   onRegenerate: (item: SocialContent) => void;
   onSchedule?: (id: string) => void;
+  onOpenReel?: (item: SocialContent) => void;
   isRegenerating?: boolean;
   isScheduling?: boolean;
 }
 
-export function SocialContentCard({ item, onDelete, onRegenerate, onSchedule, isRegenerating, isScheduling }: Props) {
+export function SocialContentCard({ item, onDelete, onRegenerate, onSchedule, onOpenReel, isRegenerating, isScheduling }: Props) {
   const { toast } = useToast();
   const config = platformConfig[item.platform] || platformConfig.tiktok;
   const Icon = config.icon;
   const status = statusConfig[item.status] || statusConfig.draft;
   const StatusIcon = status.icon;
 
+  const isReel = item.content_type === 'reel_script';
+  const reelData = isReel ? parseReelData(item.content) : null;
+
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(item.content);
+    const textToCopy = reelData ? reelData.caption + '\n\n' + reelData.hashtags.join(' ') : item.content;
+    await navigator.clipboard.writeText(textToCopy);
     toast({ title: 'Copiado al portapapeles' });
   };
 
@@ -54,6 +60,12 @@ export function SocialContentCard({ item, onDelete, onRegenerate, onSchedule, is
             {Icon && <Icon className="h-3 w-3 mr-1" />}
             {config.label}
           </Badge>
+          {isReel && (
+            <Badge variant="outline" className="bg-violet-500/10 text-violet-600">
+              <Film className="h-3 w-3 mr-1" />
+              Reel
+            </Badge>
+          )}
           <Badge variant="outline" className={status.color}>
             <StatusIcon className="h-3 w-3 mr-1" />
             {status.label}
@@ -62,7 +74,25 @@ export function SocialContentCard({ item, onDelete, onRegenerate, onSchedule, is
         <CardTitle className="text-sm line-clamp-2">{item.title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-xs text-muted-foreground line-clamp-6 whitespace-pre-line">{item.content}</p>
+        {isReel && reelData ? (
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-violet-600">{reelData.video_scenes.length} escenas · ~{reelData.video_scenes.reduce((s, sc) => s + sc.duration_seconds, 0).toFixed(0)}s</p>
+            <p className="text-xs text-muted-foreground line-clamp-3">{reelData.hook}</p>
+            {onOpenReel && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full mt-2 border-violet-300 text-violet-600 hover:bg-violet-50"
+                onClick={() => onOpenReel(item)}
+              >
+                <Film className="h-3 w-3 mr-1" /> Abrir editor de reel
+              </Button>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground line-clamp-6 whitespace-pre-line">{item.content}</p>
+        )}
+
         {(item as any).blog_post_url && (
           <a
             href={(item as any).blog_post_url}
@@ -74,8 +104,7 @@ export function SocialContentCard({ item, onDelete, onRegenerate, onSchedule, is
           </a>
         )}
         
-        {/* Publish to Metricool button */}
-        {onSchedule && !isAlreadyScheduled && (
+        {onSchedule && !isAlreadyScheduled && !isReel && (
           <Button 
             size="sm" 
             className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-700 hover:to-fuchsia-600 text-white"

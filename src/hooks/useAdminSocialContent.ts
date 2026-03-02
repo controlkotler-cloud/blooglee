@@ -70,6 +70,20 @@ export function useAdminSocialContent() {
     },
   });
 
+  const updateContentMutation = useMutation({
+    mutationFn: async ({ id, content }: { id: string; content: string }) => {
+      const { error } = await supabase.from('social_content' as any).update({ content }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-social-content'] });
+      toast({ title: 'Guardado', description: 'Contenido actualizado correctamente.' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    },
+  });
+
   const [schedulingId, setSchedulingId] = useState<string | null>(null);
 
   const scheduleMutation = useMutation({
@@ -98,6 +112,8 @@ export function useAdminSocialContent() {
     generate: generateMutation.mutateAsync,
     isGenerating: generateMutation.isPending,
     deleteItem: deleteMutation.mutateAsync,
+    updateContent: updateContentMutation.mutateAsync,
+    isUpdating: updateContentMutation.isPending,
     scheduleToMetricool: scheduleMutation.mutateAsync,
     schedulingId,
   };
