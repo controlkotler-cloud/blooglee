@@ -88,6 +88,44 @@ FORMATO:
 - Formato: texto plano listo para copiar y pegar, sin formato markdown`,
 };
 
+const REEL_SCRIPT_PROMPT = `Genera un reel/vídeo corto estructurado para redes sociales en {language}.
+
+OBJETIVO: Reel vertical de 15-25 segundos, 5-7 escenas máximo.
+
+DEVUELVE ÚNICAMENTE un JSON válido con esta estructura exacta (sin markdown, sin backticks, sin explicaciones):
+{
+  "title": "Título corto del reel",
+  "hook": "Frase gancho que engancha en 1 segundo",
+  "caption": "Texto para publicar con el reel (100-200 palabras)",
+  "hashtags": ["#Blooglee", "#SEOenEspañol", "#MarketingDeContenidos"],
+  "best_posting_time": "Rango horario sugerido (ej: 12:00 - 14:00)",
+  "video_scenes": [
+    {
+      "scene_number": 1,
+      "duration_seconds": 2.5,
+      "scene_type": "cover",
+      "headline": "Texto grande (max 8 palabras)",
+      "body": "Subtexto breve (max 15 palabras)",
+      "voiceover": "Lo que diría una voz en off en esta escena",
+      "visual_suggestion": "Descripción visual de fondo sugerida",
+      "image_url": null
+    }
+  ]
+}
+
+REGLAS DE CONTENIDO:
+- Escena 1: SIEMPRE tipo "cover" con el gancho más fuerte
+- Escenas intermedias: tipo "content" con datos o valor práctico
+- Última escena: SIEMPRE tipo "cta" con llamada a la acción de Blooglee
+- Headlines: máximo 8 palabras, impactantes, directos
+- Body: máximo 15 palabras, complementa el headline
+- Voiceover: frase natural como si hablaras a cámara (tuteo, España)
+- Cada escena entre 2 y 5 segundos
+- Total del reel: 15-25 segundos
+- CTA final: suave pero claro, mencionar blooglee.com sin parecer spam
+
+IMPORTANTE: Devuelve SOLO el JSON, nada más. Sin \`\`\`json ni explicaciones.`;
+
 const LANGUAGE_MAP: Record<string, string> = {
   spanish: "español de España (tuteo, vosotros)",
   catalan: "catalán",
@@ -142,29 +180,35 @@ Deno.serve(async (req) => {
     // Get blog post content if provided
     let blogContent = "";
     let blogTitle = "";
+    let blogImageUrl: string | null = null;
     if (blogPostId) {
       const { data: post } = await supabase
         .from("blog_posts")
-        .select("title, content, excerpt")
+        .select("title, content, excerpt, image_url")
         .eq("id", blogPostId)
         .single();
       if (post) {
         blogTitle = post.title;
+        blogImageUrl = post.image_url;
         blogContent = `Título: ${post.title}\nResumen: ${post.excerpt}\nContenido: ${post.content.substring(0, 3000)}`;
       }
     }
 
     const langLabel = LANGUAGE_MAP[language] || "español de España (tuteo, vosotros)";
-    const platformPrompt = (PLATFORM_PROMPTS[platform] || PLATFORM_PROMPTS.instagram)
-      .replace("{language}", langLabel);
+    const isReelScript = contentType === "reel_script";
+
+    // For reel_script, use a specialized prompt
+    const platformPrompt = isReelScript
+      ? REEL_SCRIPT_PROMPT.replace("{language}", langLabel)
+      : (PLATFORM_PROMPTS[platform] || PLATFORM_PROMPTS.instagram).replace("{language}", langLabel);
 
     const topicContext = blogContent
-      ? `Adapta el siguiente artículo de blog para redes sociales:\n\n${blogContent}`
+      ? `Adapta el siguiente artículo de blog para ${isReelScript ? 'un reel de vídeo corto' : 'redes sociales'}:\n\n${blogContent}`
       : `Tema: ${customTopic || "Marketing digital y SEO"}`;
 
-    // Prepare image prompt
+    // Prepare image prompt (skip for reel_script since scenes manage their own images)
     const topicForImage = customTopic || blogTitle || "digital marketing SEO";
-    const isVertical = platform === 'tiktok';
+    const isVertical = platform === 'tiktok' || isReelScript;
     const imageStylePrompt = isVertical ? IMAGE_STYLE_PROMPT_VERTICAL : IMAGE_STYLE_PROMPT_SQUARE;
     const imagePrompt = `${imageStylePrompt}\n\nCONCEPT: ${topicForImage}`;
 
@@ -184,21 +228,25 @@ Deno.serve(async (req) => {
       }),
     });
 
-    const imagePromise = fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-pro-image-preview",
-        messages: [{ role: "user", content: imagePrompt }],
-        modalities: ["image", "text"],
-      }),
-    }).catch(err => {
-      console.error("Image generation error (non-fatal):", err);
-      return null;
-    });
+    // For reel_script, only generate image if no blog image available
+    const shouldGenerateImage = !isReelScript || !blogImageUrl;
+    const imagePromise = shouldGenerateImage
+      ? fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-pro-image-preview",
+            messages: [{ role: "user", content: imagePrompt }],
+            modalities: ["image", "text"],
+          }),
+        }).catch(err => {
+          console.error("Image generation error (non-fatal):", err);
+          return null;
+        })
+      : Promise.resolve(null);
 
     const [textResponse, imageResponse] = await Promise.all([textPromise, imagePromise]);
 
@@ -209,15 +257,42 @@ Deno.serve(async (req) => {
     }
 
     const textData = await textResponse.json();
-    const generatedContent = textData.choices?.[0]?.message?.content || "";
+    let generatedContent = textData.choices?.[0]?.message?.content || "";
+
+    // For reel_script, post-process the JSON content
+    let reelImageUrl: string | null = null;
+    if (isReelScript) {
+      // Clean up any markdown fencing
+      generatedContent = generatedContent
+        .replace(/^```json\s*/i, '')
+        .replace(/```\s*$/i, '')
+        .trim();
+
+      // Parse and enrich the reel data
+      try {
+        const reelData = JSON.parse(generatedContent);
+        // Set cover image from blog post if available
+        if (reelData.video_scenes && Array.isArray(reelData.video_scenes)) {
+          const coverScene = reelData.video_scenes.find((s: any) => s.scene_type === 'cover');
+          if (coverScene && blogImageUrl) {
+            coverScene.image_url = blogImageUrl;
+          }
+        }
+        generatedContent = JSON.stringify(reelData);
+        reelImageUrl = blogImageUrl;
+      } catch (parseErr) {
+        console.error("Failed to parse reel JSON, storing as-is:", parseErr);
+        // Still save it, UI will handle gracefully
+      }
+    }
 
     // Generate title
     const title = blogTitle
-      ? `${platform.toUpperCase()} - ${blogTitle.substring(0, 60)}`
-      : `${platform.toUpperCase()} - ${(customTopic || "Post").substring(0, 60)}`;
+      ? `${isReelScript ? 'REEL' : platform.toUpperCase()} - ${blogTitle.substring(0, 60)}`
+      : `${isReelScript ? 'REEL' : platform.toUpperCase()} - ${(customTopic || "Post").substring(0, 60)}`;
 
     // Process image result
-    let imageUrl: string | null = null;
+    let imageUrl: string | null = reelImageUrl;
     try {
       if (imageResponse && imageResponse.ok) {
         const imageData = await imageResponse.json();

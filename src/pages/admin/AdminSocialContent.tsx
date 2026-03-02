@@ -5,10 +5,13 @@ import { SocialContentCard } from '@/components/admin/SocialContentCard';
 import { useAdminSocialContent } from '@/hooks/useAdminSocialContent';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ReelWorkflow } from '@/components/admin/social/ReelWorkflow';
+import type { SocialContent } from '@/hooks/useAdminSocialContent';
 
 export default function AdminSocialContent() {
-  const { items, isLoading, generate, isGenerating, deleteItem, scheduleToMetricool, schedulingId } = useAdminSocialContent();
+  const { items, isLoading, generate, isGenerating, deleteItem, updateContent, isUpdating, scheduleToMetricool, schedulingId } = useAdminSocialContent();
   const [platformFilter, setPlatformFilter] = useState<string>('all');
+  const [editingReel, setEditingReel] = useState<SocialContent | null>(null);
 
   const filtered = platformFilter === 'all'
     ? items
@@ -23,6 +26,30 @@ export default function AdminSocialContent() {
       customTopic: item.blog_post_id ? undefined : item.title,
     });
   };
+
+  const handleOpenReel = (item: SocialContent) => {
+    setEditingReel(item);
+  };
+
+  const handleSaveReel = async (id: string, content: string) => {
+    await updateContent({ id, content });
+    // Refresh the item in editingReel state
+    setEditingReel(prev => prev ? { ...prev, content } : null);
+  };
+
+  // If editing a reel, show the reel workflow
+  if (editingReel) {
+    return (
+      <AdminLayout>
+        <ReelWorkflow
+          item={editingReel}
+          onBack={() => setEditingReel(null)}
+          onSave={handleSaveReel}
+          isSaving={isUpdating}
+        />
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -74,6 +101,7 @@ export default function AdminSocialContent() {
                     onDelete={deleteItem}
                     onRegenerate={handleRegenerate}
                     onSchedule={(id) => scheduleToMetricool({ socialContentId: id })}
+                    onOpenReel={handleOpenReel}
                     isRegenerating={isGenerating}
                     isScheduling={schedulingId === item.id}
                   />
