@@ -2636,6 +2636,8 @@ Deno.serve(async (req) => {
     const generationKey = inputGenerationKey || buildGenerationKey(normalizedPublishFrequency, month, year, today);
     console.log("Generation key:", generationKey);
 
+    const requestedGenerationSource = isScheduled ? "scheduled" : "manual";
+
     // Save article to database
     const articleData: Record<string, any> = {
       site_id: siteId,
@@ -2652,8 +2654,9 @@ Deno.serve(async (req) => {
       week_of_month: weekOfMonth,
       day_of_month: dayOfMonth,
       generation_key: generationKey,
-      // Guardrail: only scheduler-generated articles can be reconciled/autopublished later.
+      // Article-level intent: only scheduled runs are eligible for automatic publish/reconcile.
       autopublish_enabled: Boolean(isScheduled),
+      generation_source: requestedGenerationSource,
     };
 
     // Check if article already exists for this generation key
@@ -2668,6 +2671,13 @@ Deno.serve(async (req) => {
 
     let savedArticle;
     if (existingArticle) {
+      const existingGenerationSource = existingArticle.generation_source === "scheduled" ? "scheduled" : "manual";
+      const effectiveGenerationSource =
+        existingGenerationSource === "scheduled" || isScheduled ? "scheduled" : requestedGenerationSource;
+
+      // Never downgrade an already-scheduled article to manual because of a later regeneration.
+      articleData.generation_source = effectiveGenerationSource;
+      articleData.autopublish_enabled = effectiveGenerationSource === "scheduled";
       // Article already exists for this period — check if it was a recent duplicate
       const createdAt = new Date(existingArticle.generated_at).getTime();
       const now = Date.now();
