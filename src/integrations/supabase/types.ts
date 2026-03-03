@@ -670,6 +670,7 @@ export type Database = {
       }
       sector_contexts: {
         Row: {
+          authority_sources: Json
           created_at: string
           fallback_query: string
           id: string
@@ -681,6 +682,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          authority_sources?: Json
           created_at?: string
           fallback_query: string
           id?: string
@@ -692,6 +694,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          authority_sources?: Json
           created_at?: string
           fallback_query?: string
           id?: string
@@ -744,10 +747,13 @@ export type Database = {
       }
       sites: {
         Row: {
+          angle_to_avoid: string | null
           auto_generate: boolean
           avoid_topics: string[] | null
           blog_url: string | null
+          business_type: string | null
           color_palette: string | null
+          content_goal: string | null
           content_pillars: string[] | null
           created_at: string
           custom_topic: string | null
@@ -762,6 +768,8 @@ export type Database = {
           mood: string | null
           name: string
           preferred_length: string | null
+          preferred_source_domains: string[]
+          priority_topics: string[]
           publish_day_of_month: number | null
           publish_day_of_week: number | null
           publish_frequency: string
@@ -778,10 +786,13 @@ export type Database = {
           wordpress_context: Json | null
         }
         Insert: {
+          angle_to_avoid?: string | null
           auto_generate?: boolean
           avoid_topics?: string[] | null
           blog_url?: string | null
+          business_type?: string | null
           color_palette?: string | null
+          content_goal?: string | null
           content_pillars?: string[] | null
           created_at?: string
           custom_topic?: string | null
@@ -796,6 +807,8 @@ export type Database = {
           mood?: string | null
           name: string
           preferred_length?: string | null
+          preferred_source_domains?: string[]
+          priority_topics?: string[]
           publish_day_of_month?: number | null
           publish_day_of_week?: number | null
           publish_frequency?: string
@@ -812,10 +825,13 @@ export type Database = {
           wordpress_context?: Json | null
         }
         Update: {
+          angle_to_avoid?: string | null
           auto_generate?: boolean
           avoid_topics?: string[] | null
           blog_url?: string | null
+          business_type?: string | null
           color_palette?: string | null
+          content_goal?: string | null
           content_pillars?: string[] | null
           created_at?: string
           custom_topic?: string | null
@@ -830,6 +846,8 @@ export type Database = {
           mood?: string | null
           name?: string
           preferred_length?: string | null
+          preferred_source_domains?: string[]
+          priority_topics?: string[]
           publish_day_of_month?: number | null
           publish_day_of_week?: number | null
           publish_frequency?: string
