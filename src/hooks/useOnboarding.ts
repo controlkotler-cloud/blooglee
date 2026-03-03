@@ -299,6 +299,9 @@ export function useOnboarding(siteId?: string) {
   return {
     progress,
     isLoading,
+    currentStep: progress?.current_step ?? 1,
+    stepData: progress?.step_data ?? {},
+    siteId: progress?.site_id ?? siteId ?? null,
     createProgress,
     saveStepData,
     nextStep,
