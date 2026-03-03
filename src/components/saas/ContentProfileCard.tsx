@@ -1,10 +1,21 @@
 import { UseFormWatch, UseFormSetValue } from "react-hook-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sparkles, Users, FileText, Ban } from "lucide-react";
+import {
+  getAngleToAvoidPlaceholder,
+  getAudiencePlaceholder,
+  getAvoidTopicsPlaceholder,
+  getBusinessTypeWarning,
+  getContentGoalPlaceholder,
+  getPreferredSourcesPlaceholder,
+  getPriorityTopicsPlaceholder,
+  getSeasonalWarning,
+} from "@/lib/site-profile";
 
 const TONE_OPTIONS = [
   { value: "formal", label: "Formal y profesional", description: "Lenguaje institucional y serio" },
@@ -38,6 +49,11 @@ export function ContentProfileCard({ watch, setValue, register, plan }: ContentP
   const watchedTone = watch("tone") || "casual";
   const watchedPillars = watch("content_pillars") || ["educational", "trends", "seasonal"];
   const watchedLength = watch("preferred_length") || "medium";
+  const watchedSector = watch("sector") || "";
+  const watchedBusinessType = watch("business_type") || "";
+  const watchedAudience = watch("target_audience") || "";
+  const audienceWarning = getBusinessTypeWarning(watchedBusinessType, watchedAudience);
+  const seasonalWarning = getSeasonalWarning(watchedBusinessType, watchedPillars);
 
   const isLengthAllowed = (value: string) => {
     if (plan === "free") return value === "short";
@@ -72,7 +88,6 @@ export function ContentProfileCard({ watch, setValue, register, plan }: ContentP
         <CardDescription>Personaliza cómo se generan los artículos para tu sitio</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Tone selection */}
         <div className="space-y-3">
           <Label className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
@@ -97,7 +112,6 @@ export function ContentProfileCard({ watch, setValue, register, plan }: ContentP
           </RadioGroup>
         </div>
 
-        {/* Target audience */}
         <div className="space-y-2">
           <Label htmlFor="target_audience" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
@@ -105,14 +119,37 @@ export function ContentProfileCard({ watch, setValue, register, plan }: ContentP
           </Label>
           <Textarea
             id="target_audience"
-            placeholder="Ej: Profesionales del sector salud, 35-55 años, interesados en mejorar su práctica diaria..."
+            placeholder={getAudiencePlaceholder(watchedSector)}
             {...register("target_audience")}
-            rows={2}
+            rows={4}
           />
-          <p className="text-xs text-muted-foreground">Describe quién leerá tu contenido para personalizarlo mejor</p>
+          <p className="text-xs text-muted-foreground">
+            Describe al decisor que quieres atraer: perfil, objetivo, problema y qué valora al decidir.
+          </p>
         </div>
 
-        {/* Content pillars */}
+        {audienceWarning && (
+          <Alert>
+            <AlertDescription>{audienceWarning}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="space-y-2">
+          <Label htmlFor="content_goal" className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Objetivo del contenido
+          </Label>
+          <Textarea
+            id="content_goal"
+            placeholder={getContentGoalPlaceholder(watchedSector)}
+            {...register("content_goal")}
+            rows={3}
+          />
+          <p className="text-xs text-muted-foreground">
+            Explica qué debe conseguir el contenido para el negocio. No pongas un título concreto.
+          </p>
+        </div>
+
         <div className="space-y-3">
           <Label>Pilares de contenido (selecciona 2-4)</Label>
           <div className="grid gap-3">
@@ -136,9 +173,29 @@ export function ContentProfileCard({ watch, setValue, register, plan }: ContentP
           <p className="text-xs text-muted-foreground">
             Los pilares rotan automáticamente para dar variedad a tu contenido
           </p>
+          {seasonalWarning && (
+            <Alert>
+              <AlertDescription>{seasonalWarning}</AlertDescription>
+            </Alert>
+          )}
         </div>
 
-        {/* Topics to avoid */}
+        <div className="space-y-2">
+          <Label htmlFor="priority_topics" className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4" />
+            Temas prioritarios
+          </Label>
+          <Textarea
+            id="priority_topics"
+            placeholder={getPriorityTopicsPlaceholder(watchedSector)}
+            {...register("priority_topics")}
+            rows={2}
+          />
+          <p className="text-xs text-muted-foreground">
+            Separa con comas las líneas de contenido que quieres priorizar.
+          </p>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="avoid_topics" className="flex items-center gap-2">
             <Ban className="w-4 h-4" />
@@ -146,7 +203,7 @@ export function ContentProfileCard({ watch, setValue, register, plan }: ContentP
           </Label>
           <Textarea
             id="avoid_topics"
-            placeholder="Ej: competencia directa, precios específicos, temas políticos..."
+            placeholder={getAvoidTopicsPlaceholder(watchedSector)}
             {...register("avoid_topics")}
             rows={2}
           />
@@ -155,7 +212,38 @@ export function ContentProfileCard({ watch, setValue, register, plan }: ContentP
           </p>
         </div>
 
-        {/* Preferred length */}
+        <div className="space-y-2">
+          <Label htmlFor="angle_to_avoid" className="flex items-center gap-2">
+            <Ban className="w-4 h-4" />
+            Enfoque a evitar
+          </Label>
+          <Textarea
+            id="angle_to_avoid"
+            placeholder={getAngleToAvoidPlaceholder(watchedSector)}
+            {...register("angle_to_avoid")}
+            rows={3}
+          />
+          <p className="text-xs text-muted-foreground">
+            Útil cuando el tema puede ser válido, pero no quieres cierto ángulo o tipo de redacción.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="preferred_source_domains" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Fuentes de confianza
+          </Label>
+          <Textarea
+            id="preferred_source_domains"
+            placeholder={getPreferredSourcesPlaceholder(watchedSector)}
+            {...register("preferred_source_domains")}
+            rows={2}
+          />
+          <p className="text-xs text-muted-foreground">
+            Opcional. Añade dominios que quieras priorizar como enlaces externos, separados por comas.
+          </p>
+        </div>
+
         <div className="space-y-3">
           <Label>Longitud preferida</Label>
           <RadioGroup
