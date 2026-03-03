@@ -708,6 +708,7 @@ interface WordPressContext {
 interface SiteData {
   id: string;
   name: string;
+  business_type?: string | null;
   location?: string | null;
   sector?: string | null;
   description?: string | null;
@@ -721,11 +722,22 @@ interface SiteData {
   // Enriched context fields
   tone?: string | null;
   target_audience?: string | null;
+  content_goal?: string | null;
   content_pillars?: string[];
+  priority_topics?: string[];
   avoid_topics?: string[];
+  angle_to_avoid?: string | null;
+  preferred_source_domains?: string[];
   preferred_length?: string | null;
   wordpress_context?: WordPressContext | null;
   last_pillar_index?: number;
+}
+interface AuthoritySource {
+  label: string;
+  url: string;
+  source_type?: string;
+  topics?: string[];
+  is_active?: boolean;
 }
 
 interface RequestBody {
