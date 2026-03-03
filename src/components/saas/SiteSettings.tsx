@@ -456,13 +456,13 @@ export function SiteSettings({ site }: SiteSettingsProps) {
               <Label htmlFor="custom_topic">Enfoque de contenido (opcional)</Label>
               <Textarea
                 id="custom_topic"
-                placeholder="Ej: Consejos prácticos de salud para familias jóvenes, novedades del sector tech..."
+                placeholder={getContentGoalPlaceholder(watchedSector)}
                 {...register("custom_topic")}
                 rows={3}
               />
               <p className="text-xs text-muted-foreground">
-                Define la dirección temática de tus artículos. Si lo dejas vacío, la IA elegirá los mejores temas según
-                tu sector y pilares de contenido.
+                Usa este campo para orientar el contenido. Si quieres un objetivo más claro, completa también el perfil
+                editorial de abajo.
               </p>
             </div>
 
@@ -697,7 +697,11 @@ export function SiteSettings({ site }: SiteSettingsProps) {
             <div className="space-y-2">
               <Label htmlFor="blog_url">URL del blog</Label>
               <Input id="blog_url" type="url" placeholder="https://..." {...register("blog_url")} />
+              <p className="text-xs text-muted-foreground">
+                Usa la URL exacta que quieras enlazar al final de los artículos.
+              </p>
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="instagram_url">Enlace a tu mejor red social</Label>
               <Input
@@ -706,11 +710,26 @@ export function SiteSettings({ site }: SiteSettingsProps) {
                 placeholder="https://instagram.com/tusitio o tu red social preferida"
                 {...register("instagram_url")}
               />
+              <p className="text-xs text-muted-foreground">
+                Blooglee usará esta URL como cierre social cuando el artículo incluya llamada a redes.
+              </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Content Profile Card */}
+        {(audienceWarning || seasonalWarning) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Alertas de calidad</CardTitle>
+              <CardDescription>Ajusta estos campos para que los artículos salgan mejor enfocados</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {audienceWarning && <p className="text-sm text-amber-700 dark:text-amber-300">{audienceWarning}</p>}
+              {seasonalWarning && <p className="text-sm text-amber-700 dark:text-amber-300">{seasonalWarning}</p>}
+            </CardContent>
+          </Card>
+        )}
         <ContentProfileCard watch={watch} setValue={setValue} register={register} plan={userPlan} />
 
         {/* Save button */}
