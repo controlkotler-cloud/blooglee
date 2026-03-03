@@ -2036,7 +2036,12 @@ Deno.serve(async (req) => {
     const siteTone = site.tone || "casual";
     const toneDescription = TONE_DESCRIPTIONS[siteTone] || TONE_DESCRIPTIONS.casual;
     const targetAudience = site.target_audience || "";
+    const businessType = site.business_type || "other";
+    const contentGoal = site.content_goal || "";
+    const priorityTopics = site.priority_topics || [];
     const avoidTopics = site.avoid_topics || [];
+    const angleToAvoid = site.angle_to_avoid || "";
+    const preferredSourceDomains = site.preferred_source_domains || [];
     const requestedLength = normalizePreferredLength(site.preferred_length);
     const maxAllowedLength = getMaxPreferredLengthForPlan(profile.plan, siteOwnerIsSuperAdmin);
     const effectivePreferredLength = clampPreferredLength(requestedLength, maxAllowedLength);
@@ -2056,17 +2061,21 @@ Deno.serve(async (req) => {
     // LOAD SECTOR PROHIBITED TERMS
     // ==========================================
     let sectorProhibitedTerms: string[] = [];
+    let authoritySources: AuthoritySource[] = [];
     try {
       const { data: sectorData } = await supabase
         .from("sector_contexts")
-        .select("prohibited_terms")
+        .select("prohibited_terms, authority_sources")
         .or(`sector_key.eq.${sectorCategory},sector_key.eq.general`)
-        .order("sector_key", { ascending: false }); // sector-specific first
+        .order("sector_key", { ascending: false });
 
       if (sectorData && sectorData.length > 0) {
-        // Merge all prohibited terms from sector + general
         sectorProhibitedTerms = sectorData.flatMap((s: { prohibited_terms: string[] }) => s.prohibited_terms || []);
+        authoritySources = mergeAuthoritySources(
+          sectorData as Array<{ prohibited_terms: string[]; authority_sources?: AuthoritySource[] | null }>,
+        );
         console.log(`Loaded ${sectorProhibitedTerms.length} prohibited terms for sector ${sectorCategory}`);
+        console.log(`Loaded ${authoritySources.length} authority sources for sector ${sectorCategory}`);
       }
     } catch (e) {
       console.log("Could not load sector prohibited terms:", e);
@@ -2129,6 +2138,7 @@ Deno.serve(async (req) => {
       // Build enriched topic prompt variables
       const enrichedVariables = {
         siteName: site.name,
+        businessType: businessType,
         sector: sector,
         description: description,
         descriptionContext: descriptionContext,
@@ -2146,13 +2156,22 @@ Deno.serve(async (req) => {
           : "Audiencia general",
         wpStyleNotes: wpStyleNotes ? `ESTILO DETECTADO EN SU BLOG: ${wpStyleNotes}` : "",
         wpRecentTopics: wpRecentTopics ? `TEMAS RECIENTES DE SU BLOG: ${wpRecentTopics}` : "",
+        contentGoal: contentGoal ? `OBJETIVO DEL CONTENIDO (contexto interno): ${contentGoal}` : "",
+        priorityTopics:
+          priorityTopics.length > 0 ? `TEMAS PRIORITARIOS (contexto interno): ${priorityTopics.join(", ")}` : "",
+        angleToAvoid: angleToAvoid ? `ENFOQUE A EVITAR: ${angleToAvoid}` : "",
         prohibitedTerms: prohibitedTermsForPrompt,
         avoidTopicsList: avoidTopicsListForPrompt,
         customTopicDirective: customTopicDirective,
       };
 
       // Get topic prompt from database with cache
-      const topicPrompt = await getPrompt(supabase, "saas.topic", enrichedVariables, FALLBACK_PROMPTS.topic);
+      let topicPrompt = await getPrompt(supabase, "saas.topic", enrichedVariables, FALLBACK_PROMPTS.topic);
+      topicPrompt = `${topicPrompt}\n\nTIPO DE NEGOCIO (contexto interno): ${businessType}\n${
+        contentGoal ? `OBJETIVO DEL CONTENIDO: ${contentGoal}\n` : ""
+      }${priorityTopics.length > 0 ? `TEMAS PRIORITARIOS: ${priorityTopics.join(", ")}\n` : ""}${
+        angleToAvoid ? `ENFOQUE A EVITAR: ${angleToAvoid}\n` : ""
+      }`;
 
       // Single attempt - prohibited terms are now IN the prompt
       try {
@@ -2300,6 +2319,22 @@ Deno.serve(async (req) => {
         })()
       : "#";
 
+    const ownedDomains = new Set<string>();
+    for (const candidateUrl of [homeUrl, site.blog_url, site.instagram_url]) {
+      if (candidateUrl) {
+        ownedDomains.add(normalizeDomain(candidateUrl));
+      }
+    }
+
+    const recentExternalDomains = await getRecentExternalDomainsForSite(supabase, siteId, ownedDomains);
+    const selectedAuthoritySources = selectAuthoritySources(
+      topic,
+      authoritySources,
+      preferredSourceDomains,
+      recentExternalDomains,
+    );
+    const authoritySourcesInstruction = buildAuthoritySourcesInstruction(selectedAuthoritySources);
+
     // Build custom topic directive for article
     const customTopicDirectiveArticle = site.custom_topic
       ? `Enfoque temático del cliente (contexto interno para orientar el contenido, NO copiar literalmente en el texto): "${site.custom_topic}". Usa esto como brújula para el enfoque general, pero redacta de forma natural sin repetir esta frase.`
@@ -2315,11 +2350,12 @@ Deno.serve(async (req) => {
       ].join("\n") || "(ninguno)";
 
     // Build system prompt from database with enriched context
-    const systemPrompt = await getPrompt(
+    let systemPrompt = await getPrompt(
       supabase,
       "saas.article.system",
       {
         siteName: site.name,
+        businessType: businessType,
         sector: sector,
         description: description,
         descriptionContext: descriptionContext,
@@ -2331,6 +2367,7 @@ Deno.serve(async (req) => {
         targetAudience: targetAudience
           ? `Perfil de la audiencia (contexto interno para adaptar tono y enfoque, NUNCA mencionar en el texto): ${targetAudience}`
           : "Audiencia: público general del sector",
+        contentGoal: contentGoal,
         pillarType: currentPillar,
         pillarDescription: pillarDescription,
         lengthWords: lengthTarget.words.toString(),
@@ -2342,6 +2379,16 @@ Deno.serve(async (req) => {
         blogUrl: site.blog_url || "",
         instagramUrl: site.instagram_url || "",
         topic: topic,
+        priorityTopics:
+          priorityTopics.length > 0 ? priorityTopics.map((item: string) => `- ${item}`).join("\n") : "(ninguno)",
+        angleToAvoid: angleToAvoid || "(ninguno)",
+        preferredSources:
+          preferredSourceDomains.length > 0
+            ? preferredSourceDomains.map((item: string) => `- ${item}`).join("\n")
+            : "(ninguna)",
+        authoritySources:
+          authoritySourcesInstruction ||
+          "(usa asociaciones profesionales, fuentes oficiales y recursos técnicos fiables)",
         customTopicDirective: customTopicDirectiveArticle,
         avoidTopicsList: allProhibitedForArticle,
         prohibitedTerms:
@@ -2355,22 +2402,23 @@ Deno.serve(async (req) => {
       FALLBACK_PROMPTS.articleSystem,
     );
 
-    // Build user prompt from database
-    const userPrompt = await getPrompt(
-      supabase,
-      "saas.article.user",
-      {
-        topic: topic,
-        pillarType: currentPillar,
-        pillarDescription: pillarDescription,
-        siteName: site.name,
-        homeUrl: homeUrl,
-        blogUrl: site.blog_url || "",
-        instagramUrl: site.instagram_url || "",
-        lengthWords: lengthTarget.words.toString(),
-      },
-      FALLBACK_PROMPTS.articleUser,
-    );
+    const extraEditorialGuidance = [
+      `TIPO DE NEGOCIO (contexto interno): ${businessType}`,
+      contentGoal ? `OBJETIVO DEL CONTENIDO (contexto interno): ${contentGoal}` : "",
+      priorityTopics.length > 0 ? `TEMAS PRIORITARIOS (contexto interno): ${priorityTopics.join(", ")}` : "",
+      angleToAvoid ? `ENFOQUE A EVITAR (contexto interno): ${angleToAvoid}` : "",
+      authoritySourcesInstruction
+        ? `FUENTES DE AUTORIDAD PREFERIDAS PARA ESTE ARTICULO:\n${authoritySourcesInstruction}`
+        : "",
+      preferredSourceDomains.length > 0
+        ? `DOMINIOS PREFERIDOS DEL CLIENTE (usar si son pertinentes, sin repetir siempre los mismos): ${preferredSourceDomains.join(", ")}`
+        : "",
+      "Si el articulo habla de un tema sectorial amplio, manten el enfoque adecuado al negocio del cliente. Evita derivar al cliente final si el sitio vende servicios B2B o consultivos.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    systemPrompt = `${systemPrompt}\n\n${extraEditorialGuidance}`;
 
     console.log("Generating Spanish article...");
 
