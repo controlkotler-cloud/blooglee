@@ -732,6 +732,7 @@ interface SiteData {
   wordpress_context?: WordPressContext | null;
   last_pillar_index?: number;
 }
+
 interface AuthoritySource {
   label: string;
   url: string;
@@ -1524,6 +1525,7 @@ async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string>
   console.log(`Link verification complete: ${fixedCount} fixed, ${keptCount} kept despite errors`);
   return cleanedContent;
 }
+
 function normalizeDomain(urlString: string): string {
   try {
     const url = new URL(urlString);
@@ -2067,9 +2069,10 @@ Deno.serve(async (req) => {
         .from("sector_contexts")
         .select("prohibited_terms, authority_sources")
         .or(`sector_key.eq.${sectorCategory},sector_key.eq.general`)
-        .order("sector_key", { ascending: false });
+        .order("sector_key", { ascending: false }); // sector-specific first
 
       if (sectorData && sectorData.length > 0) {
+        // Merge all prohibited terms from sector + general
         sectorProhibitedTerms = sectorData.flatMap((s: { prohibited_terms: string[] }) => s.prohibited_terms || []);
         authoritySources = mergeAuthoritySources(
           sectorData as Array<{ prohibited_terms: string[]; authority_sources?: AuthoritySource[] | null }>,
