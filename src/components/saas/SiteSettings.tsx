@@ -27,6 +27,19 @@ import { ContentProfileCard } from "./ContentProfileCard";
 import { PaletteSelector } from "./PaletteSelector";
 import { useUpdateSite, useDeleteSite, type Site } from "@/hooks/useSites";
 import { useProfile } from "@/hooks/useProfile";
+import {
+  BUSINESS_TYPES,
+  getAngleToAvoidPlaceholder,
+  getAudiencePlaceholder,
+  getAvoidTopicsPlaceholder,
+  getBusinessTypeWarning,
+  getContentGoalPlaceholder,
+  getDefaultBusinessType,
+  getPreferredSourcesPlaceholder,
+  getPriorityTopicsPlaceholder,
+  getSeasonalWarning,
+  getStructuredDescriptionPlaceholder,
+} from "@/lib/site-profile";
 
 const DAYS_OF_WEEK = [
   { value: 1, label: "Lunes" },
@@ -86,6 +99,11 @@ const formSchema = z.object({
   description: z.string().optional(),
   location: z.string().optional(),
   geographic_scope: z.enum(["local", "regional", "national", "international"]),
+  business_type: z.string().optional(),
+  content_goal: z.string().optional(),
+  priority_topics: z.string().optional(),
+  angle_to_avoid: z.string().optional(),
+  preferred_source_domains: z.string().optional(),
   languages: z.array(z.string()).min(1, "Selecciona al menos un idioma"),
   publish_frequency: z.string(),
   publish_day_of_week: z.number().nullable(),
@@ -149,6 +167,11 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       description: site.description || "",
       location: site.location || "",
       geographic_scope: site.geographic_scope,
+      business_type: site.business_type || getDefaultBusinessType(site.sector),
+      content_goal: site.content_goal || "",
+      priority_topics: (site.priority_topics || []).join(", "),
+      angle_to_avoid: site.angle_to_avoid || "",
+      preferred_source_domains: (site.preferred_source_domains || []).join(", "),
       languages: site.languages,
       publish_frequency: site.publish_frequency,
       publish_day_of_week: site.publish_day_of_week,
@@ -175,6 +198,12 @@ export function SiteSettings({ site }: SiteSettingsProps) {
   const watchedLanguages = watch("languages");
   const watchedAutoGenerate = watch("auto_generate");
   const watchedIncludeImage = watch("include_featured_image");
+  const watchedSector = watch("sector");
+  const watchedBusinessType = watch("business_type");
+  const watchedAudience = watch("target_audience");
+  const watchedPillars = watch("content_pillars");
+  const audienceWarning = getBusinessTypeWarning(watchedBusinessType, watchedAudience);
+  const seasonalWarning = getSeasonalWarning(watchedBusinessType, watchedPillars);
   const watchedFrequency = watch("publish_frequency");
   const watchedMonthlyMode = watch("monthly_mode");
   const watchedHourLocal = watch("publish_hour_local");
@@ -242,6 +271,19 @@ export function SiteSettings({ site }: SiteSettingsProps) {
           .map((t) => t.trim())
           .filter(Boolean)
       : [];
+    const priorityTopicsArray = data.priority_topics
+      ? data.priority_topics
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [];
+
+    const preferredSourceDomainsArray = data.preferred_source_domains
+      ? data.preferred_source_domains
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [];
 
     updateMutation.mutate({
       id: site.id,
@@ -250,6 +292,11 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       description: data.description || null,
       location: data.location || null,
       geographic_scope: data.geographic_scope,
+      business_type: data.business_type || null,
+      content_goal: data.content_goal || null,
+      priority_topics: priorityTopicsArray,
+      angle_to_avoid: data.angle_to_avoid || null,
+      preferred_source_domains: preferredSourceDomainsArray,
       languages: data.languages,
       publish_frequency: effectiveFrequency,
       publish_day_of_week: publishDayOfWeek,
@@ -316,15 +363,28 @@ export function SiteSettings({ site }: SiteSettingsProps) {
               <Input id="name" {...register("name")} />
               {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
             </div>
-
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="business_type">Tipo de negocio</Label>
+                <Select
+                  value={watch("business_type")}
+                  onValueChange={(v) => setValue("business_type", v, { shouldDirty: true })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona el tipo de negocio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BUSINESS_TYPES.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="sector">Sector</Label>
                 <Input id="sector" placeholder="Ej: Tecnología, Salud, Moda..." {...register("sector")} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="location">Ubicación</Label>
-                <Input id="location" placeholder="Ej: Barcelona, España" {...register("location")} />
               </div>
             </div>
 
@@ -332,12 +392,12 @@ export function SiteSettings({ site }: SiteSettingsProps) {
               <Label htmlFor="description">Descripción del negocio</Label>
               <Textarea
                 id="description"
-                placeholder="Ej: Ecosistema digital de referencia para farmacias en España..."
+                placeholder={getStructuredDescriptionPlaceholder(watchedSector)}
                 {...register("description")}
-                rows={3}
+                rows={5}
               />
               <p className="text-xs text-muted-foreground">
-                Una descripción ayuda a generar artículos más relevantes y enfocados.
+                Escribe qué vendes, a quién, qué problema resuelves y qué te diferencia.
               </p>
             </div>
 
