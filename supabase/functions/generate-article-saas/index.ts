@@ -1524,6 +1524,263 @@ async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string>
   console.log(`Link verification complete: ${fixedCount} fixed, ${keptCount} kept despite errors`);
   return cleanedContent;
 }
+function normalizeDomain(urlString: string): string {
+  try {
+    const url = new URL(urlString);
+    return url.hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return urlString
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split("/")[0]
+      .toLowerCase();
+  }
+}
+
+function normalizeTextForMatch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
+function tokenizeForMatch(value: string): string[] {
+  return [
+    ...new Set(
+      normalizeTextForMatch(value)
+        .split(/[^a-z0-9]+/g)
+        .filter((token) => token.length > 2),
+    ),
+  ];
+}
+
+function getExternalAnchorLinks(htmlContent: string): Array<{ full: string; url: string; text: string }> {
+  if (!htmlContent) return [];
+
+  const linkRegex = /<a\s+[^>]*href=["'](https?:\/\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const matches: Array<{ full: string; url: string; text: string }> = [];
+
+  let match;
+  while ((match = linkRegex.exec(htmlContent)) !== null) {
+    matches.push({
+      full: match[0],
+      url: match[1],
+      text: match[2].replace(/<[^>]+>/g, "").trim(),
+    });
+  }
+
+  return matches;
+}
+
+function mergeAuthoritySources(
+  rows: Array<{ authority_sources?: AuthoritySource[] | null }> | null,
+): AuthoritySource[] {
+  const merged: AuthoritySource[] = [];
+  const seenDomains = new Set<string>();
+
+  for (const row of rows || []) {
+    for (const source of row.authority_sources || []) {
+      if (!source?.url || source.is_active === false) continue;
+      const domain = normalizeDomain(source.url);
+      if (seenDomains.has(domain)) continue;
+      seenDomains.add(domain);
+      merged.push(source);
+    }
+  }
+
+  return merged;
+}
+
+async function getRecentExternalDomainsForSite(
+  supabaseClient: any,
+  siteId: string,
+  ownedDomains: Set<string>,
+): Promise<string[]> {
+  try {
+    const { data, error } = await supabaseClient
+      .from("articles")
+      .select("content_spanish, content_catalan")
+      .eq("site_id", siteId)
+      .order("generated_at", { ascending: false })
+      .limit(8);
+
+    if (error || !data) {
+      console.error("Error loading recent article links:", error);
+      return [];
+    }
+
+    const domains: string[] = [];
+    for (const article of data) {
+      const spanishContent = (article.content_spanish as Record<string, unknown> | null)?.content;
+      const catalanContent = (article.content_catalan as Record<string, unknown> | null)?.content;
+      for (const html of [spanishContent, catalanContent]) {
+        if (typeof html !== "string") continue;
+        for (const link of getExternalAnchorLinks(html)) {
+          const domain = normalizeDomain(link.url);
+          if (!ownedDomains.has(domain)) {
+            domains.push(domain);
+          }
+        }
+      }
+    }
+
+    return [...new Set(domains)].slice(0, 12);
+  } catch (error) {
+    console.error("Exception loading recent external domains:", error);
+    return [];
+  }
+}
+
+function selectAuthoritySources(
+  topic: string,
+  sources: AuthoritySource[],
+  preferredSourceDomains: string[],
+  recentDomains: string[],
+): AuthoritySource[] {
+  if (!sources.length) return [];
+
+  const topicTokens = tokenizeForMatch(topic);
+  const preferred = preferredSourceDomains.map((item) => normalizeDomain(item));
+  const recent = new Set(recentDomains.map((item) => normalizeDomain(item)));
+
+  const scored = sources
+    .map((source) => {
+      const domain = normalizeDomain(source.url);
+      const sourceTokens = [
+        ...tokenizeForMatch(source.label || ""),
+        ...(source.topics || []).flatMap((item) => tokenizeForMatch(item)),
+      ];
+
+      let score = 0;
+      if (preferred.some((preferredDomain) => domain.includes(preferredDomain) || preferredDomain.includes(domain))) {
+        score += 10;
+      }
+      if (source.source_type === "official") score += 4;
+      if (source.source_type === "association") score += 3;
+      if (source.source_type === "technical") score += 2;
+      if (source.source_type === "stats") score += 2;
+      if (recent.has(domain)) score -= 6;
+
+      for (const token of topicTokens) {
+        if (sourceTokens.includes(token)) score += 3;
+      }
+
+      return { source, score, domain };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const selected: AuthoritySource[] = [];
+  const usedDomains = new Set<string>();
+
+  const officialCandidate = scored.find((item) => item.source.source_type === "official");
+  if (officialCandidate) {
+    selected.push(officialCandidate.source);
+    usedDomains.add(officialCandidate.domain);
+  }
+
+  const secondaryCandidate = scored.find(
+    (item) => !usedDomains.has(item.domain) && item.source.source_type !== "official",
+  );
+  if (secondaryCandidate) {
+    selected.push(secondaryCandidate.source);
+    usedDomains.add(secondaryCandidate.domain);
+  }
+
+  for (const item of scored) {
+    if (selected.length >= 2) break;
+    if (usedDomains.has(item.domain)) continue;
+    selected.push(item.source);
+    usedDomains.add(item.domain);
+  }
+
+  return selected.slice(0, 2);
+}
+
+function buildAuthoritySourcesInstruction(sources: AuthoritySource[]): string {
+  if (!sources.length) return "";
+  return sources
+    .map((source) => `- ${source.label}: ${getOriginUrl(source.url)} (${source.source_type || "authority"})`)
+    .join("\n");
+}
+
+function ensureAuthorityLinks(
+  htmlContent: string,
+  selectedSources: AuthoritySource[],
+  ownedDomains: Set<string>,
+): string {
+  if (!htmlContent || selectedSources.length === 0) return htmlContent;
+
+  const existingDomains = new Set(
+    getExternalAnchorLinks(htmlContent)
+      .map((link) => normalizeDomain(link.url))
+      .filter((domain) => !ownedDomains.has(domain)),
+  );
+
+  const missingSources = selectedSources.filter((source) => !existingDomains.has(normalizeDomain(source.url)));
+  const totalExternalCount = [...existingDomains].length;
+  const needed = Math.max(0, 2 - totalExternalCount);
+  if (needed === 0) return htmlContent;
+
+  const sourcesToInject = missingSources.slice(0, needed);
+  if (sourcesToInject.length === 0) return htmlContent;
+
+  const paragraph = `<p>Para ampliar información, consulta ${sourcesToInject
+    .map((source) => `<a href="${getOriginUrl(source.url)}" target="_blank" rel="noopener">${source.label}</a>`)
+    .join(" y ")}.</p>`;
+
+  return `${htmlContent}\n${paragraph}`;
+}
+
+function ensureFooterLinks(
+  htmlContent: string,
+  siteName: string,
+  blogUrl: string | null,
+  instagramUrl: string | null,
+): string {
+  if (!htmlContent) return htmlContent;
+
+  const hasBlogLink = blogUrl ? htmlContent.includes(blogUrl) : false;
+  const hasInstagramLink = instagramUrl ? htmlContent.includes(instagramUrl) : false;
+
+  if ((!blogUrl || hasBlogLink) && (!instagramUrl || hasInstagramLink)) {
+    return htmlContent;
+  }
+
+  let closing = "";
+  if (blogUrl && instagramUrl) {
+    closing = `<p>Descubre más en el <a href="${blogUrl}" target="_blank" rel="noopener">blog de ${siteName}</a> y síguenos en <a href="${instagramUrl}" target="_blank" rel="noopener">nuestras redes sociales</a>.</p>`;
+  } else if (blogUrl) {
+    closing = `<p>Encuentra más contenido útil en el <a href="${blogUrl}" target="_blank" rel="noopener">blog de ${siteName}</a>.</p>`;
+  } else if (instagramUrl) {
+    closing = `<p>También puedes seguir a ${siteName} en <a href="${instagramUrl}" target="_blank" rel="noopener">nuestras redes sociales</a>.</p>`;
+  }
+
+  return closing ? `${htmlContent}\n${closing}` : htmlContent;
+}
+
+function ensureHomeLinkPresence(htmlContent: string, siteName: string, homeUrl: string): string {
+  if (!htmlContent || !homeUrl || homeUrl === "#") return htmlContent;
+  if (htmlContent.includes(`href="${homeUrl}"`) || htmlContent.includes(`href='${homeUrl}'`)) {
+    return htmlContent;
+  }
+
+  const firstParagraphMatch = htmlContent.match(/<p>([\s\S]*?)<\/p>/i);
+  if (!firstParagraphMatch) {
+    return `<p>En <a href="${homeUrl}" target="_blank" rel="noopener">${siteName}</a> puedes ampliar esta información.</p>\n${htmlContent}`;
+  }
+
+  const replacement = `<p>En <a href="${homeUrl}" target="_blank" rel="noopener">${siteName}</a> trabajamos este enfoque con detalle. ${firstParagraphMatch[1]}</p>`;
+  return htmlContent.replace(firstParagraphMatch[0], replacement);
+}
+
+function trimExcerpt(excerpt: string): string {
+  if (!excerpt) return excerpt;
+  const cleaned = excerpt.replace(/\s+/g, " ").trim();
+  if (cleaned.length <= 160) return cleaned;
+  const sliced = cleaned.substring(0, 160);
+  const lastSpace = sliced.lastIndexOf(" ");
+  return (lastSpace > 110 ? sliced.substring(0, lastSpace) : sliced).trim();
+}
 
 // ==========================================
 // MAIN HANDLER
