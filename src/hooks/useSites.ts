@@ -17,6 +17,7 @@ export interface Site {
   id: string;
   user_id: string;
   name: string;
+  business_type: string | null;
   sector: string | null;
   description: string | null;
   location: string | null;
@@ -32,11 +33,14 @@ export interface Site {
   publish_day_of_month: number | null;
   publish_week_of_month: number | null;
   publish_hour_utc: number;
-  // New content profile fields
   tone: string | null;
   target_audience: string | null;
+  content_goal: string | null;
   content_pillars: string[];
+  priority_topics: string[];
   avoid_topics: string[];
+  angle_to_avoid: string | null;
+  preferred_source_domains: string[];
   preferred_length: string | null;
   color_palette: string | null;
   mood: string | null;
@@ -48,6 +52,7 @@ export interface Site {
 
 export interface SiteInput {
   name: string;
+  business_type?: string | null;
   sector?: string | null;
   description?: string | null;
   location?: string | null;
@@ -63,11 +68,14 @@ export interface SiteInput {
   publish_day_of_month?: number | null;
   publish_week_of_month?: number | null;
   publish_hour_utc?: number;
-  // New content profile fields
   tone?: string | null;
   target_audience?: string | null;
+  content_goal?: string | null;
   content_pillars?: string[];
+  priority_topics?: string[];
   avoid_topics?: string[];
+  angle_to_avoid?: string | null;
+  preferred_source_domains?: string[];
   preferred_length?: string | null;
   color_palette?: string | null;
   mood?: string | null;
@@ -102,7 +110,6 @@ export function useSites() {
     queryFn: async (): Promise<Site[]> => {
       if (!user?.id) return [];
 
-      // RLS handles access control (own sites + team sites)
       const { data, error } = await supabase.from("sites").select("*").order("name", { ascending: true });
 
       if (error) {
@@ -130,6 +137,7 @@ export function useCreateSite() {
         .insert({
           user_id: effectiveOwnerId,
           name: site.name,
+          business_type: site.business_type ?? null,
           sector: site.sector ?? null,
           description: site.description ?? null,
           location: site.location ?? null,
@@ -141,6 +149,17 @@ export function useCreateSite() {
           custom_topic: site.custom_topic ?? null,
           include_featured_image: site.include_featured_image ?? true,
           publish_frequency: site.publish_frequency ?? "monthly",
+          tone: site.tone ?? null,
+          target_audience: site.target_audience ?? null,
+          content_goal: site.content_goal ?? null,
+          content_pillars: site.content_pillars ?? ["educational", "trends", "seasonal"],
+          priority_topics: site.priority_topics ?? [],
+          avoid_topics: site.avoid_topics ?? [],
+          angle_to_avoid: site.angle_to_avoid ?? null,
+          preferred_source_domains: site.preferred_source_domains ?? [],
+          preferred_length: site.preferred_length ?? "medium",
+          color_palette: site.color_palette ?? null,
+          mood: site.mood ?? null,
         })
         .select()
         .single();
@@ -217,6 +236,7 @@ export function useImportSites() {
       const sitesToInsert = sites.map((site) => ({
         user_id: effectiveOwnerId,
         name: site.name,
+        business_type: site.business_type ?? null,
         sector: site.sector ?? null,
         description: site.description ?? null,
         location: site.location ?? null,
@@ -228,6 +248,17 @@ export function useImportSites() {
         custom_topic: site.custom_topic ?? null,
         include_featured_image: site.include_featured_image ?? true,
         publish_frequency: site.publish_frequency ?? "monthly",
+        tone: site.tone ?? null,
+        target_audience: site.target_audience ?? null,
+        content_goal: site.content_goal ?? null,
+        content_pillars: site.content_pillars ?? ["educational", "trends", "seasonal"],
+        priority_topics: site.priority_topics ?? [],
+        avoid_topics: site.avoid_topics ?? [],
+        angle_to_avoid: site.angle_to_avoid ?? null,
+        preferred_source_domains: site.preferred_source_domains ?? [],
+        preferred_length: site.preferred_length ?? "medium",
+        color_palette: site.color_palette ?? null,
+        mood: site.mood ?? null,
       }));
 
       const { data, error } = await supabase.from("sites").insert(sitesToInsert).select();
@@ -241,7 +272,7 @@ export function useImportSites() {
     },
     onError: (error) => {
       console.error("Error importing sites:", error);
-      const message = error instanceof Error ? error.message : "Error al importar sitios";
+      const message = error instanceof Error ? error.message : "Error al importar los sitios";
       toast.error(message);
     },
   });
