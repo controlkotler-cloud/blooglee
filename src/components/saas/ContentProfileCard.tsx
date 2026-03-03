@@ -135,18 +135,16 @@ export function ContentProfileCard({ watch, setValue, register, plan }: ContentP
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="content_goal" className="flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            Objetivo del contenido
-          </Label>
+          <Label htmlFor="content_goal">Objetivo de negocio del blog</Label>
           <Textarea
             id="content_goal"
-            placeholder={getContentGoalPlaceholder(watchedSector)}
+            placeholder="Ejemplo: Queremos atraer búsquedas con intención comercial, reforzar nuestra autoridad en el sector y convertir lectores en solicitudes de presupuesto o contactos cualificados."
             {...register("content_goal")}
             rows={3}
           />
           <p className="text-xs text-muted-foreground">
-            Explica qué debe conseguir el contenido para el negocio. No pongas un título concreto.
+            Explica qué debe conseguir el contenido para tu negocio. Piensa en atraer tráfico cualificado, reforzar
+            autoridad, captar contactos o apoyar ventas.
           </p>
         </div>
 

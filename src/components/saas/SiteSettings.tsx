@@ -453,16 +453,16 @@ export function SiteSettings({ site }: SiteSettingsProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="custom_topic">Enfoque de contenido (opcional)</Label>
+              <Label htmlFor="custom_topic">Temas y enfoque editorial</Label>
               <Textarea
                 id="custom_topic"
-                placeholder={getContentGoalPlaceholder(watchedSector)}
+                placeholder="Ejemplo: Prioriza contenidos sobre SEO local, captación, fidelización, campañas estacionales y diferenciación de marca, siempre con un enfoque práctico y orientado a negocio."
                 {...register("custom_topic")}
                 rows={3}
               />
               <p className="text-xs text-muted-foreground">
-                Usa este campo para orientar el contenido. Si quieres un objetivo más claro, completa también el perfil
-                editorial de abajo.
+                Define sobre qué tipo de temas quieres que escriba el blog y desde qué enfoque general. No pongas un
+                título concreto.
               </p>
             </div>
 
