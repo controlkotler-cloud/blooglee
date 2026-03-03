@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Languages, Image, Ban, BookOpen } from "lucide-react";
+import { AlertCircle, Languages, Image, Ban, BookOpen, Link2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { track } from "@/lib/analytics";
@@ -35,6 +36,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
   const [includeFeaturedImage, setIncludeFeaturedImage] = useState<boolean>(
     (savedPrefs?.include_featured_image as boolean) ?? true,
   );
+  const [instagramUrl, setInstagramUrl] = useState<string>((savedPrefs?.instagram_url as string) ?? "");
   const [avoidTopics, setAvoidTopics] = useState<string>((savedPrefs?.avoid_topics as string) ?? "");
   const [priorityTopics, setPriorityTopics] = useState<string>((savedPrefs?.priority_topics as string) ?? "");
   const [angleToAvoid, setAngleToAvoid] = useState<string>((savedPrefs?.angle_to_avoid as string) ?? "");
@@ -79,6 +81,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
       await saveStepData("step_content_prefs", {
         catalan,
         include_featured_image: includeFeaturedImage,
+        instagram_url: instagramUrl,
         avoid_topics: avoidTopics,
         priority_topics: priorityTopics,
         angle_to_avoid: angleToAvoid,
@@ -90,6 +93,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
         include_featured_image: includeFeaturedImage,
         avoid_topics_count: avoidArray.length,
         priority_topics_count: priorityArray.length,
+        has_social_url: Boolean(instagramUrl.trim()),
       });
 
       if (siteId) {
@@ -98,6 +102,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
           .update({
             languages,
             include_featured_image: includeFeaturedImage,
+            instagram_url: instagramUrl.trim() || null,
             avoid_topics: avoidArray,
             priority_topics: priorityArray,
             angle_to_avoid: angleToAvoid.trim() || null,
@@ -119,10 +124,11 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
     <div className="space-y-4 sm:space-y-5">
       <div className="text-center space-y-2 mb-4 sm:mb-6">
         <h2 className="text-xl sm:text-2xl font-display font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
-          Personaliza tu contenido
+          Ajusta la calidad del contenido
         </h2>
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
-          Configura idiomas, imágenes y temas que prefieres evitar. Podrás cambiarlo después.
+          Aquí defines idiomas, imagen, límites editoriales, fuentes y cierre social para que el resultado salga fino
+          desde el primer post.
         </p>
       </div>
 
@@ -132,7 +138,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
           <Label className="text-sm font-semibold">Idiomas del blog</Label>
         </div>
         <p className="text-xs text-muted-foreground">
-          El español está siempre incluido. Activa catalán si tu audiencia lo necesita.
+          El español está siempre incluido. Activa catalán si también quieres publicar en ese idioma.
         </p>
         <div className="flex items-center gap-2">
           <Checkbox id="catalan" checked={catalan} onCheckedChange={(checked) => setCatalan(checked === true)} />
@@ -146,14 +152,9 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
               <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
               <AlertDescription className="text-xs text-amber-800 dark:text-amber-300 space-y-2">
                 <p>
-                  Para publicar en dos idiomas necesitas hacer <strong>2 cosas</strong> en tu WordPress:
+                  Para publicar en dos idiomas necesitas configurar <strong>Polylang</strong> en WordPress y habilitar
+                  el soporte API.
                 </p>
-                <ol className="list-decimal list-inside space-y-1 ml-1">
-                  <li>
-                    Instalar el plugin <strong>Polylang</strong> y configurar los idiomas Español (es) y Catalán (ca).
-                  </li>
-                  <li>Añadir un pequeño código PHP para que la API REST de WordPress acepte el idioma.</li>
-                </ol>
                 <button
                   type="button"
                   onClick={() => setPolylangGuideOpen(true)}
@@ -162,9 +163,6 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
                   <BookOpen className="w-3.5 h-3.5" />
                   Ver guía de configuración paso a paso
                 </button>
-                <p className="text-[11px] opacity-80">
-                  No te preocupes, podrás configurarlo más adelante cuando conectes tu WordPress.
-                </p>
               </AlertDescription>
             </Alert>
             <PolylangSetupGuide
@@ -187,7 +185,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
           <Label className="text-sm font-semibold">Imagen destacada</Label>
         </div>
         <p className="text-xs text-muted-foreground">
-          La imagen destacada aparece en la cabecera de tu post y en redes sociales al compartir.
+          La imagen destacada mejora la presentación del post y cómo se comparte en WordPress y redes.
         </p>
         <div className="flex items-center justify-between">
           <label htmlFor="featured-image" className="text-sm cursor-pointer">
@@ -199,22 +197,22 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
 
       <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
-          <Ban className="w-4 h-4 text-primary" />
-          <Label className="text-sm font-semibold">Temas a evitar</Label>
+          <Link2 className="w-4 h-4 text-primary" />
+          <Label htmlFor="instagram_url" className="text-sm font-semibold">
+            Red social principal
+          </Label>
         </div>
         <p className="text-xs text-muted-foreground">
-          Indica temas o expresiones que no quieres ver. Piensa en promesas, comparativas delicadas o enfoques que dañen
-          tu marca.
+          Si la indicas, Blooglee podrá cerrar mejor los artículos con una llamada a seguir conectado contigo.
         </p>
-        <Textarea
-          rows={2}
-          placeholder={avoidPlaceholder}
-          value={avoidTopics}
-          onChange={(e) => setAvoidTopics(e.target.value)}
-          className="text-base sm:text-sm resize-none rounded-lg min-h-[48px]"
-          maxLength={500}
+        <Input
+          id="instagram_url"
+          type="url"
+          placeholder="Ejemplo: https://instagram.com/tumarca o tu red social preferida"
+          value={instagramUrl}
+          onChange={(e) => setInstagramUrl(e.target.value)}
+          className="h-12 sm:h-11 text-base rounded-lg"
         />
-        <p className="text-[13px] text-muted-foreground">Opcional · Separados por comas</p>
       </div>
 
       <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
@@ -239,11 +237,31 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
 
       <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-primary" />
-          <Label className="text-sm font-semibold">Enfoque que no quieres</Label>
+          <Ban className="w-4 h-4 text-primary" />
+          <Label className="text-sm font-semibold">Temas a evitar</Label>
         </div>
         <p className="text-xs text-muted-foreground">
-          Útil cuando puedes hablar de un tema, pero no desde cualquier ángulo.
+          Indica temas o expresiones que no quieres ver. Piensa en promesas delicadas, comparativas sensibles o
+          contenido que no encaja con tu marca.
+        </p>
+        <Textarea
+          rows={2}
+          placeholder={avoidPlaceholder}
+          value={avoidTopics}
+          onChange={(e) => setAvoidTopics(e.target.value)}
+          className="text-base sm:text-sm resize-none rounded-lg min-h-[48px]"
+          maxLength={500}
+        />
+        <p className="text-[13px] text-muted-foreground">Opcional · Separados por comas</p>
+      </div>
+
+      <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
+        <div className="flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-primary" />
+          <Label className="text-sm font-semibold">Enfoque a evitar</Label>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Útil cuando el tema puede ser válido, pero no quieres que se enfoque desde cierto ángulo.
         </p>
         <Textarea
           rows={3}
@@ -258,7 +276,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
       <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
           <Languages className="w-4 h-4 text-primary" />
-          <Label className="text-sm font-semibold">Fuentes de confianza (opcional)</Label>
+          <Label className="text-sm font-semibold">Fuentes de confianza</Label>
         </div>
         <p className="text-xs text-muted-foreground">
           Añade dominios o entidades que quieras priorizar como enlaces externos. Blooglee los usará como preferencia,
