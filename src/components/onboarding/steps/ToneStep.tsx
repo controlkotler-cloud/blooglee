@@ -183,25 +183,21 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
         </Alert>
       )}
 
-      <div className="space-y-1.5">
+            <div className="space-y-1.5">
         <Label htmlFor="content_goal" className="text-sm font-medium">
-          ¿Qué debe conseguir el contenido?
+          Objetivo de negocio del blog
         </Label>
         <Textarea
           id="content_goal"
           rows={3}
-          placeholder={contentGoalPlaceholder}
+          placeholder="Ejemplo: Queremos atraer búsquedas con intención comercial, reforzar nuestra autoridad en el sector y convertir lectores en solicitudes de presupuesto o contactos cualificados."
           value={contentGoal}
           onChange={(e) => setContentGoal(e.target.value)}
           className="text-base resize-none rounded-lg min-h-[48px]"
           maxLength={400}
         />
         <p className="text-[13px] text-muted-foreground">
-          No pongas un título concreto. Define el objetivo editorial y comercial que debe cumplir el blog.
+          Explica qué debe conseguir el contenido para tu negocio. Piensa en atraer tráfico cualificado, reforzar autoridad, captar contactos o apoyar ventas.
         </p>
       </div>
 
-      <OnboardingNavButtons onNext={handleNext} onBack={onBack} nextDisabled={!canProceed} isSaving={isSaving} />
-    </div>
-  );
-}
