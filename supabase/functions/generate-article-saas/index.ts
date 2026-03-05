@@ -1754,7 +1754,7 @@ function ensureFooterLinks(
   } else if (blogUrl) {
     closing = `<p>Encuentra más contenido útil en el <a href="${blogUrl}" target="_blank" rel="noopener">blog de ${siteName}</a>.</p>`;
   } else if (instagramUrl) {
-    closing = `<p>También puedes seguir a ${siteName} en <a href="${instagramUrl}" target="_blank" rel="noopener">nuestras redes sociales</a>.</p>`;
+    closing = `<p>También puedes seguirnos en <a href="${instagramUrl}" target="_blank" rel="noopener">nuestras redes sociales</a>.</p>`;
   }
 
   return closing ? `${htmlContent}\n${closing}` : htmlContent;
@@ -1773,6 +1773,68 @@ function ensureHomeLinkPresence(htmlContent: string, siteName: string, homeUrl: 
 
   const replacement = `<p>En <a href="${homeUrl}" target="_blank" rel="noopener">${siteName}</a> trabajamos este enfoque con detalle. ${firstParagraphMatch[1]}</p>`;
   return htmlContent.replace(firstParagraphMatch[0], replacement);
+}
+
+function escapeRegexPattern(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function capitalizeFirst(str: string): string {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function getGenericBusinessTerm(sectorCategory: string, language: "es" | "ca"): string {
+  const termsEs: Record<string, string> = {
+    farmacia: "farmacia",
+    belleza: "salón",
+    marketing: "agencia",
+    hosteleria: "negocio",
+    tecnologia: "empresa",
+    salud: "clínica",
+    default: "negocio",
+  };
+  const termsCa: Record<string, string> = {
+    farmacia: "farmàcia",
+    belleza: "saló",
+    marketing: "agència",
+    hosteleria: "negoci",
+    tecnologia: "empresa",
+    salud: "clínica",
+    default: "negoci",
+  };
+  const dictionary = language === "ca" ? termsCa : termsEs;
+  return dictionary[sectorCategory] || dictionary.default;
+}
+
+function sanitizeUnlinkedBrandMentions(htmlContent: string, siteName: string, replacementWord: string): string {
+  if (!htmlContent || !siteName?.trim() || !replacementWord?.trim()) return htmlContent;
+
+  const protectedAnchors: string[] = [];
+  const withPlaceholders = htmlContent.replace(/<a\b[\s\S]*?<\/a>/gi, (anchorTag) => {
+    protectedAnchors.push(anchorTag);
+    return `%%ANCHOR-${protectedAnchors.length - 1}%%`;
+  });
+
+  const escapedSiteName = escapeRegexPattern(siteName.trim());
+  const brandRegex = new RegExp(`\\b${escapedSiteName}\\b`, "gi");
+
+  let replacements = 0;
+  const replaced = withPlaceholders.replace(brandRegex, (match) => {
+    replacements++;
+    const shouldCapitalize = /^[A-ZÁÉÍÓÚÜÑ]/.test(match);
+    return shouldCapitalize ? capitalizeFirst(replacementWord) : replacementWord.toLowerCase();
+  });
+
+  const restored = replaced.replace(/%%ANCHOR-(\d+)%%/g, (_placeholder, idx) => {
+    return protectedAnchors[parseInt(idx, 10)] || _placeholder;
+  });
+
+  if (replacements > 0) {
+    console.log(`Brand mention sanitizer replaced ${replacements} unlinked occurrences of "${siteName}"`);
+  }
+
+  return restored;
 }
 
 function trimExcerpt(excerpt: string): string {
@@ -2770,6 +2832,11 @@ Deno.serve(async (req) => {
       site.blog_url || null,
       site.instagram_url || null,
     );
+    processedSpanishContent = sanitizeUnlinkedBrandMentions(
+      processedSpanishContent,
+      site.name,
+      getGenericBusinessTerm(sectorCategory, "es"),
+    );
 
     spanishArticle.content = processedSpanishContent;
     console.log("Spanish content processed with link fallbacks");
@@ -2783,6 +2850,11 @@ Deno.serve(async (req) => {
         site.name,
         site.blog_url || null,
         site.instagram_url || null,
+      );
+      processedCatalanContent = sanitizeUnlinkedBrandMentions(
+        processedCatalanContent,
+        site.name,
+        getGenericBusinessTerm(sectorCategory, "ca"),
       );
       catalanArticle.content = processedCatalanContent;
     }

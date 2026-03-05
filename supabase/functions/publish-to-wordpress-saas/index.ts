@@ -35,6 +35,7 @@ interface PublishResult {
   error?: string;
   already_published?: boolean;
   idempotent?: boolean;
+  warnings?: string[];
 }
 
 interface ExistingPost {
@@ -133,6 +134,66 @@ async function persistWpPostUrl(
     }
   }
   console.log(`[${requestId}] No matching article found to update wp_post_url (non-blocking)`);
+}
+
+async function verifyYoastMetaPersistence(
+  wpUrl: string,
+  credentials: string,
+  postId: number,
+  expectedMeta: Record<string, string>,
+  requestId: string,
+): Promise<{ saved: boolean; missingKeys: string[] }> {
+  try {
+    const verifyUrl = `${wpUrl}/wp-json/wp/v2/posts/${postId}?context=edit&_fields=id,meta`;
+    const verifyResponse = await fetch(verifyUrl, {
+      method: "GET",
+      headers: { Authorization: `Basic ${credentials}` },
+    });
+
+    if (!verifyResponse.ok) {
+      console.warn(`[${requestId}][yoast_verify] Could not verify meta persistence, status=${verifyResponse.status}`);
+      return { saved: false, missingKeys: Object.keys(expectedMeta) };
+    }
+
+    const verifyData = await verifyResponse.json();
+    const meta = (verifyData?.meta || {}) as Record<string, unknown>;
+    const missingKeys = Object.keys(expectedMeta).filter((key) => {
+      const value = meta[key];
+      return typeof value !== "string" || value.trim().length === 0;
+    });
+
+    return { saved: missingKeys.length === 0, missingKeys };
+  } catch (error) {
+    console.error(`[${requestId}][yoast_verify] Error verifying Yoast meta persistence:`, error);
+    return { saved: false, missingKeys: Object.keys(expectedMeta) };
+  }
+}
+
+async function storeYoastDiagnostic(
+  supabase: any,
+  siteId: string,
+  userId: string,
+  status: "ok" | "warning",
+  message: string,
+  rawResponse: Record<string, unknown>,
+  requestId: string,
+): Promise<void> {
+  try {
+    const { error } = await supabase.from("wordpress_diagnostics").insert({
+      site_id: siteId,
+      user_id: userId,
+      check_type: "yoast_meta",
+      status,
+      message,
+      raw_response: rawResponse,
+      checked_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error(`[${requestId}][yoast_diag] Could not insert Yoast diagnostic:`, error.message);
+    }
+  } catch (error) {
+    console.error(`[${requestId}][yoast_diag] Exception inserting Yoast diagnostic:`, error);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -394,6 +455,7 @@ Deno.serve(async (req) => {
       postData.meta = yoastMeta;
       console.log("Yoast meta fields:", yoastMeta);
     }
+    const requestedYoastMeta = ((postData.meta as Record<string, string> | undefined) && Object.keys(postData.meta as Record<string, string>).length > 0) || false;
 
     if (body.lang) {
       postData.lang = body.lang;
@@ -478,6 +540,44 @@ Deno.serve(async (req) => {
     // =========================================================
     const createdPost = JSON.parse(postResponseText);
     console.log(`[${requestId}][created_new_post] Post ID: ${createdPost.id}, URL: ${createdPost.link}`);
+    const warnings: string[] = [];
+
+    if (requestedYoastMeta) {
+      const expectedYoastMeta = (postData.meta as Record<string, string>) || {};
+      const yoastCheck = await verifyYoastMetaPersistence(wpUrl, credentials, createdPost.id, expectedYoastMeta, requestId);
+
+      if (!yoastCheck.saved) {
+        const warningMessage =
+          "Yoast detectado, pero WordPress no guarda meta SEO por REST. Instala un plugin de exposición REST de Yoast o añade register_post_meta para _yoast_wpseo_metadesc, _yoast_wpseo_title y _yoast_wpseo_focuskw.";
+        warnings.push(warningMessage);
+        await storeYoastDiagnostic(
+          supabaseService,
+          body.site_id,
+          userId,
+          "warning",
+          warningMessage,
+          {
+            post_id: createdPost.id,
+            missing_meta_keys: yoastCheck.missingKeys,
+            expected_meta_keys: Object.keys(expectedYoastMeta),
+          },
+          requestId,
+        );
+      } else {
+        await storeYoastDiagnostic(
+          supabaseService,
+          body.site_id,
+          userId,
+          "ok",
+          "Yoast meta guardado correctamente por API REST.",
+          {
+            post_id: createdPost.id,
+            saved_meta_keys: Object.keys(expectedYoastMeta),
+          },
+          requestId,
+        );
+      }
+    }
 
     // Persist wp_post_url back to articles
     await persistWpPostUrl(supabaseService, body.article_id, body.site_id, slug, createdPost.link, requestId);
@@ -522,6 +622,7 @@ Deno.serve(async (req) => {
       post_url: createdPost.link,
       status: createdPost.status,
       already_published: false,
+      warnings: warnings.length > 0 ? warnings : undefined,
     };
 
     // Fire-and-forget: trigger full WordPress sync to update context

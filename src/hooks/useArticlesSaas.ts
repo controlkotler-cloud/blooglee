@@ -34,6 +34,7 @@ export interface PublishResultSaas {
   post_url?: string;
   status?: string;
   error?: string;
+  warnings?: string[];
 }
 
 export function usePublishToWordPressSaas() {
@@ -88,6 +89,9 @@ export function usePublishToWordPressSaas() {
     onSuccess: (result) => {
       if (result.success) {
         toast.success("Artículo publicado en WordPress");
+        if (result.warnings && result.warnings.length > 0) {
+          toast.warning(result.warnings[0], { duration: 9000 });
+        }
       }
     },
     onError: (error: Error) => {

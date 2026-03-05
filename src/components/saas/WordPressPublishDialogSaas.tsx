@@ -257,6 +257,11 @@ export function WordPressPublishDialogSaas({
                     Ver artículo
                   </a>
                 )}
+                {publishResults.spanish.warnings && publishResults.spanish.warnings.length > 0 && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+                    {publishResults.spanish.warnings[0]}
+                  </div>
+                )}
               </div>
             )}
             {publishResults.catalan?.success && (
@@ -277,6 +282,11 @@ export function WordPressPublishDialogSaas({
                     <ExternalLink className="w-3 h-3" />
                     Veure article
                   </a>
+                )}
+                {publishResults.catalan.warnings && publishResults.catalan.warnings.length > 0 && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+                    {publishResults.catalan.warnings[0]}
+                  </div>
                 )}
               </div>
             )}
