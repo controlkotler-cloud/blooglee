@@ -11,9 +11,12 @@ import { useProfile } from "@/hooks/useProfile";
 import { OnboardingNavButtons } from "../OnboardingNavButtons";
 import type { OnboardingStepData } from "@/hooks/useOnboarding";
 import {
+  getAudienceExample,
   getAudiencePlaceholder,
   getBusinessTypeWarning,
+  getContentGoalExample,
   getContentGoalPlaceholder,
+  getEditorialFocusExample,
   getSeasonalWarning,
 } from "@/lib/site-profile";
 
@@ -98,10 +101,14 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
   const businessType = stepData?.step1?.business_type ?? "";
   const recommendedTone = SECTOR_TONE_MAP[sector] ?? "";
 
+  const suggestedAudience = (stepData?.step1?.audience_suggestion ?? "").trim();
+  const suggestedContentGoal = (stepData?.step1?.content_goal_suggestion ?? "").trim();
+  const suggestedEditorialFocus = (stepData?.step1?.editorial_focus_suggestion ?? "").trim();
+
   const [tone, setTone] = useState(stepData?.step2?.tone ?? recommendedTone);
-  const [audience, setAudience] = useState(stepData?.step2?.audience ?? "");
-  const [customTopic, setCustomTopic] = useState(stepData?.step2?.custom_topic ?? "");
-  const [contentGoal, setContentGoal] = useState(stepData?.step2?.content_goal ?? "");
+  const [audience, setAudience] = useState(stepData?.step2?.audience ?? suggestedAudience);
+  const [customTopic, setCustomTopic] = useState(stepData?.step2?.custom_topic ?? suggestedEditorialFocus);
+  const [contentGoal, setContentGoal] = useState(stepData?.step2?.content_goal ?? suggestedContentGoal);
   const [contentPillars, setContentPillars] = useState<string[]>(
     stepData?.step2?.content_pillars ?? ["educational", "trends"],
   );
@@ -111,7 +118,10 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
   const [isSaving, setIsSaving] = useState(false);
 
   const audiencePlaceholder = useMemo(() => getAudiencePlaceholder(sector), [sector]);
+  const audienceExample = useMemo(() => getAudienceExample(sector), [sector]);
+  const editorialFocusExample = useMemo(() => getEditorialFocusExample(sector), [sector]);
   const contentGoalPlaceholder = useMemo(() => getContentGoalPlaceholder(sector), [sector]);
+  const contentGoalExample = useMemo(() => getContentGoalExample(sector), [sector]);
   const businessTypeWarning = useMemo(() => getBusinessTypeWarning(businessType, audience), [businessType, audience]);
   const seasonalWarning = useMemo(
     () => getSeasonalWarning(businessType, contentPillars),
@@ -193,7 +203,7 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
           Define el perfil editorial de tu blog
         </h2>
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
-          Este paso define para quién escribes, sobre qué vas a hablar y qué quieres conseguir con el contenido.
+          Solo tres decisiones clave: para quién escribes, sobre qué temas y qué objetivo de negocio quieres conseguir.
         </p>
       </div>
 
@@ -245,7 +255,7 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
         </Label>
         <Textarea
           id="audience"
-          rows={4}
+          rows={3}
           placeholder={audiencePlaceholder}
           value={audience}
           onChange={(e) => setAudience(e.target.value)}
@@ -253,8 +263,17 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
           maxLength={500}
         />
         <p className="text-[13px] text-muted-foreground">
-          Describe al decisor que quieres atraer: perfil, objetivo, problema y qué valora al decidir.
+          <span className="font-medium">Ejemplo:</span> {audienceExample}
         </p>
+        {suggestedAudience && audience.trim() !== suggestedAudience && (
+          <button
+            type="button"
+            onClick={() => setAudience(suggestedAudience)}
+            className="text-xs text-primary underline underline-offset-2"
+          >
+            Usar sugerencia detectada: {suggestedAudience}
+          </button>
+        )}
       </div>
 
       {businessTypeWarning && (
@@ -270,16 +289,24 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
         <Textarea
           id="custom_topic"
           rows={3}
-          placeholder="Ejemplo: Prioriza contenidos sobre SEO local, captación, fidelización, campañas estacionales y diferenciación de marca, siempre con un enfoque práctico y orientado a negocio."
+          placeholder="Define las lineas tematicas y el angulo general del contenido."
           value={customTopic}
           onChange={(e) => setCustomTopic(e.target.value)}
           className="text-base resize-none rounded-lg min-h-[48px]"
           maxLength={500}
         />
         <p className="text-[13px] text-muted-foreground">
-          Define sobre qué tipo de temas quieres que escriba el blog y desde qué enfoque general. No pongas un título
-          concreto.
+          <span className="font-medium">Ejemplo:</span> {editorialFocusExample}
         </p>
+        {suggestedEditorialFocus && customTopic.trim() !== suggestedEditorialFocus && (
+          <button
+            type="button"
+            onClick={() => setCustomTopic(suggestedEditorialFocus)}
+            className="text-xs text-primary underline underline-offset-2"
+          >
+            Usar sugerencia detectada: {suggestedEditorialFocus}
+          </button>
+        )}
       </div>
 
       <div className="space-y-1.5">
@@ -289,28 +316,31 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
         <Textarea
           id="content_goal"
           rows={3}
-          placeholder={
-            contentGoalPlaceholder ||
-            "Ejemplo: Queremos atraer búsquedas con intención comercial, reforzar nuestra autoridad en el sector y convertir lectores en solicitudes de presupuesto o contactos cualificados."
-          }
+          placeholder={contentGoalPlaceholder}
           value={contentGoal}
           onChange={(e) => setContentGoal(e.target.value)}
           className="text-base resize-none rounded-lg min-h-[48px]"
           maxLength={500}
         />
         <p className="text-[13px] text-muted-foreground">
-          Explica qué debe conseguir el contenido para tu negocio. Piensa en atraer tráfico cualificado, reforzar
-          autoridad, captar contactos o apoyar ventas.
+          <span className="font-medium">Ejemplo:</span> {contentGoalExample}
         </p>
+        {suggestedContentGoal && contentGoal.trim() !== suggestedContentGoal && (
+          <button
+            type="button"
+            onClick={() => setContentGoal(suggestedContentGoal)}
+            className="text-xs text-primary underline underline-offset-2"
+          >
+            Usar sugerencia detectada: {suggestedContentGoal}
+          </button>
+        )}
       </div>
 
       <div className="space-y-3 rounded-xl border bg-card p-4">
         <div className="space-y-1">
-          <Label className="text-sm font-semibold">
-            Pilares de contenido <span className="text-destructive">*</span>
-          </Label>
+          <Label className="text-sm font-semibold">Pilares de contenido</Label>
           <p className="text-xs text-muted-foreground">
-            Selecciona entre 2 y 4 líneas de contenido para dar variedad sin perder foco.
+            Selecciona entre 2 y 4 lineas de contenido para dar variedad sin perder foco.
           </p>
         </div>
         <div className="space-y-3">

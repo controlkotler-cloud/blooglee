@@ -16,8 +16,15 @@ import { WordPressOnboardingStep } from './steps/WordPressOnboardingStep';
 import { track } from '@/lib/analytics';
 
 const STEP_NAMES: Record<number, string> = {
-  1: 'business', 2: 'tone', 3: 'mood', 4: 'content_prefs',
-  5: 'scheduling', 6: 'topic', 7: 'generating', 8: 'article_ready', 9: 'wordpress_setup',
+  1: 'business',
+  2: 'tone',
+  3: 'mood',
+  4: 'content_prefs',
+  5: 'scheduling',
+  6: 'topic',
+  7: 'generating',
+  8: 'article_ready',
+  9: 'wordpress_setup',
 };
 
 function mapStepToProgressPoint(step: number): number {
@@ -31,19 +38,22 @@ function mapStepToProgressPoint(step: number): number {
 }
 
 export function OnboardingWizard() {
-  const {
-    currentStep, stepData, isLoading, siteId,
-    saveStepData, nextStep, prevStep, createProgress, completeWizard,
-  } = useOnboarding();
+  const { currentStep, stepData, isLoading, siteId, saveStepData, nextStep, prevStep, createProgress, completeWizard } =
+    useOnboarding();
 
   const wizardStartRef = useRef<number>(Date.now());
   const trackedStartRef = useRef(false);
   const prevStepRef = useRef<number | null>(null);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
 
-  const { colors, extractionStatus } = useColorPalette();
+  const { colors, extractedProfile, extractionStatus, triggerExtraction, resetExtraction } = useColorPalette();
 
-  // Track wizard started (once)
+  const effectiveColors = colors.length > 0 ? colors : stepData.step1?.detected_colors || [];
+  const effectiveExtractionStatus =
+    extractionStatus === 'done' && effectiveColors.length === 0 && (stepData.step1?.detected_colors || []).length > 0
+      ? 'done'
+      : extractionStatus;
+
   useEffect(() => {
     if (!isLoading && !trackedStartRef.current) {
       trackedStartRef.current = true;
@@ -51,7 +61,6 @@ export function OnboardingWizard() {
     }
   }, [isLoading]);
 
-  // Track step completion + direction
   useEffect(() => {
     if (isLoading || prevStepRef.current === null) {
       prevStepRef.current = currentStep;
@@ -67,11 +76,11 @@ export function OnboardingWizard() {
 
   useEffect(() => {
     if (extractionStatus === 'done' && colors.length > 0) {
-      track('onboarding_color_palette_extracted', { colors_count: colors.length, source: 'firecrawl' });
+      track('onboarding_color_palette_extracted', { colors_count: colors.length, source: extractedProfile?.source || 'unknown' });
     } else if (extractionStatus === 'failed') {
-      track('onboarding_color_palette_failed', { reason: 'firecrawl_error' });
+      track('onboarding_color_palette_failed', { reason: 'extract_error' });
     }
-  }, [extractionStatus, colors.length]);
+  }, [extractionStatus, colors.length, extractedProfile?.source]);
 
   const handleCompleteWizard = async () => {
     const totalDuration = Math.round((Date.now() - wizardStartRef.current) / 1000);
@@ -94,11 +103,32 @@ export function OnboardingWizard() {
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <BusinessStep onNext={nextStep} saveStepData={saveStepData} createProgress={createProgress} initialData={stepData.step1} />;
+        return (
+          <BusinessStep
+            onNext={nextStep}
+            saveStepData={saveStepData}
+            createProgress={createProgress}
+            initialData={stepData.step1}
+            extractionStatus={extractionStatus}
+            extractedProfile={extractedProfile}
+            triggerExtraction={triggerExtraction}
+            resetExtraction={resetExtraction}
+          />
+        );
       case 2:
         return <ToneStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} siteId={siteId} />;
       case 3:
-        return <MoodStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} siteId={siteId} colors={colors} extractionStatus={extractionStatus} />;
+        return (
+          <MoodStep
+            onNext={nextStep}
+            onBack={prevStep}
+            saveStepData={saveStepData}
+            stepData={stepData}
+            siteId={siteId}
+            colors={effectiveColors}
+            extractionStatus={effectiveExtractionStatus}
+          />
+        );
       case 4:
         return <ContentPrefsStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} siteId={siteId} />;
       case 5:
@@ -112,7 +142,6 @@ export function OnboardingWizard() {
       case 9:
         return <WordPressOnboardingStep onFinish={handleCompleteWizard} stepData={stepData} siteId={siteId} />;
       default:
-        // Safety: if step somehow exceeds max, show last valid step
         return <WordPressOnboardingStep onFinish={handleCompleteWizard} stepData={stepData} siteId={siteId} />;
     }
   };

@@ -1,90 +1,78 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-type ExtractionStatus = 'idle' | 'extracting' | 'done' | 'failed';
+export type ExtractionStatus = 'idle' | 'extracting' | 'done' | 'failed';
 
-/** Parse comma-separated hex string into array, handling the 'extracted:' marker */
-function parsePalette(raw: string | null | undefined): string[] {
-  if (!raw || !raw.includes('#')) return [];
-  // Remove 'extracted:' prefix if present
-  const cleaned = raw.replace(/^extracted:/, '');
-  if (!cleaned) return [];
-  return cleaned.split(',').map(c => c.trim()).filter(c => /^#[0-9a-fA-F]{6}$/.test(c));
-}
-
-/** Check if value indicates extraction has completed */
-function isExtractionDone(raw: string | null | undefined): boolean {
-  if (!raw) return false;
-  // 'extracted:' means extraction ran but found no colors
-  if (raw.startsWith('extracted:')) return true;
-  // Contains hex colors = extraction done with results
-  if (raw.includes('#')) return true;
-  return false;
+export interface ExtractedSiteProfile {
+  colors: string[];
+  description?: string;
+  social_link?: string;
+  blog_url?: string;
+  keywords?: string;
+  business_name?: string;
+  business_type?: string;
+  sector?: string;
+  location?: string;
+  tone_suggestion?: string;
+  audience_suggestion?: string;
+  content_goal_suggestion?: string;
+  editorial_focus_suggestion?: string;
+  languages?: string[];
+  source: string;
 }
 
 export function useColorPalette() {
   const [extractionStatus, setExtractionStatus] = useState<ExtractionStatus>('idle');
   const [colors, setColors] = useState<string[]>([]);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [extractedProfile, setExtractedProfile] = useState<ExtractedSiteProfile | null>(null);
 
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
+  const resetExtraction = useCallback(() => {
+    setExtractionStatus('idle');
+    setColors([]);
+    setExtractedProfile(null);
   }, []);
 
-  const triggerExtraction = useCallback(async (url: string, siteId: string) => {
-    if (!url || !siteId) return;
+  const triggerExtraction = useCallback(async (url: string, siteId?: string) => {
+    if (!url?.trim()) return null;
 
     setExtractionStatus('extracting');
     setColors([]);
+    setExtractedProfile(null);
 
-    console.log('[useColorPalette] Triggering extraction for:', url, 'site:', siteId);
+    console.log('[useColorPalette] Triggering extraction for:', url, 'site:', siteId || '(preview only)');
 
-    // Fire-and-forget: invoke edge function
-    supabase.functions.invoke('extract-color-palette', {
-      body: { url, site_id: siteId },
-    }).then((res) => {
-      console.log('[useColorPalette] Edge function response:', res.data);
-    }).catch((err) => {
-      console.error('[useColorPalette] Edge function error:', err);
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-color-palette', {
+        body: { url, site_id: siteId ?? null },
+      });
 
-    // Poll sites table for color_palette updates
-    let elapsed = 0;
-    const POLL_INTERVAL = 3000;
-    const MAX_WAIT = 45000;
-
-    stopPolling();
-
-    pollRef.current = setInterval(async () => {
-      elapsed += POLL_INTERVAL;
-
-      const { data } = await supabase
-        .from('sites')
-        .select('color_palette')
-        .eq('id', siteId)
-        .single();
-
-      const raw = data?.color_palette as string | null;
-
-      if (isExtractionDone(raw)) {
-        const palette = parsePalette(raw);
-        setColors(palette);
-        setExtractionStatus('done');
-        stopPolling();
-        console.log('[useColorPalette] Extraction complete, colors:', palette);
-        return;
-      }
-
-      if (elapsed >= MAX_WAIT) {
-        console.log('[useColorPalette] Polling timed out');
+      if (error) {
+        console.error('[useColorPalette] Edge function error:', error);
         setExtractionStatus('failed');
-        stopPolling();
+        return null;
       }
-    }, POLL_INTERVAL);
-  }, [stopPolling]);
 
-  return { colors, extractionStatus, triggerExtraction };
+      const profile = (data || null) as ExtractedSiteProfile | null;
+      const palette = profile?.colors || [];
+
+      setColors(palette);
+      setExtractedProfile(profile);
+      setExtractionStatus('done');
+      console.log('[useColorPalette] Extraction complete:', profile);
+
+      return profile;
+    } catch (err) {
+      console.error('[useColorPalette] Unexpected extraction error:', err);
+      setExtractionStatus('failed');
+      return null;
+    }
+  }, []);
+
+  return {
+    colors,
+    extractedProfile,
+    extractionStatus,
+    resetExtraction,
+    triggerExtraction,
+  };
 }

@@ -12,6 +12,16 @@ export interface OnboardingStepData {
     scope?: string;
     website_url?: string;
     business_description?: string;
+    detected_blog_url?: string;
+    detected_social_url?: string;
+    detected_languages?: string[];
+    detected_colors?: string[];
+    tone_suggestion?: string;
+    audience_suggestion?: string;
+    content_goal_suggestion?: string;
+    editorial_focus_suggestion?: string;
+    keywords_suggestion?: string;
+    extracted_from_website?: boolean;
   };
   step2?: {
     tone?: string;

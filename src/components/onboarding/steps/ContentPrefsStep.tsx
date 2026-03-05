@@ -5,7 +5,8 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Languages, Image, Ban, BookOpen, Link2 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AlertCircle, Languages, Image, Ban, BookOpen, Link2, ChevronDown, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { track } from "@/lib/analytics";
@@ -45,6 +46,9 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
   );
   const [isSaving, setIsSaving] = useState(false);
   const [polylangGuideOpen, setPolylangGuideOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(
+    Boolean(priorityTopics.trim() || angleToAvoid.trim() || preferredSourceDomains.trim()),
+  );
 
   const siteOrigin = websiteUrl
     ? (() => {
@@ -127,8 +131,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
           Ajusta la calidad del contenido
         </h2>
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
-          Aquí defines idiomas, imagen, límites editoriales, fuentes y cierre social para que el resultado salga fino
-          desde el primer post.
+          Cierra idioma, imagen y limites editoriales para que el primer post salga limpio y alineado con tu marca.
         </p>
       </div>
 
@@ -208,7 +211,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
         <Input
           id="instagram_url"
           type="url"
-          placeholder="Ejemplo: https://instagram.com/tumarca o tu red social preferida"
+          placeholder="Ejemplo: https://instagram.com/tumarca"
           value={instagramUrl}
           onChange={(e) => setInstagramUrl(e.target.value)}
           className="h-12 sm:h-11 text-base rounded-lg"
@@ -217,32 +220,11 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
 
       <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
         <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-primary" />
-          <Label className="text-sm font-semibold">Temas prioritarios</Label>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Indica búsquedas, campañas o líneas de negocio que quieres priorizar. Esto ayuda a no dejar el enfoque al
-          azar.
-        </p>
-        <Textarea
-          rows={2}
-          placeholder={priorityTopicsPlaceholder}
-          value={priorityTopics}
-          onChange={(e) => setPriorityTopics(e.target.value)}
-          className="text-base sm:text-sm resize-none rounded-lg min-h-[48px]"
-          maxLength={500}
-        />
-        <p className="text-[13px] text-muted-foreground">Opcional · Separados por comas</p>
-      </div>
-
-      <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
-        <div className="flex items-center gap-2">
           <Ban className="w-4 h-4 text-primary" />
           <Label className="text-sm font-semibold">Temas a evitar</Label>
         </div>
         <p className="text-xs text-muted-foreground">
-          Indica temas o expresiones que no quieres ver. Piensa en promesas delicadas, comparativas sensibles o
-          contenido que no encaja con tu marca.
+          Indica temas o expresiones que no quieres ver para evitar publicaciones que choquen con tu posicionamiento.
         </p>
         <Textarea
           rows={2}
@@ -252,46 +234,71 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
           className="text-base sm:text-sm resize-none rounded-lg min-h-[48px]"
           maxLength={500}
         />
-        <p className="text-[13px] text-muted-foreground">Opcional · Separados por comas</p>
+        <p className="text-[13px] text-muted-foreground">Opcional · separados por comas</p>
       </div>
 
-      <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
-        <div className="flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-primary" />
-          <Label className="text-sm font-semibold">Enfoque a evitar</Label>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Útil cuando el tema puede ser válido, pero no quieres que se enfoque desde cierto ángulo.
-        </p>
-        <Textarea
-          rows={3}
-          placeholder={angleToAvoidPlaceholder}
-          value={angleToAvoid}
-          onChange={(e) => setAngleToAvoid(e.target.value)}
-          className="text-base sm:text-sm resize-none rounded-lg min-h-[48px]"
-          maxLength={500}
-        />
-      </div>
+      <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen} className="rounded-xl border bg-card p-3 sm:p-4">
+        <CollapsibleTrigger asChild>
+          <button type="button" className="w-full flex items-center justify-between text-left">
+            <div>
+              <p className="text-sm font-semibold">Ajustes avanzados de calidad</p>
+              <p className="text-xs text-muted-foreground">
+                Prioridades editoriales, enfoque a evitar y fuentes externas de referencia.
+              </p>
+            </div>
+            <ChevronDown className={`w-4 h-4 transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
+          </button>
+        </CollapsibleTrigger>
 
-      <div className="space-y-3 p-3 sm:p-4 rounded-xl border bg-card">
-        <div className="flex items-center gap-2">
-          <Languages className="w-4 h-4 text-primary" />
-          <Label className="text-sm font-semibold">Fuentes de confianza</Label>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Añade dominios o entidades que quieras priorizar como enlaces externos. Blooglee los usará como preferencia,
-          no como lista rígida.
-        </p>
-        <Textarea
-          rows={2}
-          placeholder={preferredSourcesPlaceholder}
-          value={preferredSourceDomains}
-          onChange={(e) => setPreferredSourceDomains(e.target.value)}
-          className="text-base sm:text-sm resize-none rounded-lg min-h-[48px]"
-          maxLength={400}
-        />
-        <p className="text-[13px] text-muted-foreground">Opcional · Separados por comas</p>
-      </div>
+        <CollapsibleContent className="pt-4 space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <Label className="text-sm font-semibold">Temas prioritarios</Label>
+            </div>
+            <Textarea
+              rows={2}
+              placeholder={priorityTopicsPlaceholder}
+              value={priorityTopics}
+              onChange={(e) => setPriorityTopics(e.target.value)}
+              className="text-base sm:text-sm resize-none rounded-lg min-h-[48px]"
+              maxLength={500}
+            />
+            <p className="text-[13px] text-muted-foreground">Opcional · separados por comas</p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-primary" />
+              <Label className="text-sm font-semibold">Enfoque a evitar</Label>
+            </div>
+            <Textarea
+              rows={3}
+              placeholder={angleToAvoidPlaceholder}
+              value={angleToAvoid}
+              onChange={(e) => setAngleToAvoid(e.target.value)}
+              className="text-base sm:text-sm resize-none rounded-lg min-h-[48px]"
+              maxLength={500}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Languages className="w-4 h-4 text-primary" />
+              <Label className="text-sm font-semibold">Fuentes de confianza</Label>
+            </div>
+            <Textarea
+              rows={2}
+              placeholder={preferredSourcesPlaceholder}
+              value={preferredSourceDomains}
+              onChange={(e) => setPreferredSourceDomains(e.target.value)}
+              className="text-base sm:text-sm resize-none rounded-lg min-h-[48px]"
+              maxLength={400}
+            />
+            <p className="text-[13px] text-muted-foreground">Opcional · separados por comas</p>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <OnboardingNavButtons onNext={handleNext} onBack={onBack} isSaving={isSaving} />
     </div>

@@ -56,40 +56,79 @@ export const BUSINESS_TYPE_BY_SECTOR: Record<string, string> = {
 };
 
 export const SECTOR_DESCRIPTION_PLACEHOLDERS: Record<string, string> = {
-  farmacia:
-    "Qué vendes: servicios farmacéuticos, dermofarmacia y consejo experto.\nA quién: titulares de farmacia o clientes de proximidad.\nQué problema resuelves: visibilidad, fidelización y venta de categorías clave.\nQué te diferencia: especialización, cercanía o surtido.",
-  clinica_dental:
-    "Qué vendes: odontología general, ortodoncia, implantes o estética dental.\nA quién: adultos y familias que buscan confianza y claridad.\nQué problema resuelves: captación de pacientes y diferenciación.\nQué te diferencia: experiencia, tecnología o trato.",
-  marketing:
-    "Qué vendes: SEO, contenidos, redes, branding, automatización o captación.\nA quién: empresas que toman decisiones de marketing.\nQué problema resuelves: visibilidad, leads y crecimiento.\nQué te diferencia: especialización sectorial, metodología o resultados.",
+  farmacia: "Resume tu negocio en 2-4 lineas: que ofreces, para quien y que te diferencia.",
+  clinica_dental: "Resume tu negocio en 2-4 lineas: servicios, tipo de paciente y valor diferencial.",
+  marketing: "Resume tu negocio en 2-4 lineas: servicios, cliente ideal y propuesta de valor.",
 };
 
 export const DEFAULT_DESCRIPTION_PLACEHOLDER =
-  "Qué vendes:\nA quién se lo vendes:\nQué problema principal resuelves:\nQué te diferencia:";
+  "Resume tu negocio en 2-4 lineas: que haces, para quien y por que te eligen.";
+
+export const SECTOR_DESCRIPTION_EXAMPLES: Record<string, string> = {
+  farmacia:
+    "Farmacia comunitaria con foco en dermofarmacia y consejo personalizado para mejorar fidelizacion y ticket medio.",
+  clinica_dental:
+    "Clinica dental especializada en ortodoncia e implantologia, orientada a pacientes que buscan trato cercano y resultados sostenibles.",
+  marketing:
+    "Agencia de marketing enfocada en SEO y contenidos para pymes que quieren captar leads cualificados y crecer de forma rentable.",
+};
+
+export const DEFAULT_DESCRIPTION_EXAMPLE =
+  "Empresa de servicios especializada en ayudar a su cliente ideal a mejorar visibilidad, conversion y resultados de negocio.";
 
 export const SECTOR_AUDIENCE_PLACEHOLDER: Record<string, string> = {
-  farmacia:
-    "Perfil/cargo: titulares de farmacia y responsables de negocio.\nObjetivo: aumentar visibilidad, fidelización o ticket medio.\nProblema: poca diferenciación, estacionalidad, competencia local.\nQué valora: claridad, rentabilidad y acciones aplicables.",
-  marketing:
-    "Perfil/cargo: CEO, director de marketing o responsable comercial.\nTipo de negocio: pyme o empresa en crecimiento.\nObjetivo: captar leads y mejorar visibilidad.\nProblema: dependencia de referencias, poca tracción orgánica.\nQué valora: estrategia, resultados y especialización.",
-  asesoria:
-    "Perfil/cargo: autónomos, gerencia o administración.\nObjetivo: tomar mejores decisiones y reducir errores.\nProblema: incertidumbre fiscal, laboral o contable.\nQué valora: rigor, claridad y utilidad práctica.",
+  farmacia: "Define el decisor: perfil, objetivo y problema principal.",
+  marketing: "Define el decisor: cargo, objetivo y freno actual.",
+  asesoria: "Define el decisor: perfil, contexto y necesidad prioritaria.",
 };
 
 export const DEFAULT_AUDIENCE_PLACEHOLDER =
-  "Perfil/cargo:\nTipo de negocio o situación:\nObjetivo principal:\nProblema principal:\nQué valora al decidir:";
+  "Describe al decisor ideal: quien es, que quiere lograr y que le preocupa.";
+
+export const SECTOR_AUDIENCE_EXAMPLES: Record<string, string> = {
+  farmacia:
+    "Titulares y responsables de farmacia que quieren mejorar visibilidad local, impulsar categorias clave y fidelizar clientes.",
+  marketing:
+    "CEO o director de marketing de pyme que busca captar demanda organica y reducir dependencia de referencias.",
+  asesoria:
+    "Autonomos y gerentes de pyme que necesitan claridad fiscal y laboral para tomar decisiones con menos riesgo.",
+};
+
+export const DEFAULT_AUDIENCE_EXAMPLE =
+  "Responsables de negocio que buscan resultados medibles y valoran contenido practico para decidir mejor.";
 
 export const SECTOR_GOAL_PLACEHOLDER: Record<string, string> = {
-  farmacia:
-    "Ej: Queremos atraer búsquedas relacionadas con campañas estacionales, categorías de alta rotación y acciones para mejorar visibilidad y ticket medio de la farmacia.",
-  marketing:
-    "Ej: Queremos atraer búsquedas con intención comercial sobre SEO, automatización, visibilidad y captación de leads para vender servicios.",
-  asesoria:
-    "Ej: Queremos posicionarnos como referencia práctica en fiscalidad, laboral y gestión para pymes, y convertir visitas en contactos cualificados.",
+  farmacia: "Explica para que quieres el blog a nivel de negocio.",
+  marketing: "Explica para que quieres el blog a nivel de negocio.",
+  asesoria: "Explica para que quieres el blog a nivel de negocio.",
 };
 
 export const DEFAULT_GOAL_PLACEHOLDER =
-  "Ej: Queremos atraer búsquedas útiles para nuestro negocio, demostrar autoridad y convertir lectores en oportunidades comerciales.";
+  "Explica para que quieres el blog: trafico cualificado, autoridad, leads o ventas.";
+
+export const SECTOR_GOAL_EXAMPLES: Record<string, string> = {
+  farmacia:
+    "Atraer busquedas de alta intencion sobre campanas estacionales y convertir visitas en compras recurrentes o consultas en tienda.",
+  marketing:
+    "Captar demanda cualificada en SEO y automatizacion para convertir lectores en oportunidades comerciales.",
+  asesoria:
+    "Posicionar la marca como referente en fiscal y laboral y transformar trafico organico en contactos de calidad.",
+};
+
+export const DEFAULT_GOAL_EXAMPLE =
+  "Generar trafico cualificado, reforzar autoridad y convertir parte de las visitas en contactos o ventas.";
+
+export const SECTOR_EDITORIAL_FOCUS_EXAMPLES: Record<string, string> = {
+  farmacia:
+    "Priorizar contenidos sobre visibilidad local, campanas de temporada, categorias estrategicas y experiencia de cliente en farmacia.",
+  marketing:
+    "Priorizar contenidos sobre SEO, captacion, automatizacion y estrategia editorial orientada a negocio.",
+  asesoria:
+    "Priorizar contenidos practicos sobre fiscalidad, laboral y gestion para resolver dudas frecuentes de pymes y autonomos.",
+};
+
+export const DEFAULT_EDITORIAL_FOCUS_EXAMPLE =
+  "Priorizar temas con demanda real, enfoque practico y utilidad directa para el cliente ideal.";
 
 export const SECTOR_PRIORITY_TOPICS_PLACEHOLDER: Record<string, string> = {
   farmacia:
@@ -150,14 +189,34 @@ export function getStructuredDescriptionPlaceholder(sector?: string | null): str
   return SECTOR_DESCRIPTION_PLACEHOLDERS[sector] || DEFAULT_DESCRIPTION_PLACEHOLDER;
 }
 
+export function getDescriptionExample(sector?: string | null): string {
+  if (!sector) return DEFAULT_DESCRIPTION_EXAMPLE;
+  return SECTOR_DESCRIPTION_EXAMPLES[sector] || DEFAULT_DESCRIPTION_EXAMPLE;
+}
+
 export function getAudiencePlaceholder(sector?: string | null): string {
   if (!sector) return DEFAULT_AUDIENCE_PLACEHOLDER;
   return SECTOR_AUDIENCE_PLACEHOLDER[sector] || DEFAULT_AUDIENCE_PLACEHOLDER;
 }
 
+export function getAudienceExample(sector?: string | null): string {
+  if (!sector) return DEFAULT_AUDIENCE_EXAMPLE;
+  return SECTOR_AUDIENCE_EXAMPLES[sector] || DEFAULT_AUDIENCE_EXAMPLE;
+}
+
 export function getContentGoalPlaceholder(sector?: string | null): string {
   if (!sector) return DEFAULT_GOAL_PLACEHOLDER;
   return SECTOR_GOAL_PLACEHOLDER[sector] || DEFAULT_GOAL_PLACEHOLDER;
+}
+
+export function getContentGoalExample(sector?: string | null): string {
+  if (!sector) return DEFAULT_GOAL_EXAMPLE;
+  return SECTOR_GOAL_EXAMPLES[sector] || DEFAULT_GOAL_EXAMPLE;
+}
+
+export function getEditorialFocusExample(sector?: string | null): string {
+  if (!sector) return DEFAULT_EDITORIAL_FOCUS_EXAMPLE;
+  return SECTOR_EDITORIAL_FOCUS_EXAMPLES[sector] || DEFAULT_EDITORIAL_FOCUS_EXAMPLE;
 }
 
 export function getPriorityTopicsPlaceholder(sector?: string | null): string {

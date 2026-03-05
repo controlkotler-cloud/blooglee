@@ -8,9 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Sparkles, Users, FileText, Ban } from "lucide-react";
 import {
   getAngleToAvoidPlaceholder,
+  getAudienceExample,
   getAudiencePlaceholder,
   getAvoidTopicsPlaceholder,
   getBusinessTypeWarning,
+  getContentGoalExample,
   getContentGoalPlaceholder,
   getPreferredSourcesPlaceholder,
   getPriorityTopicsPlaceholder,
@@ -126,6 +128,9 @@ export function ContentProfileCard({ watch, setValue, register, plan }: ContentP
           <p className="text-xs text-muted-foreground">
             Describe al decisor que quieres atraer: perfil, objetivo, problema y qué valora al decidir.
           </p>
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium">Ejemplo:</span> {getAudienceExample(watchedSector)}
+          </p>
         </div>
 
         {audienceWarning && (
@@ -138,13 +143,16 @@ export function ContentProfileCard({ watch, setValue, register, plan }: ContentP
           <Label htmlFor="content_goal">Objetivo de negocio del blog</Label>
           <Textarea
             id="content_goal"
-            placeholder="Ejemplo: Queremos atraer búsquedas con intención comercial, reforzar nuestra autoridad en el sector y convertir lectores en solicitudes de presupuesto o contactos cualificados."
+            placeholder={getContentGoalPlaceholder(watchedSector)}
             {...register("content_goal")}
             rows={3}
           />
           <p className="text-xs text-muted-foreground">
             Explica qué debe conseguir el contenido para tu negocio. Piensa en atraer tráfico cualificado, reforzar
             autoridad, captar contactos o apoyar ventas.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium">Ejemplo:</span> {getContentGoalExample(watchedSector)}
           </p>
         </div>
 
