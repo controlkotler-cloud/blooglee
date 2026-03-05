@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+// src/hooks/useColorPalette.ts
+import { useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
-export type ExtractionStatus = 'idle' | 'extracting' | 'done' | 'failed';
+export type ExtractionStatus = "idle" | "extracting" | "done" | "failed";
 
 export interface ExtractedSiteProfile {
   colors: string[];
@@ -24,12 +25,12 @@ export interface ExtractedSiteProfile {
 }
 
 export function useColorPalette() {
-  const [extractionStatus, setExtractionStatus] = useState<ExtractionStatus>('idle');
+  const [extractionStatus, setExtractionStatus] = useState<ExtractionStatus>("idle");
   const [colors, setColors] = useState<string[]>([]);
   const [extractedProfile, setExtractedProfile] = useState<ExtractedSiteProfile | null>(null);
 
   const resetExtraction = useCallback(() => {
-    setExtractionStatus('idle');
+    setExtractionStatus("idle");
     setColors([]);
     setExtractedProfile(null);
   }, []);
@@ -37,38 +38,55 @@ export function useColorPalette() {
   const triggerExtraction = useCallback(async (url: string, siteId?: string) => {
     if (!url?.trim()) return null;
 
-    setExtractionStatus('extracting');
+    setExtractionStatus("extracting");
     setColors([]);
     setExtractedProfile(null);
 
-    console.log('[useColorPalette] Triggering extraction for:', url, 'site:', siteId || '(preview only)');
+    console.log("[useColorPalette] Triggering extraction for:", url, "site:", siteId || "(preview only)");
 
     try {
-      const { data, error } = await supabase.functions.invoke('extract-color-palette', {
-        body: { url, site_id: siteId ?? null },
-      });
+      const invokeExtraction = async (payloadSiteId: string | null) =>
+        supabase.functions.invoke("extract-color-palette", {
+          body: { url, site_id: payloadSiteId },
+        });
+
+      const PREVIEW_FALLBACK_SITE_ID = "00000000-0000-0000-0000-000000000000";
+
+      let { data, error } = await invokeExtraction(siteId ?? null);
+
+      // Compatibilidad: función edge antigua exige site_id también en preview
+      if (
+        !siteId &&
+        (error?.message?.toLowerCase().includes("site_id") ||
+          (typeof data?.error === "string" && data.error.toLowerCase().includes("site_id")))
+      ) {
+        console.warn("[useColorPalette] Retrying extraction with fallback site_id for legacy edge function");
+        const retryResult = await invokeExtraction(PREVIEW_FALLBACK_SITE_ID);
+        data = retryResult.data;
+        error = retryResult.error;
+      }
 
       if (error) {
         const errorWithContext = error as { context?: unknown };
-        console.error('[useColorPalette] Edge function error:', {
+        console.error("[useColorPalette] Edge function error:", {
           message: error.message,
           name: error.name,
           context: errorWithContext.context,
         });
-        setExtractionStatus('failed');
+        setExtractionStatus("failed");
         return null;
       }
 
       const profile = (data || null) as ExtractedSiteProfile | null;
       if (!profile) {
-        console.error('[useColorPalette] Empty response payload from extract-color-palette');
-        setExtractionStatus('failed');
+        console.error("[useColorPalette] Empty response payload from extract-color-palette");
+        setExtractionStatus("failed");
         return null;
       }
 
       if (profile.success === false) {
-        console.error('[useColorPalette] Extract function returned success=false:', profile.error || 'unknown');
-        setExtractionStatus('failed');
+        console.error("[useColorPalette] Extract function returned success=false:", profile.error || "unknown");
+        setExtractionStatus("failed");
         return null;
       }
 
@@ -76,13 +94,13 @@ export function useColorPalette() {
 
       setColors(palette);
       setExtractedProfile(profile);
-      setExtractionStatus('done');
-      console.log('[useColorPalette] Extraction complete:', profile);
+      setExtractionStatus("done");
+      console.log("[useColorPalette] Extraction complete:", profile);
 
       return profile;
     } catch (err) {
-      console.error('[useColorPalette] Unexpected extraction error:', err);
-      setExtractionStatus('failed');
+      console.error("[useColorPalette] Unexpected extraction error:", err);
+      setExtractionStatus("failed");
       return null;
     }
   }, []);
