@@ -44,16 +44,26 @@ export function useColorPalette() {
     console.log("[useColorPalette] Triggering extraction for:", url, "site:", siteId || "(preview only)");
 
     try {
-      const PREVIEW_FALLBACK_SITE_ID = "00000000-0000-0000-0000-000000000000";
-
-      const invokeExtraction = async (payloadSiteId: string) =>
+      const invokeExtraction = async (payloadSiteId: string | null) =>
         supabase.functions.invoke("extract-color-palette", {
           body: { url, site_id: payloadSiteId },
         });
 
-      // Always send a site_id to stay compatible with old/new edge versions.
-      const effectiveSiteId = siteId ?? PREVIEW_FALLBACK_SITE_ID;
-      const { data, error } = await invokeExtraction(effectiveSiteId);
+      const PREVIEW_FALLBACK_SITE_ID = "00000000-0000-0000-0000-000000000000";
+
+      let { data, error } = await invokeExtraction(siteId ?? null);
+
+      // Backward compatibility: old edge version still requires site_id even for preview.
+      if (
+        !siteId &&
+        (error?.message?.toLowerCase().includes("site_id") ||
+          (typeof data?.error === "string" && data.error.toLowerCase().includes("site_id")))
+      ) {
+        console.warn("[useColorPalette] Retrying extraction with fallback site_id for legacy edge function");
+        const retryResult = await invokeExtraction(PREVIEW_FALLBACK_SITE_ID);
+        data = retryResult.data;
+        error = retryResult.error;
+      }
 
       if (error) {
         const errorWithContext = error as { context?: unknown };
