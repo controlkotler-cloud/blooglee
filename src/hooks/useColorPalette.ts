@@ -19,6 +19,8 @@ export interface ExtractedSiteProfile {
   editorial_focus_suggestion?: string;
   languages?: string[];
   source: string;
+  success?: boolean;
+  error?: string;
 }
 
 export function useColorPalette() {
@@ -47,12 +49,29 @@ export function useColorPalette() {
       });
 
       if (error) {
-        console.error('[useColorPalette] Edge function error:', error);
+        const errorWithContext = error as { context?: unknown };
+        console.error('[useColorPalette] Edge function error:', {
+          message: error.message,
+          name: error.name,
+          context: errorWithContext.context,
+        });
         setExtractionStatus('failed');
         return null;
       }
 
       const profile = (data || null) as ExtractedSiteProfile | null;
+      if (!profile) {
+        console.error('[useColorPalette] Empty response payload from extract-color-palette');
+        setExtractionStatus('failed');
+        return null;
+      }
+
+      if (profile.success === false) {
+        console.error('[useColorPalette] Extract function returned success=false:', profile.error || 'unknown');
+        setExtractionStatus('failed');
+        return null;
+      }
+
       const palette = profile?.colors || [];
 
       setColors(palette);

@@ -3,5 +3,7 @@ project_id = "gqtikajhhggyoiypkbgw"
 [functions]
   [functions.auth-email-hook]
     verify_jwt = false
+  [functions.extract-color-palette]
+    verify_jwt = false
   [functions.send-contact-form]
     verify_jwt = false
