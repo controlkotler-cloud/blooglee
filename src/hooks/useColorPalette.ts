@@ -1,4 +1,3 @@
-// src/hooks/useColorPalette.ts
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -54,7 +53,7 @@ export function useColorPalette() {
 
       let { data, error } = await invokeExtraction(siteId ?? null);
 
-      // Compatibilidad: función edge antigua exige site_id también en preview
+      // Backward compatibility: old edge version still requires site_id even for preview.
       if (
         !siteId &&
         (error?.message?.toLowerCase().includes("site_id") ||
