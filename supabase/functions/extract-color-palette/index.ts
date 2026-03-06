@@ -608,24 +608,136 @@ function extractDescription(html: string): string | undefined {
   return undefined;
 }
 
-function extractSocialLink(html: string): string | undefined {
-  const socialPatterns = [
-    /href=["'](https?:\/\/(?:www\.)?instagram\.com\/[^"'\s>]+)["']/gi,
-    /href=["'](https?:\/\/(?:www\.)?facebook\.com\/[^"'\s>]+)["']/gi,
-    /href=["'](https?:\/\/(?:www\.)?linkedin\.com\/[^"'\s>]+)["']/gi,
-    /href=["'](https?:\/\/(?:www\.)?twitter\.com\/[^"'\s>]+)["']/gi,
-    /href=["'](https?:\/\/(?:www\.)?x\.com\/[^"'\s>]+)["']/gi,
-    /href=["'](https?:\/\/(?:www\.)?tiktok\.com\/[^"'\s>]+)["']/gi,
-    /href=["'](https?:\/\/(?:www\.)?youtube\.com\/[^"'\s>]+)["']/gi,
-  ];
+function getSocialPriority(hostname: string): number {
+  const host = hostname.replace(/^www\./, "").toLowerCase();
+  if (host.includes("instagram.com")) return 1;
+  if (host.includes("linkedin.com")) return 2;
+  if (host.includes("facebook.com")) return 3;
+  if (host.includes("tiktok.com")) return 4;
+  if (host.includes("youtube.com")) return 5;
+  if (host.includes("x.com") || host.includes("twitter.com")) return 6;
+  return 99;
+}
 
-  for (const pattern of socialPatterns) {
-    const match = pattern.exec(html);
-    if (match?.[1]) {
-      return match[1].split("?")[0].replace(/\/+$/, "");
+function isSupportedSocialHost(hostname: string): boolean {
+  const host = hostname.replace(/^www\./, "").toLowerCase();
+  return (
+    host.includes("instagram.com") ||
+    host.includes("facebook.com") ||
+    host.includes("linkedin.com") ||
+    host.includes("x.com") ||
+    host.includes("twitter.com") ||
+    host.includes("tiktok.com") ||
+    host.includes("youtube.com")
+  );
+}
+
+function isShareOrNonProfileSocialUrl(url: URL): boolean {
+  const host = url.hostname.replace(/^www\./, "").toLowerCase();
+  const path = url.pathname.toLowerCase();
+
+  if (host.includes("instagram.com")) {
+    return (
+      path.startsWith("/p/") ||
+      path.startsWith("/reel/") ||
+      path.startsWith("/reels/") ||
+      path.startsWith("/stories/") ||
+      path === "/" ||
+      path.includes("/share")
+    );
+  }
+
+  if (host.includes("facebook.com")) {
+    return path.includes("/sharer") || path.includes("/share.php") || path.includes("/dialog/share");
+  }
+
+  if (host.includes("linkedin.com")) {
+    return path.includes("/share") || path.includes("/feed/update");
+  }
+
+  if (host.includes("x.com") || host.includes("twitter.com")) {
+    return path.includes("/intent/") || path.includes("/share");
+  }
+
+  if (host.includes("youtube.com")) {
+    return path.includes("/watch") || path.includes("/playlist") || path.includes("/shorts");
+  }
+
+  return false;
+}
+
+function normalizeSocialCandidate(rawUrl: string): string | undefined {
+  if (!rawUrl) return undefined;
+  let candidate = rawUrl.trim().replace(/&amp;/g, "&");
+  if (!candidate) return undefined;
+  if (candidate.startsWith("mailto:") || candidate.startsWith("tel:")) return undefined;
+  if (candidate.startsWith("#")) return undefined;
+
+  if (candidate.startsWith("//")) {
+    candidate = `https:${candidate}`;
+  } else if (candidate.startsWith("www.")) {
+    candidate = `https://${candidate}`;
+  } else if (!candidate.startsWith("http://") && !candidate.startsWith("https://")) {
+    // If domain appears without protocol
+    if (
+      /(?:instagram|facebook|linkedin|twitter|x|tiktok|youtube)\.com/i.test(candidate)
+    ) {
+      candidate = `https://${candidate.replace(/^\/+/, "")}`;
+    } else {
+      return undefined;
     }
   }
-  return undefined;
+
+  try {
+    const parsed = new URL(candidate);
+    if (!isSupportedSocialHost(parsed.hostname)) return undefined;
+    if (isShareOrNonProfileSocialUrl(parsed)) return undefined;
+    const normalizedPath = parsed.pathname.replace(/\/+$/, "");
+    return `${parsed.protocol}//${parsed.host}${normalizedPath}`;
+  } catch {
+    return undefined;
+  }
+}
+
+function extractSocialLink(html: string): string | undefined {
+  const source = html.replace(/\\\//g, "/");
+  const candidates: string[] = [];
+
+  // 1) Any href value (absolute, protocol-relative or plain domain)
+  const hrefRegex = /href=["']([^"']+)["']/gi;
+  let match;
+  while ((match = hrefRegex.exec(source)) !== null) {
+    candidates.push(match[1]);
+  }
+
+  // 2) JSON-LD sameAs array
+  const sameAsRegex = /"sameAs"\s*:\s*\[([\s\S]*?)\]/gi;
+  while ((match = sameAsRegex.exec(source)) !== null) {
+    const block = match[1];
+    const urlRegex = /"([^"]+)"/g;
+    let urlMatch;
+    while ((urlMatch = urlRegex.exec(block)) !== null) {
+      candidates.push(urlMatch[1]);
+    }
+  }
+
+  // 3) Plain social URLs in markup/scripts text
+  const plainSocialRegex =
+    /(?:https?:\/\/|\/\/|www\.)?(?:instagram\.com|facebook\.com|linkedin\.com|twitter\.com|x\.com|tiktok\.com|youtube\.com)\/[^\s"'<>]+/gi;
+  while ((match = plainSocialRegex.exec(source)) !== null) {
+    candidates.push(match[0]);
+  }
+
+  const normalized = [...new Set(candidates.map((c) => normalizeSocialCandidate(c)).filter(Boolean) as string[])];
+  if (normalized.length === 0) return undefined;
+
+  normalized.sort((a, b) => {
+    const hostA = new URL(a).hostname;
+    const hostB = new URL(b).hostname;
+    return getSocialPriority(hostA) - getSocialPriority(hostB);
+  });
+
+  return normalized[0];
 }
 
 function extractBlogUrl(html: string, siteUrl: string): string | undefined {
