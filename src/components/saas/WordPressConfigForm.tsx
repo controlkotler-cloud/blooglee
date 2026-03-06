@@ -519,28 +519,27 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
         </form>
 
         {/* Banner de diagnóstico Yoast */}
-        {config && yoastDiagnostic && (
+        {config && (
           <Alert
             className={
-              yoastDiagnostic.status === "ok"
+              yoastDiagnostic?.status === "ok"
                 ? "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-100 [&>svg]:text-emerald-600"
                 : "border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600"
             }
           >
-            {yoastDiagnostic.status === "ok" ? (
+            {yoastDiagnostic?.status === "ok" ? (
               <CheckCircle className="h-4 w-4" />
             ) : (
               <AlertTriangle className="h-4 w-4" />
             )}
             <AlertTitle>
-              {yoastDiagnostic.status === "ok" ? "Yoast SEO verificado" : "Revisión de Yoast recomendada"}
+              {yoastDiagnostic?.status === "ok" ? "Yoast SEO verificado" : "Revisión de Yoast recomendada"}
             </AlertTitle>
             <AlertDescription className="text-sm flex flex-wrap items-center gap-x-3 gap-y-2">
               <span>
-                {yoastDiagnostic.message ||
-                  "No hay diagnóstico de Yoast disponible todavía. Pulsa Re-sincronizar para comprobarlo."}
+                {yoastDiagnostic.message || "Diagnóstico de Yoast pendiente. Pulsa Re-sincronizar para comprobarlo."}
               </span>
-              {yoastDiagnostic.status !== "ok" && (
+              {yoastDiagnostic?.status !== "ok" && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -557,30 +556,30 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
         )}
 
         {/* Banner de diagnóstico Elementor */}
-        {config && elementorDiagnostic && (
+        {config && (
           <Alert
             className={
-              elementorDiagnostic.status === "ok"
+              elementorDiagnostic?.status === "ok"
                 ? "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-100 [&>svg]:text-emerald-600"
                 : "border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600"
             }
           >
-            {elementorDiagnostic.status === "ok" ? (
+            {elementorDiagnostic?.status === "ok" ? (
               <CheckCircle className="h-4 w-4" />
             ) : (
               <AlertTriangle className="h-4 w-4" />
             )}
             <AlertTitle>
-              {elementorDiagnostic.status === "ok"
+              {elementorDiagnostic?.status === "ok"
                 ? "Formato compatible con publicaciones automáticas"
                 : "Posible desajuste de diseño con Elementor"}
             </AlertTitle>
             <AlertDescription className="text-sm flex flex-wrap items-center gap-x-3 gap-y-2">
               <span>
                 {elementorDiagnostic.message ||
-                  "No hay diagnóstico de Elementor disponible todavía. Pulsa Re-sincronizar para comprobarlo."}
+                  "Diagnóstico de Elementor pendiente. Pulsa Re-sincronizar para comprobarlo."}
               </span>
-              {elementorDiagnostic.status !== "ok" && (
+              {elementorDiagnostic?.status !== "ok" && (
                 <Button
                   variant="ghost"
                   size="sm"
