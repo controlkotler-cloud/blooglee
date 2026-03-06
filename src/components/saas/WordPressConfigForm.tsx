@@ -537,7 +537,7 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
             </AlertTitle>
             <AlertDescription className="text-sm flex flex-wrap items-center gap-x-3 gap-y-2">
               <span>
-                {yoastDiagnostic.message || "Diagnóstico de Yoast pendiente. Pulsa Re-sincronizar para comprobarlo."}
+                {yoastDiagnostic?.message || "Diagnóstico de Yoast pendiente. Pulsa Re-sincronizar para comprobarlo."}
               </span>
               {yoastDiagnostic?.status !== "ok" && (
                 <Button
@@ -576,7 +576,7 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
             </AlertTitle>
             <AlertDescription className="text-sm flex flex-wrap items-center gap-x-3 gap-y-2">
               <span>
-                {elementorDiagnostic.message ||
+                {elementorDiagnostic?.message ||
                   "Diagnóstico de Elementor pendiente. Pulsa Re-sincronizar para comprobarlo."}
               </span>
               {elementorDiagnostic?.status !== "ok" && (
