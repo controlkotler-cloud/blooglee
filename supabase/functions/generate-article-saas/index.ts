@@ -1741,11 +1741,34 @@ function ensureFooterLinks(
 ): string {
   if (!htmlContent) return htmlContent;
 
-  const hasBlogLink = blogUrl ? htmlContent.includes(blogUrl) : false;
-  const hasInstagramLink = instagramUrl ? htmlContent.includes(instagramUrl) : false;
+  // Replace common AI placeholders with real URLs when available.
+  let normalizedContent = htmlContent;
+  const instagramPlaceholders = /(URL_DE_INSTAGRAM|INSTAGRAM_URL|\{\{instagramUrl\}\})/gi;
+  const blogPlaceholders = /(URL_DE_BLOG|BLOG_URL|\{\{blogUrl\}\})/gi;
+
+  if (instagramUrl) {
+    normalizedContent = normalizedContent.replace(instagramPlaceholders, instagramUrl);
+  } else {
+    normalizedContent = normalizedContent.replace(
+      /<a[^>]+href=["'](?:URL_DE_INSTAGRAM|INSTAGRAM_URL|\{\{instagramUrl\}\})["'][^>]*>(.*?)<\/a>/gi,
+      "$1",
+    );
+  }
+
+  if (blogUrl) {
+    normalizedContent = normalizedContent.replace(blogPlaceholders, blogUrl);
+  } else {
+    normalizedContent = normalizedContent.replace(
+      /<a[^>]+href=["'](?:URL_DE_BLOG|BLOG_URL|\{\{blogUrl\}\})["'][^>]*>(.*?)<\/a>/gi,
+      "$1",
+    );
+  }
+
+  const hasBlogLink = blogUrl ? normalizedContent.includes(blogUrl) : false;
+  const hasInstagramLink = instagramUrl ? normalizedContent.includes(instagramUrl) : false;
 
   if ((!blogUrl || hasBlogLink) && (!instagramUrl || hasInstagramLink)) {
-    return htmlContent;
+    return normalizedContent;
   }
 
   let closing = "";
@@ -1757,7 +1780,7 @@ function ensureFooterLinks(
     closing = `<p>También puedes seguirnos en <a href="${instagramUrl}" target="_blank" rel="noopener">nuestras redes sociales</a>.</p>`;
   }
 
-  return closing ? `${htmlContent}\n${closing}` : htmlContent;
+  return closing ? `${normalizedContent}\n${closing}` : normalizedContent;
 }
 
 function ensureHomeLinkPresence(htmlContent: string, siteName: string, homeUrl: string): string {
