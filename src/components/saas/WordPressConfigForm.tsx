@@ -22,6 +22,7 @@ import { useWordPressConfig, useUpsertWordPressConfig, useDeleteWordPressConfig 
 import { useWordPressHealthCheck, HealthCheckResult } from "@/hooks/useWordPressHealthCheck";
 import { useSyncTaxonomiesSaas } from "@/hooks/useWordPressTaxonomiesSaas";
 import { usePolylangDiagnostic } from "@/hooks/usePolylangDiagnostic";
+import { useWordPressDiagnostic } from "@/hooks/useWordPressDiagnostic";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { WordPressTroubleshootPanel } from "./WordPressTroubleshootPanel";
 import { PolylangSetupGuide } from "./PolylangSetupGuide";
@@ -81,6 +82,12 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
   const syncMutation = useSyncTaxonomiesSaas();
   const hasCatalan = languages.includes("catalan");
   const { data: polylangDiagnostic } = usePolylangDiagnostic(hasCatalan ? siteId : undefined);
+  const { data: yoastDiagnostic } = useWordPressDiagnostic(config ? siteId : undefined, "yoast_meta", !!config);
+  const { data: elementorDiagnostic } = useWordPressDiagnostic(
+    config ? siteId : undefined,
+    "elementor_format",
+    !!config,
+  );
 
   const [showPassword, setShowPassword] = useState(false);
   const [helpOpen, setHelpOpen] = useState(true);
@@ -510,6 +517,84 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
             )}
           </div>
         </form>
+
+        {/* Banner de diagnóstico Yoast */}
+        {config && yoastDiagnostic && (
+          <Alert
+            className={
+              yoastDiagnostic.status === "ok"
+                ? "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-100 [&>svg]:text-emerald-600"
+                : "border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600"
+            }
+          >
+            {yoastDiagnostic.status === "ok" ? (
+              <CheckCircle className="h-4 w-4" />
+            ) : (
+              <AlertTriangle className="h-4 w-4" />
+            )}
+            <AlertTitle>
+              {yoastDiagnostic.status === "ok" ? "Yoast SEO verificado" : "Revisión de Yoast recomendada"}
+            </AlertTitle>
+            <AlertDescription className="text-sm flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span>
+                {yoastDiagnostic.message ||
+                  "No hay diagnóstico de Yoast disponible todavía. Pulsa Re-sincronizar para comprobarlo."}
+              </span>
+              {yoastDiagnostic.status !== "ok" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-amber-700 dark:text-amber-300 hover:text-amber-800 p-0"
+                  onClick={() => syncMutation.mutate(config.id)}
+                  disabled={syncMutation.isPending}
+                >
+                  <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+                  Re-sincronizar
+                </Button>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Banner de diagnóstico Elementor */}
+        {config && elementorDiagnostic && (
+          <Alert
+            className={
+              elementorDiagnostic.status === "ok"
+                ? "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-100 [&>svg]:text-emerald-600"
+                : "border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600"
+            }
+          >
+            {elementorDiagnostic.status === "ok" ? (
+              <CheckCircle className="h-4 w-4" />
+            ) : (
+              <AlertTriangle className="h-4 w-4" />
+            )}
+            <AlertTitle>
+              {elementorDiagnostic.status === "ok"
+                ? "Formato compatible con publicaciones automáticas"
+                : "Posible desajuste de diseño con Elementor"}
+            </AlertTitle>
+            <AlertDescription className="text-sm flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span>
+                {elementorDiagnostic.message ||
+                  "No hay diagnóstico de Elementor disponible todavía. Pulsa Re-sincronizar para comprobarlo."}
+              </span>
+              {elementorDiagnostic.status !== "ok" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-amber-700 dark:text-amber-300 hover:text-amber-800 p-0"
+                  onClick={() => syncMutation.mutate(config.id)}
+                  disabled={syncMutation.isPending}
+                >
+                  <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+                  Re-sincronizar
+                </Button>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Banner de diagnóstico Polylang - 3 estados */}
         {hasCatalan &&
