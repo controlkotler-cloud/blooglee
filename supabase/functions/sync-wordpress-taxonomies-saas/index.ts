@@ -38,6 +38,196 @@ interface WordPressContext {
   analyzed_at: string;
 }
 
+type DiagnosticStatus = "ok" | "warning" | "error";
+
+interface DiagnosticCheckResult {
+  ok: boolean;
+  message: string;
+  raw?: Record<string, unknown>;
+}
+
+async function replaceDiagnostic(
+  supabaseClient: any,
+  siteId: string,
+  userId: string,
+  checkType: string,
+  status: DiagnosticStatus,
+  message: string,
+  rawResponse?: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await supabaseClient.from("wordpress_diagnostics").delete().eq("site_id", siteId).eq("check_type", checkType);
+
+    const { error } = await supabaseClient.from("wordpress_diagnostics").insert({
+      user_id: userId,
+      site_id: siteId,
+      check_type: checkType,
+      status,
+      message,
+      raw_response: rawResponse || null,
+      checked_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.error(`Failed to save diagnostic (${checkType}):`, error.message);
+    } else {
+      console.log(`Diagnostic saved: ${checkType} -> ${status}`);
+    }
+  } catch (error) {
+    console.error(`Exception saving diagnostic (${checkType}):`, error);
+  }
+}
+
+async function verifyYoastMetaViaRest(
+  wpUrl: string,
+  wpHeaders: Record<string, string>,
+): Promise<DiagnosticCheckResult> {
+  const expectedMeta: Record<string, string> = {
+    _yoast_wpseo_metadesc: "Chequeo técnico Blooglee Yoast",
+    _yoast_wpseo_title: "Chequeo Yoast Blooglee",
+    _yoast_wpseo_focuskw: "chequeo yoast blooglee",
+  };
+
+  let testPostId: number | null = null;
+
+  try {
+    const marker = crypto.randomUUID().slice(0, 8);
+    const createResponse = await fetch(`${wpUrl}/wp-json/wp/v2/posts`, {
+      method: "POST",
+      headers: wpHeaders,
+      body: JSON.stringify({
+        title: `Blooglee Yoast Check ${marker}`,
+        status: "draft",
+        content: "Post temporal para comprobar guardado de meta SEO por REST.",
+        meta: expectedMeta,
+      }),
+    });
+
+    if (!createResponse.ok) {
+      const errText = await createResponse.text();
+      return {
+        ok: false,
+        message:
+          "No hemos podido verificar Yoast por API REST. Revisa permisos del usuario de WordPress o la configuración de la REST API.",
+        raw: {
+          stage: "create_test_post",
+          status: createResponse.status,
+          response_preview: errText.substring(0, 300),
+        },
+      };
+    }
+
+    const createdPost = await createResponse.json();
+    testPostId = typeof createdPost?.id === "number" ? createdPost.id : null;
+    if (!testPostId) {
+      return {
+        ok: false,
+        message: "No hemos podido verificar Yoast por API REST (respuesta inesperada al crear post de prueba).",
+        raw: { stage: "create_test_post", response: createdPost },
+      };
+    }
+
+    const verifyResponse = await fetch(`${wpUrl}/wp-json/wp/v2/posts/${testPostId}?context=edit&_fields=id,meta`, {
+      method: "GET",
+      headers: wpHeaders,
+    });
+
+    if (!verifyResponse.ok) {
+      const errText = await verifyResponse.text();
+      return {
+        ok: false,
+        message:
+          "Yoast detectado, pero WordPress no confirma meta SEO por REST. Instala un plugin de exposición REST de Yoast o registra esos metacampos con register_post_meta.",
+        raw: {
+          stage: "verify_meta",
+          status: verifyResponse.status,
+          response_preview: errText.substring(0, 300),
+        },
+      };
+    }
+
+    const verifyData = await verifyResponse.json();
+    const meta = (verifyData?.meta || {}) as Record<string, unknown>;
+    const missingKeys = Object.keys(expectedMeta).filter((key) => {
+      const value = meta[key];
+      return typeof value !== "string" || value.trim().length === 0;
+    });
+
+    if (missingKeys.length > 0) {
+      return {
+        ok: false,
+        message:
+          "Yoast está activo, pero no se están guardando metadatos SEO por REST. Aplica el snippet/register_post_meta y vuelve a sincronizar.",
+        raw: {
+          stage: "verify_meta",
+          missing_keys: missingKeys,
+          expected_keys: Object.keys(expectedMeta),
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      message: "Yoast SEO verificado: los metadatos se guardan correctamente por API REST.",
+      raw: {
+        stage: "verify_meta",
+        saved_keys: Object.keys(expectedMeta),
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: "Error al verificar Yoast por API REST.",
+      raw: {
+        stage: "exception",
+        error: error instanceof Error ? error.message : String(error),
+      },
+    };
+  } finally {
+    if (testPostId) {
+      await fetch(`${wpUrl}/wp-json/wp/v2/posts/${testPostId}?force=true`, {
+        method: "DELETE",
+        headers: wpHeaders,
+      }).catch(() => {});
+    }
+  }
+}
+
+async function siteUsesElementorPostMarkup(
+  wpUrl: string,
+  wpHeaders: Record<string, string>,
+): Promise<{ usesElementorMarkup: boolean; scannedPosts: number }> {
+  try {
+    const response = await fetch(`${wpUrl}/wp-json/wp/v2/posts?per_page=8&_fields=id,content.rendered`, {
+      method: "GET",
+      headers: wpHeaders,
+    });
+    if (!response.ok) {
+      console.warn(`[elementor_probe] Could not inspect recent posts, status=${response.status}`);
+      return { usesElementorMarkup: false, scannedPosts: 0 };
+    }
+
+    const rawData = (await response.json()) as unknown;
+    if (!Array.isArray(rawData)) return { usesElementorMarkup: false, scannedPosts: 0 };
+
+    const usesElementorMarkup = rawData.some((item) => {
+      if (!item || typeof item !== "object") return false;
+      const rendered = (item as { content?: { rendered?: unknown } }).content?.rendered;
+      if (typeof rendered !== "string") return false;
+      return (
+        rendered.includes('data-elementor-type="wp-post"') ||
+        rendered.includes('class="elementor elementor-') ||
+        rendered.includes("elementor-widget")
+      );
+    });
+
+    return { usesElementorMarkup, scannedPosts: rawData.length };
+  } catch (error) {
+    console.error("[elementor_probe] Error inspecting post markup:", error);
+    return { usesElementorMarkup: false, scannedPosts: 0 };
+  }
+}
+
 Deno.serve(async (req) => {
   console.log("=== SYNC WORDPRESS TAXONOMIES SAAS - REQUEST RECEIVED ===");
   console.log("Method:", req.method);
@@ -447,11 +637,13 @@ Responde SOLO con JSON válido (sin markdown):
     }
 
     // ==========================================
-    // POLYLANG HEALTH CHECK (if site uses Catalan)
+    // DIAGNOSTICS: Polylang / Yoast / Elementor
     // ==========================================
     const siteLanguages: string[] = (wpConfig as any).sites?.languages || [];
     const hasCatalan = siteLanguages.includes("catalan");
-    let polylangStatus: { ok: boolean; message: string } | null = null;
+    let polylangStatus: DiagnosticCheckResult | null = null;
+    let yoastStatus: DiagnosticCheckResult | null = null;
+    let elementorStatus: DiagnosticCheckResult | null = null;
 
     if (hasCatalan) {
       console.log("=== POLYLANG HEALTH CHECK ===");
@@ -524,32 +716,76 @@ Responde SOLO con JSON válido (sin markdown):
           }
         }
 
-        // Save diagnostic result: delete old + insert new
+        // Save diagnostic result
         console.log("Saving Polylang diagnostic:", polylangStatus.ok ? "OK" : "ERROR");
-        try {
-          await supabase.from("wordpress_diagnostics").delete().eq("site_id", siteId).eq("check_type", "polylang");
-
-          const { error: diagError } = await supabase.from("wordpress_diagnostics").insert({
-            user_id: userId,
-            site_id: siteId,
-            check_type: "polylang",
-            status: polylangStatus.ok ? "ok" : "error",
-            message: polylangStatus.message,
-            checked_at: new Date().toISOString(),
-          });
-          if (diagError) {
-            console.error("Failed to save Polylang diagnostic:", diagError.message);
-          } else {
-            console.log("Polylang diagnostic saved successfully");
-          }
-        } catch (saveErr) {
-          console.error("Exception saving Polylang diagnostic:", saveErr);
-        }
+        await replaceDiagnostic(
+          supabase,
+          siteId,
+          userId,
+          "polylang",
+          polylangStatus.ok ? "ok" : "error",
+          polylangStatus.message,
+          {
+            has_catalan: true,
+            site_languages: siteLanguages,
+          },
+        );
       } catch (pllError) {
         console.error("Polylang health check error:", pllError);
         polylangStatus = { ok: false, message: "Error al verificar Polylang." };
+        await replaceDiagnostic(supabase, siteId, userId, "polylang", "error", polylangStatus.message, {
+          has_catalan: true,
+          error: pllError instanceof Error ? pllError.message : String(pllError),
+        });
       }
     }
+
+    // Yoast SEO metadata check (REST persistence)
+    console.log("=== YOAST META CHECK ===");
+    yoastStatus = await verifyYoastMetaViaRest(wpUrl, wpHeaders);
+    await replaceDiagnostic(
+      supabase,
+      siteId,
+      userId,
+      "yoast_meta",
+      yoastStatus.ok ? "ok" : "warning",
+      yoastStatus.message,
+      yoastStatus.raw,
+    );
+
+    // Elementor format compatibility check
+    console.log("=== ELEMENTOR FORMAT CHECK ===");
+    const elementorProbe = await siteUsesElementorPostMarkup(wpUrl, wpHeaders);
+    if (elementorProbe.usesElementorMarkup) {
+      elementorStatus = {
+        ok: false,
+        message:
+          "Detectamos entradas previas maquetadas con Elementor. Para evitar diseños distintos, crea/ajusta la plantilla Single Post en Elementor o maqueta estas entradas con Elementor.",
+        raw: {
+          uses_elementor_markup: true,
+          scanned_posts: elementorProbe.scannedPosts,
+        },
+      };
+    } else {
+      elementorStatus = {
+        ok: true,
+        message:
+          "No detectamos maquetación de entradas con Elementor en los posts recientes. Blooglee puede publicar HTML estándar sin riesgo de desajuste.",
+        raw: {
+          uses_elementor_markup: false,
+          scanned_posts: elementorProbe.scannedPosts,
+        },
+      };
+    }
+    await replaceDiagnostic(
+      supabase,
+      siteId,
+      userId,
+      "elementor_format",
+      elementorStatus.ok ? "ok" : "warning",
+      elementorStatus.message,
+      elementorStatus.raw,
+    );
 
     console.log("=== SYNC COMPLETE ===");
     console.log(
@@ -561,6 +797,10 @@ Responde SOLO con JSON válido (sin markdown):
       !!contentAnalysis,
       "| Polylang:",
       polylangStatus ? (polylangStatus.ok ? "OK" : "FAIL") : "N/A",
+      "| Yoast:",
+      yoastStatus ? (yoastStatus.ok ? "OK" : "WARN") : "N/A",
+      "| Elementor:",
+      elementorStatus ? (elementorStatus.ok ? "OK" : "WARN") : "N/A",
     );
 
     return new Response(
@@ -571,6 +811,8 @@ Responde SOLO con JSON válido (sin markdown):
         content_analyzed: !!contentAnalysis,
         wordpress_context: contentAnalysis,
         polylang_check: polylangStatus,
+        yoast_check: yoastStatus,
+        elementor_check: elementorStatus,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
