@@ -45,6 +45,13 @@ interface ExistingPost {
   slug: string;
 }
 
+interface WpCategory {
+  id: number;
+  name?: string;
+  slug?: string;
+  count?: number;
+}
+
 // --- Helper: find existing WP post by slug ---
 async function findExistingWpPostBySlug(
   wpUrl: string,
@@ -193,6 +200,128 @@ async function storeYoastDiagnostic(
     }
   } catch (error) {
     console.error(`[${requestId}][yoast_diag] Exception inserting Yoast diagnostic:`, error);
+  }
+}
+
+function normalizeCategoryToken(value: string | undefined): string {
+  if (!value) return "";
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function isUncategorizedCategory(category: WpCategory): boolean {
+  const slug = normalizeCategoryToken(category.slug);
+  const name = normalizeCategoryToken(category.name);
+  return (
+    slug === "uncategorized" ||
+    slug === "sin-categoria" ||
+    slug === "sin_categoria" ||
+    name === "uncategorized" ||
+    name === "sin categoria"
+  );
+}
+
+async function resolveFallbackCategoryId(
+  wpUrl: string,
+  wpHeaders: Record<string, string>,
+  requestId: string,
+): Promise<number | null> {
+  try {
+    const categoriesResponse = await fetch(
+      `${wpUrl}/wp-json/wp/v2/categories?per_page=100&_fields=id,name,slug,count`,
+      {
+        method: "GET",
+        headers: wpHeaders,
+      },
+    );
+
+    if (!categoriesResponse.ok) {
+      console.warn(`[${requestId}][category_fallback] Could not fetch categories, status=${categoriesResponse.status}`);
+      return null;
+    }
+
+    const rawData = (await categoriesResponse.json()) as unknown;
+    if (!Array.isArray(rawData)) return null;
+
+    const categories: WpCategory[] = rawData
+      .filter((item) => item && typeof item === "object")
+      .map((item) => item as WpCategory)
+      .filter((item) => typeof item.id === "number");
+
+    if (categories.length === 0) return null;
+
+    const preferredTokens = new Set([
+      "farmacia",
+      "blog",
+      "noticias",
+      "actualidad",
+      "consejos",
+      "salud",
+      "belleza",
+      "marketing",
+      "tecnologia",
+    ]);
+
+    const nonGeneric = categories.filter((cat) => !isUncategorizedCategory(cat));
+    if (nonGeneric.length === 0) return null;
+
+    const preferred = nonGeneric.find((cat) => {
+      const slug = normalizeCategoryToken(cat.slug);
+      const name = normalizeCategoryToken(cat.name);
+      return preferredTokens.has(slug) || preferredTokens.has(name);
+    });
+    if (preferred) {
+      console.log(
+        `[${requestId}][category_fallback] Selected preferred category id=${preferred.id} slug=${preferred.slug || ""}`,
+      );
+      return preferred.id;
+    }
+
+    nonGeneric.sort((a, b) => (b.count || 0) - (a.count || 0));
+    console.log(
+      `[${requestId}][category_fallback] Selected most-used category id=${nonGeneric[0].id} slug=${nonGeneric[0].slug || ""} count=${nonGeneric[0].count || 0}`,
+    );
+    return nonGeneric[0].id;
+  } catch (error) {
+    console.error(`[${requestId}][category_fallback] Error resolving fallback category:`, error);
+    return null;
+  }
+}
+
+async function siteUsesElementorPostMarkup(
+  wpUrl: string,
+  wpHeaders: Record<string, string>,
+  requestId: string,
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${wpUrl}/wp-json/wp/v2/posts?per_page=5&_fields=id,content.rendered`, {
+      method: "GET",
+      headers: wpHeaders,
+    });
+    if (!response.ok) {
+      console.warn(`[${requestId}][elementor_probe] Could not inspect recent posts, status=${response.status}`);
+      return false;
+    }
+
+    const rawData = (await response.json()) as unknown;
+    if (!Array.isArray(rawData)) return false;
+
+    return rawData.some((item) => {
+      if (!item || typeof item !== "object") return false;
+      const rendered = (item as { content?: { rendered?: unknown } }).content?.rendered;
+      if (typeof rendered !== "string") return false;
+      return (
+        rendered.includes('data-elementor-type="wp-post"') ||
+        rendered.includes('class="elementor elementor-') ||
+        rendered.includes("elementor-widget")
+      );
+    });
+  } catch (error) {
+    console.error(`[${requestId}][elementor_probe] Error inspecting post markup:`, error);
+    return false;
   }
 }
 
@@ -455,21 +584,39 @@ Deno.serve(async (req) => {
       postData.meta = yoastMeta;
       console.log("Yoast meta fields:", yoastMeta);
     }
-    const requestedYoastMeta = ((postData.meta as Record<string, string> | undefined) && Object.keys(postData.meta as Record<string, string>).length > 0) || false;
+    const requestedYoastMeta =
+      ((postData.meta as Record<string, string> | undefined) &&
+        Object.keys(postData.meta as Record<string, string>).length > 0) ||
+      false;
 
     if (body.lang) {
       postData.lang = body.lang;
     }
 
-    if (body.category_ids && body.category_ids.length > 0) {
-      postData.categories = body.category_ids;
-      console.log("Categories:", body.category_ids);
+    let effectiveCategoryIds = body.category_ids;
+    if (!effectiveCategoryIds || effectiveCategoryIds.length === 0) {
+      const fallbackCategoryId = await resolveFallbackCategoryId(wpUrl, wpHeaders, requestId);
+      if (fallbackCategoryId) {
+        effectiveCategoryIds = [fallbackCategoryId];
+      }
+    }
+
+    if (effectiveCategoryIds && effectiveCategoryIds.length > 0) {
+      postData.categories = effectiveCategoryIds;
+      console.log("Categories:", effectiveCategoryIds);
     }
 
     if (body.tag_ids && body.tag_ids.length > 0) {
       postData.tags = body.tag_ids;
       console.log("Tags:", body.tag_ids);
     }
+
+    const incomingLooksElementor =
+      body.content.includes('data-elementor-type="wp-post"') ||
+      body.content.includes('class="elementor elementor-') ||
+      body.content.includes("elementor-widget");
+
+    const historicalElementorPosts = await siteUsesElementorPostMarkup(wpUrl, wpHeaders, requestId);
 
     console.log(`[${requestId}] Creating post with slug="${slug}"`);
 
@@ -542,9 +689,21 @@ Deno.serve(async (req) => {
     console.log(`[${requestId}][created_new_post] Post ID: ${createdPost.id}, URL: ${createdPost.link}`);
     const warnings: string[] = [];
 
+    if (historicalElementorPosts && !incomingLooksElementor) {
+      warnings.push(
+        "Este sitio tiene entradas anteriores maquetadas con Elementor. Este artículo se publicó en formato HTML estándar, por lo que el diseño puede verse distinto.",
+      );
+    }
+
     if (requestedYoastMeta) {
       const expectedYoastMeta = (postData.meta as Record<string, string>) || {};
-      const yoastCheck = await verifyYoastMetaPersistence(wpUrl, credentials, createdPost.id, expectedYoastMeta, requestId);
+      const yoastCheck = await verifyYoastMetaPersistence(
+        wpUrl,
+        credentials,
+        createdPost.id,
+        expectedYoastMeta,
+        requestId,
+      );
 
       if (!yoastCheck.saved) {
         const warningMessage =
