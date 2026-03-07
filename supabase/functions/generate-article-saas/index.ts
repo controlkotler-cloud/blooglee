@@ -1870,6 +1870,50 @@ function trimExcerpt(excerpt: string): string {
 }
 
 // ==========================================
+// TOPIC SIMILARITY CHECK (deduplication)
+// ==========================================
+function isTooSimilar(newTitle: string, existingTopics: string[]): { similar: boolean; matchedTopic?: string; similarity?: number } {
+  const stopWords = new Set([
+    'el', 'la', 'los', 'las', 'de', 'del', 'en', 'para', 'por', 'con',
+    'tu', 'tus', 'un', 'una', 'y', 'o', 'a', 'que', 'es', 'como', 'cómo',
+    'su', 'sus', 'al', 'se', 'lo', 'le', 'más', 'sin', 'sobre', 'entre',
+    'cada', 'todo', 'todos', 'toda', 'todas', 'este', 'esta', 'estos', 'estas',
+    'ese', 'esa', 'esos', 'esas', 'muy', 'ya', 'hay', 'hace', 'solo', 'así'
+  ]);
+  const genericWords = new Set([
+    'blog', 'contenido', 'contenidos', 'marketing', 'digital', 'online',
+    'empresa', 'empresas', 'negocio', 'negocios', 'pymes', 'pyme',
+    'agencia', 'agencias', 'cliente', 'clientes', 'equipo', 'equipos',
+    'guía', 'guia', 'guías', 'estrategia', 'estrategias', 'herramienta', 'herramientas',
+    'mejor', 'mejores', 'clave', 'claves', 'éxito', 'exito', 'resultado', 'resultados',
+    'año', 'años', 'mes', 'meses', 'nuevo', 'nueva', 'nuevos', 'nuevas'
+  ]);
+  const extractWords = (text: string) =>
+    text.toLowerCase().split(/[\s:,\-–—.;!?¿¡()[\]{}]+/).filter(w => w.length > 2 && !stopWords.has(w));
+
+  const newWords = extractWords(newTitle);
+  const newWordsSet = new Set(newWords);
+  if (newWordsSet.size < 3) return { similar: false };
+
+  const newSpecificWords = [...newWordsSet].filter(w => !genericWords.has(w));
+
+  for (const existing of existingTopics) {
+    const existingWordsSet = new Set(extractWords(existing));
+    if (existingWordsSet.size < 2) continue;
+
+    const intersection = [...newWordsSet].filter(w => existingWordsSet.has(w));
+    const specificMatches = intersection.filter(w => !genericWords.has(w));
+    const similarity = intersection.length / Math.max(newWordsSet.size, existingWordsSet.size);
+
+    if (intersection.length >= 3 && specificMatches.length >= 2 && similarity > 0.5) {
+      console.log(`⚠️ Topic too similar to: "${existing}" (${(similarity * 100).toFixed(0)}% match, specific: ${specificMatches.join(', ')})`);
+      return { similar: true, matchedTopic: existing, similarity };
+    }
+  }
+  return { similar: false };
+}
+
+// ==========================================
 // MAIN HANDLER
 // ==========================================
 Deno.serve(async (req) => {
