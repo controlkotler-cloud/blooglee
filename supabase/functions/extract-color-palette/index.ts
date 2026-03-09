@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
 
     // === STRATEGY 1: Try Firecrawl with branding format for accurate colors ===
     const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
-    let brandingData: Record<string, unknown> | null = null;
+    let brandingData: unknown = null;
 
     if (firecrawlKey) {
       // 1a. Try branding format first (extracts colors from logo/header accurately)
@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
         const brandingResult = await brandingResponse.json();
 
         if (brandingResponse.ok && brandingResult.success) {
-          brandingData = (brandingResult.data?.branding || brandingResult.branding || null) as Record<string, unknown> | null;
+          brandingData = brandingResult.data?.branding || brandingResult.branding || null;
           html = brandingResult.data?.html || brandingResult.html || "";
           console.log("[extract] Firecrawl OK, HTML length:", html.length, "branding:", !!brandingData);
           if (brandingData?.colors) {
@@ -640,17 +640,7 @@ function sanitizeBusinessName(rawName: string): string | undefined {
   if (name.length < 2 || name.length > 120) return undefined;
 
   const lowered = name.toLowerCase();
-  const generic = new Set([
-    "inicio",
-    "home",
-    "blog",
-    "noticias",
-    "news",
-    "wordpress",
-    "untitled",
-    "site",
-    "website",
-  ]);
+  const generic = new Set(["inicio", "home", "blog", "noticias", "news", "wordpress", "untitled", "site", "website"]);
   if (generic.has(lowered)) return undefined;
 
   return name;
@@ -671,10 +661,7 @@ function deriveBusinessNameFromUrl(siteUrl: string): string | undefined {
   const root = host.split(".")[0];
   if (!root) return undefined;
 
-  const cleaned = root
-    .replace(/[-_]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const cleaned = root.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
 
   if (!cleaned) return undefined;
   return sanitizeBusinessName(cleaned.charAt(0).toUpperCase() + cleaned.slice(1));
@@ -700,9 +687,7 @@ function extractBusinessNameFromJsonLd(html: string): string | undefined {
 
   const hasBusinessType = (value: unknown): boolean => {
     const types = Array.isArray(value) ? value : [value];
-    const joined = types
-      .map((item) => (typeof item === "string" ? item.toLowerCase() : ""))
-      .join(" ");
+    const joined = types.map((item) => (typeof item === "string" ? item.toLowerCase() : "")).join(" ");
 
     return /(organization|localbusiness|store|medical|pharmacy|clinic|dentist|restaurant|company|corporation)/.test(
       joined,
@@ -727,7 +712,8 @@ function extractBusinessNameFromJsonLd(html: string): string | undefined {
         const nameValue = typeof obj.name === "string" ? obj.name : undefined;
         if (!nameValue) continue;
 
-        const hasSignals = hasBusinessType(obj["@type"]) || Boolean(obj.logo) || Boolean(obj.sameAs) || Boolean(obj.url);
+        const hasSignals =
+          hasBusinessType(obj["@type"]) || Boolean(obj.logo) || Boolean(obj.sameAs) || Boolean(obj.url);
         if (!hasSignals) continue;
 
         const cleaned = sanitizeBusinessName(nameValue);
@@ -767,7 +753,10 @@ function extractBusinessName(html: string, siteUrl: string): string | undefined 
 
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
   if (titleMatch) {
-    const titleText = titleMatch.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const titleText = titleMatch
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     const normalizedTitle = normalizeTitleCandidate(titleText);
     if (normalizedTitle) return normalizedTitle;
   }
@@ -846,9 +835,7 @@ function normalizeSocialCandidate(rawUrl: string): string | undefined {
     candidate = `https://${candidate}`;
   } else if (!candidate.startsWith("http://") && !candidate.startsWith("https://")) {
     // If domain appears without protocol
-    if (
-      /(?:instagram|facebook|linkedin|twitter|x|tiktok|youtube)\.com/i.test(candidate)
-    ) {
+    if (/(?:instagram|facebook|linkedin|twitter|x|tiktok|youtube)\.com/i.test(candidate)) {
       candidate = `https://${candidate.replace(/^\/+/, "")}`;
     } else {
       return undefined;
