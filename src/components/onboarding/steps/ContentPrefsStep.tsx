@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -32,12 +32,14 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
   const sector = stepData?.step1?.sector ?? "";
   const websiteUrl = (stepData?.step1?.website_url as string) ?? "";
   const savedPrefs = stepData?.step_content_prefs as Record<string, unknown> | undefined;
+  const detectedSocialFromStep1 = (stepData?.step1?.detected_social_url as string) ?? "";
+  const savedInstagram = ((savedPrefs?.instagram_url as string) ?? "").trim();
 
   const [catalan, setCatalan] = useState<boolean>((savedPrefs?.catalan as boolean) ?? false);
   const [includeFeaturedImage, setIncludeFeaturedImage] = useState<boolean>(
     (savedPrefs?.include_featured_image as boolean) ?? true,
   );
-  const [instagramUrl, setInstagramUrl] = useState<string>((savedPrefs?.instagram_url as string) ?? "");
+  const [instagramUrl, setInstagramUrl] = useState<string>(savedInstagram || detectedSocialFromStep1);
   const [avoidTopics, setAvoidTopics] = useState<string>((savedPrefs?.avoid_topics as string) ?? "");
   const [priorityTopics, setPriorityTopics] = useState<string>((savedPrefs?.priority_topics as string) ?? "");
   const [angleToAvoid, setAngleToAvoid] = useState<string>((savedPrefs?.angle_to_avoid as string) ?? "");
@@ -49,6 +51,12 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
   const [advancedOpen, setAdvancedOpen] = useState(
     Boolean(priorityTopics.trim() || angleToAvoid.trim() || preferredSourceDomains.trim()),
   );
+
+  useEffect(() => {
+    if (!instagramUrl.trim() && detectedSocialFromStep1) {
+      setInstagramUrl(detectedSocialFromStep1);
+    }
+  }, [instagramUrl, detectedSocialFromStep1]);
 
   const siteOrigin = websiteUrl
     ? (() => {

@@ -318,22 +318,29 @@ Deno.serve(async (req) => {
       colors = colors.slice(0, 6);
     }
 
+    let businessName = html ? extractBusinessName(html, formattedUrl) : deriveBusinessNameFromUrl(formattedUrl);
     let description = html ? extractDescription(html) : undefined;
     const socialLink = html ? extractSocialLink(html) : undefined;
     const blogUrl = html ? extractBlogUrl(html, formattedUrl) : undefined;
     let keywords = html ? extractKeywords(html) : undefined;
 
-    // === AI ENRICHMENT: generate description/keywords if meta tags were missing ===
-    if (html && (!description || !keywords)) {
+    // === AI ENRICHMENT: generate missing profile fields ===
+    if (html && (!businessName || !description || !keywords)) {
       try {
         console.log(
-          "[extract] Meta tags missing (description:",
+          "[extract] Missing profile fields (business_name:",
+          !!businessName,
+          ", description:",
           !!description,
           ", keywords:",
           !!keywords,
           ") — using AI",
         );
-        const aiResult = await extractWithAI(html, formattedUrl, !description, !keywords);
+        const aiResult = await extractWithAI(html, formattedUrl, !businessName, !description, !keywords);
+        if (!businessName && aiResult.business_name) {
+          businessName = aiResult.business_name;
+          console.log("[extract] AI business_name:", businessName);
+        }
         if (!description && aiResult.description) {
           description = aiResult.description;
           console.log("[extract] AI description:", description?.substring(0, 80));
@@ -350,6 +357,8 @@ Deno.serve(async (req) => {
     console.log(
       "[extract] Results — colors:",
       colors.length,
+      "business_name:",
+      !!businessName,
       "description:",
       !!description,
       "social:",
@@ -378,6 +387,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         colors,
+        business_name: businessName,
         description,
         social_link: socialLink,
         blog_url: blogUrl,
@@ -508,9 +518,10 @@ async function saveData(siteId: string, data: ExtractedData) {
 async function extractWithAI(
   html: string,
   url: string,
+  needsBusinessName: boolean,
   needsDescription: boolean,
   needsKeywords: boolean,
-): Promise<{ description?: string; keywords?: string }> {
+): Promise<{ business_name?: string; description?: string; keywords?: string }> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) {
     console.warn("[extract] No LOVABLE_API_KEY, skipping AI enrichment");
@@ -529,6 +540,11 @@ async function extractWithAI(
   if (visibleText.length < 50) return {};
 
   const parts: string[] = [];
+  if (needsBusinessName) {
+    parts.push(
+      '"business_name": nombre comercial exacto de la empresa o marca principal del sitio (2-6 palabras). Sin eslóganes ni claims.',
+    );
+  }
   if (needsDescription) {
     parts.push(
       '"description": una frase de 1-2 líneas que resuma qué hace este negocio, su sector y su propuesta de valor. Máximo 200 caracteres. En español.',
@@ -580,6 +596,7 @@ Responde SOLO con el JSON, sin markdown ni explicaciones.`;
   try {
     const parsed = JSON.parse(cleaned);
     return {
+      business_name: typeof parsed.business_name === "string" ? sanitizeBusinessName(parsed.business_name) : undefined,
       description: typeof parsed.description === "string" ? parsed.description.substring(0, 250) : undefined,
       keywords: typeof parsed.keywords === "string" ? parsed.keywords.substring(0, 300) : undefined,
     };
@@ -606,6 +623,156 @@ function extractDescription(html: string): string | undefined {
   if (ogMatch?.[1]?.trim()) return ogMatch[1].trim();
 
   return undefined;
+}
+
+function sanitizeBusinessName(rawName: string): string | undefined {
+  if (!rawName) return undefined;
+
+  let name = rawName
+    .replace(/&amp;/gi, "&")
+    .replace(/\s+/g, " ")
+    .replace(/^[\s\-|–—•·:]+|[\s\-|–—•·:]+$/g, "")
+    .trim();
+
+  // Remove very common suffixes that are not part of the brand itself.
+  name = name.replace(/\b(inicio|home|blog|noticias|news)\b$/i, "").trim();
+
+  if (name.length < 2 || name.length > 120) return undefined;
+
+  const lowered = name.toLowerCase();
+  const generic = new Set([
+    "inicio",
+    "home",
+    "blog",
+    "noticias",
+    "news",
+    "wordpress",
+    "untitled",
+    "site",
+    "website",
+  ]);
+  if (generic.has(lowered)) return undefined;
+
+  return name;
+}
+
+function getHostnameWithoutWww(urlValue: string): string | null {
+  try {
+    return new URL(urlValue).hostname.replace(/^www\./i, "");
+  } catch {
+    return null;
+  }
+}
+
+function deriveBusinessNameFromUrl(siteUrl: string): string | undefined {
+  const host = getHostnameWithoutWww(siteUrl);
+  if (!host) return undefined;
+
+  const root = host.split(".")[0];
+  if (!root) return undefined;
+
+  const cleaned = root
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) return undefined;
+  return sanitizeBusinessName(cleaned.charAt(0).toUpperCase() + cleaned.slice(1));
+}
+
+function normalizeTitleCandidate(title: string): string | undefined {
+  const segments = title
+    .split(/\s*[|–—•·]\s*|\s+-\s+/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  for (const segment of segments) {
+    const candidate = sanitizeBusinessName(segment);
+    if (candidate && candidate.length <= 70) return candidate;
+  }
+
+  return sanitizeBusinessName(title);
+}
+
+function extractBusinessNameFromJsonLd(html: string): string | undefined {
+  const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match;
+
+  const hasBusinessType = (value: unknown): boolean => {
+    const types = Array.isArray(value) ? value : [value];
+    const joined = types
+      .map((item) => (typeof item === "string" ? item.toLowerCase() : ""))
+      .join(" ");
+
+    return /(organization|localbusiness|store|medical|pharmacy|clinic|dentist|restaurant|company|corporation)/.test(
+      joined,
+    );
+  };
+
+  while ((match = jsonLdRegex.exec(html)) !== null) {
+    const raw = match[1]?.trim();
+    if (!raw) continue;
+
+    try {
+      const parsed = JSON.parse(raw);
+      const nodes = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray((parsed as Record<string, unknown>)?.["@graph"])
+          ? ((parsed as Record<string, unknown>)["@graph"] as unknown[])
+          : [parsed];
+
+      for (const node of nodes) {
+        if (!node || typeof node !== "object") continue;
+        const obj = node as Record<string, unknown>;
+        const nameValue = typeof obj.name === "string" ? obj.name : undefined;
+        if (!nameValue) continue;
+
+        const hasSignals = hasBusinessType(obj["@type"]) || Boolean(obj.logo) || Boolean(obj.sameAs) || Boolean(obj.url);
+        if (!hasSignals) continue;
+
+        const cleaned = sanitizeBusinessName(nameValue);
+        if (cleaned) return cleaned;
+      }
+    } catch {
+      // Ignore malformed JSON-LD blocks.
+    }
+  }
+
+  return undefined;
+}
+
+function extractBusinessName(html: string, siteUrl: string): string | undefined {
+  const jsonLdName = extractBusinessNameFromJsonLd(html);
+  if (jsonLdName) return jsonLdName;
+
+  const ogSiteName =
+    html.match(/<meta\s+(?:property|name)=["']og:site_name["']\s+content=["']([^"']+)["']/i)?.[1] ||
+    html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:site_name["']/i)?.[1];
+  const cleanedOgSiteName = ogSiteName ? sanitizeBusinessName(ogSiteName) : undefined;
+  if (cleanedOgSiteName) return cleanedOgSiteName;
+
+  const applicationName =
+    html.match(/<meta\s+name=["']application-name["']\s+content=["']([^"']+)["']/i)?.[1] ||
+    html.match(/<meta\s+content=["']([^"']+)["']\s+name=["']application-name["']/i)?.[1];
+  const cleanedApplicationName = applicationName ? sanitizeBusinessName(applicationName) : undefined;
+  if (cleanedApplicationName) return cleanedApplicationName;
+
+  const ogTitle =
+    html.match(/<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']/i)?.[1] ||
+    html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:title["']/i)?.[1];
+  if (ogTitle) {
+    const normalizedOgTitle = normalizeTitleCandidate(ogTitle);
+    if (normalizedOgTitle) return normalizedOgTitle;
+  }
+
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
+  if (titleMatch) {
+    const titleText = titleMatch.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const normalizedTitle = normalizeTitleCandidate(titleText);
+    if (normalizedTitle) return normalizedTitle;
+  }
+
+  return deriveBusinessNameFromUrl(siteUrl);
 }
 
 function getSocialPriority(hostname: string): number {
