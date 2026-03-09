@@ -53,16 +53,21 @@ export function useColorPalette() {
 
       let { data, error } = await invokeExtraction(siteId ?? null);
 
-      // Backward compatibility: old edge version still requires site_id even for preview.
-      if (
-        !siteId &&
-        (error?.message?.toLowerCase().includes("site_id") ||
-          (typeof data?.error === "string" && data.error.toLowerCase().includes("site_id")))
-      ) {
-        console.warn("[useColorPalette] Retrying extraction with fallback site_id for legacy edge function");
-        const retryResult = await invokeExtraction(PREVIEW_FALLBACK_SITE_ID);
-        data = retryResult.data;
-        error = retryResult.error;
+      // Backward compatibility: old edge versions require site_id in preview mode.
+      // Some Supabase clients return a generic error message for HTTP 400, so we
+      // retry in preview whenever the first attempt fails.
+      if (!siteId) {
+        const firstAttemptFailed =
+          Boolean(error) ||
+          data?.success === false ||
+          (typeof data?.error === "string" && data.error.length > 0);
+
+        if (firstAttemptFailed) {
+          console.warn("[useColorPalette] Retrying extraction with fallback site_id for legacy edge function");
+          const retryResult = await invokeExtraction(PREVIEW_FALLBACK_SITE_ID);
+          data = retryResult.data;
+          error = retryResult.error;
+        }
       }
 
       if (error) {
