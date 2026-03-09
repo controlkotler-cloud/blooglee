@@ -660,39 +660,45 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
               );
             }
 
-            // No diagnostic yet or unknown = yellow/warning
-            return (
-              <>
-                <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Polylang detectado pero no configurado para API</AlertTitle>
-                  <AlertDescription className="space-y-2">
-                    <p className="text-sm">Los artículos solo se publicarán en el idioma principal.</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs border-amber-500/50 hover:bg-amber-100 dark:hover:bg-amber-950/40"
-                      onClick={() => {
-                        setPolylangVerifyResult(null);
-                        setPolylangGuideOpen(true);
-                      }}
-                    >
-                      <BookOpen className="w-3.5 h-3.5 mr-1.5" />
-                      Configurar ahora
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-                <PolylangSetupGuide
-                  open={polylangGuideOpen}
-                  onOpenChange={setPolylangGuideOpen}
-                  siteUrl={siteOrigin}
-                  onVerify={handleVerifyInGuide}
-                  isVerifying={syncMutation.isPending}
-                  verifyResult={polylangVerifyResult}
-                  verifyMessage={polylangVerifyMessage}
-                />
-              </>
-            );
+            // No diagnostic yet — don't show "pendiente" permanently.
+            // Only show warning if there IS a diagnostic with warning status.
+            if (diagStatus === "warning") {
+              return (
+                <>
+                  <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Polylang detectado pero no configurado para API</AlertTitle>
+                    <AlertDescription className="space-y-2">
+                      <p className="text-sm">{polylangDiagnostic?.message || "Los artículos solo se publicarán en el idioma principal."}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs border-amber-500/50 hover:bg-amber-100 dark:hover:bg-amber-950/40"
+                        onClick={() => {
+                          setPolylangVerifyResult(null);
+                          setPolylangGuideOpen(true);
+                        }}
+                      >
+                        <BookOpen className="w-3.5 h-3.5 mr-1.5" />
+                        Configurar ahora
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                  <PolylangSetupGuide
+                    open={polylangGuideOpen}
+                    onOpenChange={setPolylangGuideOpen}
+                    siteUrl={siteOrigin}
+                    onVerify={handleVerifyInGuide}
+                    isVerifying={syncMutation.isPending}
+                    verifyResult={polylangVerifyResult}
+                    verifyMessage={polylangVerifyMessage}
+                  />
+                </>
+              );
+            }
+
+            // No diagnostic at all — show nothing until first sync
+            return null;
           })()}
 
         {/* Panel condicional: estado si conectado, troubleshoot si no */}

@@ -166,10 +166,11 @@ Deno.serve(async (req) => {
       JSON.stringify({ success: true, message: "Mensaje enviado correctamente" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Contact form error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Error interno del servidor";
     return new Response(
-      JSON.stringify({ success: false, error: error.message || "Error interno del servidor" }),
+      JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
