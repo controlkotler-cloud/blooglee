@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
         const brandingResult = await brandingResponse.json();
 
         if (brandingResponse.ok && brandingResult.success) {
-          brandingData = brandingResult.data?.branding || brandingResult.branding || null;
+          brandingData = (brandingResult.data?.branding || brandingResult.branding || null) as Record<string, unknown> | null;
           html = brandingResult.data?.html || brandingResult.html || "";
           console.log("[extract] Firecrawl OK, HTML length:", html.length, "branding:", !!brandingData);
           if (brandingData?.colors) {
