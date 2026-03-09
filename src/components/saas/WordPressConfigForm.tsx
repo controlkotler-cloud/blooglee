@@ -519,78 +519,45 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
         </form>
 
         {/* Banner de diagnóstico Yoast */}
-        {config && (
-          <Alert
-            className={
-              yoastDiagnostic?.status === "ok"
-                ? "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-100 [&>svg]:text-emerald-600"
-                : "border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600"
-            }
-          >
-            {yoastDiagnostic?.status === "ok" ? (
-              <CheckCircle className="h-4 w-4" />
-            ) : (
-              <AlertTriangle className="h-4 w-4" />
-            )}
-            <AlertTitle>
-              {yoastDiagnostic?.status === "ok" ? "Yoast SEO verificado" : "Revisión de Yoast recomendada"}
-            </AlertTitle>
+        {config && yoastDiagnostic && yoastDiagnostic.status !== "ok" && (
+          <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Revisión de Yoast recomendada</AlertTitle>
             <AlertDescription className="text-sm flex flex-wrap items-center gap-x-3 gap-y-2">
-              <span>
-                {yoastDiagnostic?.message || "Diagnóstico de Yoast pendiente. Pulsa Re-sincronizar para comprobarlo."}
-              </span>
-              {yoastDiagnostic?.status !== "ok" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs text-amber-700 dark:text-amber-300 hover:text-amber-800 p-0"
-                  onClick={() => syncMutation.mutate(config.id)}
-                  disabled={syncMutation.isPending}
-                >
-                  <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-                  Re-sincronizar
-                </Button>
-              )}
+              <span>{yoastDiagnostic?.message || "Pulsa Re-sincronizar para verificar el estado de Yoast."}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-amber-700 dark:text-amber-300 hover:text-amber-800 p-0"
+                onClick={() => syncMutation.mutate(config.id)}
+                disabled={syncMutation.isPending}
+              >
+                <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+                Re-sincronizar
+              </Button>
             </AlertDescription>
           </Alert>
         )}
 
         {/* Banner de diagnóstico Elementor */}
-        {config && (
-          <Alert
-            className={
-              elementorDiagnostic?.status === "ok"
-                ? "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-100 [&>svg]:text-emerald-600"
-                : "border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600"
-            }
-          >
-            {elementorDiagnostic?.status === "ok" ? (
-              <CheckCircle className="h-4 w-4" />
-            ) : (
-              <AlertTriangle className="h-4 w-4" />
-            )}
-            <AlertTitle>
-              {elementorDiagnostic?.status === "ok"
-                ? "Formato compatible con publicaciones automáticas"
-                : "Posible desajuste de diseño con Elementor"}
-            </AlertTitle>
+        {config && elementorDiagnostic && elementorDiagnostic.status !== "ok" && (
+          <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Posible desajuste de diseño con Elementor</AlertTitle>
             <AlertDescription className="text-sm flex flex-wrap items-center gap-x-3 gap-y-2">
               <span>
-                {elementorDiagnostic?.message ||
-                  "Diagnóstico de Elementor pendiente. Pulsa Re-sincronizar para comprobarlo."}
+                {elementorDiagnostic?.message || "Pulsa Re-sincronizar para verificar compatibilidad con Elementor."}
               </span>
-              {elementorDiagnostic?.status !== "ok" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs text-amber-700 dark:text-amber-300 hover:text-amber-800 p-0"
-                  onClick={() => syncMutation.mutate(config.id)}
-                  disabled={syncMutation.isPending}
-                >
-                  <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-                  Re-sincronizar
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-amber-700 dark:text-amber-300 hover:text-amber-800 p-0"
+                onClick={() => syncMutation.mutate(config.id)}
+                disabled={syncMutation.isPending}
+              >
+                <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+                Re-sincronizar
+              </Button>
             </AlertDescription>
           </Alert>
         )}
