@@ -16,7 +16,7 @@ export const CODE_SNIPPETS: CodeSnippet[] = [
     description: 'Habilita la edición de meta descripción, SEO title y focus keyword vía API',
     category: 'general',
     plugin: 'yoast',
-    fileName: 'functions.php',
+    fileName: 'Code Snippets (plugin)',
     code: `/**
  * Blooglee - Yoast SEO API Support
  * Registra los campos de Yoast para la REST API
@@ -37,30 +37,32 @@ add_action('init', function() {
         ]);
     }
 }, 20);`,
-    instructions: `⚠️ SIN ESTE SNIPPET, Yoast ignorará la meta descripción, SEO title y focus keyword que Blooglee envía. Solo verás el excerpt como fallback.
+    instructions: `⚠️ SIN ESTE SNIPPET, Yoast puede ignorar la meta descripción, SEO title y focus keyword que Blooglee envía.
 
-PASO 1 — Añadir el código:
-1. Accede a tu WordPress como administrador
-2. Ve a **Apariencia → Editor de archivos del tema** (o edita por FTP)
-3. Selecciona tu **tema hijo** (child theme)
-4. Abre **functions.php** y añade el código **al final** del archivo
-5. Guarda los cambios
+MÉTODO RECOMENDADO (más fácil y seguro): **Code Snippets**
 
-PASO 2 — Verificar que funciona:
-1. Genera y publica un artículo desde Blooglee
-2. En tu WordPress, abre el post publicado
-3. Baja hasta la sección de Yoast SEO
-4. Comprueba que aparecen:
-   - **Meta descripción** (no vacía)
-   - **SEO Title** (no el título por defecto)
-   - **Focus keyword** (la palabra clave del artículo)
+PASO 1 — Instalar plugin:
+1. En WordPress ve a **Plugins → Añadir nuevo**
+2. Busca **Code Snippets** (autor: Code Snippets Pro)
+3. Instala y activa
 
-💡 Si sigues sin ver los campos de Yoast, comprueba que:
-- Tienes Yoast SEO activo y actualizado
-- Estás editando el functions.php del **tema hijo**, no del tema padre
-- No hay otro plugin de SEO (Rank Math, All in One SEO) en conflicto
+PASO 2 — Crear snippet:
+1. Ve a **Snippets → Add New**
+2. Título: **Blooglee Yoast API**
+3. Pega el código de arriba
+4. Ejecutar en: **Run snippet everywhere**
+5. Guarda y activa
 
-⚠️ Si no tienes un tema hijo, créalo primero para evitar perder los cambios al actualizar el tema.`,
+PASO 3 — Verificar:
+1. En Blooglee pulsa **Re-sincronizar**
+2. Publica un artículo de prueba
+3. En WordPress abre el post y revisa en Yoast:
+   - **Meta descripción**
+   - **SEO title**
+   - **Focus keyword**
+
+ALTERNATIVA (solo si prefieres código en tema):
+- Añadirlo en ` + "`functions.php`" + ` del **tema hijo**.`,
   },
   {
     id: 'polylang-api-support',
@@ -68,7 +70,7 @@ PASO 2 — Verificar que funciona:
     description: 'Configura Polylang para publicar artículos en español y catalán vía API',
     category: 'multiidioma',
     plugin: 'polylang',
-    fileName: 'functions.php',
+    fileName: 'Code Snippets (plugin)',
     code: `/**
  * Blooglee - Polylang API REST Support
  * Añade este código al functions.php de tu tema hijo
@@ -90,27 +92,33 @@ add_action('rest_api_init', function() {
         ),
     ));
 });`,
-    instructions: `⚠️ IMPORTANTE: Sin este snippet, todos los artículos se publicarán en el idioma por defecto de tu WordPress, ignorando el catalán.
+    instructions: `⚠️ Sin este snippet, los posts pueden publicarse solo en el idioma por defecto.
 
-PASO 1 — Añadir el código:
-1. Accede a tu WordPress como administrador
-2. Ve a **Apariencia → Editor de temas** (o edita por FTP)
-3. Selecciona tu **tema hijo** (child theme)
-4. Abre **functions.php** y añade el código al final
-5. Guarda los cambios
+MÉTODO RECOMENDADO: **Code Snippets**
 
-PASO 2 — Configurar Polylang:
-1. Ve a **Idiomas → Configuración**
-2. Asegúrate de tener configurados los idiomas: **Español (es)** y **Catalán (ca)**
-3. En **Idiomas → Configuración → URL**, usa la opción "El idioma se define por el contenido"
+PASO 1 — Instalar plugin:
+1. En WordPress ve a **Plugins → Añadir nuevo**
+2. Busca **Code Snippets**
+3. Instala y activa
 
-PASO 3 — Verificar:
-1. Genera un artículo con español y catalán activados en Blooglee
-2. Publica desde Blooglee → deberías ver dos posts: uno en "es" y otro en "ca"
-3. En tu WordPress, ve a **Entradas** y verifica que cada post tiene el idioma correcto asignado
+PASO 2 — Crear snippet:
+1. Ve a **Snippets → Add New**
+2. Título: **Blooglee Polylang API**
+3. Pega el código de arriba
+4. Ejecutar en: **Run snippet everywhere**
+5. Guarda y activa
 
-💡 Si usas WPML en vez de Polylang, usa el snippet de "WPML - Soporte API REST" en su lugar.
-⚠️ Si no tienes un tema hijo, créalo primero para evitar perder cambios al actualizar el tema.`,
+PASO 3 — Configurar Polylang:
+1. Ve a **Idiomas**
+2. Comprueba que existan **es** y **ca**
+3. Guarda cambios
+
+PASO 4 — Verificar en Blooglee:
+1. Pulsa **Re-sincronizar**
+2. Publica un artículo con catalán activado
+3. Verifica en WordPress que cada idioma queda asignado correctamente
+
+💡 Si usas WPML en vez de Polylang, usa el snippet WPML equivalente.`,
   },
   {
     id: 'wpml-api-support',
