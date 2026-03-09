@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
 
     // === STRATEGY 1: Try Firecrawl with branding format for accurate colors ===
     const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
-    let brandingData: unknown = null;
+    let brandingData: Record<string, unknown> | null = null;
 
     if (firecrawlKey) {
       // 1a. Try branding format first (extracts colors from logo/header accurately)
