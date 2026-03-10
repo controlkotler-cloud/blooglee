@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
 
     // === STRATEGY 1: Try Firecrawl with branding format for accurate colors ===
     const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
-    let brandingData: unknown = null;
+    let brandingData: Record<string, unknown> | null = null;
 
     if (firecrawlKey) {
       // 1a. Try branding format first (extracts colors from logo/header accurately)
@@ -165,7 +165,9 @@ Deno.serve(async (req) => {
         const brandingResult = await brandingResponse.json();
 
         if (brandingResponse.ok && brandingResult.success) {
-          brandingData = brandingResult.data?.branding || brandingResult.branding || null;
+          const rawBranding = brandingResult.data?.branding || brandingResult.branding || null;
+          brandingData =
+            rawBranding && typeof rawBranding === "object" ? (rawBranding as Record<string, unknown>) : null;
           html = brandingResult.data?.html || brandingResult.html || "";
           console.log("[extract] Firecrawl OK, HTML length:", html.length, "branding:", !!brandingData);
           if (brandingData?.colors) {
@@ -287,14 +289,16 @@ Deno.serve(async (req) => {
       const brandColors = brandingData.colors;
       const colorValues: unknown[] = Array.isArray(brandColors)
         ? brandColors
-        : [
-            brandColors.primary,
-            brandColors.secondary,
-            brandColors.accent,
-            brandColors.background,
-            brandColors.textPrimary,
-            brandColors.textSecondary,
-          ];
+        : brandColors && typeof brandColors === "object"
+          ? [
+              (brandColors as Record<string, unknown>).primary,
+              (brandColors as Record<string, unknown>).secondary,
+              (brandColors as Record<string, unknown>).accent,
+              (brandColors as Record<string, unknown>).background,
+              (brandColors as Record<string, unknown>).textPrimary,
+              (brandColors as Record<string, unknown>).textSecondary,
+            ]
+          : [];
       const brandingSet = new Set<string>();
 
       for (const colorVal of colorValues) {
