@@ -59,7 +59,7 @@ const formSchema = z.object({
       return normalized;
     }),
   wp_username: z.string().min(1, "El usuario es obligatorio"),
-  wp_app_password: z.string().min(1, "La contraseña de aplicación es obligatoria"),
+  wp_app_password: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -111,6 +111,8 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
   const {
     register,
     handleSubmit,
+    setError,
+    clearErrors,
     formState: { errors, isDirty },
     watch,
   } = useForm<FormData>({
@@ -119,7 +121,7 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
       ? {
           site_url: config.site_url,
           wp_username: config.wp_username,
-          wp_app_password: config.wp_app_password,
+          wp_app_password: "",
         }
       : undefined,
   });
@@ -166,10 +168,37 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
   const onSubmit = async (data: FormData) => {
     setValidationState("validating");
     setValidationResult(null);
+    clearErrors("wp_app_password");
 
     try {
-      // Ejecutar health check fase 3 (completo con credenciales)
-      const result = await runHealthCheck(data.site_url, data.wp_username, data.wp_app_password, 3);
+      const nextPassword = data.wp_app_password?.trim() || "";
+      const isEditingExistingConfig = Boolean(config);
+      const usernameChanged = isEditingExistingConfig && data.wp_username !== config?.wp_username;
+
+      if (!isEditingExistingConfig && !nextPassword) {
+        setValidationState("error");
+        setError("wp_app_password", {
+          type: "manual",
+          message: "La contraseña de aplicación es obligatoria",
+        });
+        toast.error("La contraseña de aplicación es obligatoria");
+        return;
+      }
+
+      if (usernameChanged && !nextPassword) {
+        setValidationState("error");
+        setError("wp_app_password", {
+          type: "manual",
+          message: "Si cambias el usuario, debes introducir también una nueva contraseña de aplicación",
+        });
+        toast.error("Si cambias el usuario, introduce también la contraseña de aplicación");
+        return;
+      }
+
+      // If password is provided, run full auth check. Otherwise run URL-level check and keep current secret.
+      const result = nextPassword
+        ? await runHealthCheck(data.site_url, data.wp_username, nextPassword, 3)
+        : await runHealthCheck(data.site_url, undefined, undefined, 1);
 
       setValidationResult(result);
 
@@ -196,7 +225,7 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
         site_id: siteId,
         site_url: data.site_url,
         wp_username: data.wp_username,
-        wp_app_password: data.wp_app_password,
+        wp_app_password: nextPassword || undefined,
       });
 
       toast.success("Configuración guardada correctamente");
@@ -394,7 +423,9 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
               </button>
             </div>
             <p className="text-xs text-muted-foreground">
-              ⚠️ No es tu contraseña normal. Créala en WordPress → Usuarios → Perfil
+              {config
+                ? "Déjala vacía para mantener la actual. Escribe una nueva solo si quieres rotarla."
+                : "⚠️ No es tu contraseña normal. Créala en WordPress → Usuarios → Perfil"}
             </p>
             {errors.wp_app_password && <p className="text-sm text-destructive">{errors.wp_app_password.message}</p>}
           </div>
@@ -669,7 +700,9 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Polylang detectado pero no configurado para API</AlertTitle>
                     <AlertDescription className="space-y-2">
-                      <p className="text-sm">{polylangDiagnostic?.message || "Los artículos solo se publicarán en el idioma principal."}</p>
+                      <p className="text-sm">
+                        {polylangDiagnostic?.message || "Los artículos solo se publicarán en el idioma principal."}
+                      </p>
                       <Button
                         variant="outline"
                         size="sm"
