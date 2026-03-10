@@ -366,7 +366,7 @@ Deno.serve(async (req) => {
         supabase.from("sites").select("id, name").in("id", siteIds),
         supabase
           .from("article_email_notifications")
-          .select("article_id, status, notification_type")
+          .select("article_id, status, error, notification_type")
           .in(
             "article_id",
             publishedArticles.map((a: any) => a.id),
@@ -375,18 +375,37 @@ Deno.serve(async (req) => {
       ]);
 
       const siteMap = new Map((sites || []).map((s: any) => [s.id, s]));
-      const sentArticleIds = new Set(
-        (existingNotifications || []).filter((n: any) => n.status === "sent").map((n: any) => n.article_id as string),
-      );
+      const notificationsByArticle = new Map<string, Array<{ status: string; error: string | null; type: string }>>();
+      for (const n of existingNotifications || []) {
+        const articleId = n.article_id as string;
+        if (!notificationsByArticle.has(articleId)) {
+          notificationsByArticle.set(articleId, []);
+        }
+        notificationsByArticle.get(articleId)!.push({
+          status: (n.status as string) || "",
+          error: (n.error as string | null) || null,
+          type: (n.notification_type as string) || "",
+        });
+      }
 
       let resent = 0;
       let skippedAlreadySent = 0;
       let failed = 0;
+      let manualRequestsProcessed = 0;
 
       for (const article of publishedArticles as any[]) {
-        if (sentArticleIds.has(article.id)) {
+        const notificationRows = notificationsByArticle.get(article.id) || [];
+        const hasManualResendRequest = notificationRows.some(
+          (n) => n.type === "autopublish_reconciled" && n.status === "failed" && n.error === "manual_resend_requested",
+        );
+        const hasAnySentNotification = notificationRows.some((n) => n.status === "sent");
+
+        if (!hasManualResendRequest && hasAnySentNotification) {
           skippedAlreadySent++;
           continue;
+        }
+        if (hasManualResendRequest) {
+          manualRequestsProcessed++;
         }
 
         if (dryRun) {
@@ -431,6 +450,7 @@ Deno.serve(async (req) => {
         batch_size: batchSize,
         scanned: publishedArticles.length,
         resent,
+        manual_requests_processed: manualRequestsProcessed,
         skipped_already_sent: skippedAlreadySent,
         failed,
         dry_run: dryRun,
