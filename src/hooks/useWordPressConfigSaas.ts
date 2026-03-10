@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
-import { toast } from 'sonner';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
+import { toast } from "sonner";
 
 export interface WordPressConfig {
   id: string;
@@ -9,7 +9,7 @@ export interface WordPressConfig {
   user_id: string;
   site_url: string;
   wp_username: string;
-  wp_app_password: string;
+  normalized_site_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -19,65 +19,57 @@ export function useWordPressConfigsBatch(siteIds: string[]) {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ['wordpress_configs', 'batch', siteIds.sort().join(',')],
+    queryKey: ["wordpress_configs", "batch", siteIds.sort().join(",")],
     queryFn: async (): Promise<Record<string, WordPressConfig>> => {
       if (!user?.id || siteIds.length === 0) return {};
 
       // RLS handles access control (own + team configs)
       const { data, error } = await supabase
-        .from('wordpress_configs')
-        .select('*')
-        .in('site_id', siteIds);
+        .from("wordpress_configs")
+        .select("id, site_id, user_id, site_url, wp_username, normalized_site_url, created_at, updated_at")
+        .in("site_id", siteIds);
 
       if (error) {
-        console.error('Error fetching WordPress configs batch:', error);
+        console.error("Error fetching WordPress configs batch:", error);
         return {};
       }
 
-      return (data || []).reduce((acc, cfg) => {
-        acc[cfg.site_id] = cfg as WordPressConfig;
-        return acc;
-      }, {} as Record<string, WordPressConfig>);
+      return (data || []).reduce(
+        (acc, cfg) => {
+          acc[cfg.site_id] = cfg as WordPressConfig;
+          return acc;
+        },
+        {} as Record<string, WordPressConfig>,
+      );
     },
     enabled: !!user?.id && siteIds.length > 0,
   });
-}
-
-export interface WordPressConfigType {
-  id: string;
-  site_id: string;
-  user_id: string;
-  site_url: string;
-  wp_username: string;
-  wp_app_password: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface WordPressConfigInput {
   site_id: string;
   site_url: string;
   wp_username: string;
-  wp_app_password: string;
+  wp_app_password?: string;
 }
 
 export function useWordPressConfig(siteId: string | undefined) {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ['wordpress_configs', siteId],
+    queryKey: ["wordpress_configs", siteId],
     queryFn: async (): Promise<WordPressConfig | null> => {
       if (!user?.id || !siteId) return null;
 
       // RLS handles access control (own + team configs)
       const { data, error } = await supabase
-        .from('wordpress_configs')
-        .select('*')
-        .eq('site_id', siteId)
+        .from("wordpress_configs")
+        .select("id, site_id, user_id, site_url, wp_username, normalized_site_url, created_at, updated_at")
+        .eq("site_id", siteId)
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching WordPress config:', error);
+        console.error("Error fetching WordPress config:", error);
         return null;
       }
 
@@ -93,34 +85,47 @@ export function useUpsertWordPressConfig() {
 
   return useMutation({
     mutationFn: async (config: WordPressConfigInput): Promise<WordPressConfig> => {
-      if (!user?.id) throw new Error('No user logged in');
+      if (!user?.id) throw new Error("No user logged in");
 
       // Check if config exists
       const { data: existing } = await supabase
-        .from('wordpress_configs')
-        .select('id')
-        .eq('site_id', config.site_id)
+        .from("wordpress_configs")
+        .select("id")
+        .eq("site_id", config.site_id)
         .maybeSingle();
 
       if (existing) {
+        const updatePayload: {
+          site_url: string;
+          wp_username: string;
+          wp_app_password?: string;
+        } = {
+          site_url: config.site_url,
+          wp_username: config.wp_username,
+        };
+
+        if (typeof config.wp_app_password === "string" && config.wp_app_password.trim().length > 0) {
+          updatePayload.wp_app_password = config.wp_app_password;
+        }
+
         // Update
         const { data, error } = await supabase
-          .from('wordpress_configs')
-          .update({
-            site_url: config.site_url,
-            wp_username: config.wp_username,
-            wp_app_password: config.wp_app_password,
-          })
-          .eq('id', existing.id)
-          .select()
+          .from("wordpress_configs")
+          .update(updatePayload)
+          .eq("id", existing.id)
+          .select("id, site_id, user_id, site_url, wp_username, normalized_site_url, created_at, updated_at")
           .single();
 
         if (error) throw error;
         return data as WordPressConfig;
       } else {
+        if (!config.wp_app_password || config.wp_app_password.trim().length === 0) {
+          throw new Error("La contraseña de aplicación es obligatoria");
+        }
+
         // Insert
         const { data, error } = await supabase
-          .from('wordpress_configs')
+          .from("wordpress_configs")
           .insert({
             site_id: config.site_id,
             user_id: user.id,
@@ -128,7 +133,7 @@ export function useUpsertWordPressConfig() {
             wp_username: config.wp_username,
             wp_app_password: config.wp_app_password,
           })
-          .select()
+          .select("id, site_id, user_id, site_url, wp_username, normalized_site_url, created_at, updated_at")
           .single();
 
         if (error) throw error;
@@ -136,16 +141,18 @@ export function useUpsertWordPressConfig() {
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['wordpress_configs', variables.site_id] });
-      toast.success('Configuración de WordPress guardada');
+      queryClient.invalidateQueries({ queryKey: ["wordpress_configs", variables.site_id] });
+      toast.success("Configuración de WordPress guardada");
     },
     onError: (error: any) => {
-      console.error('Error saving WordPress config:', error);
+      console.error("Error saving WordPress config:", error);
       // Handle duplicate URL (unique constraint on normalized_site_url)
-      if (error?.code === '23505' || error?.message?.includes('unique') || error?.message?.includes('duplicate')) {
-        toast.error('Esta web ya está conectada a otra cuenta de Blooglee. Si es tu web, inicia sesión con la cuenta original o contacta soporte.');
+      if (error?.code === "23505" || error?.message?.includes("unique") || error?.message?.includes("duplicate")) {
+        toast.error(
+          "Esta web ya está conectada a otra cuenta de Blooglee. Si es tu web, inicia sesión con la cuenta original o contacta soporte.",
+        );
       } else {
-        toast.error('Error al guardar la configuración');
+        toast.error("Error al guardar la configuración");
       }
     },
   });
@@ -156,20 +163,17 @@ export function useDeleteWordPressConfig() {
 
   return useMutation({
     mutationFn: async (siteId: string): Promise<void> => {
-      const { error } = await supabase
-        .from('wordpress_configs')
-        .delete()
-        .eq('site_id', siteId);
+      const { error } = await supabase.from("wordpress_configs").delete().eq("site_id", siteId);
 
       if (error) throw error;
     },
     onSuccess: (_, siteId) => {
-      queryClient.invalidateQueries({ queryKey: ['wordpress_configs', siteId] });
-      toast.success('Configuración de WordPress eliminada');
+      queryClient.invalidateQueries({ queryKey: ["wordpress_configs", siteId] });
+      toast.success("Configuración de WordPress eliminada");
     },
     onError: (error) => {
-      console.error('Error deleting WordPress config:', error);
-      toast.error('Error al eliminar la configuración');
+      console.error("Error deleting WordPress config:", error);
+      toast.error("Error al eliminar la configuración");
     },
   });
 }
