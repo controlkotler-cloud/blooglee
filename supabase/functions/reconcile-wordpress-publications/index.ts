@@ -14,6 +14,7 @@ interface ReconcileRequest {
   batch_size?: number;
   site_id?: string;
   dry_run?: boolean;
+  resend_published_email_only?: boolean;
 }
 
 interface SpanishArticleContent {
@@ -100,7 +101,7 @@ async function sendReconcilePublishedEmail(
   article: { id: string; site_id: string; user_id: string; topic: string },
   siteName: string,
   postUrl: string,
-): Promise<void> {
+): Promise<boolean> {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
   let recipients: string[] = [];
@@ -128,7 +129,7 @@ async function sendReconcilePublishedEmail(
         "RESEND_API_KEY no configurada",
         { article_id: article.id, error: "missing_resend_api_key" },
       );
-      return;
+      return false;
     }
 
     const { data: profile } = await supabase.from("profiles").select("email").eq("user_id", article.user_id).single();
@@ -156,34 +157,56 @@ async function sendReconcilePublishedEmail(
         "No se encontró email del propietario",
         { article_id: article.id, error: "no_owner_email" },
       );
-      return;
+      return false;
     }
 
     const teamEmails = await getTeamMemberEmails(supabase, article.user_id);
     recipients = [profile.email, ...teamEmails.filter((e: string) => e !== profile.email)];
 
-    const { error: dedupErr } = await supabase.from("article_email_notifications").insert({
-      article_id: article.id,
-      notification_type: "autopublish_reconciled",
-      status: "pending",
-      sent_to: recipients,
-    });
+    const notificationFilter = supabase
+      .from("article_email_notifications")
+      .eq("article_id", article.id)
+      .eq("notification_type", "autopublish_reconciled");
 
-    if (dedupErr?.code === "23505") {
+    const { data: existingNotification, error: existingNotificationError } = await notificationFilter
+      .select("status")
+      .maybeSingle();
+
+    if (existingNotificationError) {
+      console.error("[reconcile] Error checking existing notification:", existingNotificationError.message);
+    }
+
+    if (existingNotification?.status === "sent") {
       console.log("[reconcile] Email already sent for this article, skipping");
       await logSiteActivity(
         supabase,
         article.site_id,
         article.user_id,
         "autopublish_reconcile_email_skipped_duplicate",
-        "Email omitido: ya existía notificación para este artículo",
+        "Email omitido: ya existía notificación enviada para este artículo",
         { article_id: article.id },
       );
-      return;
+      return true;
     }
-    if (dedupErr) {
-      console.error("[reconcile] Dedup insert error:", dedupErr.message);
-      return;
+
+    if (!existingNotification) {
+      const { error: insertNotificationError } = await supabase.from("article_email_notifications").insert({
+        article_id: article.id,
+        notification_type: "autopublish_reconciled",
+        status: "pending",
+        sent_to: recipients,
+      });
+
+      if (insertNotificationError && insertNotificationError.code !== "23505") {
+        console.error("[reconcile] Notification insert error:", insertNotificationError.message);
+        return false;
+      }
+    } else {
+      await supabase
+        .from("article_email_notifications")
+        .update({ status: "pending", error: null, sent_to: recipients })
+        .eq("article_id", article.id)
+        .eq("notification_type", "autopublish_reconciled");
     }
 
     const siteUrl = "https://blooglee.lovable.app";
@@ -240,7 +263,7 @@ async function sendReconcilePublishedEmail(
         "Falló envío de email tras reconciliación",
         { article_id: article.id, error: JSON.stringify(error) },
       );
-      return;
+      return false;
     }
 
     await supabase
@@ -257,6 +280,7 @@ async function sendReconcilePublishedEmail(
       "Email enviado tras reconciliación automática",
       { article_id: article.id, sent_to: recipients },
     );
+    return true;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[reconcile] Exception sending email:", e);
@@ -277,6 +301,7 @@ async function sendReconcilePublishedEmail(
       "Excepción enviando email tras reconciliación",
       { article_id: article.id, error: msg },
     );
+    return false;
   }
 }
 
@@ -298,10 +323,119 @@ Deno.serve(async (req) => {
     const lookbackHours = Math.min(Math.max(body.lookback_hours ?? 72, 1), 24 * 30);
     const batchSize = Math.min(Math.max(body.batch_size ?? 50, 1), 200);
     const dryRun = Boolean(body.dry_run);
+    const resendPublishedEmailOnly = Boolean(body.resend_published_email_only);
 
     const since = new Date(Date.now() - lookbackHours * 60 * 60 * 1000).toISOString();
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    if (resendPublishedEmailOnly) {
+      let publishedQuery = supabase
+        .from("articles")
+        .select("id, site_id, user_id, content_spanish, content_catalan, generated_at, wp_post_url, topic")
+        .not("wp_post_url", "is", null)
+        .eq("generation_source", "scheduled")
+        .gte("generated_at", since)
+        .order("generated_at", { ascending: false })
+        .limit(batchSize);
+
+      if (body.site_id) {
+        publishedQuery = publishedQuery.eq("site_id", body.site_id);
+      }
+
+      const { data: publishedArticles, error: publishedError } = await publishedQuery;
+      if (publishedError) {
+        console.error("Error fetching published articles for email resend:", publishedError);
+        return jsonResponse({ error: publishedError.message }, 500);
+      }
+
+      if (!publishedArticles || publishedArticles.length === 0) {
+        return jsonResponse({
+          success: true,
+          mode: "resend_published_email_only",
+          scanned: 0,
+          resent: 0,
+          skipped_already_sent: 0,
+          failed: 0,
+          dry_run: dryRun,
+        });
+      }
+
+      const siteIds = [...new Set(publishedArticles.map((a: any) => a.site_id))];
+      const [{ data: sites }, { data: existingNotifications }] = await Promise.all([
+        supabase.from("sites").select("id, name").in("id", siteIds),
+        supabase
+          .from("article_email_notifications")
+          .select("article_id, status, notification_type")
+          .in(
+            "article_id",
+            publishedArticles.map((a: any) => a.id),
+          )
+          .in("notification_type", ["autopublish_success", "autopublish_reconciled"]),
+      ]);
+
+      const siteMap = new Map((sites || []).map((s: any) => [s.id, s]));
+      const sentArticleIds = new Set(
+        (existingNotifications || []).filter((n: any) => n.status === "sent").map((n: any) => n.article_id as string),
+      );
+
+      let resent = 0;
+      let skippedAlreadySent = 0;
+      let failed = 0;
+
+      for (const article of publishedArticles as any[]) {
+        if (sentArticleIds.has(article.id)) {
+          skippedAlreadySent++;
+          continue;
+        }
+
+        if (dryRun) {
+          resent++;
+          continue;
+        }
+
+        try {
+          const siteName = siteMap.get(article.site_id)?.name || "tu sitio";
+          const sent = await sendReconcilePublishedEmail(supabase, article, siteName, article.wp_post_url);
+          if (sent) {
+            resent++;
+            await logSiteActivity(
+              supabase,
+              article.site_id,
+              article.user_id,
+              "autopublish_reconcile_email_resent",
+              "Email de publicación reenviado por reconciliador",
+              { article_id: article.id, post_url: article.wp_post_url },
+            );
+          } else {
+            failed++;
+          }
+        } catch (emailErr) {
+          failed++;
+          const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+          await logSiteActivity(
+            supabase,
+            article.site_id,
+            article.user_id,
+            "autopublish_reconcile_email_failed",
+            "Falló reenvío de email en reconciliador",
+            { article_id: article.id, error: msg },
+          );
+        }
+      }
+
+      return jsonResponse({
+        success: true,
+        mode: "resend_published_email_only",
+        looked_back_hours: lookbackHours,
+        batch_size: batchSize,
+        scanned: publishedArticles.length,
+        resent,
+        skipped_already_sent: skippedAlreadySent,
+        failed,
+        dry_run: dryRun,
+      });
+    }
 
     let query = supabase
       .from("articles")
