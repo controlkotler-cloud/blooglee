@@ -683,12 +683,15 @@ async function sendPublishedNotification(
     });
 
     if (error) {
-      console.error("Error sending published notification:", error);
+      const errMsg = typeof error === "string" ? error : JSON.stringify(error);
+      console.error("Error sending published notification:", errMsg);
+      throw new Error(errMsg);
     } else {
       console.log("Published notification sent to:", userEmail);
     }
   } catch (error) {
     console.error("Exception sending published notification:", error);
+    throw error instanceof Error ? error : new Error(String(error));
   }
 }
 
@@ -1872,41 +1875,129 @@ function trimExcerpt(excerpt: string): string {
 // ==========================================
 // TOPIC SIMILARITY CHECK (deduplication)
 // ==========================================
-function isTooSimilar(newTitle: string, existingTopics: string[]): { similar: boolean; matchedTopic?: string; similarity?: number } {
+function isTooSimilar(
+  newTitle: string,
+  existingTopics: string[],
+): { similar: boolean; matchedTopic?: string; similarity?: number } {
   const stopWords = new Set([
-    'el', 'la', 'los', 'las', 'de', 'del', 'en', 'para', 'por', 'con',
-    'tu', 'tus', 'un', 'una', 'y', 'o', 'a', 'que', 'es', 'como', 'cómo',
-    'su', 'sus', 'al', 'se', 'lo', 'le', 'más', 'sin', 'sobre', 'entre',
-    'cada', 'todo', 'todos', 'toda', 'todas', 'este', 'esta', 'estos', 'estas',
-    'ese', 'esa', 'esos', 'esas', 'muy', 'ya', 'hay', 'hace', 'solo', 'así'
+    "el",
+    "la",
+    "los",
+    "las",
+    "de",
+    "del",
+    "en",
+    "para",
+    "por",
+    "con",
+    "tu",
+    "tus",
+    "un",
+    "una",
+    "y",
+    "o",
+    "a",
+    "que",
+    "es",
+    "como",
+    "cómo",
+    "su",
+    "sus",
+    "al",
+    "se",
+    "lo",
+    "le",
+    "más",
+    "sin",
+    "sobre",
+    "entre",
+    "cada",
+    "todo",
+    "todos",
+    "toda",
+    "todas",
+    "este",
+    "esta",
+    "estos",
+    "estas",
+    "ese",
+    "esa",
+    "esos",
+    "esas",
+    "muy",
+    "ya",
+    "hay",
+    "hace",
+    "solo",
+    "así",
   ]);
   const genericWords = new Set([
-    'blog', 'contenido', 'contenidos', 'marketing', 'digital', 'online',
-    'empresa', 'empresas', 'negocio', 'negocios', 'pymes', 'pyme',
-    'agencia', 'agencias', 'cliente', 'clientes', 'equipo', 'equipos',
-    'guía', 'guia', 'guías', 'estrategia', 'estrategias', 'herramienta', 'herramientas',
-    'mejor', 'mejores', 'clave', 'claves', 'éxito', 'exito', 'resultado', 'resultados',
-    'año', 'años', 'mes', 'meses', 'nuevo', 'nueva', 'nuevos', 'nuevas'
+    "blog",
+    "contenido",
+    "contenidos",
+    "marketing",
+    "digital",
+    "online",
+    "empresa",
+    "empresas",
+    "negocio",
+    "negocios",
+    "pymes",
+    "pyme",
+    "agencia",
+    "agencias",
+    "cliente",
+    "clientes",
+    "equipo",
+    "equipos",
+    "guía",
+    "guia",
+    "guías",
+    "estrategia",
+    "estrategias",
+    "herramienta",
+    "herramientas",
+    "mejor",
+    "mejores",
+    "clave",
+    "claves",
+    "éxito",
+    "exito",
+    "resultado",
+    "resultados",
+    "año",
+    "años",
+    "mes",
+    "meses",
+    "nuevo",
+    "nueva",
+    "nuevos",
+    "nuevas",
   ]);
   const extractWords = (text: string) =>
-    text.toLowerCase().split(/[\s:,\-–—.;!?¿¡()[\]{}]+/).filter(w => w.length > 2 && !stopWords.has(w));
+    text
+      .toLowerCase()
+      .split(/[\s:,\-–—.;!?¿¡()[\]{}]+/)
+      .filter((w) => w.length > 2 && !stopWords.has(w));
 
   const newWords = extractWords(newTitle);
   const newWordsSet = new Set(newWords);
   if (newWordsSet.size < 3) return { similar: false };
 
-  const newSpecificWords = [...newWordsSet].filter(w => !genericWords.has(w));
+  const newSpecificWords = [...newWordsSet].filter((w) => !genericWords.has(w));
 
   for (const existing of existingTopics) {
     const existingWordsSet = new Set(extractWords(existing));
     if (existingWordsSet.size < 2) continue;
 
-    const intersection = [...newWordsSet].filter(w => existingWordsSet.has(w));
-    const specificMatches = intersection.filter(w => !genericWords.has(w));
+    const intersection = [...newWordsSet].filter((w) => existingWordsSet.has(w));
+    const specificMatches = intersection.filter((w) => !genericWords.has(w));
     const similarity = intersection.length / Math.max(newWordsSet.size, existingWordsSet.size);
 
     if (intersection.length >= 3 && specificMatches.length >= 2 && similarity > 0.5) {
-      console.log(`⚠️ Topic too similar to: "${existing}" (${(similarity * 100).toFixed(0)}% match, specific: ${specificMatches.join(', ')})`);
+      console.log(
+        `⚠️ Topic too similar to: "${existing}" (${(similarity * 100).toFixed(0)}% match, specific: ${specificMatches.join(", ")})`,
+      );
       return { similar: true, matchedTopic: existing, similarity };
     }
   }
@@ -2331,7 +2422,9 @@ Deno.serve(async (req) => {
               // Programmatic similarity check against all known topics
               const similarityCheck = isTooSimilar(generatedTopic, allAvoidTopics);
               if (similarityCheck.similar) {
-                console.log(`⚠️ Attempt ${attempt}/${MAX_TOPIC_ATTEMPTS}: Topic "${generatedTopic}" too similar to "${similarityCheck.matchedTopic}" (${((similarityCheck.similarity || 0) * 100).toFixed(0)}%). Retrying...`);
+                console.log(
+                  `⚠️ Attempt ${attempt}/${MAX_TOPIC_ATTEMPTS}: Topic "${generatedTopic}" too similar to "${similarityCheck.matchedTopic}" (${((similarityCheck.similarity || 0) * 100).toFixed(0)}%). Retrying...`,
+                );
                 continue; // Try again
               }
               topic = generatedTopic;
@@ -3423,79 +3516,69 @@ Deno.serve(async (req) => {
               const emailRecipients = userProfile?.email
                 ? [userProfile.email, ...teamEmails.filter((e: string) => e !== userProfile.email)]
                 : [];
+              const notificationFilter = supabase
+                .from("article_email_notifications")
+                .eq("article_id", savedArticle.id)
+                .eq("notification_type", "autopublish_success");
 
-              // Dedup: attempt insert into article_email_notifications
-              const { error: dedupErr } = await supabase.from("article_email_notifications").insert({
-                article_id: savedArticle.id,
-                notification_type: "autopublish_success",
-                status: "pending",
-                sent_to: emailRecipients,
-              });
+              let existingNotification: { status: string | null } | null = null;
+              const { data: existingNotificationData, error: existingNotificationError } = await notificationFilter
+                .select("status")
+                .maybeSingle();
 
-              if (dedupErr?.code === "23505") {
+              if (existingNotificationError) {
+                console.error(
+                  "[auto-publish] Error checking existing notification:",
+                  existingNotificationError.message,
+                );
+              } else {
+                existingNotification = existingNotificationData as { status: string | null } | null;
+              }
+
+              if (existingNotification?.status === "sent") {
                 console.log("[auto-publish] Email already sent for this article, skipping");
                 await logSiteActivity(
                   supabase,
                   siteId,
                   userId,
                   "autopublish_email_skipped_duplicate",
-                  "Email omitido: ya existía notificación para este artículo",
+                  "Email omitido: ya existía notificación enviada para este artículo",
                   { article_id: savedArticle.id },
                 );
-              } else if (dedupErr) {
-                console.error("[auto-publish] Dedup insert error:", dedupErr.message);
-                await logSiteActivity(
-                  supabase,
-                  siteId,
-                  userId,
-                  "autopublish_email_failed",
-                  "Error insertando dedup de email",
-                  { article_id: savedArticle.id, error: dedupErr.message },
-                );
-              } else if (!userProfile?.email) {
-                console.log("[auto-publish] No owner email found, marking failed");
-                await supabase
-                  .from("article_email_notifications")
-                  .update({ status: "failed", error: "no_owner_email" })
-                  .eq("article_id", savedArticle.id)
-                  .eq("notification_type", "autopublish_success");
-                await logSiteActivity(
-                  supabase,
-                  siteId,
-                  userId,
-                  "autopublish_email_failed",
-                  "No se encontró email del propietario",
-                  { article_id: savedArticle.id, error: "no_owner_email" },
-                );
               } else {
-                try {
-                  await sendPublishedNotification(
-                    userProfile.email,
-                    site.name,
-                    articleTitle,
-                    publishedPostUrl,
-                    siteId,
-                    teamEmails,
-                  );
+                if (!existingNotification) {
+                  const { error: insertNotificationError } = await supabase.from("article_email_notifications").insert({
+                    article_id: savedArticle.id,
+                    notification_type: "autopublish_success",
+                    status: "pending",
+                    sent_to: emailRecipients,
+                  });
+
+                  if (insertNotificationError && insertNotificationError.code !== "23505") {
+                    console.error("[auto-publish] Notification insert error:", insertNotificationError.message);
+                    await logSiteActivity(
+                      supabase,
+                      siteId,
+                      userId,
+                      "autopublish_email_failed",
+                      "Error insertando notificación de email",
+                      { article_id: savedArticle.id, error: insertNotificationError.message },
+                    );
+                    throw new Error(`notification_insert_failed: ${insertNotificationError.message}`);
+                  }
+                } else {
                   await supabase
                     .from("article_email_notifications")
-                    .update({ status: "sent", sent_to: emailRecipients })
+                    .update({ status: "pending", error: null, sent_to: emailRecipients })
                     .eq("article_id", savedArticle.id)
                     .eq("notification_type", "autopublish_success");
-                  await logSiteActivity(
-                    supabase,
-                    siteId,
-                    userId,
-                    "autopublish_email_sent",
-                    "Email de artículo publicado enviado",
-                    { article_id: savedArticle.id, post_url: publishedPostUrl, recipients: emailRecipients },
-                  );
-                } catch (emailErr) {
-                  const emailErrMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
-                  console.error("[auto-publish] Email notification error:", emailErrMsg);
+                }
+
+                if (!userProfile?.email) {
+                  console.log("[auto-publish] No owner email found, marking failed");
                   await supabase
                     .from("article_email_notifications")
-                    .update({ status: "failed", error: emailErrMsg })
+                    .update({ status: "failed", error: "no_owner_email" })
                     .eq("article_id", savedArticle.id)
                     .eq("notification_type", "autopublish_success");
                   await logSiteActivity(
@@ -3503,9 +3586,49 @@ Deno.serve(async (req) => {
                     siteId,
                     userId,
                     "autopublish_email_failed",
-                    "Falló envío de email tras auto-publicación",
-                    { article_id: savedArticle.id, error: emailErrMsg },
+                    "No se encontró email del propietario",
+                    { article_id: savedArticle.id, error: "no_owner_email" },
                   );
+                } else {
+                  try {
+                    await sendPublishedNotification(
+                      userProfile.email,
+                      site.name,
+                      articleTitle,
+                      publishedPostUrl,
+                      siteId,
+                      teamEmails,
+                    );
+                    await supabase
+                      .from("article_email_notifications")
+                      .update({ status: "sent", error: null, sent_to: emailRecipients })
+                      .eq("article_id", savedArticle.id)
+                      .eq("notification_type", "autopublish_success");
+                    await logSiteActivity(
+                      supabase,
+                      siteId,
+                      userId,
+                      "autopublish_email_sent",
+                      "Email de artículo publicado enviado",
+                      { article_id: savedArticle.id, post_url: publishedPostUrl, recipients: emailRecipients },
+                    );
+                  } catch (emailErr) {
+                    const emailErrMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+                    console.error("[auto-publish] Email notification error:", emailErrMsg);
+                    await supabase
+                      .from("article_email_notifications")
+                      .update({ status: "failed", error: emailErrMsg })
+                      .eq("article_id", savedArticle.id)
+                      .eq("notification_type", "autopublish_success");
+                    await logSiteActivity(
+                      supabase,
+                      siteId,
+                      userId,
+                      "autopublish_email_failed",
+                      "Falló envío de email tras auto-publicación",
+                      { article_id: savedArticle.id, error: emailErrMsg },
+                    );
+                  }
                 }
               }
             }
