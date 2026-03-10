@@ -293,6 +293,15 @@ const handler = async (req: Request): Promise<Response> => {
       });
       console.log("[scheduler] dispatch reconcile-wordpress-publications done");
 
+      // Also process manual resend requests for already published posts.
+      console.log("[scheduler] dispatch reconcile-wordpress-publications (resend_published_email_only) start");
+      dispatchGeneration(supabaseUrl, supabaseServiceKey, "reconcile-wordpress-publications", {
+        lookback_hours: 168,
+        batch_size: 100,
+        resend_published_email_only: true,
+      });
+      console.log("[scheduler] dispatch reconcile-wordpress-publications (resend_published_email_only) done");
+
       console.log("[scheduler] dispatch monitor-autopublish-health start");
       dispatchGeneration(supabaseUrl, supabaseServiceKey, "monitor-autopublish-health", {
         window_minutes: 60,
