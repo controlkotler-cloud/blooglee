@@ -285,6 +285,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     const shouldRunHourlyMaintenance = now.getUTCMinutes() === 0;
 
+    // Always process email resend retries on every scheduler cycle.
+    // This avoids manual intervention when a publish email failed transiently.
+    console.log("[scheduler] dispatch reconcile-wordpress-publications (resend_published_email_only) start");
+    dispatchGeneration(supabaseUrl, supabaseServiceKey, "reconcile-wordpress-publications", {
+      lookback_hours: 168,
+      batch_size: 100,
+      resend_published_email_only: true,
+    });
+    console.log("[scheduler] dispatch reconcile-wordpress-publications (resend_published_email_only) done");
+
     if (shouldRunHourlyMaintenance) {
       console.log("[scheduler] dispatch reconcile-wordpress-publications start");
       dispatchGeneration(supabaseUrl, supabaseServiceKey, "reconcile-wordpress-publications", {
@@ -292,15 +302,6 @@ const handler = async (req: Request): Promise<Response> => {
         batch_size: 100,
       });
       console.log("[scheduler] dispatch reconcile-wordpress-publications done");
-
-      // Also process manual resend requests for already published posts.
-      console.log("[scheduler] dispatch reconcile-wordpress-publications (resend_published_email_only) start");
-      dispatchGeneration(supabaseUrl, supabaseServiceKey, "reconcile-wordpress-publications", {
-        lookback_hours: 168,
-        batch_size: 100,
-        resend_published_email_only: true,
-      });
-      console.log("[scheduler] dispatch reconcile-wordpress-publications (resend_published_email_only) done");
 
       console.log("[scheduler] dispatch monitor-autopublish-health start");
       dispatchGeneration(supabaseUrl, supabaseServiceKey, "monitor-autopublish-health", {
