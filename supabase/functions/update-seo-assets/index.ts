@@ -2,7 +2,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
   "Access-Control-Max-Age": "86400",
 };
@@ -16,6 +17,53 @@ interface BlogPost {
   category: string;
   published_at: string;
   seo_keywords: string[];
+}
+
+function getBearerToken(req: Request): string | null {
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.slice(7).trim();
+  return token || null;
+}
+
+function getRoleFromJwt(token: string | null): string | null {
+  if (!token || token.split(".").length !== 3) return null;
+  try {
+    const payload = token.split(".")[1];
+    const padded = payload + "=".repeat((4 - (payload.length % 4)) % 4);
+    const normalized = padded.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = atob(normalized);
+    const json = JSON.parse(decoded) as Record<string, unknown>;
+    const role = json.role;
+    return typeof role === "string" ? role : null;
+  } catch {
+    return null;
+  }
+}
+
+function isInternalAuthorized(req: Request, serviceRoleKey: string, internalSecret?: string | null): boolean {
+  const bearerToken = getBearerToken(req);
+  const apiKeyHeader = req.headers.get("apikey") || req.headers.get("x-api-key");
+  const providedSecret = req.headers.get("x-internal-secret") || req.headers.get("x-cron-secret");
+
+  if (internalSecret && providedSecret && providedSecret === internalSecret) {
+    return true;
+  }
+
+  if (bearerToken && bearerToken === serviceRoleKey) {
+    return true;
+  }
+
+  if (apiKeyHeader && apiKeyHeader === serviceRoleKey) {
+    return true;
+  }
+
+  const bearerRole = getRoleFromJwt(bearerToken);
+  if (bearerRole === "service_role" || bearerRole === "supabase_admin") {
+    return true;
+  }
+
+  return false;
 }
 
 function generateSitemap(posts: BlogPost[]): string {
@@ -32,7 +80,7 @@ function generateSitemap(posts: BlogPost[]): string {
     { loc: "/cookies", priority: "0.3", changefreq: "yearly" },
   ];
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split("T")[0];
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -51,7 +99,7 @@ function generateSitemap(posts: BlogPost[]): string {
 
   // Blog posts
   for (const post of posts) {
-    const postDate = new Date(post.published_at).toISOString().split('T')[0];
+    const postDate = new Date(post.published_at).toISOString().split("T")[0];
     xml += `  <url>
     <loc>${DOMAIN}/blog/${post.slug}</loc>
     <lastmod>${postDate}</lastmod>
@@ -62,13 +110,13 @@ function generateSitemap(posts: BlogPost[]): string {
   }
 
   xml += `</urlset>`;
-  
+
   return xml;
 }
 
 function generateLlmsTxt(posts: BlogPost[]): string {
   const recentPosts = posts.slice(0, 10); // Last 10 posts
-  
+
   let llms = `# Blooglee
 
 > Blooglee es una plataforma SaaS española que genera y publica automáticamente artículos de blog optimizados para SEO en WordPress usando inteligencia artificial.
@@ -168,7 +216,7 @@ Categoría: ${post.category}
 
 function generateLlmsFullTxt(posts: BlogPost[]): string {
   let full = generateLlmsTxt(posts);
-  
+
   // Add more detailed content for the full version
   full += `
 ## Detalles Técnicos
@@ -236,6 +284,17 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const internalSecret = Deno.env.get("INTERNAL_CRON_SECRET");
+
+    if (!isInternalAuthorized(req, supabaseServiceKey, internalSecret)) {
+      return new Response(
+        JSON.stringify({
+          error: "unauthorized",
+          message: "This endpoint is internal-only. Use service role auth or x-internal-secret.",
+        }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -243,10 +302,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Get all published posts
     const { data: posts, error: postsError } = await supabase
-      .from('blog_posts')
-      .select('slug, title, excerpt, category, published_at, seo_keywords')
-      .eq('is_published', true)
-      .order('published_at', { ascending: false });
+      .from("blog_posts")
+      .select("slug, title, excerpt, category, published_at, seo_keywords")
+      .eq("is_published", true)
+      .order("published_at", { ascending: false });
 
     if (postsError) {
       throw new Error(`Failed to fetch posts: ${postsError.message}`);
@@ -263,7 +322,7 @@ const handler = async (req: Request): Promise<Response> => {
     // For now, we'll return the generated content
     // In a production setup, you'd upload these to Supabase Storage
     // and configure your hosting to serve them from there
-    
+
     console.log("SEO assets generated successfully");
     console.log(`Sitemap: ${sitemap.length} bytes`);
     console.log(`llms.txt: ${llmsTxt.length} bytes`);
@@ -287,19 +346,18 @@ const handler = async (req: Request): Promise<Response> => {
           sitemap,
           llms_txt: llmsTxt,
           llms_full_txt: llmsFullTxt,
-        }
+        },
       }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
     );
-
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error updating SEO assets:", error);
-    
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 };
 
