@@ -87,6 +87,9 @@ export function useUpsertWordPressConfig() {
     mutationFn: async (config: WordPressConfigInput): Promise<WordPressConfig> => {
       if (!user?.id) throw new Error("No user logged in");
 
+      const normalizedPassword =
+        typeof config.wp_app_password === "string" ? config.wp_app_password.replace(/\s+/g, "") : "";
+
       // Check if config exists
       const { data: existing } = await supabase
         .from("wordpress_configs")
@@ -104,8 +107,8 @@ export function useUpsertWordPressConfig() {
           wp_username: config.wp_username,
         };
 
-        if (typeof config.wp_app_password === "string" && config.wp_app_password.trim().length > 0) {
-          updatePayload.wp_app_password = config.wp_app_password;
+        if (normalizedPassword.length > 0) {
+          updatePayload.wp_app_password = normalizedPassword;
         }
 
         // Update
@@ -119,7 +122,7 @@ export function useUpsertWordPressConfig() {
         if (error) throw error;
         return data as WordPressConfig;
       } else {
-        if (!config.wp_app_password || config.wp_app_password.trim().length === 0) {
+        if (!normalizedPassword) {
           throw new Error("La contraseña de aplicación es obligatoria");
         }
 
@@ -131,7 +134,7 @@ export function useUpsertWordPressConfig() {
             user_id: user.id,
             site_url: config.site_url,
             wp_username: config.wp_username,
-            wp_app_password: config.wp_app_password,
+            wp_app_password: normalizedPassword,
           })
           .select("id, site_id, user_id, site_url, wp_username, normalized_site_url, created_at, updated_at")
           .single();
