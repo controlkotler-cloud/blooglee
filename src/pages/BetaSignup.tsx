@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { useValidateBetaToken } from '@/hooks/useBetaInvitations';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Sparkles, AlertTriangle, ArrowLeft, Check, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useValidateBetaToken } from "@/hooks/useBetaInvitations";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Sparkles, AlertTriangle, ArrowLeft, Check, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function BetaSignup() {
   const { token } = useParams<{ token: string }>();
@@ -20,9 +20,9 @@ export default function BetaSignup() {
   const [isValid, setIsValid] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -30,7 +30,7 @@ export default function BetaSignup() {
   useEffect(() => {
     const validate = async () => {
       if (!token) {
-        setError('Token no proporcionado');
+        setError("Token no proporcionado");
         setIsValidating(false);
         return;
       }
@@ -41,10 +41,10 @@ export default function BetaSignup() {
           setInvitation(result);
           setIsValid(true);
         } else {
-          setError('Este enlace de invitación no es válido, ha expirado o ha alcanzado el límite de usos.');
+          setError("Este enlace de invitación no es válido, ha expirado o ha alcanzado el límite de usos.");
         }
       } catch (err) {
-        setError('Error al validar el enlace de invitación.');
+        setError("Error al validar el enlace de invitación.");
       } finally {
         setIsValidating(false);
       }
@@ -55,19 +55,19 @@ export default function BetaSignup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (password !== confirmPassword) {
-      toast.error('Las contraseñas no coinciden');
+      toast.error("Las contraseñas no coinciden");
       return;
     }
 
     if (password.length < 6) {
-      toast.error('La contraseña debe tener al menos 6 caracteres');
+      toast.error("La contraseña debe tener al menos 6 caracteres");
       return;
     }
 
     if (!acceptTerms) {
-      toast.error('Debes aceptar los términos y condiciones');
+      toast.error("Debes aceptar los términos y condiciones");
       return;
     }
 
@@ -90,33 +90,38 @@ export default function BetaSignup() {
 
       if (authData.user) {
         // Wait for the trigger to create the profile
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise((resolve) => setTimeout(resolve, 1500));
 
         // Use Edge Function to complete beta registration (bypasses RLS)
-        const { data: betaResult, error: betaError } = await supabase.functions.invoke('register-beta-user', {
-          body: { 
-            user_id: authData.user.id, 
-            invitation_id: invitation.id 
-          }
+        const betaPayload: Record<string, string> = {
+          invitation_id: invitation.id,
+        };
+        // Legacy fallback: if signup returns no session yet, edge function can still use user_id + metadata validation.
+        if (!authData.session) {
+          betaPayload.user_id = authData.user.id;
+        }
+
+        const { data: betaResult, error: betaError } = await supabase.functions.invoke("register-beta-user", {
+          body: betaPayload,
         });
 
         if (betaError) {
-          console.error('Error completing beta registration:', betaError);
+          console.error("Error completing beta registration:", betaError);
           // Don't fail completely - user account was created
-          toast.warning('Cuenta creada, pero hubo un problema con la configuración beta. Contacta soporte.');
+          toast.warning("Cuenta creada, pero hubo un problema con la configuración beta. Contacta soporte.");
         } else {
-          console.log('Beta registration complete:', betaResult);
+          console.log("Beta registration complete:", betaResult);
         }
 
-        toast.success('¡Cuenta creada! Por favor, verifica tu email para activar tu cuenta.');
-        navigate('/auth?verified=pending');
+        toast.success("¡Cuenta creada! Por favor, verifica tu email para activar tu cuenta.");
+        navigate("/auth?verified=pending");
       }
     } catch (err: any) {
-      console.error('Signup error:', err);
-      if (err.message?.includes('already registered')) {
-        toast.error('Este email ya está registrado. Por favor, inicia sesión.');
+      console.error("Signup error:", err);
+      if (err.message?.includes("already registered")) {
+        toast.error("Este email ya está registrado. Por favor, inicia sesión.");
       } else {
-        toast.error(err.message || 'Error al crear la cuenta');
+        toast.error(err.message || "Error al crear la cuenta");
       }
     } finally {
       setIsSubmitting(false);
@@ -149,7 +154,7 @@ export default function BetaSignup() {
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-sm text-muted-foreground">
-              Si crees que esto es un error, contacta con nosotros en{' '}
+              Si crees que esto es un error, contacta con nosotros en{" "}
               <a href="mailto:info@blooglee.com" className="text-primary hover:underline">
                 info@blooglee.com
               </a>
@@ -175,16 +180,13 @@ export default function BetaSignup() {
             <Sparkles className="h-6 w-6 text-white" />
           </div>
           <CardTitle className="text-2xl">¡Bienvenido al programa Beta!</CardTitle>
-          <CardDescription>
-            Has sido invitado a probar Blooglee durante 3 meses completamente gratis
-          </CardDescription>
+          <CardDescription>Has sido invitado a probar Blooglee durante 3 meses completamente gratis</CardDescription>
         </CardHeader>
         <CardContent>
           <Alert className="mb-6 border-violet-200 bg-violet-50">
             <Check className="h-4 w-4 text-violet-600" />
             <AlertDescription className="text-violet-700">
-              <strong>Plan Starter incluido:</strong> 1 sitio web, 4 artículos/mes, 
-              integración con WordPress y más.
+              <strong>Plan Starter incluido:</strong> 1 sitio web, 4 artículos/mes, integración con WordPress y más.
             </AlertDescription>
           </Alert>
 
@@ -229,19 +231,19 @@ export default function BetaSignup() {
                 onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
               />
               <label htmlFor="terms" className="text-sm text-muted-foreground leading-tight">
-                Acepto los{' '}
+                Acepto los{" "}
                 <Link to="/terms" className="text-primary hover:underline">
                   términos y condiciones
-                </Link>{' '}
-                y la{' '}
+                </Link>{" "}
+                y la{" "}
                 <Link to="/privacy" className="text-primary hover:underline">
                   política de privacidad
                 </Link>
               </label>
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:from-violet-700 hover:to-fuchsia-600"
               disabled={isSubmitting}
             >
@@ -251,13 +253,13 @@ export default function BetaSignup() {
                   Creando cuenta...
                 </>
               ) : (
-                'Unirme al programa Beta'
+                "Unirme al programa Beta"
               )}
             </Button>
           </form>
 
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            ¿Ya tienes cuenta?{' '}
+            ¿Ya tienes cuenta?{" "}
             <Link to="/auth" className="text-primary hover:underline">
               Inicia sesión
             </Link>
