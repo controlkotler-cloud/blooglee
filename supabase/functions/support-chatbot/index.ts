@@ -538,6 +538,73 @@ Deno.serve(async (req) => {
     );
     const effectiveUserId = authUser?.id || (metadataUserIdIsUuid ? metadataUserId : null);
 
+    const rateLimitIdentifier =
+      effectiveUserId ||
+      req.headers.get("cf-connecting-ip") ||
+      req.headers.get("x-forwarded-for") ||
+      req.headers.get("x-real-ip") ||
+      "anonymous";
+    const rateLimit = checkRateLimit(rateLimitIdentifier);
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: "Too many requests. Please try again in a moment.",
+          retry_after: rateLimit.retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimit.retryAfter ?? 60),
+          },
+        },
+      );
+    }
+
+    const errorCodeFromContext = error_context?.code ? String(error_context.code) : undefined;
+    const inferredErrorCode = extractErrorCode(
+      [userQuery, error_context?.message, error_context?.action].filter(Boolean).join(" "),
+    );
+    const errorCode = errorCodeFromContext || inferredErrorCode;
+    const pluginHints = extractPluginHints(
+      [userQuery, error_context?.message, error_context?.action].filter(Boolean).join(" "),
+    );
+
+    const relevantArticles = await searchKnowledgeBase(supabase, userQuery, errorCode, pluginHints);
+    const articlesContext = buildArticlesContext(relevantArticles);
+
+    const diagnosticsContext = await buildDiagnosticsContext(supabase, error_context?.siteId);
+    const errorContextBlock = error_context
+      ? [
+          "CONTEXTO DE ERROR RECIENTE:",
+          error_context.code ? `- Código: ${error_context.code}` : "",
+          error_context.action ? `- Acción: ${error_context.action}` : "",
+          error_context.message ? `- Mensaje: ${error_context.message}` : "",
+          error_context.siteId ? `- Site ID: ${error_context.siteId}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : "";
+    const userContextBlock = user_metadata
+      ? [
+          "CONTEXTO DE USUARIO:",
+          user_metadata.plan ? `- Plan: ${user_metadata.plan}` : "",
+          Number.isFinite(user_metadata.sitesCount) ? `- Sitios: ${user_metadata.sitesCount}` : "",
+          user_metadata.registeredAt ? `- Alta: ${user_metadata.registeredAt}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : "";
+
+    const systemPromptTemplate = await getSystemPrompt(supabase);
+    const enhancedSystemPrompt = interpolateTemplate(systemPromptTemplate, {
+      articlesContext,
+      errorContext: errorContextBlock,
+      diagnosticsContext,
+      userContext: userContextBlock,
+    });
+
     const activeConversationId = effectiveUserId
       ? await upsertConversation(supabase, effectiveUserId, conversation_id, error_context)
       : null;
