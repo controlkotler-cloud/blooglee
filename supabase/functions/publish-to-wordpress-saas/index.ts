@@ -52,6 +52,10 @@ interface WpCategory {
   count?: number;
 }
 
+function normalizeWpAppPassword(raw: string | null | undefined): string {
+  return (raw || "").replace(/\s+/g, "");
+}
+
 // --- Helper: find existing WP post by slug ---
 async function findExistingWpPostBySlug(
   wpUrl: string,
@@ -452,8 +456,17 @@ Deno.serve(async (req) => {
       wpUrl = wpUrl.replace(/\/wp-admin\/?$/, "").replace(/\/+$/, "");
     }
 
+    // Normalize app password to prevent auth failures when users paste grouped values with spaces
+    const normalizedWpAppPassword = normalizeWpAppPassword(wpConfig.wp_app_password);
+    if (!normalizedWpAppPassword) {
+      return new Response(JSON.stringify({ error: "La contraseña de aplicación de WordPress está vacía" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Create Basic Auth credentials
-    const credentials = btoa(`${wpConfig.wp_username}:${wpConfig.wp_app_password}`);
+    const credentials = btoa(`${wpConfig.wp_username}:${normalizedWpAppPassword}`);
     const wpHeaders = {
       Authorization: `Basic ${credentials}`,
       "Content-Type": "application/json",
