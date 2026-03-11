@@ -13,6 +13,53 @@ interface RequestBody {
   pending_threshold?: number;
 }
 
+function getBearerToken(req: Request): string | null {
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.slice(7).trim();
+  return token || null;
+}
+
+function getRoleFromJwt(token: string | null): string | null {
+  if (!token || token.split(".").length !== 3) return null;
+  try {
+    const payload = token.split(".")[1];
+    const padded = payload + "=".repeat((4 - (payload.length % 4)) % 4);
+    const normalized = padded.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = atob(normalized);
+    const json = JSON.parse(decoded) as Record<string, unknown>;
+    const role = json.role;
+    return typeof role === "string" ? role : null;
+  } catch {
+    return null;
+  }
+}
+
+function isInternalAuthorized(req: Request, serviceRoleKey: string, internalSecret?: string | null): boolean {
+  const bearerToken = getBearerToken(req);
+  const apiKeyHeader = req.headers.get("apikey") || req.headers.get("x-api-key");
+  const providedSecret = req.headers.get("x-internal-secret") || req.headers.get("x-cron-secret");
+
+  if (internalSecret && providedSecret && providedSecret === internalSecret) {
+    return true;
+  }
+
+  if (bearerToken && bearerToken === serviceRoleKey) {
+    return true;
+  }
+
+  if (apiKeyHeader && apiKeyHeader === serviceRoleKey) {
+    return true;
+  }
+
+  const bearerRole = getRoleFromJwt(bearerToken);
+  if (bearerRole === "service_role" || bearerRole === "supabase_admin") {
+    return true;
+  }
+
+  return false;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -24,9 +71,23 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const internalSecret = Deno.env.get("INTERNAL_CRON_SECRET");
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const opsAlertEmails = Deno.env.get("OPS_ALERT_EMAILS") || "";
     const alertFromEmail = Deno.env.get("ALERT_FROM_EMAIL") || "alerts@blooglee.com";
+
+    if (!isInternalAuthorized(req, supabaseServiceKey, internalSecret)) {
+      return new Response(
+        JSON.stringify({
+          error: "unauthorized",
+          message: "This endpoint is internal-only. Use service role auth or x-internal-secret.",
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
