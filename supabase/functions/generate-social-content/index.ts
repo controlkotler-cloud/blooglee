@@ -2,7 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Max-Age": "86400",
 };
@@ -124,11 +125,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { blogPostId, platform, contentType, language, customTopic } = await req.json();
 
     if (!platform || !language) {
       return new Response(JSON.stringify({ error: "platform and language are required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -137,7 +147,36 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .in("role", ["superadmin", "admin"])
+      .maybeSingle();
+
+    if (!roleData) {
+      return new Response(JSON.stringify({ error: "Forbidden: admin access required" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Get blog post content if provided
     let blogContent = "";
@@ -155,8 +194,7 @@ Deno.serve(async (req) => {
     }
 
     const langLabel = LANGUAGE_MAP[language] || "español de España (tuteo, vosotros)";
-    const platformPrompt = (PLATFORM_PROMPTS[platform] || PLATFORM_PROMPTS.instagram)
-      .replace("{language}", langLabel);
+    const platformPrompt = (PLATFORM_PROMPTS[platform] || PLATFORM_PROMPTS.instagram).replace("{language}", langLabel);
 
     const topicContext = blogContent
       ? `Adapta el siguiente artículo de blog para redes sociales:\n\n${blogContent}`
@@ -164,7 +202,7 @@ Deno.serve(async (req) => {
 
     // Prepare image prompt
     const topicForImage = customTopic || blogTitle || "digital marketing SEO";
-    const isVertical = platform === 'tiktok';
+    const isVertical = platform === "tiktok";
     const imageStylePrompt = isVertical ? IMAGE_STYLE_PROMPT_VERTICAL : IMAGE_STYLE_PROMPT_SQUARE;
     const imagePrompt = `${imageStylePrompt}\n\nCONCEPT: ${topicForImage}`;
 
@@ -195,7 +233,7 @@ Deno.serve(async (req) => {
         messages: [{ role: "user", content: imagePrompt }],
         modalities: ["image", "text"],
       }),
-    }).catch(err => {
+    }).catch((err) => {
       console.error("Image generation error (non-fatal):", err);
       return null;
     });
@@ -222,12 +260,12 @@ Deno.serve(async (req) => {
       if (imageResponse && imageResponse.ok) {
         const imageData = await imageResponse.json();
         const base64Url = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-        
+
         if (base64Url) {
           const base64Data = base64Url.replace(/^data:image\/\w+;base64,/, "");
-          const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+          const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
           const fileName = `social/${platform}/${crypto.randomUUID()}.png`;
-          
+
           const { error: uploadError } = await supabase.storage
             .from("article-images")
             .upload(fileName, binaryData, { contentType: "image/png", upsert: true });
@@ -267,7 +305,8 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("generate-social-content error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
