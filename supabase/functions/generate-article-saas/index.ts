@@ -1577,6 +1577,122 @@ function getExternalAnchorLinks(htmlContent: string): Array<{ full: string; url:
   return matches;
 }
 
+function normalizeUrlForMatch(urlString: string): string {
+  if (!urlString) return "";
+  const trimmed = urlString.trim();
+  if (!trimmed) return "";
+
+  // Keep relative URLs as paths so we can match "/blog" against absolute blog URLs.
+  if (trimmed.startsWith("/")) {
+    return (
+      trimmed
+        .replace(/[?#].*$/, "")
+        .replace(/\/+$/, "")
+        .toLowerCase() || "/"
+    );
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.hostname.replace(/^www\./i, "").toLowerCase();
+    const path = parsed.pathname
+      .replace(/[?#].*$/, "")
+      .replace(/\/+$/, "")
+      .toLowerCase();
+    return `${host}${path}`;
+  } catch {
+    return trimmed
+      .replace(/^https?:\/\//i, "")
+      .replace(/^www\./i, "")
+      .replace(/[?#].*$/, "")
+      .replace(/\/+$/, "")
+      .toLowerCase();
+  }
+}
+
+function extractAnchorHrefs(htmlContent: string): string[] {
+  if (!htmlContent) return [];
+  const hrefRegex = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>/gi;
+  const hrefs: string[] = [];
+  let match;
+  while ((match = hrefRegex.exec(htmlContent)) !== null) {
+    hrefs.push(match[1]);
+  }
+  return hrefs;
+}
+
+function hasMatchingHref(hrefs: string[], targetUrl: string): boolean {
+  if (!targetUrl) return false;
+  const normalizedTarget = normalizeUrlForMatch(targetUrl);
+  const targetDomain = normalizeDomain(targetUrl);
+  const targetPath =
+    normalizedTarget.includes("/") && !normalizedTarget.startsWith("/")
+      ? normalizedTarget.slice(normalizedTarget.indexOf("/"))
+      : normalizedTarget.startsWith("/")
+        ? normalizedTarget
+        : "";
+
+  return hrefs.some((href) => {
+    if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return false;
+
+    const normalizedHref = normalizeUrlForMatch(href);
+    if (!normalizedHref) return false;
+
+    if (normalizedHref === normalizedTarget) return true;
+    if (normalizedHref.startsWith(normalizedTarget) || normalizedTarget.startsWith(normalizedHref)) return true;
+
+    const hrefDomain = normalizeDomain(href);
+    if (hrefDomain && hrefDomain === targetDomain) {
+      if (
+        normalizedTarget === targetDomain ||
+        normalizedHref === hrefDomain ||
+        normalizedHref.startsWith(normalizedTarget)
+      ) {
+        return true;
+      }
+    }
+
+    // Relative href support: /blog should match target .../blog
+    if (normalizedHref.startsWith("/") && targetPath) {
+      if (normalizedHref === targetPath || normalizedHref.startsWith(targetPath)) {
+        return true;
+      }
+    }
+
+    return false;
+  });
+}
+
+function linkFirstPlainKeyword(htmlContent: string, keywordRegex: RegExp, url: string): string {
+  if (!htmlContent || !url) return htmlContent;
+
+  const protectedAnchors: string[] = [];
+  const withPlaceholders = htmlContent.replace(/<a\b[\s\S]*?<\/a>/gi, (anchorTag) => {
+    protectedAnchors.push(anchorTag);
+    return `%%ANCHOR-${protectedAnchors.length - 1}%%`;
+  });
+
+  let replaced = false;
+  const linked = withPlaceholders.replace(keywordRegex, (match) => {
+    if (replaced) return match;
+    replaced = true;
+    return `<a href="${url}" target="_blank" rel="noopener">${match}</a>`;
+  });
+
+  return linked.replace(/%%ANCHOR-(\d+)%%/g, (_placeholder, idx) => {
+    return protectedAnchors[parseInt(idx, 10)] || _placeholder;
+  });
+}
+
+function linkKeywordNearEnd(htmlContent: string, keywordRegex: RegExp, url: string): string {
+  if (!htmlContent) return htmlContent;
+  const splitAt = Math.max(0, htmlContent.length - 1200);
+  const head = htmlContent.slice(0, splitAt);
+  const tail = htmlContent.slice(splitAt);
+  const linkedTail = linkFirstPlainKeyword(tail, keywordRegex, url);
+  return `${head}${linkedTail}`;
+}
+
 function mergeAuthoritySources(
   rows: Array<{ authority_sources?: AuthoritySource[] | null }> | null,
 ): AuthoritySource[] {
@@ -1767,9 +1883,31 @@ function ensureFooterLinks(
     );
   }
 
-  const hasBlogLink = blogUrl ? normalizedContent.includes(blogUrl) : false;
-  const hasInstagramLink = instagramUrl ? normalizedContent.includes(instagramUrl) : false;
+  let hrefs = extractAnchorHrefs(normalizedContent);
+  let hasBlogLink = blogUrl ? hasMatchingHref(hrefs, blogUrl) : false;
+  let hasInstagramLink = instagramUrl ? hasMatchingHref(hrefs, instagramUrl) : false;
 
+  if ((!blogUrl || hasBlogLink) && (!instagramUrl || hasInstagramLink)) {
+    return normalizedContent;
+  }
+
+  // If the model already wrote a closing CTA but forgot links, enrich that text first instead of appending another CTA.
+  if (blogUrl && !hasBlogLink) {
+    normalizedContent = linkKeywordNearEnd(normalizedContent, /\bblog(?:\s+de\s+[a-z0-9áéíóúüñ_-]+)?\b/i, blogUrl);
+  }
+
+  if (instagramUrl && !hasInstagramLink) {
+    normalizedContent = linkKeywordNearEnd(normalizedContent, /\binstagram\b/i, instagramUrl);
+    hrefs = extractAnchorHrefs(normalizedContent);
+    hasInstagramLink = hasMatchingHref(hrefs, instagramUrl);
+    if (!hasInstagramLink) {
+      normalizedContent = linkKeywordNearEnd(normalizedContent, /\bredes\s+sociales\b/i, instagramUrl);
+    }
+  }
+
+  hrefs = extractAnchorHrefs(normalizedContent);
+  hasBlogLink = blogUrl ? hasMatchingHref(hrefs, blogUrl) : false;
+  hasInstagramLink = instagramUrl ? hasMatchingHref(hrefs, instagramUrl) : false;
   if ((!blogUrl || hasBlogLink) && (!instagramUrl || hasInstagramLink)) {
     return normalizedContent;
   }
@@ -2996,12 +3134,6 @@ Deno.serve(async (req) => {
     processedSpanishContent = addHomeLinkToContent(processedSpanishContent, site.name, site.blog_url || null);
     processedSpanishContent = ensureHomeLinkPresence(processedSpanishContent, site.name, homeUrl);
     processedSpanishContent = ensureAuthorityLinks(processedSpanishContent, selectedAuthoritySources, ownedDomains);
-    processedSpanishContent = ensureFooterLinks(
-      processedSpanishContent,
-      site.name,
-      site.blog_url || null,
-      site.instagram_url || null,
-    );
     processedSpanishContent = sanitizeUnlinkedBrandMentions(
       processedSpanishContent,
       site.name,
@@ -3015,12 +3147,6 @@ Deno.serve(async (req) => {
       let processedCatalanContent = addHomeLinkToContent(catalanArticle.content, site.name, site.blog_url || null);
       processedCatalanContent = ensureHomeLinkPresence(processedCatalanContent, site.name, homeUrl);
       processedCatalanContent = ensureAuthorityLinks(processedCatalanContent, selectedAuthoritySources, ownedDomains);
-      processedCatalanContent = ensureFooterLinks(
-        processedCatalanContent,
-        site.name,
-        site.blog_url || null,
-        site.instagram_url || null,
-      );
       processedCatalanContent = sanitizeUnlinkedBrandMentions(
         processedCatalanContent,
         site.name,
