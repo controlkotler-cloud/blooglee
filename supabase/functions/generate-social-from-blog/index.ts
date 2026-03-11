@@ -2,7 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Max-Age": "86400",
 };
@@ -45,14 +46,16 @@ CHECKLIST INTERNA (verificar antes de entregar):
 
 function buildPlatformConfigs(slug: string, audience: string): PlatformConfig[] {
   const postUrl = `${BLOG_URL_BASE}${slug}`;
-  const audienceContext = audience === "empresas"
-    ? "empresas y negocios que quieren mejorar su presencia digital"
-    : "agencias de marketing y profesionales del sector";
+  const audienceContext =
+    audience === "empresas"
+      ? "empresas y negocios que quieren mejorar su presencia digital"
+      : "agencias de marketing y profesionales del sector";
 
   return [
     {
       platform: "instagram",
-      aspectInstruction: "Crop this image to a 4:5 portrait aspect ratio (1080x1350). Keep the main subject centered. Do NOT add any text, logos, or overlays.",
+      aspectInstruction:
+        "Crop this image to a 4:5 portrait aspect ratio (1080x1350). Keep the main subject centered. Do NOT add any text, logos, or overlays.",
       storagePath: "social/instagram/",
       copyPrompt: `Genera un post de Instagram en español de España (tuteo, vosotros) para Blooglee.
 Audiencia: ${audienceContext}.
@@ -71,7 +74,8 @@ FORMATO:
     },
     {
       platform: "linkedin",
-      aspectInstruction: "Crop this image to a 4:5 portrait aspect ratio (1080x1350). Keep the main subject centered. Do NOT add any text, logos, or overlays.",
+      aspectInstruction:
+        "Crop this image to a 4:5 portrait aspect ratio (1080x1350). Keep the main subject centered. Do NOT add any text, logos, or overlays.",
       storagePath: "social/linkedin/",
       copyPrompt: `Genera un post de LinkedIn en español de España (tuteo, vosotros) para Blooglee.
 Audiencia: ${audienceContext}.
@@ -90,7 +94,8 @@ FORMATO:
     },
     {
       platform: "facebook",
-      aspectInstruction: "Crop this image to a 4:5 portrait aspect ratio (1080x1350). Keep the main subject centered. Do NOT add any text, logos, or overlays.",
+      aspectInstruction:
+        "Crop this image to a 4:5 portrait aspect ratio (1080x1350). Keep the main subject centered. Do NOT add any text, logos, or overlays.",
       storagePath: "social/facebook/",
       copyPrompt: `Genera un post de Facebook en español de España (tuteo, vosotros) para Blooglee.
 Audiencia: ${audienceContext}.
@@ -108,7 +113,8 @@ FORMATO:
     },
     {
       platform: "tiktok",
-      aspectInstruction: "Crop this image to a 9:16 vertical aspect ratio (1080x1920). Keep the main subject centered. Do NOT add any text, logos, or overlays.",
+      aspectInstruction:
+        "Crop this image to a 9:16 vertical aspect ratio (1080x1920). Keep the main subject centered. Do NOT add any text, logos, or overlays.",
       storagePath: "social/tiktok/",
       copyPrompt: `Genera un copy de marketing para TikTok en español de España (tuteo, vosotros) para Blooglee.
 IMPORTANTE: NO generes un guion de vídeo con escenas. Genera un COPY de marketing directo.
@@ -130,11 +136,7 @@ FORMATO:
   ];
 }
 
-async function adaptImage(
-  imageUrl: string,
-  instruction: string,
-  apiKey: string
-): Promise<string | null> {
+async function adaptImage(imageUrl: string, instruction: string, apiKey: string): Promise<string | null> {
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -174,12 +176,7 @@ async function adaptImage(
   }
 }
 
-async function generateCopy(
-  title: string,
-  excerpt: string,
-  prompt: string,
-  apiKey: string
-): Promise<string> {
+async function generateCopy(title: string, excerpt: string, prompt: string, apiKey: string): Promise<string> {
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -218,7 +215,7 @@ async function processPlatform(
   imageUrl: string | null,
   blogPostUrl: string,
   apiKey: string,
-  supabase: any
+  supabase: any,
 ): Promise<void> {
   console.log(`Processing ${config.platform}...`);
 
@@ -252,20 +249,18 @@ async function processPlatform(
   }
 
   // Save to DB
-  const { error: saveError } = await supabase
-    .from("social_content")
-    .insert({
-      blog_post_id: blogPostId,
-      blog_post_url: blogPostUrl,
-      platform: config.platform,
-      content_type: "post",
-      title: `${config.platform.toUpperCase()} - ${title.substring(0, 60)}`,
-      content,
-      media_prompt: config.aspectInstruction,
-      image_url: platformImageUrl,
-      status: "draft",
-      language: "spanish",
-    });
+  const { error: saveError } = await supabase.from("social_content").insert({
+    blog_post_id: blogPostId,
+    blog_post_url: blogPostUrl,
+    platform: config.platform,
+    content_type: "post",
+    title: `${config.platform.toUpperCase()} - ${title.substring(0, 60)}`,
+    content,
+    media_prompt: config.aspectInstruction,
+    image_url: platformImageUrl,
+    status: "draft",
+    language: "spanish",
+  });
 
   if (saveError) {
     console.error(`${config.platform} save error:`, saveError.message);
@@ -280,13 +275,21 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { blogPostId, title, excerpt, slug, imageUrl, audience } = await req.json();
 
     if (!blogPostId || !title || !slug) {
-      return new Response(
-        JSON.stringify({ error: "blogPostId, title, and slug are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "blogPostId, title, and slug are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -294,7 +297,36 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .in("role", ["superadmin", "admin"])
+      .maybeSingle();
+
+    if (!roleData) {
+      return new Response(JSON.stringify({ error: "Forbidden: admin access required" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const blogPostUrl = `${BLOG_URL_BASE}${slug}`;
     const configs = buildPlatformConfigs(slug, audience || "empresas");
@@ -312,9 +344,9 @@ Deno.serve(async (req) => {
           imageUrl || null,
           blogPostUrl,
           LOVABLE_API_KEY,
-          supabase
-        )
-      )
+          supabase,
+        ),
+      ),
     );
 
     const succeeded = results.filter((r) => r.status === "fulfilled").length;
@@ -322,15 +354,14 @@ Deno.serve(async (req) => {
 
     console.log(`Social generation complete: ${succeeded} succeeded, ${failed} failed`);
 
-    return new Response(
-      JSON.stringify({ success: true, platforms: { succeeded, failed } }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true, platforms: { succeeded, failed } }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     console.error("generate-social-from-blog error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
