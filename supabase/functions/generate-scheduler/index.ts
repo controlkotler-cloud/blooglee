@@ -8,60 +8,6 @@ const corsHeaders = {
   "Access-Control-Max-Age": "86400",
 };
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-function getBearerToken(req: Request): string | null {
-  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  return token || null;
-}
-
-function getRoleFromJwt(token: string | null): string | null {
-  if (!token || token.split(".").length !== 3) return null;
-  try {
-    const payload = token.split(".")[1];
-    const padded = payload + "=".repeat((4 - (payload.length % 4)) % 4);
-    const normalized = padded.replace(/-/g, "+").replace(/_/g, "/");
-    const decoded = atob(normalized);
-    const json = JSON.parse(decoded) as Record<string, unknown>;
-    const role = json.role;
-    return typeof role === "string" ? role : null;
-  } catch {
-    return null;
-  }
-}
-
-function isInternalAuthorized(req: Request, serviceRoleKey: string, internalSecret?: string | null): boolean {
-  const bearerToken = getBearerToken(req);
-  const apiKeyHeader = req.headers.get("apikey") || req.headers.get("x-api-key");
-  const providedSecret = req.headers.get("x-internal-secret") || req.headers.get("x-cron-secret");
-
-  if (internalSecret && providedSecret && providedSecret === internalSecret) {
-    return true;
-  }
-
-  if (bearerToken && bearerToken === serviceRoleKey) {
-    return true;
-  }
-
-  if (apiKeyHeader && apiKeyHeader === serviceRoleKey) {
-    return true;
-  }
-
-  const bearerRole = getRoleFromJwt(bearerToken);
-  if (bearerRole === "service_role" || bearerRole === "supabase_admin") {
-    return true;
-  }
-
-  return false;
-}
-
 interface SiteEntity {
   id: string;
   name: string;
@@ -256,17 +202,6 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const internalSecret = Deno.env.get("INTERNAL_CRON_SECRET");
-
-    if (!isInternalAuthorized(req, supabaseServiceKey, internalSecret)) {
-      return jsonResponse(
-        {
-          error: "unauthorized",
-          message: "This endpoint is internal-only. Use service role auth or x-internal-secret.",
-        },
-        401,
-      );
-    }
 
     supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -404,15 +339,21 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    return jsonResponse({
-      success: true,
-      dispatched,
-      reconcile_dispatched: shouldRunHourlyMaintenance,
-      monitor_dispatched: shouldRunHourlyMaintenance,
-      elapsed_ms: elapsed,
-      timestamp: now.toISOString(),
-      run_id: runId,
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        dispatched,
+        reconcile_dispatched: shouldRunHourlyMaintenance,
+        monitor_dispatched: shouldRunHourlyMaintenance,
+        elapsed_ms: elapsed,
+        timestamp: now.toISOString(),
+        run_id: runId,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Scheduler error:", error);
@@ -432,7 +373,10 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    return jsonResponse({ success: false, error: errorMessage }, 500);
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 };
 
