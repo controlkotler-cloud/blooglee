@@ -1,71 +1,70 @@
-import { Link } from 'react-router-dom';
-import { PublicLayout } from '@/components/marketing/PublicLayout';
-import { SEOHead, FAQSchema } from '@/components/seo';
-import { 
-  ArrowRight, 
-  FileText, 
-  Calendar, 
-  CheckSquare, 
-  BookOpen,
-  Sparkles
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { LeadMagnetCard } from '@/components/marketing/LeadMagnetCard';
-import { LeadMagnetModal } from '@/components/marketing/LeadMagnetModal';
-import { useLeadMagnetDownload } from '@/hooks/useLeadMagnetDownload';
-import { genericLeadMagnets } from '@/data/leadMagnets';
+import { Link } from "react-router-dom";
+import { PublicLayout } from "@/components/marketing/PublicLayout";
+import { SEOHead, FAQSchema } from "@/components/seo";
+import { ArrowRight, FileText, Calendar, CheckSquare, BookOpen, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { LeadMagnetCard } from "@/components/marketing/LeadMagnetCard";
+import { LeadMagnetModal } from "@/components/marketing/LeadMagnetModal";
+import { useLeadMagnetDownload } from "@/hooks/useLeadMagnetDownload";
+import { genericLeadMagnets } from "@/data/leadMagnets";
 
 const resourcesFAQs = [
   {
-    question: '¿Los recursos son gratuitos?',
-    answer: 'Sí, todos los recursos de esta página son gratuitos. Solo te pedimos tu email para enviarte el recurso y mantenerte informado de novedades.',
+    question: "¿Los recursos son gratuitos?",
+    answer:
+      "Sí, todos los recursos de esta página son gratuitos. Solo te pedimos tu email para enviarte el recurso y mantenerte informado de novedades.",
   },
   {
-    question: '¿Puedo usar las plantillas para mis clientes?',
-    answer: 'Sí, puedes usar todas las plantillas y guías libremente, incluso para clientes de tu agencia. No requieren atribución.',
+    question: "¿Puedo usar las plantillas para mis clientes?",
+    answer:
+      "Sí, puedes usar todas las plantillas y guías libremente, incluso para clientes de tu agencia. No requieren atribución.",
   },
   {
-    question: '¿Cada cuánto actualizáis los recursos?',
-    answer: 'Actualizamos los recursos regularmente para reflejar las últimas tendencias de SEO y content marketing. Los calendarios se actualizan cada año.',
+    question: "¿Cada cuánto actualizáis los recursos?",
+    answer:
+      "Actualizamos los recursos regularmente para reflejar las últimas tendencias de SEO y content marketing. Los calendarios se actualizan cada año.",
   },
   {
-    question: '¿Hay recursos específicos para mi sector?',
-    answer: 'Sí, tenemos calendarios editoriales e ideas de posts específicos para clínicas, agencias, ecommerce y autónomos. Visita la página de tu sector para descargarlos.',
+    question: "¿Hay recursos específicos para mi sector?",
+    answer:
+      "Sí, tenemos calendarios editoriales e ideas de posts específicos para clínicas, agencias, ecommerce y autónomos. Visita la página de tu sector para descargarlos.",
   },
 ];
 
 const guides = [
   {
     icon: FileText,
-    title: 'SEO automatizado para pymes: posiciona sin esfuerzo extra',
-    description: 'Descubre cómo la automatización del SEO puede ayudar a tu pyme a ganar visibilidad orgánica sin dedicar horas extra.',
-    link: '/blog/seo-automatizado-pymes-posiciona-sin-esfuerzo-extra',
-    type: 'Guía',
-    readTime: '12 min lectura',
+    title: "SEO automatizado para pymes: posiciona sin esfuerzo extra",
+    description:
+      "Descubre cómo la automatización del SEO puede ayudar a tu pyme a ganar visibilidad orgánica sin dedicar horas extra.",
+    link: "/blog/seo-automatizado-pymes-posiciona-sin-esfuerzo-extra",
+    type: "Guía",
+    readTime: "12 min lectura",
   },
   {
     icon: Calendar,
-    title: 'Impulsa tu blog: automatización inteligente para pymes',
-    description: 'Aprende a automatizar la creación de contenido para tu blog manteniendo la calidad y la relevancia.',
-    link: '/blog/impulsa-blog-automatizacion-inteligente-pymes',
-    type: 'Artículo',
-    readTime: '10 min lectura',
+    title: "Impulsa tu blog: automatización inteligente para pymes",
+    description: "Aprende a automatizar la creación de contenido para tu blog manteniendo la calidad y la relevancia.",
+    link: "/blog/impulsa-blog-automatizacion-inteligente-pymes",
+    type: "Artículo",
+    readTime: "10 min lectura",
   },
   {
     icon: CheckSquare,
-    title: 'Tutorial: optimiza tu blog con herramientas de programación',
-    description: 'Guía práctica para sacar el máximo partido a las herramientas de programación y publicación de contenido.',
-    link: '/blog/tutorial-optimizar-blog-herramientas-programacion',
-    type: 'Tutorial',
-    readTime: '8 min lectura',
+    title: "Tutorial: optimiza tu blog con herramientas de programación",
+    description:
+      "Guía práctica para sacar el máximo partido a las herramientas de programación y publicación de contenido.",
+    link: "/blog/tutorial-optimizar-blog-herramientas-programacion",
+    type: "Tutorial",
+    readTime: "8 min lectura",
   },
   {
     icon: BookOpen,
-    title: 'Desbloquea el potencial orgánico de tu contenido',
-    description: 'Estrategias para mejorar el posicionamiento orgánico de tu contenido existente y futuro.',
-    link: '/blog/desbloquea-potencial-organico-contenido',
-    type: 'Artículo',
-    readTime: '10 min lectura',
+    title: "Desbloquea el potencial orgánico de tu contenido",
+    description: "Estrategias para mejorar el posicionamiento orgánico de tu contenido existente y futuro.",
+    link: "/blog/desbloquea-potencial-organico-contenido",
+    type: "Artículo",
+    readTime: "10 min lectura",
   },
 ];
 
@@ -74,7 +73,7 @@ export default function Resources() {
 
   return (
     <PublicLayout>
-      <SEOHead 
+      <SEOHead
         title="Centro de Recursos - Guías, Plantillas y Descargables"
         description="Recursos gratuitos de Blooglee: guías de SEO, plantillas de marketing de contenidos y herramientas para automatizar tu blog WordPress."
         canonicalUrl="/recursos"
@@ -89,13 +88,13 @@ export default function Resources() {
             <Sparkles className="w-4 h-4 text-violet-500" />
             <span className="text-sm font-medium text-violet-600">Recursos Gratuitos</span>
           </div>
-          
+
           <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
             <span className="bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
               Centro de Recursos
             </span>
           </h1>
-          
+
           <p className="text-lg sm:text-xl text-foreground/60 mb-8 max-w-2xl mx-auto">
             Plantillas, calendarios y herramientas gratuitas para dominar el content marketing.
             <strong className="text-foreground"> Descarga, aplica y crece.</strong>
@@ -111,11 +110,7 @@ export default function Resources() {
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           {genericLeadMagnets.map((leadMagnet) => (
-            <LeadMagnetCard
-              key={leadMagnet.id}
-              leadMagnet={leadMagnet}
-              onDownloadClick={openDownloadModal}
-            />
+            <LeadMagnetCard key={leadMagnet.id} leadMagnet={leadMagnet} onDownloadClick={openDownloadModal} />
           ))}
         </div>
       </section>
@@ -213,11 +208,11 @@ export default function Resources() {
               ¿Listo para automatizar tu blog?
             </h2>
             <p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">
-              Prueba Blooglee gratis y genera tu primer artículo en menos de 5 minutos.
+              Únete a la lista de espera y te avisamos en cuanto habilitemos nuevas cuentas.
             </p>
             <Button asChild size="lg" className="bg-white text-violet-600 hover:bg-white/90">
               <Link to="/waitlist">
-                Crear cuenta gratis
+                Unirme a la lista de espera
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
             </Button>
@@ -226,11 +221,7 @@ export default function Resources() {
       </section>
 
       {/* Lead Magnet Modal */}
-      <LeadMagnetModal 
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        leadMagnet={selectedLeadMagnet}
-      />
+      <LeadMagnetModal isOpen={isModalOpen} onClose={closeModal} leadMagnet={selectedLeadMagnet} />
     </PublicLayout>
   );
 }
