@@ -21,8 +21,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
-  const { signIn, signUp, session, loading } = useAuth();
+  const { signIn, session, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -43,48 +42,16 @@ const Auth = () => {
       return;
     }
 
-    if (password.length < 6) {
+    setIsLoading(true);
+    const { error } = await signIn(email, password);
+    setIsLoading(false);
+
+    if (error) {
       toast({
-        title: "Error",
-        description: "La contraseña debe tener al menos 6 caracteres",
+        title: "Error al iniciar sesión",
+        description: error.message === "Invalid login credentials" ? "Credenciales incorrectas" : error.message,
         variant: "destructive",
       });
-      return;
-    }
-
-    setIsLoading(true);
-
-    if (isSignUp) {
-      const { error } = await signUp(email, password);
-      setIsLoading(false);
-
-      if (error) {
-        let errorMessage = error.message;
-        if (error.message.includes("already registered")) {
-          errorMessage = "Este email ya está registrado. Intenta iniciar sesión.";
-        }
-        toast({
-          title: "Error al registrarse",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "¡Cuenta creada!",
-          description: "Ya puedes acceder a tu panel.",
-        });
-      }
-    } else {
-      const { error } = await signIn(email, password);
-      setIsLoading(false);
-
-      if (error) {
-        toast({
-          title: "Error al iniciar sesión",
-          description: error.message === "Invalid login credentials" ? "Credenciales incorrectas" : error.message,
-          variant: "destructive",
-        });
-      }
     }
   };
 
@@ -130,22 +97,12 @@ const Auth = () => {
             <div className="mb-10 animate-fade-in-up">
               <div className="badge-aurora badge-aurora-glow mb-4">
                 <Zap className="w-3.5 h-3.5" />
-                <span>{isSignUp ? "Empieza gratis" : "Bienvenido de nuevo"}</span>
+                <span>Acceso privado</span>
               </div>
               <h1 className="font-display text-4xl lg:text-5xl font-bold mb-3">
-                {isSignUp ? (
-                  <>
-                    Tu blog en <span className="text-aurora">piloto automático</span>
-                  </>
-                ) : (
-                  <>
-                    Accede a <span className="text-aurora">tu panel</span>
-                  </>
-                )}
+                Accede a <span className="text-aurora">tu panel</span>
               </h1>
-              <p className="text-lg text-muted-foreground">
-                {isSignUp ? "Crea contenido profesional con IA. Sin esfuerzo." : "Continúa donde lo dejaste."}
-              </p>
+              <p className="text-lg text-muted-foreground">Continúa donde lo dejaste.</p>
             </div>
 
             {/* Form Card */}
@@ -185,11 +142,11 @@ const Auth = () => {
                     {isLoading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        {isSignUp ? "Creando cuenta..." : "Entrando..."}
+                        Entrando...
                       </>
                     ) : (
                       <>
-                        {isSignUp ? "Crear cuenta gratis" : "Iniciar sesión"}
+                        Iniciar sesión
                         <ArrowLeft className="h-4 w-4 rotate-180" />
                       </>
                     )}
@@ -243,31 +200,27 @@ const Auth = () => {
                 Continuar con Google
               </button>
 
-              {/* Toggle */}
-              <div className="text-center mt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(!isSignUp)}
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors link-underline"
-                >
-                  {isSignUp ? "¿Ya tienes cuenta? Inicia sesión" : "¿No tienes cuenta? Regístrate gratis"}
-                </button>
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+                <p className="text-xs text-amber-800">
+                  El alta pública está cerrada temporalmente. Si todavía no tienes cuenta, solicita acceso en la lista
+                  de espera.
+                </p>
+                <Button asChild variant="secondary" size="sm" className="mt-3 w-full">
+                  <Link to="/waitlist">Unirme a la lista de espera</Link>
+                </Button>
               </div>
             </div>
 
-            {/* Benefits list - only on signup */}
-            {isSignUp && (
-              <div className="mt-8 space-y-3 animate-fade-in-up delay-200">
-                {benefits.map((benefit, i) => (
-                  <div key={i} className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-success" />
-                    </div>
-                    {benefit.text}
+            <div className="mt-8 space-y-3 animate-fade-in-up delay-200">
+              {benefits.map((benefit, i) => (
+                <div key={i} className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
+                    <Check className="w-3 h-3 text-success" />
                   </div>
-                ))}
-              </div>
-            )}
+                  {benefit.text}
+                </div>
+              ))}
+            </div>
 
             {/* Footer */}
             <p className="text-center text-xs text-muted-foreground mt-8">
