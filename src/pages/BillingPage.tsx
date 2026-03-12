@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, CreditCard, Loader2, Mail, ShieldAlert, Trash2, UserPlus, Users } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,23 +13,138 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { BloogleeLogo } from "@/components/saas/BloogleeLogo";
 import { PlanBadge, type PlanType } from "@/components/saas/PlanBadge";
+import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useIsSuperAdmin } from "@/hooks/useProfile";
 import { useSites } from "@/hooks/useSites";
 import { useAllArticlesSaas } from "@/hooks/useArticlesSaas";
-import { useAddTeamMember, useRemoveTeamMember, useTeamMembers, useUpdateTeamMemberRole } from "@/hooks/useTeamMembers";
+import { supabase } from "@/integrations/supabase/client";
 
 const AGENCY_TEAM_LIMIT = 5;
 const SUPPORT_EMAIL = "hola@blooglee.com";
 
+interface TeamMember {
+  member_id: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
+function getTeamErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    if (message.includes("team_requires_agency_plan")) {
+      return "La gestión de equipo requiere plan Agency.";
+    }
+    if (message.includes("team_limit_reached")) {
+      return "Has alcanzado el límite de members del plan Agency (5).";
+    }
+    if (message.includes("member_not_found")) {
+      return "No existe ninguna cuenta con ese email.";
+    }
+    if (message.includes("member_already_assigned")) {
+      return "Este usuario ya pertenece a un equipo.";
+    }
+    if (message.includes("cannot_add_self")) {
+      return "No puedes añadirte a ti mismo como member.";
+    }
+    if (message.includes("duplicate key")) {
+      return "Este usuario ya está en tu equipo.";
+    }
+    return error.message;
+  }
+
+  return "No se pudo completar la acción.";
+}
+
 export default function BillingPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { data: profile, isLoading: loadingProfile } = useProfile();
   const { data: sites = [], isLoading: loadingSites } = useSites();
   const { isSuperAdmin, isLoading: loadingSuperAdmin } = useIsSuperAdmin();
-  const { data: teamMembers = [], isLoading: loadingTeam } = useTeamMembers();
-  const addTeamMember = useAddTeamMember();
-  const removeTeamMember = useRemoveTeamMember();
-  const updateTeamRole = useUpdateTeamMemberRole();
+  const { data: teamMembers = [], isLoading: loadingTeam } = useQuery({
+    queryKey: ["team-members", user?.id],
+    queryFn: async (): Promise<TeamMember[]> => {
+      if (!user?.id) return [];
+
+      const { data, error } = await supabase.rpc("get_team_members_for_owner");
+      if (error) {
+        if (error.message.toLowerCase().includes("get_team_members_for_owner")) {
+          return [];
+        }
+        throw error;
+      }
+
+      return (data ?? []) as TeamMember[];
+    },
+    enabled: !!user?.id,
+  });
+
+  const addTeamMember = useMutation({
+    mutationFn: async ({ email, role }: { email: string; role?: string }) => {
+      if (!user?.id) throw new Error("No user logged in");
+
+      const { error } = await supabase.rpc("add_team_member_by_email", {
+        member_email: email.trim().toLowerCase(),
+        member_role: role ?? "editor",
+      });
+
+      if (error) {
+        if (error.message.toLowerCase().includes("add_team_member_by_email")) {
+          throw new Error("Función de equipo no disponible. Aplica primero la migración más reciente.");
+        }
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      queryClient.invalidateQueries({ queryKey: ["sites"] });
+      toast.success("Member añadido correctamente");
+    },
+    onError: (error) => {
+      toast.error(getTeamErrorMessage(error));
+    },
+  });
+
+  const updateTeamRole = useMutation({
+    mutationFn: async ({ memberId, role }: { memberId: string; role: string }) => {
+      if (!user?.id) throw new Error("No user logged in");
+
+      const { error } = await supabase
+        .from("team_members")
+        .update({ role })
+        .eq("owner_id", user.id)
+        .eq("member_id", memberId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      toast.success("Rol actualizado");
+    },
+    onError: (error) => {
+      toast.error(getTeamErrorMessage(error));
+    },
+  });
+
+  const removeTeamMember = useMutation({
+    mutationFn: async (memberId: string) => {
+      if (!user?.id) throw new Error("No user logged in");
+
+      const { error } = await supabase.from("team_members").delete().eq("owner_id", user.id).eq("member_id", memberId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      queryClient.invalidateQueries({ queryKey: ["sites"] });
+      toast.success("Member eliminado");
+    },
+    onError: (error) => {
+      toast.error(getTeamErrorMessage(error));
+    },
+  });
 
   const [memberEmail, setMemberEmail] = useState("");
   const [memberRole, setMemberRole] = useState("editor");
