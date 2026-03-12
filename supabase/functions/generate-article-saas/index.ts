@@ -1699,7 +1699,7 @@ function isFooterCtaParagraph(paragraphHtml: string): boolean {
     .replace(/\s+/g, " ")
     .trim();
   if (!plain) return false;
-  if (plain.length > 520) return false;
+  if (plain.length > 320) return false;
   const normalized = normalizeTextForMatch(plain);
   return /(blog|instagram|redes sociales|siguenos|sigue|descubre mas|encuentra mas|visita nuestro)/.test(normalized);
 }
@@ -1718,10 +1718,10 @@ function dedupeFooterCtas(htmlContent: string): string {
 
   if (candidateIndexes.length <= 1) return htmlContent;
 
-  const firstIdxToKeep = candidateIndexes[0];
+  const lastIdxToKeep = candidateIndexes[candidateIndexes.length - 1];
   let cleaned = htmlContent;
   for (const idx of candidateIndexes) {
-    if (idx === firstIdxToKeep) continue;
+    if (idx === lastIdxToKeep) continue;
     const block = matches[idx][0];
     cleaned = cleaned.replace(block, "");
   }
@@ -3171,12 +3171,6 @@ Deno.serve(async (req) => {
     processedSpanishContent = addHomeLinkToContent(processedSpanishContent, site.name, site.blog_url || null);
     processedSpanishContent = ensureHomeLinkPresence(processedSpanishContent, site.name, homeUrl);
     processedSpanishContent = ensureAuthorityLinks(processedSpanishContent, selectedAuthoritySources, ownedDomains);
-    processedSpanishContent = ensureFooterLinks(
-      processedSpanishContent,
-      site.name,
-      site.blog_url || null,
-      site.instagram_url || null,
-    );
     processedSpanishContent = sanitizeUnlinkedBrandMentions(
       processedSpanishContent,
       site.name,
@@ -3190,12 +3184,1690 @@ Deno.serve(async (req) => {
       let processedCatalanContent = addHomeLinkToContent(catalanArticle.content, site.name, site.blog_url || null);
       processedCatalanContent = ensureHomeLinkPresence(processedCatalanContent, site.name, homeUrl);
       processedCatalanContent = ensureAuthorityLinks(processedCatalanContent, selectedAuthoritySources, ownedDomains);
-      processedCatalanContent = ensureFooterLinks(
+      processedCatalanContent = sanitizeUnlinkedBrandMentions(
         processedCatalanContent,
+        site.name,
+        getGenericBusinessTerm(sectorCategory, "ca"),
+      );
+      catalanArticle.content = processedCatalanContent;
+    }
+
+    // Generate image with AI
+    let imageResult = null;
+    let pexelsQuery = null;
+
+    const skipImage = site.include_featured_image === false;
+
+    if (!skipImage) {
+      console.log("Generating image with AI...");
+
+      const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+      // Random composition style selection
+      const COMPOSITION_STYLES = [
+        "flat lay with relevant objects from the sector",
+        "close-up macro detail of a key element",
+        "minimalist composition with one strong focal point and negative space",
+        "environmental wide shot showing the context or setting",
+      ];
+      const compositionStyle = COMPOSITION_STYLES[Math.floor(Math.random() * COMPOSITION_STYLES.length)];
+      console.log("Selected composition style:", compositionStyle);
+
+      // Get image prompt from database
+      const imagePrompt = await getPrompt(
+        supabase,
+        "saas.image",
+        {
+          topic: topic,
+          sector: sector,
+          description: site.description ? `CONTEXT: ${site.description}` : "",
+          composition_style: compositionStyle,
+          color_palette: site.color_palette || "warm neutrals",
+          mood: site.mood || "warm and welcoming",
+        },
+        FALLBACK_PROMPTS.image,
+      );
+
+      // Helper to attempt AI image generation
+      const attemptAIImage = async (prompt: string, attemptLabel: string): Promise<boolean> => {
+        try {
+          const imageResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-3-pro-image-preview",
+              messages: [{ role: "user", content: prompt }],
+              modalities: ["image", "text"],
+            }),
+          });
+
+          console.log(`AI image ${attemptLabel} response status:`, imageResponse.status);
+
+          if (imageResponse.ok) {
+            const imageData = await imageResponse.json();
+            const message = imageData.choices?.[0]?.message;
+            const base64Image = message?.images?.[0]?.image_url?.url;
+
+            if (base64Image) {
+              console.log(`AI image ${attemptLabel} generated successfully, uploading to storage...`);
+
+              const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
+              const imageBuffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+
+              const timestamp = Date.now();
+              const fileName = `${siteId}/${timestamp}-${topic.substring(0, 30).replace(/[^a-zA-Z0-9]/g, "-")}.png`;
+
+              const { error: uploadError } = await supabaseAdmin.storage
+                .from("article-images")
+                .upload(fileName, imageBuffer, {
+                  contentType: "image/png",
+                  upsert: true,
+                });
+
+              if (uploadError) {
+                console.error("Storage upload error:", uploadError);
+                return false;
+              }
+
+              const { data: urlData } = supabaseAdmin.storage.from("article-images").getPublicUrl(fileName);
+
+              imageResult = {
+                url: urlData.publicUrl,
+                photographer: "AI Generated",
+                photographer_url: null,
+              };
+              pexelsQuery = "AI Generated";
+              console.log(`Image uploaded to storage (${attemptLabel}):`, urlData.publicUrl);
+              return true;
+            } else {
+              console.log(`No base64 image found in ${attemptLabel} response`);
+            }
+          } else {
+            const errorText = await imageResponse.text();
+            console.error(`AI image ${attemptLabel} failed:`, imageResponse.status, errorText);
+          }
+        } catch (error) {
+          console.error(`Error in AI image ${attemptLabel}:`, error);
+        }
+        return false;
+      };
+
+      // Attempt 1: Full prompt
+      let aiSuccess = await attemptAIImage(imagePrompt, "attempt 1");
+
+      // Attempt 2: Simplified prompt after delay
+      if (!aiSuccess) {
+        console.log("AI image attempt 1 failed, retrying with simplified prompt in 2s...");
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        const simplifiedPrompt = `Generate a professional blog header image for a ${sector} business about "${topic}". Editorial photography style, 16:9 ratio. NO text, NO logos, NO human faces, NO branded products.`;
+        aiSuccess = await attemptAIImage(simplifiedPrompt, "attempt 2");
+      }
+
+      // Fallback: Contextual Unsplash search using AI-generated query
+      if (!aiSuccess) {
+        console.log("AI image failed after 2 attempts, falling back to contextual Unsplash...");
+
+        if (UNSPLASH_ACCESS_KEY) {
+          // Generate a contextual search query with AI instead of using generic fallbackQuery
+          let contextualQuery = sectorContext.fallbackQuery;
+          try {
+            const queryResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [
+                  {
+                    role: "user",
+                    content: `Generate a short Unsplash search query (3-5 English words) to find a relevant photo for a ${sector} blog post about: "${topic}". Return ONLY the search query, nothing else. Avoid generic terms like "business" or "office". Focus on the specific topic and sector.`,
+                  },
+                ],
+              }),
+            });
+            if (queryResponse.ok) {
+              const queryData = await queryResponse.json();
+              const generatedQuery = queryData.choices?.[0]?.message?.content?.trim();
+              if (generatedQuery && generatedQuery.length > 3 && generatedQuery.length < 80) {
+                contextualQuery = generatedQuery;
+                console.log("AI-generated Unsplash query:", contextualQuery);
+              }
+            }
+          } catch (e) {
+            console.error("Failed to generate contextual query, using sector fallback:", e);
+          }
+
+          pexelsQuery = contextualQuery;
+
+          try {
+            const searchUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(contextualQuery)}&per_page=20&orientation=landscape`;
+            const unsplashResponse = await fetch(searchUrl, {
+              headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` },
+            });
+
+            if (unsplashResponse.ok) {
+              const unsplashData = await unsplashResponse.json();
+              const photos = unsplashData.results || [];
+
+              // Filter out prohibited terms from photo descriptions
+              const filteredPhotos = photos.filter((p: any) => {
+                const desc = (p.description || "" + p.alt_description || "").toLowerCase();
+                return !sectorContext.prohibitedTerms.some((term) => desc.includes(term.toLowerCase()));
+              });
+
+              const finalPhotos = filteredPhotos.length > 0 ? filteredPhotos : photos;
+
+              if (finalPhotos.length > 0) {
+                const randomIndex = Math.floor(Math.random() * Math.min(finalPhotos.length, 10));
+                const photo = finalPhotos[randomIndex];
+                imageResult = {
+                  url: photo.urls.regular,
+                  photographer: photo.user.name,
+                  photographer_url: photo.user.links.html,
+                };
+                console.log("Image selected from contextual Unsplash search");
+              }
+            }
+          } catch (error) {
+            console.error("Unsplash contextual search error:", error);
+          }
+        }
+
+        // NO static fallback images — prefer no image over irrelevant image
+        if (!imageResult) {
+          console.log("All image sources failed. Article will be saved without image. User can regenerate manually.");
+          pexelsQuery = null;
+        }
+      }
+    }
+
+    // Calculate week of month (reuse dayOfMonth from above)
+    const weekOfMonth = Math.ceil(dayOfMonth / 7);
+
+    // ==========================================
+    // VERIFY AND CLEAN EXTERNAL LINKS
+    // ==========================================
+    console.log("Verifying external links in generated content...");
+
+    if (spanishArticle?.content) {
+      spanishArticle.content = await verifyAndCleanExternalLinks(spanishArticle.content);
+      spanishArticle.content = ensureAuthorityLinks(spanishArticle.content, selectedAuthoritySources, ownedDomains);
+      spanishArticle.content = ensureFooterLinks(
+        spanishArticle.content,
         site.name,
         site.blog_url || null,
         site.instagram_url || null,
       );
+    }
+    if (catalanArticle?.content) {
+      catalanArticle.content = await verifyAndCleanExternalLinks(catalanArticle.content);
+      catalanArticle.content = ensureAuthorityLinks(catalanArticle.content, selectedAuthoritySources, ownedDomains);
+      catalanArticle.content = ensureFooterLinks(
+        catalanArticle.content,
+        site.name,
+        site.blog_url || null,
+        site.instagram_url || null,
+      );
+    }
+
+    // Build generation key for deduplication
+    const normalizedPublishFrequency = normalizeFrequency(site.publish_frequency);
+    const inputGenerationKey = requestBody.generationKey;
+    const generationKey = inputGenerationKey || buildGenerationKey(normalizedPublishFrequency, month, year, today);
+    console.log("Generation key:", generationKey);
+
+    const requestedGenerationSource = isScheduled ? "scheduled" : "manual";
+
+    // Save article to database
+    const articleData: Record<string, any> = {
+      site_id: siteId,
+      user_id: siteOwnerUserId,
+      month,
+      year,
+      topic,
+      pexels_query: pexelsQuery,
+      content_spanish: spanishArticle,
+      content_catalan: catalanArticle,
+      image_url: imageResult?.url || null,
+      image_photographer: imageResult?.photographer || null,
+      image_photographer_url: imageResult?.photographer_url || null,
+      week_of_month: weekOfMonth,
+      day_of_month: dayOfMonth,
+      generation_key: generationKey,
+      // Article-level intent: only scheduled runs are eligible for automatic publish/reconcile.
+      autopublish_enabled: Boolean(isScheduled),
+      generation_source: requestedGenerationSource,
+    };
+
+    // Check if article already exists for this generation key
+    const serviceClientForCheck = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    const { data: existingArticle } = await serviceClientForCheck
+      .from("articles")
+      .select("*")
+      .eq("site_id", siteId)
+      .eq("generation_key", generationKey)
+      .maybeSingle();
+
+    let savedArticle;
+    if (existingArticle) {
+      const existingGenerationSource = existingArticle.generation_source === "scheduled" ? "scheduled" : "manual";
+      const effectiveGenerationSource =
+        existingGenerationSource === "scheduled" || isScheduled ? "scheduled" : requestedGenerationSource;
+
+      // Never downgrade an already-scheduled article to manual because of a later regeneration.
+      articleData.generation_source = effectiveGenerationSource;
+      articleData.autopublish_enabled = effectiveGenerationSource === "scheduled";
+      // Article already exists for this period — check if it was a recent duplicate
+      const createdAt = new Date(existingArticle.generated_at).getTime();
+      const now = Date.now();
+      if (now - createdAt < 60000) {
+        console.log(
+          "⚠️ Duplicate invocation detected (article created <60s ago). Returning existing article:",
+          existingArticle.id,
+        );
+        savedArticle = existingArticle;
+      } else {
+        // Existing article from a previous run — update it
+        const { data, error: updateError } = await supabase
+          .from("articles")
+          .update(articleData)
+          .eq("id", existingArticle.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error("Error updating article:", updateError);
+          throw new Error("Failed to update article");
+        }
+        savedArticle = data;
+        console.log("Updated existing article:", savedArticle.id);
+      }
+    } else {
+      // Insert new article
+      const { data, error: insertError } = await supabase.from("articles").insert(articleData).select().single();
+
+      if (insertError) {
+        // Handle unique violation (23505) — concurrent insert race condition
+        if (insertError.code === "23505") {
+          console.log("⚠️ Unique constraint violation (23505) — recovering existing article");
+          const { data: recovered } = await serviceClientForCheck
+            .from("articles")
+            .select("*")
+            .eq("site_id", siteId)
+            .eq("generation_key", generationKey)
+            .maybeSingle();
+
+          if (recovered) {
+            console.log("Recovered article after conflict:", recovered.id);
+            savedArticle = recovered;
+          } else {
+            console.error("Could not recover article after 23505 conflict");
+            throw new Error("Failed to save article: unique constraint conflict and recovery failed");
+          }
+        } else {
+          console.error("Error saving article:", insertError);
+          throw new Error("Failed to save article");
+        }
+      } else {
+        savedArticle = data;
+        console.log("Created new article:", savedArticle.id);
+      }
+    }
+
+    console.log("=== ARTICLE GENERATION COMPLETE ===");
+    console.log("Article ID:", savedArticle.id);
+
+    // Update pillar index for next generation (rotation)
+    if (!providedTopic) {
+      // Only update if we auto-generated the topic
+      const { error: pillarUpdateError } = await supabase
+        .from("sites")
+        .update({ last_pillar_index: currentPillarIndex })
+        .eq("id", siteId);
+
+      if (pillarUpdateError) {
+        console.error("Error updating pillar index:", pillarUpdateError);
+      } else {
+        console.log(`Updated pillar index to ${currentPillarIndex} (${currentPillar})`);
+      }
+    }
+
+    // Send notification email to user + team members
+    const { data: userProfile } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("user_id", siteOwnerUserId)
+      .single();
+
+    const teamEmails = await getTeamMemberEmails(supabase, siteOwnerUserId);
+
+    // Only send "article ready" email if NOT scheduled (manual generation)
+    // For scheduled generation, the "published" email is sent after WordPress publish
+    if (!isScheduled && userProfile?.email) {
+      const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
+      const articleExcerpt =
+        spanishArticle?.meta_description || catalanArticle?.meta_description || `Nuevo artículo sobre ${topic}`;
+
+      sendArticleNotification(userProfile.email, site.name, articleTitle, articleExcerpt, siteId, teamEmails).catch(
+        (err) => console.error("Background email error:", err),
+      );
+    }
+
+    let autoPublishOutcome: {
+      attempted: boolean;
+      success: boolean;
+      attempts: number;
+      reason?: string;
+      error?: string;
+      post_url?: string;
+    } | null = null;
+
+    // Auto-publish to WordPress when scheduled (automated generation)
+    if (isScheduled) {
+      try {
+        const { data: wpConfig } = await supabase
+          .from("wordpress_configs")
+          .select("id")
+          .eq("site_id", siteId)
+          .maybeSingle();
+
+        if (wpConfig && spanishArticle) {
+          console.log("=== AUTO-PUBLISHING TO WORDPRESS ===");
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+          const publishPayload = {
+            site_id: siteId,
+            title: spanishArticle.title,
+            seo_title: spanishArticle.seo_title,
+            content: spanishArticle.content,
+            slug: spanishArticle.slug,
+            status: "publish",
+            image_url: imageResult?.url || null,
+            image_alt: spanishArticle.title,
+            meta_description: spanishArticle.meta_description,
+            excerpt: spanishArticle.excerpt || spanishArticle.meta_description,
+            focus_keyword: spanishArticle.focus_keyword,
+            lang: "es",
+          };
+
+          const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress-saas`;
+          const maxAttempts = 3;
+          let attempts = 0;
+          let lastError = "";
+          let publishedPostUrl: string | undefined;
+
+          while (attempts < maxAttempts) {
+            attempts++;
+            try {
+              const publishRes = await fetch(publishUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${serviceRoleKey}`,
+                },
+                body: JSON.stringify(publishPayload),
+              });
+
+              console.log(`[auto-publish] Attempt ${attempts}/${maxAttempts} status: ${publishRes.status}`);
+
+              if (publishRes.ok) {
+                const result = await publishRes.json();
+                if (result.post_url) {
+                  publishedPostUrl = result.post_url;
+                  break;
+                }
+                lastError = "WordPress respondió OK pero sin post_url";
+                break;
+              }
+
+              const errorBody = await publishRes.text();
+              lastError = `HTTP ${publishRes.status}: ${errorBody.substring(0, 500)}`;
+
+              const retryable = publishRes.status >= 500 || publishRes.status === 429;
+              if (retryable && attempts < maxAttempts) {
+                const waitMs = Math.pow(2, attempts) * 1000;
+                console.log(`[auto-publish] Retryable error, retry in ${waitMs}ms`);
+                await new Promise((resolve) => setTimeout(resolve, waitMs));
+                continue;
+              }
+              break;
+            } catch (publishErr) {
+              lastError = publishErr instanceof Error ? publishErr.message : String(publishErr);
+              console.error(`[auto-publish] Attempt ${attempts} error:`, publishErr);
+              if (attempts < maxAttempts) {
+                const waitMs = Math.pow(2, attempts) * 1000;
+                await new Promise((resolve) => setTimeout(resolve, waitMs));
+              }
+            }
+          }
+
+          if (publishedPostUrl) {
+            await supabase.from("articles").update({ wp_post_url: publishedPostUrl }).eq("id", savedArticle.id);
+
+            await logSiteActivity(
+              supabase,
+              siteId,
+              userId,
+              "autopublish_success",
+              "Artículo publicado automáticamente en WordPress",
+              {
+                article_id: savedArticle.id,
+                attempts,
+                post_url: publishedPostUrl,
+              },
+            );
+
+            console.log(`[auto-publish] Updated wp_post_url: ${publishedPostUrl}`);
+            autoPublishOutcome = {
+              attempted: true,
+              success: true,
+              attempts,
+              post_url: publishedPostUrl,
+            };
+
+            // === EMAIL TRACKING (always register result) ===
+            {
+              const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
+              const emailRecipients = userProfile?.email
+                ? [userProfile.email, ...teamEmails.filter((e: string) => e !== userProfile.email)]
+                : [];
+              const notificationFilter = supabase
+                .from("article_email_notifications")
+                .eq("article_id", savedArticle.id)
+                .eq("notification_type", "autopublish_success");
+
+              let existingNotification: { status: string | null } | null = null;
+              const { data: existingNotificationData, error: existingNotificationError } = await notificationFilter
+                .select("status")
+                .maybeSingle();
+
+              if (existingNotificationError) {
+                console.error(
+                  "[auto-publish] Error checking existing notification:",
+                  existingNotificationError.message,
+                );
+              } else {
+                existingNotification = existingNotificationData as { status: string | null } | null;
+              }
+
+              if (existingNotification?.status === "sent") {
+                console.log("[auto-publish] Email already sent for this article, skipping");
+                await logSiteActivity(
+                  supabase,
+                  siteId,
+                  userId,
+                  "autopublish_email_skipped_duplicate",
+                  "Email omitido: ya existía notificación enviada para este artículo",
+                  { article_id: savedArticle.id },
+                );
+              } else {
+                if (!existingNotification) {
+                  const { error: insertNotificationError } = await supabase.from("article_email_notifications").insert({
+                    article_id: savedArticle.id,
+                    notification_type: "autopublish_success",
+                    status: "pending",
+                    sent_to: emailRecipients,
+                  });
+
+                  if (insertNotificationError && insertNotificationError.code !== "23505") {
+                    console.error("[auto-publish] Notification insert error:", insertNotificationError.message);
+                    await logSiteActivity(
+                      supabase,
+                      siteId,
+                      userId,
+                      "autopublish_email_failed",
+                      "Error insertando notificación de email",
+                      { article_id: savedArticle.id, error: insertNotificationError.message },
+                    );
+                    throw new Error(`notification_insert_failed: ${insertNotificationError.message}`);
+                  }
+                } else {
+                  await supabase
+                    .from("article_email_notifications")
+                    .update({ status: "pending", error: null, sent_to: emailRecipients })
+                    .eq("article_id", savedArticle.id)
+                    .eq("notification_type", "autopublish_success");
+                }
+
+                if (!userProfile?.email) {
+                  console.log("[auto-publish] No owner email found, marking failed");
+                  await supabase
+                    .from("article_email_notifications")
+                    .update({ status: "failed", error: "no_owner_email" })
+                    .eq("article_id", savedArticle.id)
+                    .eq("notification_type", "autopublish_success");
+                  await logSiteActivity(
+                    supabase,
+                    siteId,
+                    userId,
+                    "autopublish_email_failed",
+                    "No se encontró email del propietario",
+                    { article_id: savedArticle.id, error: "no_owner_email" },
+                  );
+                } else {
+                  try {
+                    await sendPublishedNotification(
+                      userProfile.email,
+                      site.name,
+                      articleTitle,
+                      publishedPostUrl,
+                      siteId,
+                      teamEmails,
+                    );
+                    await supabase
+                      .from("article_email_notifications")
+                      .update({ status: "sent", error: null, sent_to: emailRecipients })
+                      .eq("article_id", savedArticle.id)
+                      .eq("notification_type", "autopublish_success");
+                    await logSiteActivity(
+                      supabase,
+                      siteId,
+                      userId,
+                      "autopublish_email_sent",
+                      "Email de artículo publicado enviado",
+                      { article_id: savedArticle.id, post_url: publishedPostUrl, recipients: emailRecipients },
+                    );
+                  } catch (emailErr) {
+                    const emailErrMsg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+                    console.error("[auto-publish] Email notification error:", emailErrMsg);
+                    await supabase
+                      .from("article_email_notifications")
+                      .update({ status: "failed", error: emailErrMsg })
+                      .eq("article_id", savedArticle.id)
+                      .eq("notification_type", "autopublish_success");
+                    await logSiteActivity(
+                      supabase,
+                      siteId,
+                      userId,
+                      "autopublish_email_failed",
+                      "Falló envío de email tras auto-publicación",
+                      { article_id: savedArticle.id, error: emailErrMsg },
+                    );
+                  }
+                }
+              }
+            }
+          } else {
+            await logSiteActivity(
+              supabase,
+              siteId,
+              userId,
+              "autopublish_failed",
+              "Falló la publicación automática en WordPress",
+              {
+                article_id: savedArticle.id,
+                attempts,
+                error: lastError || "Unknown publish error",
+              },
+            );
+
+            autoPublishOutcome = {
+              attempted: true,
+              success: false,
+              attempts,
+              error: lastError || "Unknown publish error",
+            };
+            console.error(`[auto-publish] Failed after ${attempts} attempts: ${lastError}`);
+          }
+        } else {
+          const reason = !wpConfig ? "no_wordpress_config" : "no_spanish_content";
+          autoPublishOutcome = {
+            attempted: false,
+            success: false,
+            attempts: 0,
+            reason,
+          };
+          console.log(`No WordPress config found or no Spanish content - skipping auto-publish (${reason})`);
+        }
+      } catch (autoPublishError) {
+        autoPublishOutcome = {
+          attempted: true,
+          success: false,
+          attempts: 0,
+          error: autoPublishError instanceof Error ? autoPublishError.message : String(autoPublishError),
+        };
+        console.error("[auto-publish] Non-blocking error:", autoPublishError);
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        article: savedArticle,
+        content: {
+          spanish: spanishArticle,
+          catalan: catalanArticle,
+        },
+        image: imageResult,
+        auto_publish: autoPublishOutcome,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  } catch (error) {
+    console.error("Error in generate-article-saas:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
+
+// ==========================================
+// MAIN HANDLER
+// ==========================================
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const requestBody: RequestBody = await req.json();
+    const { isScheduled, userId: schedulerUserId } = requestBody;
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const isServiceRole = token === SUPABASE_SERVICE_ROLE_KEY;
+
+    let supabase: any;
+    let userId: string;
+
+    if (isServiceRole) {
+      if (!isScheduled) {
+        return new Response(JSON.stringify({ error: "Forbidden: internal auth requires scheduled mode" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!schedulerUserId) {
+        return new Response(JSON.stringify({ error: "Missing scheduler user context" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log("=== SCHEDULER MODE ===");
+      supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+      userId = schedulerUserId;
+      console.log("Using scheduler userId:", userId);
+    } else {
+      if (isScheduled) {
+        return new Response(JSON.stringify({ error: "Forbidden: isScheduled is reserved for internal scheduler" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      supabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+
+      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+
+      if (claimsError || !claimsData?.claims) {
+        console.error("Auth error:", claimsError);
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      userId = claimsData.claims.sub as string;
+
+      const rateLimitResult = checkUserRateLimit(userId);
+      if (!rateLimitResult.allowed) {
+        console.log(`Rate limit exceeded for user: ${userId}`);
+        return new Response(JSON.stringify({ error: "Demasiadas peticiones. Por favor, espera un momento." }), {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(rateLimitResult.retryAfter || 60),
+          },
+        });
+      }
+    }
+
+    console.log("=== GENERATE ARTICLE SAAS ===");
+    console.log("User ID:", userId);
+    console.log("Is Scheduled:", isScheduled);
+
+    const { siteId, topic: providedTopic, month, year } = requestBody;
+    console.log("Site ID:", siteId);
+    console.log("Month/Year:", month, year);
+
+    const serviceClient = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // Fetch site and validate ownership or team membership
+    let site: any = null;
+    let siteOwnerUserId: string = userId;
+
+    // First try direct ownership
+    const { data: ownedSite } = await supabase
+      .from("sites")
+      .select("*")
+      .eq("id", siteId)
+      .eq("user_id", userId)
+      .single();
+
+    if (ownedSite) {
+      site = ownedSite;
+      siteOwnerUserId = ownedSite.user_id;
+    } else {
+      // Check team membership (member -> owner only) without any cross-account bypass
+      const { data: teamSite } = await serviceClient.from("sites").select("*").eq("id", siteId).single();
+
+      if (teamSite) {
+        // Check if user is a team member of the site owner.
+        const { data: membership } = await serviceClient
+          .from("team_members")
+          .select("id")
+          .eq("owner_id", teamSite.user_id)
+          .eq("member_id", userId)
+          .maybeSingle();
+
+        if (membership) {
+          site = teamSite;
+          siteOwnerUserId = teamSite.user_id;
+          console.log(`Team member ${userId} accessing site owned by ${siteOwnerUserId}`);
+        }
+      }
+    }
+
+    if (!site) {
+      console.error("Site not found or access denied");
+      return new Response(JSON.stringify({ error: "Site not found or access denied" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("Site:", site.name);
+    console.log("Sector:", site.sector);
+
+    // Check plan limits using the SITE OWNER's profile (not the team member's)
+    const profile = await getUserProfile(serviceClient, siteOwnerUserId);
+    if (!profile) {
+      return new Response(JSON.stringify({ error: "Profile not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const siteOwnerIsSuperAdmin = await isUserSuperAdmin(serviceClient, siteOwnerUserId);
+
+    if (siteOwnerIsSuperAdmin) {
+      console.log("Superadmin account: unlimited sites/posts on own account");
+    } else {
+      // Free plan: lifetime limit of 1 article total (not per month)
+      if (profile.plan === "free") {
+        const totalArticles = await countTotalArticles(serviceClient, siteOwnerUserId);
+        console.log(`Free plan: total articles ever: ${totalArticles}`);
+
+        if (totalArticles >= 1) {
+          return new Response(
+            JSON.stringify({
+              error:
+                "Ya has usado tu artículo de prueba. Si quieres seguir publicando, te ayudamos a ampliar tu plan desde Facturación.",
+              limit: 1,
+              current: totalArticles,
+              plan: "free",
+              isLifetimeLimit: true,
+              upgrade_url: "/billing",
+            }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      } else if (profile.plan !== "agency") {
+        // Paid non-agency plans: monthly limit
+        const articlesThisMonth = await countArticlesThisMonth(serviceClient, siteOwnerUserId, month, year);
+        console.log(`Articles this month: ${articlesThisMonth}/${profile.posts_limit}`);
+
+        if (articlesThisMonth >= profile.posts_limit) {
+          return new Response(
+            JSON.stringify({
+              error:
+                "Has alcanzado el límite mensual de tu plan. Si quieres seguir publicando este mes, te ayudamos a ampliar tu plan desde Facturación.",
+              limit: profile.posts_limit,
+              current: articlesThisMonth,
+              plan: profile.plan,
+              upgrade_url: "/billing",
+            }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      } else {
+        console.log("Agency plan: unlimited monthly posts");
+      }
+    }
+
+    const monthNameEs = MONTH_NAMES_ES[month - 1];
+    const monthNameCa = MONTH_NAMES_CA[month - 1];
+    const today = new Date();
+    const dayOfMonth = today.getUTCDate();
+    const dateContext = `${dayOfMonth} de ${monthNameEs} ${year}`;
+
+    const { geoContext, locationInfo } = buildGeoContext(site);
+    const sectorCategory = detectSectorCategory(site.sector);
+    const sectorContext = SECTOR_IMAGE_CONTEXTS[sectorCategory] || SECTOR_IMAGE_CONTEXTS.default;
+
+    // Build prompt variables
+    const sector = site.sector || "servicios profesionales";
+    const description = site.description
+      ? `DESCRIPCIÓN DEL NEGOCIO (contexto interno, NO copiar en el texto): ${site.description}`
+      : "";
+    const descriptionContext = site.description
+      ? `, teniendo en cuenta el contexto del negocio (sin mencionarlo explícitamente)`
+      : "";
+    const scope = site.geographic_scope === "national" ? "Nacional (España)" : site.location || "General";
+
+    // ==========================================
+    // ENRICHED CONTEXT: Pillar rotation & profile
+    // ==========================================
+    const contentPillars =
+      site.content_pillars && site.content_pillars.length > 0
+        ? site.content_pillars
+        : ["educational", "trends", "seasonal"];
+
+    const lastPillarIndex = site.last_pillar_index ?? 0;
+    const currentPillarIndex = (lastPillarIndex + 1) % contentPillars.length;
+    const currentPillar = contentPillars[currentPillarIndex];
+    const pillarDescription = PILLAR_DESCRIPTIONS[currentPillar] || PILLAR_DESCRIPTIONS.educational;
+
+    console.log(`Content pillar rotation: ${currentPillar} (index ${currentPillarIndex}/${contentPillars.length})`);
+
+    // Tone and audience from profile
+    const siteTone = site.tone || "casual";
+    const toneDescription = TONE_DESCRIPTIONS[siteTone] || TONE_DESCRIPTIONS.casual;
+    const targetAudience = site.target_audience || "";
+    const businessType = site.business_type || "other";
+    const contentGoal = site.content_goal || "";
+    const priorityTopics = site.priority_topics || [];
+    const avoidTopics = site.avoid_topics || [];
+    const angleToAvoid = site.angle_to_avoid || "";
+    const preferredSourceDomains = site.preferred_source_domains || [];
+    const requestedLength = normalizePreferredLength(site.preferred_length);
+    const maxAllowedLength = getMaxPreferredLengthForPlan(profile.plan, siteOwnerIsSuperAdmin);
+    const effectivePreferredLength = clampPreferredLength(requestedLength, maxAllowedLength);
+    const lengthTarget = LENGTH_TARGETS[effectivePreferredLength] || LENGTH_TARGETS.medium;
+    if (effectivePreferredLength !== requestedLength) {
+      console.log(
+        `Length adjusted by plan: requested=${requestedLength}, allowed=${maxAllowedLength}, using=${effectivePreferredLength}`,
+      );
+    }
+
+    // WordPress context if available
+    const wpContext = site.wordpress_context || null;
+    const wpStyleNotes = wpContext?.style_notes || "";
+    const wpRecentTopics = wpContext?.lastTopics?.slice(0, 15).join(", ") || "";
+
+    // ==========================================
+    // LOAD SECTOR PROHIBITED TERMS
+    // ==========================================
+    let sectorProhibitedTerms: string[] = [];
+    let authoritySources: AuthoritySource[] = [];
+    try {
+      const { data: sectorData } = await supabase
+        .from("sector_contexts")
+        .select("prohibited_terms, authority_sources")
+        .or(`sector_key.eq.${sectorCategory},sector_key.eq.general`)
+        .order("sector_key", { ascending: false }); // sector-specific first
+
+      if (sectorData && sectorData.length > 0) {
+        // Merge all prohibited terms from sector + general
+        sectorProhibitedTerms = sectorData.flatMap((s: { prohibited_terms: string[] }) => s.prohibited_terms || []);
+        authoritySources = mergeAuthoritySources(
+          sectorData as Array<{ prohibited_terms: string[]; authority_sources?: AuthoritySource[] | null }>,
+        );
+        console.log(`Loaded ${sectorProhibitedTerms.length} prohibited terms for sector ${sectorCategory}`);
+        console.log(`Loaded ${authoritySources.length} authority sources for sector ${sectorCategory}`);
+      }
+    } catch (e) {
+      console.log("Could not load sector prohibited terms:", e);
+    }
+
+    // Generate topic if not provided
+    let topic = providedTopic;
+
+    if (!topic) {
+      console.log("Generating topic with AI...");
+
+      // Use dynamic limit based on publish frequency
+      const topicsLimit = getTopicsLimitForFrequency(site.publish_frequency || "monthly");
+      console.log(`Using topics limit: ${topicsLimit} for frequency: ${site.publish_frequency}`);
+
+      const usedTopics = await getUsedTopicsForSite(supabase, siteId, topicsLimit);
+      console.log(`Found ${usedTopics.length} Blooglee topics`);
+
+      // Get WordPress topics from context
+      const wpTopics = wpContext?.lastTopics || [];
+      console.log(`Found ${wpTopics.length} WordPress topics from context`);
+      if (wpTopics.length > 0) {
+        console.log("WordPress topics to avoid:", wpTopics.slice(0, 5).join(", "));
+      }
+
+      // Build comprehensive avoid list - use full dynamic limit
+      const allAvoidTopics = [
+        ...avoidTopics,
+        ...usedTopics.slice(0, topicsLimit),
+        ...wpTopics, // WordPress topics from sync
+      ];
+      console.log(`Total topics to avoid: ${allAvoidTopics.length}`);
+
+      const usedTopicsSection =
+        allAvoidTopics.length > 0
+          ? `\n\n⚠️ TEMAS YA USADOS (NO REPETIR NI SIMILARES):\n${allAvoidTopics
+              .slice(0, 60)
+              .map((t, i) => `${i + 1}. ${t}`)
+              .join("\n")}`
+          : "";
+
+      // Build avoid topics list for prompt
+      const avoidTopicsListForPrompt =
+        avoidTopics.length > 0 ? avoidTopics.map((t) => `- ${t}`).join("\n") : "(ninguno especificado)";
+
+      // Build prohibited terms string for prompt
+      const prohibitedTermsForPrompt =
+        sectorProhibitedTerms.length > 0
+          ? sectorProhibitedTerms
+              .slice(0, 20)
+              .map((t) => `- ${t}`)
+              .join("\n")
+          : "(ninguno)";
+
+      // Build custom topic directive
+      const customTopicDirective = site.custom_topic
+        ? `ENFOQUE TEMÁTICO (contexto interno, NO usar literalmente): El cliente quiere contenido orientado hacia "${site.custom_topic}". Genera un tema que encaje con este enfoque de forma natural, sin repetir la frase del cliente.`
+        : "";
+
+      // Build enriched topic prompt variables
+      const enrichedVariables = {
+        siteName: site.name,
+        businessType: businessType,
+        sector: sector,
+        description: description,
+        descriptionContext: descriptionContext,
+        scope: scope,
+        month: monthNameEs,
+        year: year.toString(),
+        dayOfMonth: dayOfMonth.toString(),
+        usedTopics: usedTopicsSection,
+        pillarType: currentPillar,
+        pillarDescription: pillarDescription,
+        toneType: siteTone,
+        toneDescription: toneDescription,
+        targetAudience: targetAudience
+          ? `Perfil de la audiencia (NO mencionar en el texto, solo usar como contexto): ${targetAudience}`
+          : "Audiencia general",
+        wpStyleNotes: wpStyleNotes ? `ESTILO DETECTADO EN SU BLOG: ${wpStyleNotes}` : "",
+        wpRecentTopics: wpRecentTopics ? `TEMAS RECIENTES DE SU BLOG: ${wpRecentTopics}` : "",
+        contentGoal: contentGoal ? `OBJETIVO DEL CONTENIDO (contexto interno): ${contentGoal}` : "",
+        priorityTopics:
+          priorityTopics.length > 0 ? `TEMAS PRIORITARIOS (contexto interno): ${priorityTopics.join(", ")}` : "",
+        angleToAvoid: angleToAvoid ? `ENFOQUE A EVITAR: ${angleToAvoid}` : "",
+        prohibitedTerms: prohibitedTermsForPrompt,
+        avoidTopicsList: avoidTopicsListForPrompt,
+        customTopicDirective: customTopicDirective,
+      };
+
+      // Get topic prompt from database with cache
+      let topicPrompt = await getPrompt(supabase, "saas.topic", enrichedVariables, FALLBACK_PROMPTS.topic);
+      topicPrompt = `${topicPrompt}\n\nTIPO DE NEGOCIO (contexto interno): ${businessType}\n${
+        contentGoal ? `OBJETIVO DEL CONTENIDO: ${contentGoal}\n` : ""
+      }${priorityTopics.length > 0 ? `TEMAS PRIORITARIOS: ${priorityTopics.join(", ")}\n` : ""}${
+        angleToAvoid ? `ENFOQUE A EVITAR: ${angleToAvoid}\n` : ""
+      }`;
+
+      // Topic generation with similarity deduplication (up to 3 retries)
+      const MAX_TOPIC_ATTEMPTS = 3;
+      for (let attempt = 1; attempt <= MAX_TOPIC_ATTEMPTS; attempt++) {
+        try {
+          const topicResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [{ role: "user", content: topicPrompt }],
+              temperature: 0.85 + (attempt - 1) * 0.05, // Increase creativity on retries
+              max_tokens: 100,
+            }),
+          });
+
+          if (topicResponse.ok) {
+            const topicData = await topicResponse.json();
+            const generatedTopic = topicData.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, "") || "";
+
+            if (generatedTopic && generatedTopic.length > 5 && generatedTopic.length <= 100) {
+              // Programmatic similarity check against all known topics
+              const similarityCheck = isTooSimilar(generatedTopic, allAvoidTopics);
+              if (similarityCheck.similar) {
+                console.log(
+                  `⚠️ Attempt ${attempt}/${MAX_TOPIC_ATTEMPTS}: Topic "${generatedTopic}" too similar to "${similarityCheck.matchedTopic}" (${((similarityCheck.similarity || 0) * 100).toFixed(0)}%). Retrying...`,
+                );
+                continue; // Try again
+              }
+              topic = generatedTopic;
+              console.log(`✓ Topic generated (attempt ${attempt}): "${topic}"`);
+              break;
+            } else {
+              console.log(`Topic invalid (empty or wrong length): "${generatedTopic}"`);
+            }
+          }
+        } catch (error) {
+          console.error(`Topic generation error (attempt ${attempt}):`, error);
+        }
+      }
+
+      // Fallback if generation failed - expanded list with dedup
+      if (!topic) {
+        const concreteFallbacks: Record<string, string[]> = {
+          farmacia: [
+            "Cómo organizar el mostrador de dermofarmacia",
+            "Consejos para la atención de alergias estacionales",
+            "Guía de productos para el cuidado solar",
+            "Rutina de cuidado facial recomendada por expertos",
+            "Suplementos nutricionales más consultados",
+            "Cómo elegir el protector solar adecuado",
+            "Primeros auxilios básicos en el hogar",
+            "Alimentación saludable para deportistas amateur",
+            "Cómo prevenir resfriados en invierno",
+            "Guía de hidratación corporal por tipo de piel",
+            "Vitaminas esenciales para cada etapa de la vida",
+            "Consejos para mejorar la calidad del sueño",
+          ],
+          belleza: [
+            "Tendencias en coloración capilar natural",
+            "Cuidado del cabello después del verano",
+            "Guía de cortes según forma del rostro",
+            "Tratamientos capilares sin químicos agresivos",
+            "Cómo mantener el color entre visitas al salón",
+            "Peinados protectores para cabello frágil",
+            "Rutina capilar para cabello rizado",
+            "Aceites naturales para nutrir el cabello",
+            "Cortes de pelo que rejuvenecen",
+            "Cómo elegir el champú adecuado para tu tipo de pelo",
+          ],
+          marketing: [
+            "Estructura de una landing page efectiva",
+            "Cómo redactar asuntos de email que abren",
+            "Guía de palabras clave long-tail",
+            "Estrategia de contenido para redes sociales",
+            "Métricas clave para medir tu marketing digital",
+            "Cómo crear un calendario editorial efectivo",
+            "Copywriting persuasivo para páginas de venta",
+            "Automatización de email marketing paso a paso",
+            "Optimización de fichas de Google Business",
+            "Cómo generar reseñas positivas de clientes",
+          ],
+          hosteleria: [
+            "Carta digital y su impacto en el servicio",
+            "Técnicas de fidelización para restaurantes",
+            "Tendencias gastronómicas de temporada",
+            "Cómo gestionar reseñas online de tu restaurante",
+            "Maridajes creativos para sorprender a tus clientes",
+            "Estrategias para reducir el desperdicio alimentario",
+            "Diseño de menú que maximiza ventas",
+            "Experiencia del cliente en hostelería moderna",
+            "Ingredientes de proximidad como valor diferencial",
+            "Cómo fotografiar platos para redes sociales",
+          ],
+          tecnologia: [
+            "Ciberseguridad básica para pequeñas empresas",
+            "Herramientas de productividad para equipos remotos",
+            "Automatización de procesos repetitivos",
+            "Guía de backup y recuperación de datos",
+            "Cómo elegir software de gestión empresarial",
+            "Integración de herramientas digitales en tu negocio",
+            "Protección de datos personales en la empresa",
+            "Workflows automatizados que ahorran tiempo",
+            "Comunicación interna con herramientas digitales",
+            "Gestión de contraseñas segura para equipos",
+          ],
+          salud: [
+            "Hábitos saludables para trabajadores sedentarios",
+            "Guía de estiramientos para la oficina",
+            "Alimentación consciente en el día a día",
+            "Bienestar emocional en el entorno laboral",
+            "Ejercicios de respiración para reducir estrés",
+            "Ergonomía en el puesto de trabajo",
+            "Hidratación adecuada según tu actividad",
+            "Descanso activo durante la jornada laboral",
+            "Rutinas de ejercicio para principiantes",
+            "Cómo crear un espacio de trabajo saludable",
+          ],
+          default: [
+            "Cómo mejorar la atención al cliente en tu negocio",
+            "Organiza tu espacio de trabajo para más productividad",
+            "Guía para fidelizar a tus clientes actuales",
+            "Estrategias para diferenciarte de la competencia",
+            "Cómo gestionar el tiempo de forma eficiente",
+            "Comunicación efectiva con tu equipo de trabajo",
+            "Procesos internos que puedes simplificar hoy",
+            "Cómo medir la satisfacción de tus clientes",
+            "Consejos para mejorar tu presencia online",
+            "Pequeños cambios que mejoran la experiencia del cliente",
+            "Planificación estratégica para el próximo trimestre",
+            "Cómo crear una propuesta de valor única",
+          ],
+        };
+
+        const fallbacks = concreteFallbacks[sectorCategory] || concreteFallbacks.default;
+        // Filter against used topics to avoid duplicates
+        const allUsed = new Set([...usedTopics, ...wpTopics].map((t) => t.toLowerCase()));
+        const availableFallbacks = fallbacks.filter((f) => !allUsed.has(f.toLowerCase()));
+        const finalList = availableFallbacks.length > 0 ? availableFallbacks : fallbacks;
+        topic = finalList[Math.floor(Math.random() * finalList.length)];
+        console.log(`Using fallback topic (filtered): "${topic}"`);
+      }
+    }
+
+    // Build home URL from blog_url or fallback
+    const homeUrl = site.blog_url
+      ? (() => {
+          try {
+            const u = new URL(site.blog_url);
+            return `${u.protocol}//${u.host}`;
+          } catch {
+            return site.blog_url;
+          }
+        })()
+      : "#";
+
+    const ownedDomains = new Set<string>();
+    for (const candidateUrl of [homeUrl, site.blog_url, site.instagram_url]) {
+      if (candidateUrl) {
+        ownedDomains.add(normalizeDomain(candidateUrl));
+      }
+    }
+
+    const recentExternalDomains = await getRecentExternalDomainsForSite(supabase, siteId, ownedDomains);
+    const selectedAuthoritySources = selectAuthoritySources(
+      topic,
+      authoritySources,
+      preferredSourceDomains,
+      recentExternalDomains,
+    );
+    const authoritySourcesInstruction = buildAuthoritySourcesInstruction(selectedAuthoritySources);
+
+    // Build custom topic directive for article
+    const customTopicDirectiveArticle = site.custom_topic
+      ? `Enfoque temático del cliente (contexto interno para orientar el contenido, NO copiar literalmente en el texto): "${site.custom_topic}". Usa esto como brújula para el enfoque general, pero redacta de forma natural sin repetir esta frase.`
+      : `Sin directriz temática específica. Elige el tema más oportuno para la fecha actual y el sector ${sector}, priorizando búsquedas frecuentes con intención informacional o de consulta práctica. El tema debe ser concreto, no genérico.`;
+
+    // Build avoid topics list for article
+    const allProhibitedForArticle =
+      [
+        ...(avoidTopics.length > 0 ? avoidTopics.map((t) => `- Tema a evitar: ${t}`) : []),
+        ...(sectorProhibitedTerms.length > 0
+          ? sectorProhibitedTerms.slice(0, 15).map((t) => `- Término prohibido: ${t}`)
+          : []),
+      ].join("\n") || "(ninguno)";
+
+    // Build system prompt from database with enriched context
+    let systemPrompt = await getPrompt(
+      supabase,
+      "saas.article.system",
+      {
+        siteName: site.name,
+        businessType: businessType,
+        sector: sector,
+        description: description,
+        descriptionContext: descriptionContext,
+        scope: scope,
+        geoContext: geoContext,
+        dateContext: dateContext,
+        toneType: siteTone,
+        toneDescription: toneDescription,
+        targetAudience: targetAudience
+          ? `Perfil de la audiencia (contexto interno para adaptar tono y enfoque, NUNCA mencionar en el texto): ${targetAudience}`
+          : "Audiencia: público general del sector",
+        contentGoal: contentGoal,
+        pillarType: currentPillar,
+        pillarDescription: pillarDescription,
+        lengthWords: lengthTarget.words.toString(),
+        lengthDescription: lengthTarget.description,
+        wpStyleNotes: wpStyleNotes
+          ? `Mantener este estilo detectado en su blog: ${wpStyleNotes}`
+          : "Sin estilo previo detectado.",
+        homeUrl: homeUrl,
+        blogUrl: site.blog_url || "",
+        instagramUrl: site.instagram_url || "",
+        topic: topic,
+        priorityTopics:
+          priorityTopics.length > 0 ? priorityTopics.map((item: string) => `- ${item}`).join("\n") : "(ninguno)",
+        angleToAvoid: angleToAvoid || "(ninguno)",
+        preferredSources:
+          preferredSourceDomains.length > 0
+            ? preferredSourceDomains.map((item: string) => `- ${item}`).join("\n")
+            : "(ninguna)",
+        authoritySources:
+          authoritySourcesInstruction ||
+          "(usa asociaciones profesionales, fuentes oficiales y recursos técnicos fiables)",
+        customTopicDirective: customTopicDirectiveArticle,
+        avoidTopicsList: allProhibitedForArticle,
+        prohibitedTerms:
+          sectorProhibitedTerms.length > 0
+            ? sectorProhibitedTerms
+                .slice(0, 15)
+                .map((t) => `- ${t}`)
+                .join("\n")
+            : "(ninguno)",
+      },
+      FALLBACK_PROMPTS.articleSystem,
+    );
+
+    const extraEditorialGuidance = [
+      `TIPO DE NEGOCIO (contexto interno): ${businessType}`,
+      contentGoal ? `OBJETIVO DEL CONTENIDO (contexto interno): ${contentGoal}` : "",
+      priorityTopics.length > 0 ? `TEMAS PRIORITARIOS (contexto interno): ${priorityTopics.join(", ")}` : "",
+      angleToAvoid ? `ENFOQUE A EVITAR (contexto interno): ${angleToAvoid}` : "",
+      authoritySourcesInstruction
+        ? `FUENTES DE AUTORIDAD PREFERIDAS PARA ESTE ARTICULO:\n${authoritySourcesInstruction}`
+        : "",
+      preferredSourceDomains.length > 0
+        ? `DOMINIOS PREFERIDOS DEL CLIENTE (usar si son pertinentes, sin repetir siempre los mismos): ${preferredSourceDomains.join(", ")}`
+        : "",
+      "Si el articulo habla de un tema sectorial amplio, manten el enfoque adecuado al negocio del cliente. Evita derivar al cliente final si el sitio vende servicios B2B o consultivos.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    systemPrompt = `${systemPrompt}\n\n${extraEditorialGuidance}`;
+
+    // Build user prompt from database
+    let userPrompt = await getPrompt(
+      supabase,
+      "saas.article.user",
+      {
+        topic: topic,
+        pillarType: currentPillar,
+        pillarDescription: pillarDescription,
+        siteName: site.name,
+        homeUrl: homeUrl,
+        blogUrl: site.blog_url || "",
+        instagramUrl: site.instagram_url || "",
+        lengthWords: lengthTarget.words.toString(),
+        authoritySources: authoritySourcesInstruction || "(usa dos fuentes de autoridad adecuadas al sector)",
+      },
+      FALLBACK_PROMPTS.articleUser,
+    );
+
+    userPrompt = `${userPrompt}\n\nUsa exactamente 2 fuentes externas del pool sugerido si es posible.\n${
+      authoritySourcesInstruction ? `Pool sugerido:\n${authoritySourcesInstruction}` : ""
+    }`;
+
+    console.log("Generating Spanish article...");
+
+    // Helper to generate Spanish article with a given max_tokens
+    async function generateSpanishWithTokens(tokens: number): Promise<{ content: string; response: Response }> {
+      const resp = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.7,
+          max_tokens: tokens,
+        }),
+      });
+      return { content: "", response: resp };
+    }
+
+    // Helper to parse Spanish JSON with robust strategy
+    function parseArticleJson(rawContent: string): any {
+      let cleanContent = rawContent
+        .replace(/```json\s*/gi, "")
+        .replace(/```\s*/g, "")
+        .trim();
+
+      const firstBrace = cleanContent.indexOf("{");
+      const lastBrace = cleanContent.lastIndexOf("}");
+
+      if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+        throw new Error("No JSON object found in response");
+      }
+
+      const jsonString = cleanContent.substring(firstBrace, lastBrace + 1);
+      const cleanedJson = jsonString.replace(/[\uFEFF\u200B\u200C\u200D]/g, "");
+
+      try {
+        return JSON.parse(cleanedJson);
+      } catch (firstError) {
+        console.log("JSON parse failed on first attempt; applying string-only escaping and retrying");
+        const repairedJson = escapeControlCharsInsideStrings(cleanedJson);
+        return JSON.parse(repairedJson);
+      }
+    }
+
+    // Helper to detect truncated JSON
+    function isJsonTruncated(error: unknown, rawContent: string): boolean {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (
+        msg.includes("Expected ',' or '}'") ||
+        msg.includes("Unterminated string") ||
+        msg.includes("Expected property name")
+      ) {
+        return true;
+      }
+      // Check if content doesn't end with closing brace (sign of truncation)
+      const trimmed = rawContent?.trim() || "";
+      if (trimmed.length > 100 && !trimmed.endsWith("}")) {
+        return true;
+      }
+      return false;
+    }
+
+    let currentMaxTokens = lengthTarget.maxTokens;
+    console.log(
+      `Generating Spanish article with max_tokens=${currentMaxTokens} (preferred_length=${effectivePreferredLength})...`,
+    );
+
+    let spanishArticle;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 2;
+
+    while (attempts < MAX_ATTEMPTS) {
+      attempts++;
+
+      const { response: spanishResponse } = await generateSpanishWithTokens(currentMaxTokens);
+
+      if (!spanishResponse.ok) {
+        if (spanishResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "Payment required. Please add credits." }), {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (spanishResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const errorText = await spanishResponse.text();
+        throw new Error(`Spanish generation failed: ${spanishResponse.status} - ${errorText}`);
+      }
+
+      const spanishData = await spanishResponse.json();
+      const spanishContent = spanishData.choices?.[0]?.message?.content;
+
+      if (!spanishContent) {
+        throw new Error("No Spanish content generated");
+      }
+
+      try {
+        spanishArticle = parseArticleJson(spanishContent);
+        console.log(`Spanish article parsed successfully on attempt ${attempts} with max_tokens=${currentMaxTokens}`);
+        break; // Success
+      } catch (e) {
+        if (attempts < MAX_ATTEMPTS && isJsonTruncated(e, spanishContent)) {
+          const newTokens = currentMaxTokens + 4000;
+          console.warn(`JSON appears truncated (attempt ${attempts}). Retrying with max_tokens=${newTokens}...`);
+          console.warn("Parse error:", (e as Error).message);
+          currentMaxTokens = newTokens;
+          continue;
+        }
+        console.error("Error parsing Spanish JSON:", e);
+        console.error("Raw content preview:", spanishContent?.substring(0, 500));
+        throw new Error("Failed to parse Spanish article JSON");
+      }
+    }
+
+    console.log("Spanish article generated successfully");
+
+    // Clean any markdown that slipped into HTML
+    if (spanishArticle.content) {
+      spanishArticle.content = cleanMarkdownFromHtml(spanishArticle.content);
+      console.log("Cleaned markdown from Spanish content");
+    }
+
+    // Enforce Spanish capitalization on titles and headings
+    spanishArticle.title = enforceSpanishCapitalizationField(spanishArticle.title);
+    if (spanishArticle.seo_title) {
+      spanishArticle.seo_title = enforceSpanishCapitalizationField(spanishArticle.seo_title);
+    }
+    if (spanishArticle.content) {
+      spanishArticle.content = enforceSpanishCapitalizationHtml(spanishArticle.content);
+    }
+    console.log("Spanish capitalization enforced on title, seo_title, and headings");
+
+    // Post-generation validation: fix meta_description with AI if needed
+    if (spanishArticle.meta_description) {
+      spanishArticle.meta_description = await fixMetaDescription(
+        spanishArticle.meta_description,
+        spanishArticle.focus_keyword || topic,
+        LOVABLE_API_KEY!,
+      );
+      console.log(`Final Spanish meta_description: ${spanishArticle.meta_description.length} chars`);
+    }
+    if (spanishArticle.excerpt) {
+      spanishArticle.excerpt = trimExcerpt(spanishArticle.excerpt);
+    }
+
+    // Store Spanish content WITHOUT SEO footer for translation
+    const spanishContentWithoutSeo = spanishArticle.content;
+    let catalanArticle = null;
+
+    if (site.languages?.includes("catalan")) {
+      console.log("Generating NATIVE Catalan version (not translation)...");
+
+      // Get native Catalan generation prompt from database
+      const catalanPrompt = await getPrompt(
+        supabase,
+        "saas.translate.catalan",
+        {
+          title: spanishArticle.title,
+          seoTitle: spanishArticle.seo_title || "",
+          meta: spanishArticle.meta_description,
+          excerpt: spanishArticle.excerpt || spanishArticle.meta_description,
+          focusKeyword: spanishArticle.focus_keyword || "",
+          slug: spanishArticle.slug,
+          content: spanishContentWithoutSeo,
+        },
+        FALLBACK_PROMPTS.nativeCatalan,
+      );
+
+      try {
+        const catalanResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [{ role: "user", content: catalanPrompt }],
+            temperature: 0.5,
+            max_tokens: lengthTarget.maxTokens,
+          }),
+        });
+
+        if (catalanResponse.ok) {
+          const catalanData = await catalanResponse.json();
+          let catalanContent = catalanData.choices?.[0]?.message?.content;
+
+          if (catalanContent) {
+            let cleanCatalan = catalanContent.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
+
+            const jsonMatch = cleanCatalan.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const cleanedCatalanJson = jsonMatch[0].replace(/[\uFEFF\u200B\u200C\u200D]/g, "");
+
+              try {
+                catalanArticle = JSON.parse(cleanedCatalanJson);
+              } catch (firstError) {
+                console.log("Catalan JSON parse failed on first attempt; applying string-only escaping");
+                const repairedCatalanJson = escapeControlCharsInsideStrings(cleanedCatalanJson);
+                catalanArticle = JSON.parse(repairedCatalanJson);
+              }
+              console.log("Native Catalan article generated successfully");
+
+              // Clean any markdown from Catalan content
+              if (catalanArticle?.content) {
+                catalanArticle.content = cleanMarkdownFromHtml(catalanArticle.content);
+                console.log("Cleaned markdown from Catalan content");
+              }
+
+              // Fix meta_description with AI if needed
+              if (catalanArticle?.meta_description) {
+                catalanArticle.meta_description = await fixMetaDescription(
+                  catalanArticle.meta_description,
+                  catalanArticle.focus_keyword || topic,
+                  LOVABLE_API_KEY!,
+                );
+                console.log(`Final Catalan meta_description: ${catalanArticle.meta_description.length} chars`);
+              }
+              if (catalanArticle?.excerpt) {
+                catalanArticle.excerpt = trimExcerpt(catalanArticle.excerpt);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error generating Catalan:", error);
+      }
+    }
+
+    // ==========================================
+    // ADD INTERNAL LINK TO HOME ON FIRST BRAND MENTION
+    // ==========================================
+    function escapeRegexChars(str: string): string {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    function addHomeLinkToContent(content: string, siteName: string, blogUrl: string | null): string {
+      if (!blogUrl || !siteName) return content;
+
+      // ALWAYS extract the root domain as home URL
+      let homeUrl: string;
+      try {
+        const url = new URL(blogUrl);
+        homeUrl = `${url.protocol}//${url.host}`;
+      } catch {
+        console.log("Failed to parse blog URL for home link");
+        return content;
+      }
+
+      console.log(`Adding home link: ${siteName} -> ${homeUrl}`);
+
+      // Find first mention of brand name that is NOT inside:
+      // 1. An already open <a> tag (not yet closed)
+      // 2. An href="..." or src="..." attribute value
+      const escapedName = escapeRegexChars(siteName);
+      const regex = new RegExp(`\\b${escapedName}\\b`, "gi");
+
+      let match;
+      while ((match = regex.exec(content)) !== null) {
+        const position = match.index;
+        const textBefore = content.substring(0, position);
+
+        // Check 1: Are we inside an <a> tag? (open <a without closing </a>)
+        const lastOpenA = textBefore.lastIndexOf("<a ");
+        const lastCloseA = textBefore.lastIndexOf("</a>");
+        if (lastOpenA > lastCloseA) {
+          // We're inside an <a> tag, skip this match
+          continue;
+        }
+
+        // Check 2: Are we inside an href="..." attribute?
+        const lastHref = textBefore.lastIndexOf('href="');
+        if (lastHref !== -1 && lastHref > textBefore.lastIndexOf('"', textBefore.length - 1)) {
+          // Check if there's a closing quote after href="
+          const afterHref = textBefore.substring(lastHref + 6);
+          const closingQuote = afterHref.indexOf('"');
+          if (closingQuote === -1) {
+            // No closing quote found, we're inside the href value
+            continue;
+          }
+        }
+
+        // Check 3: Are we inside a src="..." attribute?
+        const lastSrc = textBefore.lastIndexOf('src="');
+        if (lastSrc !== -1 && lastSrc > textBefore.lastIndexOf('"', textBefore.length - 1)) {
+          const afterSrc = textBefore.substring(lastSrc + 5);
+          const closingQuote = afterSrc.indexOf('"');
+          if (closingQuote === -1) {
+            // No closing quote found, we're inside the src value
+            continue;
+          }
+        }
+
+        // This occurrence is valid - replace it and return
+        const before = content.substring(0, position);
+        const after = content.substring(position + match[0].length);
+        const linkedName = `<a href="${homeUrl}" target="_blank" rel="noopener">${match[0]}</a>`;
+        console.log(`Home link added at position ${position}`);
+        return before + linkedName + after;
+      }
+
+      console.log("No valid position found for home link");
+      return content;
+    }
+
+    // Add home link to Spanish content (first mention of brand)
+    let processedSpanishContent = spanishContentWithoutSeo;
+    processedSpanishContent = addHomeLinkToContent(processedSpanishContent, site.name, site.blog_url || null);
+    processedSpanishContent = ensureHomeLinkPresence(processedSpanishContent, site.name, homeUrl);
+    processedSpanishContent = ensureAuthorityLinks(processedSpanishContent, selectedAuthoritySources, ownedDomains);
+    processedSpanishContent = sanitizeUnlinkedBrandMentions(
+      processedSpanishContent,
+      site.name,
+      getGenericBusinessTerm(sectorCategory, "es"),
+    );
+
+    spanishArticle.content = processedSpanishContent;
+    console.log("Spanish content processed with link fallbacks");
+
+    if (catalanArticle?.content) {
+      let processedCatalanContent = addHomeLinkToContent(catalanArticle.content, site.name, site.blog_url || null);
+      processedCatalanContent = ensureHomeLinkPresence(processedCatalanContent, site.name, homeUrl);
+      processedCatalanContent = ensureAuthorityLinks(processedCatalanContent, selectedAuthoritySources, ownedDomains);
       processedCatalanContent = sanitizeUnlinkedBrandMentions(
         processedCatalanContent,
         site.name,
