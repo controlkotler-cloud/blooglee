@@ -1,107 +1,123 @@
-import { Link } from 'react-router-dom';
-import { PublicLayout } from '@/components/marketing/PublicLayout';
-import { SEOHead, FAQSchema, ReviewSchema } from '@/components/seo';
-import { 
-  ArrowRight, 
-  CheckCircle2, 
-  TrendingUp, 
-  Clock, 
+import { Link } from "react-router-dom";
+import { PublicLayout } from "@/components/marketing/PublicLayout";
+import { SEOHead, FAQSchema, ReviewSchema } from "@/components/seo";
+import {
+  ArrowRight,
+  CheckCircle2,
+  TrendingUp,
+  Clock,
   User,
   Users,
   Star,
   Wallet,
   Target,
-  Briefcase
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { LeadMagnetCard } from '@/components/marketing/LeadMagnetCard';
-import { LeadMagnetModal } from '@/components/marketing/LeadMagnetModal';
-import { useLeadMagnetDownload } from '@/hooks/useLeadMagnetDownload';
-import { getLeadMagnetsForSector } from '@/data/leadMagnets';
+  Briefcase,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { LeadMagnetCard } from "@/components/marketing/LeadMagnetCard";
+import { LeadMagnetModal } from "@/components/marketing/LeadMagnetModal";
+import { useLeadMagnetDownload } from "@/hooks/useLeadMagnetDownload";
+import { getLeadMagnetsForSector } from "@/data/leadMagnets";
 
 const autonomosFAQs = [
   {
-    question: '¿Blooglee es asequible para un autónomo?',
-    answer: 'Sí, el plan Free es gratuito y el Starter cuesta solo 19€/mes (4 artículos). Es 10 veces más barato que contratar un redactor freelance para la misma cantidad de contenido.',
+    question: "¿Blooglee es asequible para un autónomo?",
+    answer:
+      "Sí, el plan Free es gratuito y el Starter cuesta solo 19€/mes (4 artículos). Es 10 veces más barato que contratar un redactor freelance para la misma cantidad de contenido.",
   },
   {
-    question: '¿Necesito conocimientos técnicos para usar Blooglee?',
-    answer: 'No. Blooglee está diseñado para ser muy fácil de usar. Si sabes publicar en WordPress, sabes usar Blooglee. El proceso es: conectas tu web, generas artículo, y publicas con un clic.',
+    question: "¿Necesito conocimientos técnicos para usar Blooglee?",
+    answer:
+      "No. Blooglee está diseñado para ser muy fácil de usar. Si sabes publicar en WordPress, sabes usar Blooglee. El proceso es: conectas tu web, generas artículo, y publicas con un clic.",
   },
   {
-    question: '¿Puedo gestionar el blog de mi negocio sin dedicar horas?',
-    answer: 'Sí, ese es exactamente el objetivo. Blooglee genera un artículo completo en 60 segundos. Puedes revisar y publicar en menos de 5 minutos a la semana.',
+    question: "¿Puedo gestionar el blog de mi negocio sin dedicar horas?",
+    answer:
+      "Sí, ese es exactamente el objetivo. Blooglee genera un artículo completo en 60 segundos. Puedes revisar y publicar en menos de 5 minutos a la semana.",
   },
   {
-    question: '¿El contenido es relevante para mi sector?',
-    answer: 'Sí. Configuras el sector de tu negocio (abogado, arquitecto, consultor, terapeuta, etc.) y Blooglee adapta el vocabulario, tono y temas a tu industria.',
+    question: "¿El contenido es relevante para mi sector?",
+    answer:
+      "Sí. Configuras el sector de tu negocio (abogado, arquitecto, consultor, terapeuta, etc.) y Blooglee adapta el vocabulario, tono y temas a tu industria.",
   },
   {
-    question: '¿Cómo ayuda el blog a conseguir clientes?',
-    answer: 'Un blog activo mejora tu posicionamiento en Google para búsquedas locales. Cuando alguien busca "abogado divorcios Madrid", un blog con artículos relevantes te hace visible.',
+    question: "¿Cómo ayuda el blog a conseguir clientes?",
+    answer:
+      'Un blog activo mejora tu posicionamiento en Google para búsquedas locales. Cuando alguien busca "abogado divorcios Madrid", un blog con artículos relevantes te hace visible.',
   },
 ];
 
 const autonomoReviews = [
   {
-    author: 'José Manuel Torres',
-    role: 'Abogado',
-    company: 'Despacho Torres',
+    author: "José Manuel Torres",
+    role: "Abogado",
+    company: "Despacho Torres",
     rating: 5,
-    reviewBody: 'Como abogado autónomo, no tenía tiempo ni presupuesto para un blog. Blooglee me permite publicar artículos legales cada semana por menos de lo que cuesta un café al día.',
-    datePublished: '2026-01-15',
+    reviewBody:
+      "Como abogado autónomo, no tenía tiempo ni presupuesto para un blog. Blooglee me permite publicar artículos legales cada semana por menos de lo que cuesta un café al día.",
+    datePublished: "2026-01-15",
   },
   {
-    author: 'Lucía Hernández',
-    role: 'Psicóloga',
-    company: 'Consulta Lucía Hernández',
+    author: "Lucía Hernández",
+    role: "Psicóloga",
+    company: "Consulta Lucía Hernández",
     rating: 5,
-    reviewBody: 'El blog ha sido clave para darme a conocer. Pacientes me encuentran buscando temas como "ansiedad laboral" y llegan a mi consulta desde el blog.',
-    datePublished: '2026-01-10',
+    reviewBody:
+      'El blog ha sido clave para darme a conocer. Pacientes me encuentran buscando temas como "ansiedad laboral" y llegan a mi consulta desde el blog.',
+    datePublished: "2026-01-10",
   },
 ];
 
 const stats = [
-  { value: '19€', label: 'Por mes', description: 'Plan Starter' },
-  { value: '5min', label: 'A la semana', description: 'Tiempo invertido' },
-  { value: '+60%', label: 'Visibilidad local', description: 'En 3 meses' },
+  { value: "19€", label: "Por mes", description: "Plan Starter" },
+  { value: "5min", label: "A la semana", description: "Tiempo invertido" },
+  { value: "+60%", label: "Visibilidad local", description: "En 3 meses" },
 ];
 
 const benefits = [
   {
     icon: Wallet,
-    title: 'Precio de autónomo',
-    description: 'Desde 0€/mes. El plan Starter (19€) cuesta menos que 4 cafés y genera 4 artículos profesionales.',
+    title: "Precio de autónomo",
+    description: "Desde 0€/mes. El plan Starter (19€) cuesta menos que 4 cafés y genera 4 artículos profesionales.",
   },
   {
     icon: Clock,
-    title: 'Sin perder tiempo',
-    description: '5 minutos a la semana: generas, revisas y publicas. Dedica tu tiempo a lo que importa: tus clientes.',
+    title: "Sin perder tiempo",
+    description: "5 minutos a la semana: generas, revisas y publicas. Dedica tu tiempo a lo que importa: tus clientes.",
   },
   {
     icon: Target,
-    title: 'Visibilidad local',
-    description: 'Aparece en búsquedas locales de tu ciudad. "Arquitecto Barcelona", "Fisio Madrid" - posiciona tu negocio.',
+    title: "Visibilidad local",
+    description:
+      'Aparece en búsquedas locales de tu ciudad. "Arquitecto Barcelona", "Fisio Madrid" - posiciona tu negocio.',
   },
   {
     icon: Briefcase,
-    title: 'Imagen profesional',
-    description: 'Un blog activo transmite expertise y genera confianza. Compite con empresas grandes desde tu casa.',
+    title: "Imagen profesional",
+    description: "Un blog activo transmite expertise y genera confianza. Compite con empresas grandes desde tu casa.",
   },
 ];
 
 const sectors = [
-  'Abogados', 'Arquitectos', 'Psicólogos', 'Nutricionistas', 'Consultores',
-  'Fisioterapeutas', 'Contables', 'Diseñadores', 'Coaches', 'Fotógrafos'
+  "Abogados",
+  "Arquitectos",
+  "Psicólogos",
+  "Nutricionistas",
+  "Consultores",
+  "Fisioterapeutas",
+  "Contables",
+  "Diseñadores",
+  "Coaches",
+  "Fotógrafos",
 ];
 
 export default function Autonomos() {
   const { isModalOpen, selectedLeadMagnet, openDownloadModal, closeModal } = useLeadMagnetDownload();
-  const sectorLeadMagnets = getLeadMagnetsForSector('autonomos');
+  const sectorLeadMagnets = getLeadMagnetsForSector("autonomos");
 
   return (
     <PublicLayout>
-      <SEOHead 
+      <SEOHead
         title="Blog Profesional para Autónomos"
         description="Blog profesional sin esfuerzo para autónomos. Genera artículos con IA optimizados para SEO y publica en WordPress automáticamente."
         canonicalUrl="/para/autonomos"
@@ -117,7 +133,7 @@ export default function Autonomos() {
             <User className="w-4 h-4 text-violet-500" />
             <span className="text-sm font-medium text-violet-600">Para Autónomos</span>
           </div>
-          
+
           <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold mb-6">
             <span className="bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-400 bg-clip-text text-transparent">
               Un blog profesional
@@ -125,14 +141,21 @@ export default function Autonomos() {
             <br />
             <span className="text-foreground">sin dedicar horas</span>
           </h1>
-          
+
           <p className="text-lg sm:text-xl text-foreground/60 mb-8 max-w-2xl mx-auto">
-            Como autónomo, tu tiempo vale oro. 
-            <strong className="text-foreground"> Blooglee genera contenido profesional por menos de lo que cuesta un café al día.</strong>
+            Como autónomo, tu tiempo vale oro.
+            <strong className="text-foreground">
+              {" "}
+              Blooglee genera contenido profesional por menos de lo que cuesta un café al día.
+            </strong>
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Button asChild size="lg" className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400 hover:opacity-90">
+            <Button
+              asChild
+              size="lg"
+              className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400 hover:opacity-90"
+            >
               <Link to="/waitlist">
                 Empezar gratis
                 <ArrowRight className="w-5 h-5 ml-2" />
@@ -159,9 +182,7 @@ export default function Autonomos() {
       {/* Benefits */}
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-12">
         <div className="text-center mb-12">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold mb-4">
-            Diseñado para profesionales como tú
-          </h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold mb-4">Diseñado para profesionales como tú</h2>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {benefits.map((benefit, i) => (
@@ -177,9 +198,7 @@ export default function Autonomos() {
       {/* Sectors */}
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-12">
         <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/50 shadow-xl p-8 sm:p-12 text-center">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold mb-6">
-            Autónomos de todos los sectores
-          </h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold mb-6">Autónomos de todos los sectores</h2>
           <div className="flex flex-wrap justify-center gap-3">
             {sectors.map((sector, i) => (
               <span key={i} className="px-4 py-2 rounded-full bg-violet-100 text-violet-700 text-sm font-medium">
@@ -187,9 +206,7 @@ export default function Autonomos() {
               </span>
             ))}
           </div>
-          <p className="mt-6 text-foreground/70">
-            Y muchos más. Blooglee se adapta a cualquier profesión.
-          </p>
+          <p className="mt-6 text-foreground/70">Y muchos más. Blooglee se adapta a cualquier profesión.</p>
         </div>
       </section>
 
@@ -198,9 +215,7 @@ export default function Autonomos() {
         <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/50 shadow-xl p-8 sm:p-12">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
-              <h2 className="font-display text-2xl sm:text-3xl font-bold mb-4">
-                El problema del autónomo
-              </h2>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold mb-4">El problema del autónomo</h2>
               <ul className="space-y-4">
                 <li className="flex items-start gap-3">
                   <Clock className="w-5 h-5 text-red-500 mt-1 flex-shrink-0" />
@@ -217,9 +232,7 @@ export default function Autonomos() {
               </ul>
             </div>
             <div>
-              <h3 className="font-display text-xl font-bold mb-4 text-violet-600">
-                Blooglee: tu solución
-              </h3>
+              <h3 className="font-display text-xl font-bold mb-4 text-violet-600">Blooglee: tu solución</h3>
               <ul className="space-y-4">
                 <li className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-1 flex-shrink-0" />
@@ -242,9 +255,7 @@ export default function Autonomos() {
       {/* Testimonials */}
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-12">
         <div className="text-center mb-12">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold mb-4">
-            Autónomos que ya confían en Blooglee
-          </h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold mb-4">Autónomos que ya confían en Blooglee</h2>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           {autonomoReviews.map((review, i) => (
@@ -257,7 +268,9 @@ export default function Autonomos() {
               <p className="text-foreground/80 mb-4 italic">"{review.reviewBody}"</p>
               <div>
                 <div className="font-medium">{review.author}</div>
-                <div className="text-sm text-foreground/60">{review.role}, {review.company}</div>
+                <div className="text-sm text-foreground/60">
+                  {review.role}, {review.company}
+                </div>
               </div>
             </div>
           ))}
@@ -267,18 +280,12 @@ export default function Autonomos() {
       {/* Lead Magnets Section */}
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-12">
         <div className="text-center mb-12">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold mb-4">
-            Recursos gratuitos para autónomos
-          </h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold mb-4">Recursos gratuitos para autónomos</h2>
           <p className="text-foreground/60">Descarga guías para posicionar tu negocio local</p>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           {sectorLeadMagnets.map((leadMagnet) => (
-            <LeadMagnetCard
-              key={leadMagnet.id}
-              leadMagnet={leadMagnet}
-              onDownloadClick={openDownloadModal}
-            />
+            <LeadMagnetCard key={leadMagnet.id} leadMagnet={leadMagnet} onDownloadClick={openDownloadModal} />
           ))}
         </div>
       </section>
@@ -286,9 +293,7 @@ export default function Autonomos() {
       {/* FAQ Section */}
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-12">
         <div className="text-center mb-12">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold mb-4">
-            Preguntas frecuentes
-          </h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold mb-4">Preguntas frecuentes</h2>
         </div>
         <div className="max-w-3xl mx-auto space-y-4">
           {autonomosFAQs.map((faq, i) => (
@@ -309,7 +314,7 @@ export default function Autonomos() {
               Tu negocio merece un blog profesional
             </h2>
             <p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">
-              Empieza gratis. Sin tarjeta de crédito.
+              Únete a la lista de espera y accede antes que nadie.
             </p>
             <Button asChild size="lg" className="bg-white text-violet-600 hover:bg-white/90">
               <Link to="/waitlist">
@@ -321,11 +326,7 @@ export default function Autonomos() {
         </div>
       </section>
       {/* Lead Magnet Modal */}
-      <LeadMagnetModal 
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        leadMagnet={selectedLeadMagnet}
-      />
+      <LeadMagnetModal isOpen={isModalOpen} onClose={closeModal} leadMagnet={selectedLeadMagnet} />
     </PublicLayout>
   );
 }
