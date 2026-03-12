@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -28,16 +29,35 @@ import { PlanBadge, type PlanType } from "@/components/saas/PlanBadge";
 import { SetupChecklist } from "@/components/setup/SetupChecklist";
 import { toast } from "sonner";
 import { useGeneration } from "@/contexts/GenerationContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const VIEW_MODE_KEY = "blooglee-view-mode";
 
 export default function SaasDashboard() {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { data: profile, isLoading: loadingProfile } = useProfile();
   const { isSuperAdmin } = useIsSuperAdmin();
   const { data: sites = [], isLoading: loadingSites } = useSites();
   const { isGenerating } = useGeneration();
+  const { data: teamMembership, isLoading: loadingTeamMembership } = useQuery({
+    queryKey: ["team-membership", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("owner_id")
+        .eq("member_id", user.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
@@ -54,7 +74,8 @@ export default function SaasDashboard() {
   const generateMutation = useGenerateArticleSaas();
 
   const sitesLimit = profile?.sites_limit ?? 1;
-  const canAddSite = isSuperAdmin || sites.length < sitesLimit;
+  const isTeamMember = Boolean(teamMembership?.owner_id);
+  const canAddSite = isSuperAdmin || (!isTeamMember && sites.length < sitesLimit);
   const plan = (profile?.plan || "free") as PlanType;
 
   // Toolbar state
@@ -179,7 +200,7 @@ export default function SaasDashboard() {
     await signOut();
   };
 
-  const isLoading = loadingProfile || loadingSites || loadingChecklist;
+  const isLoading = loadingProfile || loadingSites || loadingChecklist || loadingTeamMembership;
 
   if (isLoading) {
     return (
@@ -279,7 +300,13 @@ export default function SaasDashboard() {
               <Button
                 onClick={() => navigate("/onboarding")}
                 disabled={!canAddSite}
-                title={!canAddSite ? `Límite de ${sitesLimit} sitios alcanzado` : undefined}
+                title={
+                  !canAddSite
+                    ? isTeamMember
+                      ? "Solo el owner de la cuenta puede añadir sitios"
+                      : `Límite de ${sitesLimit} sitios alcanzado`
+                    : undefined
+                }
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Añadir sitio
