@@ -8,6 +8,139 @@ const corsHeaders = {
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+const previewRateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const PREVIEW_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const PREVIEW_RATE_LIMIT_MAX_REQUESTS = 8;
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function stripIpv6Brackets(hostname: string): string {
+  return hostname.replace(/^\[|\]$/g, "");
+}
+
+function isLocalOrPrivateIpv4(hostname: string): boolean {
+  const ip = hostname.trim();
+  if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) return false;
+
+  const octets = ip.split(".").map((n) => Number(n));
+  if (octets.some((n) => Number.isNaN(n) || n < 0 || n > 255)) return true;
+
+  const [a, b] = octets;
+  if (a === 10) return true;
+  if (a === 127) return true;
+  if (a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true;
+  if (a >= 224) return true;
+  if (a === 198 && (b === 18 || b === 19)) return true;
+  return false;
+}
+
+function isLocalOrPrivateIpv6(hostname: string): boolean {
+  const ip = stripIpv6Brackets(hostname).toLowerCase();
+  if (!ip.includes(":")) return false;
+
+  if (ip === "::1" || ip === "::") return true;
+  if (ip.startsWith("fe80:")) return true; // link-local
+  if (ip.startsWith("fc") || ip.startsWith("fd")) return true; // unique local
+  return false;
+}
+
+function isLocalOrPrivateHostname(hostname: string): boolean {
+  const host = stripIpv6Brackets(hostname).toLowerCase();
+  if (!host) return true;
+  if (host === "localhost" || host === "localhost.localdomain") return true;
+  if (host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) return true;
+  if (host.endsWith(".home.arpa")) return true;
+  if (isLocalOrPrivateIpv4(host)) return true;
+  if (isLocalOrPrivateIpv6(host)) return true;
+  return false;
+}
+
+function normalizeUrlForExtraction(raw: string): { ok: true; url: string } | { ok: false; reason: string } {
+  const input = raw.trim();
+  if (!input) return { ok: false, reason: "url is required" };
+
+  let candidate = input;
+  if (!candidate.startsWith("http://") && !candidate.startsWith("https://")) {
+    candidate = `https://${candidate}`;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return { ok: false, reason: "invalid_url" };
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    return { ok: false, reason: "unsupported_protocol" };
+  }
+  if (!parsed.hostname) {
+    return { ok: false, reason: "missing_hostname" };
+  }
+  if (parsed.username || parsed.password) {
+    return { ok: false, reason: "credentials_in_url_not_allowed" };
+  }
+  if (isLocalOrPrivateHostname(parsed.hostname)) {
+    return { ok: false, reason: "private_or_local_url_not_allowed" };
+  }
+
+  return { ok: true, url: parsed.toString() };
+}
+
+function getClientIp(req: Request): string {
+  const rawHeader =
+    req.headers.get("x-forwarded-for") ||
+    req.headers.get("x-real-ip") ||
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-client-ip") ||
+    "unknown";
+  return rawHeader.split(",")[0].trim().toLowerCase();
+}
+
+function checkPreviewRateLimit(clientKey: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const record = previewRateLimitMap.get(clientKey);
+
+  if (previewRateLimitMap.size > 2000) {
+    for (const [key, value] of previewRateLimitMap.entries()) {
+      if (now > value.resetTime) previewRateLimitMap.delete(key);
+    }
+  }
+
+  if (!record || now > record.resetTime) {
+    previewRateLimitMap.set(clientKey, { count: 1, resetTime: now + PREVIEW_RATE_LIMIT_WINDOW_MS });
+    return { allowed: true };
+  }
+
+  if (record.count >= PREVIEW_RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfter = Math.max(1, Math.ceil((record.resetTime - now) / 1000));
+    return { allowed: false, retryAfter };
+  }
+
+  record.count++;
+  return { allowed: true };
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function isSameRootHost(a: string, b: string): boolean {
+  return a.replace(/^www\./i, "").toLowerCase() === b.replace(/^www\./i, "").toLowerCase();
+}
+
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
@@ -119,23 +252,60 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { url, site_id } = await req.json();
-    const normalizedSiteId = typeof site_id === "string" && site_id.trim().length > 0 ? site_id.trim() : null;
+    let payload: unknown;
+    try {
+      payload = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ success: false, error: "invalid_json_body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const body = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+    const rawUrl = typeof body.url === "string" ? body.url : "";
+    const rawSiteId = typeof body.site_id === "string" ? body.site_id.trim() : "";
+    const normalizedSiteId = rawSiteId.length > 0 ? rawSiteId : null;
     const accessToken = getBearerToken(req);
 
-    if (!url) {
-      return new Response(JSON.stringify({ success: false, error: "url is required" }), {
+    if (normalizedSiteId && !isUuid(normalizedSiteId)) {
+      return new Response(JSON.stringify({ success: false, error: "invalid_site_id" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Format URL
-    let formattedUrl = url.trim();
-    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
-      formattedUrl = `https://${formattedUrl}`;
+    const normalizedUrl = normalizeUrlForExtraction(rawUrl);
+    if (!normalizedUrl.ok) {
+      return new Response(JSON.stringify({ success: false, error: normalizedUrl.reason }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
+    if (!accessToken) {
+      const clientIp = getClientIp(req);
+      const userAgent = (req.headers.get("user-agent") || "unknown").slice(0, 120).toLowerCase();
+      const limit = checkPreviewRateLimit(`${clientIp}:${userAgent}`);
+      if (!limit.allowed) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "rate_limit_exceeded",
+            retry_after: limit.retryAfter,
+          }),
+          {
+            status: 429,
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/json",
+              "Retry-After": String(limit.retryAfter || 60),
+            },
+          },
+        );
+      }
+    }
+
+    const formattedUrl = normalizedUrl.url;
     console.log("[extract] Starting extraction for:", formattedUrl, "site_id:", normalizedSiteId || "(preview mode)");
 
     let html = "";
@@ -218,27 +388,44 @@ Deno.serve(async (req) => {
     if (!html) {
       try {
         console.log("[extract] Trying direct fetch...");
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
-
-        const response = await fetch(formattedUrl, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+        const response = await fetchWithTimeout(
+          formattedUrl,
+          {
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+            },
+            redirect: "follow",
           },
-          signal: controller.signal,
-          redirect: "follow",
-        });
+          10000,
+        );
 
-        clearTimeout(timeout);
+        const finalUrl = response.url || formattedUrl;
+        const finalHost = new URL(finalUrl).hostname;
+        if (isLocalOrPrivateHostname(finalHost)) {
+          throw new Error("redirected_to_private_host");
+        }
 
-        if (response.ok) {
-          html = await response.text();
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+        const isHtmlLike =
+          contentType.length === 0 ||
+          contentType.includes("text/html") ||
+          contentType.includes("application/xhtml+xml");
+
+        if (!isHtmlLike) {
+          console.warn("[extract] Direct fetch content-type is not HTML:", contentType);
+        }
+
+        if (response.ok && isHtmlLike) {
+          const fetchedHtml = await response.text();
+          html = fetchedHtml.length > 1_500_000 ? fetchedHtml.slice(0, 1_500_000) : fetchedHtml;
           console.log("[extract] Direct fetch OK, HTML length:", html.length);
-        } else {
+        } else if (!response.ok) {
           console.warn("[extract] Direct fetch failed with status:", response.status);
+        } else {
+          console.warn("[extract] Direct fetch skipped due to non-HTML response");
         }
       } catch (err) {
         console.warn("[extract] Direct fetch error:", getErrorMessage(err));
@@ -255,14 +442,27 @@ Deno.serve(async (req) => {
         // Fetch up to 3 stylesheets
         const fetches = stylesheetUrls.slice(0, 3).map(async (cssUrl) => {
           try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 5000);
-            const res = await fetch(cssUrl, {
-              headers: { "User-Agent": "Mozilla/5.0 (compatible; Blooglee/1.0)" },
-              signal: controller.signal,
-            });
-            clearTimeout(timeout);
+            const res = await fetchWithTimeout(
+              cssUrl,
+              {
+                headers: { "User-Agent": "Mozilla/5.0 (compatible; Blooglee/1.0)" },
+                redirect: "follow",
+              },
+              5000,
+            );
             if (res.ok) {
+              const finalCssUrl = res.url || cssUrl;
+              const finalCssHost = new URL(finalCssUrl).hostname;
+              const pageHost = new URL(formattedUrl).hostname;
+              if (!isSameRootHost(finalCssHost, pageHost) || isLocalOrPrivateHostname(finalCssHost)) {
+                return "";
+              }
+
+              const cssContentType = (res.headers.get("content-type") || "").toLowerCase();
+              if (cssContentType && !cssContentType.includes("text/css")) {
+                return "";
+              }
+
               const text = await res.text();
               return text.substring(0, 50000); // Limit to 50KB per stylesheet
             }
@@ -417,6 +617,13 @@ function extractStylesheetUrls(html: string, baseUrl: string): string[] {
   const urls: string[] = [];
   const linkRegex = /<link[^>]+rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
   const linkRegex2 = /<link[^>]+href=["']([^"']+)["'][^>]*rel=["']stylesheet["'][^>]*>/gi;
+  const baseHost = (() => {
+    try {
+      return new URL(baseUrl).hostname;
+    } catch {
+      return "";
+    }
+  })();
 
   let match;
   for (const regex of [linkRegex, linkRegex2]) {
@@ -437,6 +644,21 @@ function extractStylesheetUrls(html: string, baseUrl: string): string[] {
           continue;
         }
       }
+
+      let hrefHost = "";
+      try {
+        const parsedHref = new URL(href);
+        hrefHost = parsedHref.hostname;
+        if (!["http:", "https:"].includes(parsedHref.protocol)) continue;
+      } catch {
+        continue;
+      }
+
+      // Only fetch CSS from same host and never from local/private targets.
+      if (!baseHost || !isSameRootHost(hrefHost, baseHost) || isLocalOrPrivateHostname(hrefHost)) {
+        continue;
+      }
+
       // Skip CDN fonts, icons, etc.
       if (!href.includes("fonts.googleapis") && !href.includes("font-awesome") && !href.includes("icons")) {
         urls.push(href);
