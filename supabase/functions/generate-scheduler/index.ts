@@ -52,6 +52,7 @@ function getLocalDateParts(
   timezone: string,
 ): {
   localHour: number;
+  localMinute: number;
   localDayOfWeek: number;
   localDayOfMonth: number;
   localWeekOfMonth: number;
@@ -59,12 +60,14 @@ function getLocalDateParts(
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour: "numeric",
+    minute: "numeric",
     hour12: false,
     weekday: "short",
     day: "numeric",
   });
   const parts = fmt.formatToParts(now);
   const localHour = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const localMinute = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
   const localDayOfMonth = Number(parts.find((p) => p.type === "day")?.value ?? 1);
 
   const weekdayStr = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
@@ -72,32 +75,35 @@ function getLocalDateParts(
   const localDayOfWeek = weekdayMap[weekdayStr] ?? 1;
   const localWeekOfMonth = Math.ceil(localDayOfMonth / 7);
 
-  return { localHour, localDayOfWeek, localDayOfMonth, localWeekOfMonth };
+  return { localHour, localMinute, localDayOfWeek, localDayOfMonth, localWeekOfMonth };
 }
 
 function shouldSiteGenerateNow(
   site: SiteEntity,
   now: Date,
-): { due: boolean; localHour: number; targetHour: number; tz: string } {
+): { due: boolean; localHour: number; localMinute: number; targetHour: number; tz: string } {
   const tz = site.timezone || "Europe/Madrid";
-  const { localHour, localDayOfWeek, localDayOfMonth, localWeekOfMonth } = getLocalDateParts(now, tz);
+  const { localHour, localMinute, localDayOfWeek, localDayOfMonth, localWeekOfMonth } = getLocalDateParts(now, tz);
 
   const targetHour = site.publish_hour_local ?? site.publish_hour_utc ?? 9;
   const hourReached = localHour >= targetHour;
+  // Start up to 5 minutes early to absorb generation/publication latency without changing content quality.
+  const preWindowReached = targetHour > 0 && localHour === targetHour - 1 && localMinute >= 55;
+  const timeReached = hourReached || preWindowReached;
   const frequency = normalizeFrequency(site.publish_frequency);
 
   let due = false;
   switch (frequency) {
     case "daily":
-      due = hourReached;
+      due = timeReached;
       break;
     case "daily_weekdays":
-      due = localDayOfWeek >= 1 && localDayOfWeek <= 5 && hourReached;
+      due = localDayOfWeek >= 1 && localDayOfWeek <= 5 && timeReached;
       break;
     case "weekly":
       due =
         localDayOfWeek > (site.publish_day_of_week ?? 1) ||
-        (localDayOfWeek === (site.publish_day_of_week ?? 1) && hourReached);
+        (localDayOfWeek === (site.publish_day_of_week ?? 1) && timeReached);
       break;
     case "biweekly":
       if (localWeekOfMonth !== 1 && localWeekOfMonth !== 3) {
@@ -105,26 +111,26 @@ function shouldSiteGenerateNow(
       } else {
         due =
           localDayOfWeek > (site.publish_day_of_week ?? 1) ||
-          (localDayOfWeek === (site.publish_day_of_week ?? 1) && hourReached);
+          (localDayOfWeek === (site.publish_day_of_week ?? 1) && timeReached);
       }
       break;
     case "monthly":
       if (site.publish_day_of_month !== null && site.publish_day_of_month !== undefined) {
         due =
-          localDayOfMonth > site.publish_day_of_month || (localDayOfMonth === site.publish_day_of_month && hourReached);
+          localDayOfMonth > site.publish_day_of_month || (localDayOfMonth === site.publish_day_of_month && timeReached);
       } else {
         const targetDayOfWeek = site.publish_day_of_week ?? 1;
         const targetWeekOfMonth = site.publish_week_of_month ?? 1;
         if (localWeekOfMonth > targetWeekOfMonth) due = true;
         else if (localWeekOfMonth < targetWeekOfMonth) due = false;
-        else due = localDayOfWeek > targetDayOfWeek || (localDayOfWeek === targetDayOfWeek && hourReached);
+        else due = localDayOfWeek > targetDayOfWeek || (localDayOfWeek === targetDayOfWeek && timeReached);
       }
       break;
     default:
       due = false;
   }
 
-  return { due, localHour, targetHour, tz };
+  return { due, localHour, localMinute, targetHour, tz };
 }
 
 async function hasSiteArticleForPeriod(supabase: any, siteId: string, frequency: string, now: Date): Promise<boolean> {
@@ -187,6 +193,158 @@ function dispatchGeneration(
     });
 }
 
+type DispatchAwaitOptions = {
+  timeout_ms?: number;
+  max_retries?: number;
+};
+
+type DispatchAwaitResult = {
+  endpoint: string;
+  ok: boolean;
+  status: number | null;
+  attempts: number;
+  duration_ms: number;
+  error?: string;
+};
+
+async function dispatchAndAwait(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  endpoint: string,
+  payload: Record<string, unknown>,
+  options: DispatchAwaitOptions = {},
+): Promise<DispatchAwaitResult> {
+  const timeoutMs = Math.max(1000, options.timeout_ms ?? 15000);
+  const maxRetries = Math.max(0, options.max_retries ?? 1);
+  const maxAttempts = maxRetries + 1;
+  const url = `${supabaseUrl}/functions/v1/${endpoint}`;
+
+  const startedAt = Date.now();
+  let attempts = 0;
+  let lastStatus: number | null = null;
+  let lastError = "";
+
+  while (attempts < maxAttempts) {
+    attempts++;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      console.log(
+        `[${endpoint}] Awaited dispatch attempt ${attempts}/${maxAttempts} with payload: ${JSON.stringify(payload)}`,
+      );
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+      lastStatus = res.status;
+
+      if (res.ok) {
+        return {
+          endpoint,
+          ok: true,
+          status: res.status,
+          attempts,
+          duration_ms: Date.now() - startedAt,
+        };
+      }
+
+      const errorText = await res.text().catch(() => "");
+      lastError = `HTTP ${res.status}${errorText ? `: ${errorText.substring(0, 500)}` : ""}`;
+
+      const retryable = res.status >= 500 || res.status === 429 || res.status === 408;
+      if (retryable && attempts < maxAttempts) {
+        const waitMs = Math.min(4000, 500 * Math.pow(2, attempts));
+        console.warn(`[${endpoint}] ${lastError}. Retry in ${waitMs}ms`);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+        continue;
+      }
+      break;
+    } catch (error) {
+      clearTimeout(timeout);
+      lastError = error instanceof Error ? error.message : String(error);
+
+      if (attempts < maxAttempts) {
+        const waitMs = Math.min(4000, 500 * Math.pow(2, attempts));
+        console.warn(`[${endpoint}] Dispatch exception "${lastError}". Retry in ${waitMs}ms`);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+        continue;
+      }
+      break;
+    }
+  }
+
+  return {
+    endpoint,
+    ok: false,
+    status: lastStatus,
+    attempts,
+    duration_ms: Date.now() - startedAt,
+    error: lastError || "unknown_dispatch_error",
+  };
+}
+
+async function countPendingPublishableArticles(supabase: any): Promise<number> {
+  const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: pendingArticles, error: pendingErr } = await supabase
+    .from("articles")
+    .select("id, site_id")
+    .is("wp_post_url", null)
+    .eq("generation_source", "scheduled")
+    .gte("generated_at", last24h)
+    .order("generated_at", { ascending: false })
+    .limit(500);
+
+  if (pendingErr) {
+    console.error("[scheduler] Error counting pending publishable (articles):", pendingErr);
+    return 0;
+  }
+
+  if (!pendingArticles || pendingArticles.length === 0) {
+    return 0;
+  }
+
+  const siteIds = [...new Set(pendingArticles.map((a: any) => a.site_id))];
+  if (siteIds.length === 0) {
+    return 0;
+  }
+
+  const [{ data: autoSites, error: autoSitesErr }, { data: wpConfigs, error: wpConfigErr }] = await Promise.all([
+    supabase.from("sites").select("id").in("id", siteIds).eq("auto_generate", true),
+    supabase.from("wordpress_configs").select("site_id").in("site_id", siteIds),
+  ]);
+
+  if (autoSitesErr) {
+    console.error("[scheduler] Error counting pending publishable (sites):", autoSitesErr);
+    return 0;
+  }
+  if (wpConfigErr) {
+    console.error("[scheduler] Error counting pending publishable (wordpress_configs):", wpConfigErr);
+    return 0;
+  }
+
+  const autoSiteIds = new Set((autoSites || []).map((s: any) => s.id));
+  const wpConfiguredSiteIds = new Set((wpConfigs || []).map((w: any) => w.site_id));
+
+  let count = 0;
+  for (const article of pendingArticles as any[]) {
+    if (autoSiteIds.has(article.site_id) && wpConfiguredSiteIds.has(article.site_id)) {
+      count++;
+    }
+  }
+
+  return count;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -231,6 +389,15 @@ const handler = async (req: Request): Promise<Response> => {
         sites: 0,
       },
     };
+    const maintenance = {
+      resend_email: { ok: false, status: null as number | null, attempts: 0 },
+      pending_reconcile: { ok: false, status: null as number | null, attempts: 0 },
+      deep_sweep: { ok: false, status: null as number | null, attempts: 0, ran: false },
+      monitor: { ok: false, status: null as number | null, attempts: 0, ran: false },
+      pending_publishable_before: 0,
+      pending_publishable_after: 0,
+      post_run_recovery_triggered: false,
+    };
 
     console.log("\n--- Processing Sites ---");
     const { data: sites, error: sitesError } = await supabase
@@ -254,7 +421,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (!schedResult.due) {
           console.log(
-            `Skipping site ${site.name} - not scheduled now (freq: ${frequency}, tz: ${schedResult.tz}, localHour: ${schedResult.localHour}, targetHour: ${schedResult.targetHour}, day_of_week: ${site.publish_day_of_week}, day_of_month: ${site.publish_day_of_month}, utc: ${now.toISOString()})`,
+            `Skipping site ${site.name} - not scheduled now (freq: ${frequency}, tz: ${schedResult.tz}, localTime: ${String(schedResult.localHour).padStart(2, "0")}:${String(schedResult.localMinute).padStart(2, "0")}, targetHour: ${schedResult.targetHour}, day_of_week: ${site.publish_day_of_week}, day_of_month: ${site.publish_day_of_month}, utc: ${now.toISOString()})`,
           );
           continue;
         }
@@ -267,7 +434,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         console.log(
-          `Dispatching generation for site ${site.name} (tz: ${schedResult.tz}, localHour: ${schedResult.localHour}, targetHour: ${schedResult.targetHour})`,
+          `Dispatching generation for site ${site.name} (tz: ${schedResult.tz}, localTime: ${String(schedResult.localHour).padStart(2, "0")}:${String(schedResult.localMinute).padStart(2, "0")}, targetHour: ${schedResult.targetHour})`,
         );
 
         const generationKey = buildSiteGenerationKey(frequency, now);
@@ -288,26 +455,123 @@ const handler = async (req: Request): Promise<Response> => {
     // Always process email resend retries on every scheduler cycle.
     // This avoids manual intervention when a publish email failed transiently.
     console.log("[scheduler] dispatch reconcile-wordpress-publications (resend_published_email_only) start");
-    dispatchGeneration(supabaseUrl, supabaseServiceKey, "reconcile-wordpress-publications", {
+    const resendResult = await dispatchAndAwait(supabaseUrl, supabaseServiceKey, "reconcile-wordpress-publications", {
       lookback_hours: 168,
       batch_size: 100,
       resend_published_email_only: true,
     });
+    maintenance.resend_email = {
+      ok: resendResult.ok,
+      status: resendResult.status,
+      attempts: resendResult.attempts,
+    };
+    if (!resendResult.ok) {
+      console.error("[scheduler] resend reconcile failed:", resendResult.error);
+    } else {
+      console.log("[scheduler] resend reconcile confirmed");
+    }
+    maintenance.pending_publishable_before = await countPendingPublishableArticles(supabase);
+    console.log(`[scheduler] pending publishable before reconcile: ${maintenance.pending_publishable_before}`);
+
+    console.log("[scheduler] dispatch reconcile-wordpress-publications (pending publish) start");
+    const pendingReconcileResult = await dispatchAndAwait(
+      supabaseUrl,
+      supabaseServiceKey,
+      "reconcile-wordpress-publications",
+      {
+        lookback_hours: 168,
+        batch_size: 40,
+        prioritize_recent: true,
+      },
+      { timeout_ms: 25000, max_retries: 1 },
+    );
+    maintenance.pending_reconcile = {
+      ok: pendingReconcileResult.ok,
+      status: pendingReconcileResult.status,
+      attempts: pendingReconcileResult.attempts,
+    };
+    if (!pendingReconcileResult.ok) {
+      console.error("[scheduler] pending reconcile failed:", pendingReconcileResult.error);
+    } else {
+      console.log("[scheduler] pending reconcile confirmed");
+    }
+
+    maintenance.pending_publishable_after = await countPendingPublishableArticles(supabase);
+    console.log(`[scheduler] pending publishable after reconcile: ${maintenance.pending_publishable_after}`);
+
+    // If items remain pending, run an immediate second pass to unstick backlog quickly.
+    if (maintenance.pending_publishable_after > 0) {
+      maintenance.post_run_recovery_triggered = true;
+      const recoveryBatch = Math.min(200, Math.max(60, maintenance.pending_publishable_after * 2));
+      console.log(`[scheduler] post-run recovery start (batch_size=${recoveryBatch})`);
+      const recoveryResult = await dispatchAndAwait(
+        supabaseUrl,
+        supabaseServiceKey,
+        "reconcile-wordpress-publications",
+        {
+          lookback_hours: 168,
+          batch_size: recoveryBatch,
+          prioritize_recent: true,
+        },
+        { timeout_ms: 30000, max_retries: 1 },
+      );
+      if (!recoveryResult.ok) {
+        console.error("[scheduler] post-run recovery failed:", recoveryResult.error);
+      } else {
+        console.log("[scheduler] post-run recovery confirmed");
+      }
+      maintenance.pending_publishable_after = await countPendingPublishableArticles(supabase);
+      console.log(`[scheduler] pending publishable after recovery: ${maintenance.pending_publishable_after}`);
+    }
+
     console.log("[scheduler] dispatch reconcile-wordpress-publications (resend_published_email_only) done");
 
     if (shouldRunHourlyMaintenance) {
-      console.log("[scheduler] dispatch reconcile-wordpress-publications start");
-      dispatchGeneration(supabaseUrl, supabaseServiceKey, "reconcile-wordpress-publications", {
-        lookback_hours: 168,
-        batch_size: 100,
-      });
-      console.log("[scheduler] dispatch reconcile-wordpress-publications done");
+      // Hourly deep sweep for backlog
+      maintenance.deep_sweep.ran = true;
+      console.log("[scheduler] dispatch reconcile-wordpress-publications (hourly deep sweep) start");
+      const deepSweepResult = await dispatchAndAwait(
+        supabaseUrl,
+        supabaseServiceKey,
+        "reconcile-wordpress-publications",
+        {
+          lookback_hours: 168,
+          batch_size: 200,
+        },
+        { timeout_ms: 30000, max_retries: 1 },
+      );
+      maintenance.deep_sweep = {
+        ok: deepSweepResult.ok,
+        status: deepSweepResult.status,
+        attempts: deepSweepResult.attempts,
+        ran: true,
+      };
+      if (!deepSweepResult.ok) {
+        console.error("[scheduler] hourly deep sweep failed:", deepSweepResult.error);
+      }
+      console.log("[scheduler] dispatch reconcile-wordpress-publications (hourly deep sweep) done");
 
       console.log("[scheduler] dispatch monitor-autopublish-health start");
-      dispatchGeneration(supabaseUrl, supabaseServiceKey, "monitor-autopublish-health", {
-        window_minutes: 60,
-        pending_threshold: 1,
-      });
+      maintenance.monitor.ran = true;
+      const monitorResult = await dispatchAndAwait(
+        supabaseUrl,
+        supabaseServiceKey,
+        "monitor-autopublish-health",
+        {
+          window_minutes: 60,
+          pending_threshold: 1,
+        },
+        { timeout_ms: 15000, max_retries: 0 },
+      );
+      maintenance.monitor = {
+        ok: monitorResult.ok,
+        status: monitorResult.status,
+        attempts: monitorResult.attempts,
+        ran: true,
+      };
+      if (!monitorResult.ok) {
+        console.error("[scheduler] monitor-autopublish-health failed:", monitorResult.error);
+      }
       console.log("[scheduler] dispatch monitor-autopublish-health done");
     } else {
       console.log(`[scheduler] skip hourly maintenance at minute ${now.getUTCMinutes()}`);
@@ -331,6 +595,7 @@ const handler = async (req: Request): Promise<Response> => {
             metadata: {
               elapsed_ms: elapsed,
               hourly_maintenance: shouldRunHourlyMaintenance,
+              maintenance,
             },
           })
           .eq("id", runId);
@@ -343,8 +608,9 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({
         success: true,
         dispatched,
-        reconcile_dispatched: shouldRunHourlyMaintenance,
+        reconcile_dispatched: true,
         monitor_dispatched: shouldRunHourlyMaintenance,
+        maintenance,
         elapsed_ms: elapsed,
         timestamp: now.toISOString(),
         run_id: runId,
