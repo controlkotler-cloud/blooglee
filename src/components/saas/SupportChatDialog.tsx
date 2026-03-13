@@ -147,7 +147,7 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
 
       {/* Messages area */}
       <ScrollArea className="flex-1 px-4" ref={scrollAreaRef}>
-        <div className="py-4 space-y-4">
+        <div className="py-4 pr-3 space-y-4">
           {/* Welcome message */}
           {messages.length === 0 && !effectiveErrorContext && (
             <>
@@ -219,8 +219,8 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
                 className={cn(
                   "min-w-0 w-fit rounded-lg p-3 break-words",
                   message.role === "user"
-                    ? "max-w-[90%] sm:max-w-[85%] bg-primary text-primary-foreground rounded-tr-none ml-auto"
-                    : "max-w-[calc(100%-2.75rem)] bg-muted/50 rounded-tl-none",
+                    ? "max-w-[88%] sm:max-w-[84%] bg-primary text-primary-foreground rounded-tr-none ml-auto"
+                    : "max-w-[calc(100%-3.25rem)] bg-muted/50 rounded-tl-none",
                 )}
               >
                 {message.role === "assistant" ? (
