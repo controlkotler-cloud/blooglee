@@ -15,6 +15,7 @@ interface ReconcileRequest {
   site_id?: string;
   dry_run?: boolean;
   resend_published_email_only?: boolean;
+  prioritize_recent?: boolean;
 }
 
 interface SpanishArticleContent {
@@ -324,6 +325,7 @@ Deno.serve(async (req) => {
     const batchSize = Math.min(Math.max(body.batch_size ?? 50, 1), 200);
     const dryRun = Boolean(body.dry_run);
     const resendPublishedEmailOnly = Boolean(body.resend_published_email_only);
+    const prioritizeRecent = Boolean(body.prioritize_recent);
 
     const since = new Date(Date.now() - lookbackHours * 60 * 60 * 1000).toISOString();
 
@@ -465,7 +467,7 @@ Deno.serve(async (req) => {
       .is("wp_post_url", null)
       .eq("generation_source", "scheduled")
       .gte("generated_at", since)
-      .order("generated_at", { ascending: true })
+      .order("generated_at", { ascending: !prioritizeRecent })
       .limit(batchSize);
 
     if (body.site_id) {
@@ -722,6 +724,7 @@ Deno.serve(async (req) => {
       success: true,
       looked_back_hours: lookbackHours,
       batch_size: batchSize,
+      prioritize_recent: prioritizeRecent,
       scanned: pendingArticles.length,
       published,
       skipped,
