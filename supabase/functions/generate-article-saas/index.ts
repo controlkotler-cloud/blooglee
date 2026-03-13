@@ -1729,6 +1729,16 @@ function dedupeFooterCtas(htmlContent: string): string {
   return cleaned.replace(/\n{3,}/g, "\n\n").trim();
 }
 
+function hasFooterCtaNearEnd(htmlContent: string): boolean {
+  if (!htmlContent) return false;
+  const paragraphRegex = /<p\b[^>]*>[\s\S]*?<\/p>/gi;
+  const matches = [...htmlContent.matchAll(paragraphRegex)];
+  if (!matches.length) return false;
+
+  const tail = matches.slice(-4);
+  return tail.some((match) => isFooterCtaParagraph(match[0]));
+}
+
 function mergeAuthoritySources(
   rows: Array<{ authority_sources?: AuthoritySource[] | null }> | null,
 ): AuthoritySource[] {
@@ -1945,6 +1955,12 @@ function ensureFooterLinks(
   hasBlogLink = blogUrl ? hasMatchingHref(hrefs, blogUrl) : false;
   hasInstagramLink = instagramUrl ? hasMatchingHref(hrefs, instagramUrl) : false;
   if ((!blogUrl || hasBlogLink) && (!instagramUrl || hasInstagramLink)) {
+    return dedupeFooterCtas(normalizedContent);
+  }
+
+  // If there is already a closing CTA near the end, don't append another one.
+  // We prefer one natural CTA over duplicated footers.
+  if (hasFooterCtaNearEnd(normalizedContent)) {
     return dedupeFooterCtas(normalizedContent);
   }
 
