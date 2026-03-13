@@ -224,7 +224,7 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
                 )}
               >
                 {message.role === "assistant" ? (
-                  <div className="text-sm prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-p:break-words prose-li:break-words prose-code:break-all">
+                  <div className="text-sm prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-p:break-words prose-li:break-words prose-code:break-all overflow-x-auto [&_pre]:overflow-x-auto [&_pre]:max-w-full [&_code]:whitespace-pre-wrap [&_pre_code]:whitespace-pre-wrap">
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
                 ) : (
