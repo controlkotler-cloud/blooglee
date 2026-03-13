@@ -31,7 +31,7 @@ export type Database = {
           id?: number
           notification_type: string
           sent_to?: string[]
-          status: string
+          status?: string
         }
         Update: {
           article_id?: string
@@ -1242,6 +1242,7 @@ export type Database = {
         Args: { member_email: string; member_role?: string }
         Returns: string
       }
+      can_manage_team: { Args: { target_owner_id: string }; Returns: boolean }
       get_team_members_for_owner: {
         Args: never
         Returns: {
@@ -1259,7 +1260,17 @@ export type Database = {
         Returns: boolean
       }
       is_team_member: { Args: { site_owner_id: string }; Returns: boolean }
+      member_is_already_assigned: {
+        Args: { target_member_id: string }
+        Returns: boolean
+      }
       normalize_wordpress_url: { Args: { url: string }; Returns: string }
+      profile_exists: { Args: { target_user_id: string }; Returns: boolean }
+      request_autopublish_email_resend: {
+        Args: { p_article_id: string }
+        Returns: Json
+      }
+      team_member_count: { Args: { target_owner_id: string }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "mkpro_admin" | "user" | "superadmin" | "beta"
