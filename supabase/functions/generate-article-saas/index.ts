@@ -354,16 +354,9 @@ ENLACES EXTERNOS (2 OBLIGATORIOS):
 - El sistema verificará los enlaces y reemplazará los rotos
 - Formato: <a href='URL' target='_blank' rel='noopener'>texto ancla descriptivo</a>
 
-FRASE FINAL (OBLIGATORIA Y VARIADA):
-- El artículo debe terminar con una frase final que invite al lector a seguir conectado
-- VARÍA la fórmula de cierre: a veces invita al blog, a veces a las redes, a veces a ambos
-- NO uses siempre la misma frase. Ejemplos de variaciones:
-  * "Si te ha gustado este artículo, síguenos en {{instagramUrl}} para más contenido"
-  * "Encuentra más guías como esta en {{blogUrl}}"
-  * "Descubre más en {{blogUrl}} y no te pierdas nuestras novedades en {{instagramUrl}}"
-  * "Para más consejos de {{sector}}, visita {{blogUrl}}"
-- Incluye los enlaces reales proporcionados arriba
-- Si solo hay blog_url o solo instagram_url, usa solo el que exista
+FRASE FINAL:
+- NO escribas un cierre promocional de blog/redes en el contenido.
+- El sistema añadirá automáticamente un CTA final unificado en el último párrafo.
 
 ═══════════════════════════════════════
 12. TEMAS Y TÉRMINOS PROHIBIDOS
@@ -388,7 +381,7 @@ RESPONDE ÚNICAMENTE con un JSON válido con TODOS estos campos:
   "excerpt": "Resumen en tono conversacional del contenido del artículo, como si le contaras a alguien de qué va el post. Diferente a la meta_description. Máx 160 chars.",
   "focus_keyword": "keyword principal de 2-4 palabras",
   "slug": "url-con-focus-keyword-sin-espacios",
-  "content": "<h2>Subtítulo gancho con keyword</h2><p>Primer párrafo con keyword...</p>...<h2>¿Pregunta PAA?</h2><p>Respuesta...</p>...<p>Frase final variada con enlaces</p>"
+  "content": "<h2>Subtítulo gancho con keyword</h2><p>Primer párrafo con keyword...</p>...<h2>¿Pregunta PAA?</h2><p>Respuesta...</p>...<p>Último párrafo natural de cierre</p>"
 }`,
 
   articleUser: `Escribe el artículo sobre EXACTAMENTE este tema: "{{topic}}"
@@ -400,7 +393,7 @@ Recuerda:
 - Longitud: ~{{lengthWords}} palabras
 - Incluye un enlace a {{homeUrl}} de forma natural (puedes usar "{{siteName}}" como ancla solo si encaja gramaticalmente; si no, usa "nuestra web" o similar)
 - 2 enlaces externos a fuentes de autoridad
-- Frase final variada con enlaces a {{blogUrl}} y/o {{instagramUrl}}
+- NO añadas frase final promocional de blog/redes (el sistema la integra automáticamente en el último párrafo)
 - Focus keyword mínimo 5 veces, en seo_title al inicio, meta_description, primer párrafo y 2+ subtítulos
 - 1-2 H2 en formato pregunta (PAA)
 - NO <h1>, empieza con <h2> gancho diferente al título
@@ -1693,18 +1686,38 @@ function linkKeywordNearEnd(htmlContent: string, keywordRegex: RegExp, url: stri
   return `${head}${linkedTail}`;
 }
 
-function isFooterCtaParagraph(paragraphHtml: string): boolean {
+function isFooterCtaParagraph(
+  paragraphHtml: string,
+  blogUrl: string | null = null,
+  socialUrl: string | null = null,
+): boolean {
   const plain = paragraphHtml
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (!plain) return false;
   if (plain.length > 520) return false;
+
   const normalized = normalizeTextForMatch(plain);
-  return /(blog|instagram|redes sociales|siguenos|sigue|descubre mas|encuentra mas|visita nuestro)/.test(normalized);
+  const startsLikeCta = /^(si |si necesitas|si quieres|descubre|visita|encuentra|sigue|siguenos|para )/.test(
+    normalized,
+  );
+  if (!startsLikeCta) return false;
+
+  const hasCtaLanguage =
+    /(blog|instagram|redes sociales|siguenos|sigue|descubre mas|encuentra mas|visita nuestro)/.test(normalized);
+  if (!hasCtaLanguage) return false;
+
+  const hrefs = extractAnchorHrefs(paragraphHtml);
+  const hasKnownTargetLink =
+    (blogUrl ? hasMatchingHref(hrefs, blogUrl) : false) || (socialUrl ? hasMatchingHref(hrefs, socialUrl) : false);
+  const hasPlaceholderTargetLink =
+    /URL_DE_BLOG|BLOG_URL|\{\{blogUrl\}\}|URL_DE_INSTAGRAM|INSTAGRAM_URL|\{\{instagramUrl\}\}/i.test(paragraphHtml);
+
+  return hasKnownTargetLink || hasPlaceholderTargetLink;
 }
 
-function dedupeFooterCtas(htmlContent: string): string {
+function dedupeFooterCtas(htmlContent: string, blogUrl: string | null = null, socialUrl: string | null = null): string {
   if (!htmlContent) return htmlContent;
 
   const paragraphRegex = /<p\b[^>]*>[\s\S]*?<\/p>/gi;
@@ -1713,7 +1726,7 @@ function dedupeFooterCtas(htmlContent: string): string {
 
   const candidateIndexes = matches
     .map((match, idx) => ({ idx, html: match[0], start: match.index ?? 0 }))
-    .filter((item) => item.start >= htmlContent.length * 0.6 && isFooterCtaParagraph(item.html))
+    .filter((item) => item.start >= htmlContent.length * 0.6 && isFooterCtaParagraph(item.html, blogUrl, socialUrl))
     .map((item) => item.idx);
 
   if (candidateIndexes.length <= 1) return htmlContent;
@@ -1729,14 +1742,107 @@ function dedupeFooterCtas(htmlContent: string): string {
   return cleaned.replace(/\n{3,}/g, "\n\n").trim();
 }
 
-function hasFooterCtaNearEnd(htmlContent: string): boolean {
-  if (!htmlContent) return false;
-  const paragraphRegex = /<p\b[^>]*>[\s\S]*?<\/p>/gi;
-  const matches = [...htmlContent.matchAll(paragraphRegex)];
-  if (!matches.length) return false;
+function removeTrailingFooterCtaParagraphs(
+  htmlContent: string,
+  blogUrl: string | null = null,
+  socialUrl: string | null = null,
+): string {
+  if (!htmlContent) return htmlContent;
 
-  const tail = matches.slice(-4);
-  return tail.some((match) => isFooterCtaParagraph(match[0]));
+  const paragraphRegex = /<p\b[^>]*>[\s\S]*?<\/p>/gi;
+  let cleaned = htmlContent;
+
+  while (true) {
+    const matches = [...cleaned.matchAll(paragraphRegex)];
+    if (matches.length <= 1) break;
+
+    const last = matches[matches.length - 1];
+    const lastParagraph = last[0];
+    const start = last.index ?? 0;
+    const end = start + lastParagraph.length;
+
+    if (!isFooterCtaParagraph(lastParagraph, blogUrl, socialUrl)) break;
+    cleaned = `${cleaned.slice(0, start)}${cleaned.slice(end)}`.replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  return cleaned;
+}
+
+function rewriteAnchorTextByTargetUrl(paragraphHtml: string, targetUrl: string | null, anchorText: string): string {
+  if (!paragraphHtml || !targetUrl) return paragraphHtml;
+
+  return paragraphHtml.replace(
+    /<a\s+([^>]*?)href=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi,
+    (full, beforeHref, hrefValue, afterHref) => {
+      if (!hasMatchingHref([hrefValue], targetUrl)) return full;
+      return `<a ${beforeHref}href="${hrefValue}"${afterHref}>${anchorText}</a>`;
+    },
+  );
+}
+
+function appendSentenceToParagraph(paragraphHtml: string, sentence: string): string {
+  if (!paragraphHtml || !sentence) return paragraphHtml;
+
+  const match = paragraphHtml.match(/^<p\b([^>]*)>([\s\S]*?)<\/p>$/i);
+  if (!match) return `${paragraphHtml} ${sentence}`.trim();
+
+  const attrs = match[1];
+  let body = match[2].trim();
+
+  if (body && !/[.!?…]$/.test(body)) {
+    body = `${body}.`;
+  }
+
+  const separator = body ? " " : "";
+  return `<p${attrs}>${body}${separator}${sentence}</p>`;
+}
+
+function pickVariantIndex(seed: string, count: number): number {
+  if (count <= 1) return 0;
+  let hash = 2166136261;
+  for (const char of seed) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash) % count;
+}
+
+function buildFooterCtaSentence(
+  siteName: string,
+  blogUrl: string | null,
+  socialUrl: string | null,
+  seed: string,
+): string {
+  const blogAnchor = blogUrl ? `<a href="${blogUrl}" target="_blank" rel="noopener">blog</a>` : "";
+  const socialAnchor = socialUrl ? `<a href="${socialUrl}" target="_blank" rel="noopener">redes sociales</a>` : "";
+
+  if (blogAnchor && socialAnchor) {
+    const variants = [
+      `Para seguir avanzando, visita nuestro ${blogAnchor} y síguenos en nuestras ${socialAnchor}.`,
+      `Si quieres más ideas prácticas, pásate por nuestro ${blogAnchor} y mantente al día en nuestras ${socialAnchor}.`,
+      `Encontrarás más recursos en nuestro ${blogAnchor} y novedades frecuentes en nuestras ${socialAnchor}.`,
+      `Para ampliar esta guía, consulta nuestro ${blogAnchor} y acompáñanos en nuestras ${socialAnchor}.`,
+    ];
+    return variants[pickVariantIndex(`${siteName}|${seed}`, variants.length)];
+  }
+
+  if (blogAnchor) {
+    const variants = [
+      `Para ampliar esta información, visita nuestro ${blogAnchor}.`,
+      `Puedes encontrar más contenido útil en nuestro ${blogAnchor}.`,
+    ];
+    return variants[pickVariantIndex(`${siteName}|${seed}|blog`, variants.length)];
+  }
+
+  if (socialAnchor) {
+    const variants = [
+      `Síguenos en nuestras ${socialAnchor} para más novedades.`,
+      `Si quieres seguir el día a día, acompáñanos en nuestras ${socialAnchor}.`,
+    ];
+    return variants[pickVariantIndex(`${siteName}|${seed}|social`, variants.length)];
+  }
+
+  return "";
 }
 
 function mergeAuthoritySources(
@@ -1907,7 +2013,7 @@ function ensureFooterLinks(
   if (!htmlContent) return htmlContent;
 
   // Replace common AI placeholders with real URLs when available.
-  let normalizedContent = dedupeFooterCtas(htmlContent);
+  let normalizedContent = dedupeFooterCtas(htmlContent, blogUrl, instagramUrl);
   const instagramPlaceholders = /(URL_DE_INSTAGRAM|INSTAGRAM_URL|\{\{instagramUrl\}\})/gi;
   const blogPlaceholders = /(URL_DE_BLOG|BLOG_URL|\{\{blogUrl\}\})/gi;
 
@@ -1929,52 +2035,55 @@ function ensureFooterLinks(
     );
   }
 
-  let hrefs = extractAnchorHrefs(normalizedContent);
-  let hasBlogLink = blogUrl ? hasMatchingHref(hrefs, blogUrl) : false;
-  let hasInstagramLink = instagramUrl ? hasMatchingHref(hrefs, instagramUrl) : false;
+  // Remove CTA-only trailing paragraphs to avoid footer stacking.
+  normalizedContent = removeTrailingFooterCtaParagraphs(normalizedContent, blogUrl, instagramUrl);
 
-  if ((!blogUrl || hasBlogLink) && (!instagramUrl || hasInstagramLink)) {
-    return dedupeFooterCtas(normalizedContent);
+  if (!blogUrl && !instagramUrl) {
+    return dedupeFooterCtas(normalizedContent, blogUrl, instagramUrl);
   }
 
-  // If the model already wrote a closing CTA but forgot links, enrich that text first instead of appending another CTA.
-  if (blogUrl && !hasBlogLink) {
-    normalizedContent = linkKeywordNearEnd(normalizedContent, /\bblog(?:\s+de\s+[a-z0-9áéíóúüñ_-]+)?\b/i, blogUrl);
+  const paragraphRegex = /<p\b[^>]*>[\s\S]*?<\/p>/gi;
+  const matches = [...normalizedContent.matchAll(paragraphRegex)];
+
+  if (!matches.length) {
+    const fallbackSentence = buildFooterCtaSentence(siteName, blogUrl, instagramUrl, normalizedContent.slice(-200));
+    if (!fallbackSentence) return dedupeFooterCtas(normalizedContent, blogUrl, instagramUrl);
+    return `<p>${fallbackSentence}</p>`;
   }
 
-  if (instagramUrl && !hasInstagramLink) {
-    normalizedContent = linkKeywordNearEnd(normalizedContent, /\binstagram\b/i, instagramUrl);
-    hrefs = extractAnchorHrefs(normalizedContent);
-    hasInstagramLink = hasMatchingHref(hrefs, instagramUrl);
-    if (!hasInstagramLink) {
-      normalizedContent = linkKeywordNearEnd(normalizedContent, /\bredes\s+sociales\b/i, instagramUrl);
+  const lastMatch = matches[matches.length - 1];
+  const lastParagraphStart = lastMatch.index ?? 0;
+  const lastParagraphEnd = lastParagraphStart + lastMatch[0].length;
+
+  let lastParagraph = lastMatch[0];
+  lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, blogUrl, "blog");
+  lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, instagramUrl, "redes sociales");
+
+  const lastParagraphHrefs = extractAnchorHrefs(lastParagraph);
+  const hasBlogInLastParagraph = blogUrl ? hasMatchingHref(lastParagraphHrefs, blogUrl) : true;
+  const hasSocialInLastParagraph = instagramUrl ? hasMatchingHref(lastParagraphHrefs, instagramUrl) : true;
+
+  if (!hasBlogInLastParagraph || !hasSocialInLastParagraph) {
+    const missingBlogUrl = hasBlogInLastParagraph ? null : blogUrl;
+    const missingSocialUrl = hasSocialInLastParagraph ? null : instagramUrl;
+    const ctaSentence = buildFooterCtaSentence(
+      siteName,
+      missingBlogUrl,
+      missingSocialUrl,
+      `${normalizedContent.length}|${normalizeTextForMatch(lastParagraph).slice(-120)}`,
+    );
+
+    if (ctaSentence) {
+      lastParagraph = appendSentenceToParagraph(lastParagraph, ctaSentence);
+      lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, blogUrl, "blog");
+      lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, instagramUrl, "redes sociales");
     }
   }
 
-  hrefs = extractAnchorHrefs(normalizedContent);
-  hasBlogLink = blogUrl ? hasMatchingHref(hrefs, blogUrl) : false;
-  hasInstagramLink = instagramUrl ? hasMatchingHref(hrefs, instagramUrl) : false;
-  if ((!blogUrl || hasBlogLink) && (!instagramUrl || hasInstagramLink)) {
-    return dedupeFooterCtas(normalizedContent);
-  }
+  const rebuiltContent =
+    normalizedContent.slice(0, lastParagraphStart) + lastParagraph + normalizedContent.slice(lastParagraphEnd);
 
-  // If there is already a closing CTA near the end, don't append another one.
-  // We prefer one natural CTA over duplicated footers.
-  if (hasFooterCtaNearEnd(normalizedContent)) {
-    return dedupeFooterCtas(normalizedContent);
-  }
-
-  let closing = "";
-  if (blogUrl && instagramUrl) {
-    closing = `<p>Descubre más en el <a href="${blogUrl}" target="_blank" rel="noopener">blog de ${siteName}</a> y síguenos en <a href="${instagramUrl}" target="_blank" rel="noopener">nuestras redes sociales</a>.</p>`;
-  } else if (blogUrl) {
-    closing = `<p>Encuentra más contenido útil en el <a href="${blogUrl}" target="_blank" rel="noopener">blog de ${siteName}</a>.</p>`;
-  } else if (instagramUrl) {
-    closing = `<p>También puedes seguirnos en <a href="${instagramUrl}" target="_blank" rel="noopener">nuestras redes sociales</a>.</p>`;
-  }
-
-  const withClosing = closing ? `${normalizedContent}\n${closing}` : normalizedContent;
-  return dedupeFooterCtas(withClosing);
+  return dedupeFooterCtas(rebuiltContent, blogUrl, instagramUrl);
 }
 
 function ensureHomeLinkPresence(htmlContent: string, siteName: string, homeUrl: string): string {
