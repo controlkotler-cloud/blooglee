@@ -6,12 +6,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
   "Access-Control-Max-Age": "86400",
-  "Access-Control-Expose-Headers": "x-conversation-id",
+  "Access-Control-Expose-Headers": "x-conversation-id, x-bloobot-model",
 };
 
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 20;
+const CHAT_MODEL_CANDIDATES = ["google/gemini-3-flash-preview", "google/gemini-2.5-flash"];
+const UPSTREAM_TIMEOUT_MS = 45_000;
 
 const promptCache: Map<string, string> = new Map();
 let cachedPromptVersion = 0;
@@ -131,6 +133,69 @@ interface KnowledgeArticle {
   related_plugins: string[] | null;
   keywords: string[] | null;
   help_url: string | null;
+}
+
+function extractTextFromContentNode(node: unknown): string {
+  if (typeof node === "string") return node;
+  if (!node) return "";
+
+  if (Array.isArray(node)) {
+    return node
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") {
+          const rec = item as Record<string, unknown>;
+          if (typeof rec.text === "string") return rec.text;
+          if (typeof rec.content === "string") return rec.content;
+        }
+        return "";
+      })
+      .filter(Boolean)
+      .join("");
+  }
+
+  if (node && typeof node === "object") {
+    const rec = node as Record<string, unknown>;
+    if (typeof rec.text === "string") return rec.text;
+    if (typeof rec.content === "string") return rec.content;
+  }
+
+  return "";
+}
+
+function extractAssistantTextFromPayload(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const root = payload as Record<string, unknown>;
+
+  const directContent = extractTextFromContentNode(root.content);
+  if (directContent) return directContent;
+
+  const outputText = extractTextFromContentNode(root.output_text);
+  if (outputText) return outputText;
+
+  const choices = root.choices;
+  if (Array.isArray(choices)) {
+    for (const choice of choices) {
+      if (!choice || typeof choice !== "object") continue;
+      const rec = choice as Record<string, unknown>;
+
+      const deltaText = extractTextFromContentNode((rec.delta as Record<string, unknown> | undefined)?.content);
+      if (deltaText) return deltaText;
+
+      const messageText = extractTextFromContentNode((rec.message as Record<string, unknown> | undefined)?.content);
+      if (messageText) return messageText;
+
+      const text = extractTextFromContentNode(rec.text);
+      if (text) return text;
+    }
+  }
+
+  return "";
+}
+
+function buildSyntheticSsePayload(content: string): string {
+  const safeContent = content.trim() || "No se pudo generar una respuesta en este intento.";
+  return `data: ${JSON.stringify({ choices: [{ delta: { content: safeContent } }] })}\n\ndata: [DONE]\n\n`;
 }
 
 function checkRateLimit(identifier: string): { allowed: boolean; retryAfter?: number } {
@@ -619,36 +684,107 @@ Deno.serve(async (req) => {
       );
     }
 
-    const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [{ role: "system", content: enhancedSystemPrompt }, ...messages],
-        stream: true,
-      }),
-    });
+    let upstream: Response | null = null;
+    let selectedModel = CHAT_MODEL_CANDIDATES[0];
+    let lastUpstreamStatus: number | null = null;
+    let lastUpstreamErrorBody = "";
 
-    if (!upstream.ok || !upstream.body) {
-      if (upstream.status === 429) {
+    for (const modelCandidate of CHAT_MODEL_CANDIDATES) {
+      selectedModel = modelCandidate;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+
+      try {
+        const candidateResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: modelCandidate,
+            messages: [{ role: "system", content: enhancedSystemPrompt }, ...messages],
+            stream: true,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (candidateResponse.ok) {
+          upstream = candidateResponse;
+          break;
+        }
+
+        lastUpstreamStatus = candidateResponse.status;
+        lastUpstreamErrorBody = await candidateResponse.text().catch(() => "");
+        console.error(
+          `[support-chatbot] AI gateway model "${modelCandidate}" failed: ${candidateResponse.status} ${lastUpstreamErrorBody}`,
+        );
+
+        if (candidateResponse.status === 429 || candidateResponse.status === 402) {
+          // Provider/global limits won't be solved by switching model.
+          break;
+        }
+      } catch (upstreamErr) {
+        clearTimeout(timeout);
+        const msg = upstreamErr instanceof Error ? upstreamErr.message : String(upstreamErr);
+        lastUpstreamStatus = null;
+        lastUpstreamErrorBody = msg;
+        console.error(`[support-chatbot] AI gateway model "${modelCandidate}" exception:`, msg);
+      }
+    }
+
+    if (!upstream) {
+      if (lastUpstreamStatus === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (upstream.status === 402) {
+      if (lastUpstreamStatus === 402) {
         return new Response(JSON.stringify({ error: "Service limit reached. Please contact support." }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const txt = await upstream.text().catch(() => "");
-      console.error("AI gateway error:", upstream.status, txt);
-      throw new Error(`AI gateway error: ${upstream.status}`);
+      throw new Error(
+        `AI gateway error${lastUpstreamStatus ? ` ${lastUpstreamStatus}` : ""}: ${lastUpstreamErrorBody || "unknown"}`,
+      );
+    }
+
+    const upstreamContentType = (upstream.headers.get("content-type") || "").toLowerCase();
+
+    if (!upstream.body || !upstreamContentType.includes("text/event-stream")) {
+      const rawUpstream = await upstream.text().catch(() => "");
+      let assistantText = "";
+      if (rawUpstream) {
+        try {
+          assistantText = extractAssistantTextFromPayload(JSON.parse(rawUpstream));
+        } catch {
+          assistantText = rawUpstream.trim();
+        }
+      }
+
+      if (activeConversationId && assistantText.trim()) {
+        await insertSupportMessage(
+          supabase,
+          activeConversationId,
+          "assistant",
+          assistantText,
+          relevantArticles.map((a) => a.id),
+        );
+      }
+
+      return new Response(buildSyntheticSsePayload(assistantText), {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "x-conversation-id": activeConversationId || "",
+          "x-bloobot-model": selectedModel,
+        },
+      });
     }
 
     const transform = new TransformStream<Uint8Array, Uint8Array>();
@@ -685,7 +821,7 @@ Deno.serve(async (req) => {
             if (payload && payload !== "[DONE]") {
               try {
                 const parsed = JSON.parse(payload);
-                const delta = parsed?.choices?.[0]?.delta?.content as string | undefined;
+                const delta = extractAssistantTextFromPayload(parsed);
                 if (delta) assistantContent += delta;
               } catch {
                 // ignore partial/incompatible chunks
@@ -721,7 +857,9 @@ Deno.serve(async (req) => {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
         "x-conversation-id": activeConversationId || "",
+        "x-bloobot-model": selectedModel,
       },
     });
   } catch (error) {
