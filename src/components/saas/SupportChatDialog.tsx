@@ -204,7 +204,7 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
 
           {/* Messages */}
           {messages.map((message, index) => (
-            <div key={index} className={cn("flex gap-3", message.role === "user" && "flex-row-reverse")}>
+            <div key={index} className={cn("flex w-full min-w-0 gap-3", message.role === "user" && "flex-row-reverse")}>
               {message.role === "assistant" && (
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
@@ -217,18 +217,18 @@ export function SupportChatDialog({ isOpen, onClose, errorContext }: SupportChat
               )}
               <div
                 className={cn(
-                  "flex-1 rounded-lg p-3 max-w-[85%]",
+                  "min-w-0 w-fit rounded-lg p-3 break-words",
                   message.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-tr-none ml-auto"
-                    : "bg-muted/50 rounded-tl-none",
+                    ? "max-w-[90%] sm:max-w-[85%] bg-primary text-primary-foreground rounded-tr-none ml-auto"
+                    : "max-w-[calc(100%-2.75rem)] bg-muted/50 rounded-tl-none",
                 )}
               >
                 {message.role === "assistant" ? (
-                  <div className="text-sm prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0">
+                  <div className="text-sm prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-p:break-words prose-li:break-words prose-code:break-all">
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
                 ) : (
-                  <p className="text-sm">{message.content}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                 )}
               </div>
             </div>
