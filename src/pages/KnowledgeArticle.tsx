@@ -1,36 +1,37 @@
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, HelpCircle, MessageSquare, ExternalLink, Copy, Check, Loader2 } from 'lucide-react';
-import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
-import { useKnowledgeArticle } from '@/hooks/useKnowledgeBase';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import ReactMarkdown from 'react-markdown';
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, HelpCircle, MessageSquare, ExternalLink, Copy, Check, Loader2 } from "lucide-react";
+import { BloogleeLogo } from "@/components/saas/BloogleeLogo";
+import { useKnowledgeArticle } from "@/hooks/useKnowledgeBase";
+import { useState } from "react";
+import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
+import { useChatWidget } from "@/components/saas/SupportChatWidget";
 
 const CATEGORY_LABELS: Record<string, string> = {
-  seguridad: 'Seguridad',
-  multiidioma: 'Multiidioma',
-  permisos: 'Permisos',
-  cache: 'Caché',
-  hosting: 'Hosting',
-  seo: 'SEO',
-  temas: 'Temas',
-  api_rest: 'API REST',
-  medios: 'Medios',
-  ssl: 'SSL',
-  performance: 'Rendimiento',
-  core: 'WordPress Core',
-  database: 'Base de datos',
-  contenido: 'Contenido',
-  taxonomias: 'Taxonomías',
+  seguridad: "Seguridad",
+  multiidioma: "Multiidioma",
+  permisos: "Permisos",
+  cache: "Caché",
+  hosting: "Hosting",
+  seo: "SEO",
+  temas: "Temas",
+  api_rest: "API REST",
+  medios: "Medios",
+  ssl: "SSL",
+  performance: "Rendimiento",
+  core: "WordPress Core",
+  database: "Base de datos",
+  contenido: "Contenido",
+  taxonomias: "Taxonomías",
 };
 
 const PRIORITY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  alta: { bg: 'bg-red-100', text: 'text-red-700', label: 'Prioridad Alta' },
-  media: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Prioridad Media' },
-  baja: { bg: 'bg-green-100', text: 'text-green-700', label: 'Prioridad Baja' },
+  alta: { bg: "bg-red-100", text: "text-red-700", label: "Prioridad Alta" },
+  media: { bg: "bg-amber-100", text: "text-amber-700", label: "Prioridad Media" },
+  baja: { bg: "bg-green-100", text: "text-green-700", label: "Prioridad Baja" },
 };
 
 export default function KnowledgeArticle() {
@@ -38,16 +39,17 @@ export default function KnowledgeArticle() {
   const navigate = useNavigate();
   const { data: article, isLoading, error } = useKnowledgeArticle(slug);
   const [codeCopied, setCodeCopied] = useState(false);
+  const { openChat } = useChatWidget();
 
   const handleCopyCode = async () => {
     if (!article?.snippet_code) return;
     try {
       await navigator.clipboard.writeText(article.snippet_code);
       setCodeCopied(true);
-      toast.success('Código copiado al portapapeles');
+      toast.success("Código copiado al portapapeles");
       setTimeout(() => setCodeCopied(false), 2000);
     } catch {
-      toast.error('Error al copiar el código');
+      toast.error("Error al copiar el código");
     }
   };
 
@@ -65,7 +67,7 @@ export default function KnowledgeArticle() {
         <header className="border-b bg-card">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/help')}>
+              <Button variant="ghost" size="icon" onClick={() => navigate("/help")}>
                 <ArrowLeft className="w-4 h-4" />
               </Button>
               <BloogleeLogo size="md" />
@@ -75,10 +77,8 @@ export default function KnowledgeArticle() {
         <main className="container mx-auto px-4 py-12 text-center">
           <HelpCircle className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h1 className="text-2xl font-bold mb-2">Artículo no encontrado</h1>
-          <p className="text-muted-foreground mb-6">
-            El artículo que buscas no existe o ha sido movido.
-          </p>
-          <Button onClick={() => navigate('/help')}>
+          <p className="text-muted-foreground mb-6">El artículo que buscas no existe o ha sido movido.</p>
+          <Button onClick={() => navigate("/help")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Volver al Centro de Ayuda
           </Button>
@@ -95,7 +95,7 @@ export default function KnowledgeArticle() {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/help')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/help")}>
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <BloogleeLogo size="md" />
@@ -106,20 +106,20 @@ export default function KnowledgeArticle() {
       <main className="container mx-auto px-4 py-6 max-w-3xl">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <Link to="/help" className="hover:text-primary">Centro de Ayuda</Link>
+          <Link to="/help" className="hover:text-primary">
+            Centro de Ayuda
+          </Link>
           <span>/</span>
           <span>{CATEGORY_LABELS[article.category] || article.category}</span>
         </div>
 
         {/* Badges */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <Badge variant="secondary">
-            {CATEGORY_LABELS[article.category] || article.category}
-          </Badge>
+          <Badge variant="secondary">{CATEGORY_LABELS[article.category] || article.category}</Badge>
           <Badge className={`${priorityStyle.bg} ${priorityStyle.text} hover:${priorityStyle.bg}`}>
             {priorityStyle.label}
           </Badge>
-          {article.related_plugins.map(plugin => (
+          {article.related_plugins.map((plugin) => (
             <Badge key={plugin} variant="outline">
               {plugin}
             </Badge>
@@ -218,10 +218,16 @@ export default function KnowledgeArticle() {
         {/* Still need help */}
         <Card className="bg-muted/50">
           <CardContent className="py-6 text-center">
-            <p className="text-muted-foreground mb-4">
-              ¿Sigue sin funcionar? Nuestro asistente puede ayudarte.
-            </p>
-            <Button>
+            <p className="text-muted-foreground mb-4">¿Sigue sin funcionar? Nuestro asistente puede ayudarte.</p>
+            <Button
+              onClick={() =>
+                openChat({
+                  code: article.error_code || undefined,
+                  action: "knowledge_article_help",
+                  message: `Necesito ayuda adicional con el artículo: ${article.title}`,
+                })
+              }
+            >
               <MessageSquare className="w-4 h-4 mr-2" />
               Hablar con Bloobot
             </Button>
