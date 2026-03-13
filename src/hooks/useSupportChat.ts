@@ -23,6 +23,64 @@ interface UserMetadata {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/support-chatbot`;
 
+function extractTextFromContentNode(node: unknown): string {
+  if (typeof node === "string") return node;
+  if (!node) return "";
+
+  if (Array.isArray(node)) {
+    return node
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") {
+          const rec = item as Record<string, unknown>;
+          if (typeof rec.text === "string") return rec.text;
+          if (typeof rec.content === "string") return rec.content;
+        }
+        return "";
+      })
+      .filter(Boolean)
+      .join("");
+  }
+
+  if (node && typeof node === "object") {
+    const rec = node as Record<string, unknown>;
+    if (typeof rec.text === "string") return rec.text;
+    if (typeof rec.content === "string") return rec.content;
+  }
+
+  return "";
+}
+
+function extractAssistantContent(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const root = payload as Record<string, unknown>;
+
+  const directContent = extractTextFromContentNode(root.content);
+  if (directContent) return directContent;
+
+  const outputText = extractTextFromContentNode(root.output_text);
+  if (outputText) return outputText;
+
+  const choices = root.choices;
+  if (Array.isArray(choices)) {
+    for (const choice of choices) {
+      if (!choice || typeof choice !== "object") continue;
+      const rec = choice as Record<string, unknown>;
+
+      const deltaText = extractTextFromContentNode((rec.delta as Record<string, unknown> | undefined)?.content);
+      if (deltaText) return deltaText;
+
+      const messageText = extractTextFromContentNode((rec.message as Record<string, unknown> | undefined)?.content);
+      if (messageText) return messageText;
+
+      const text = extractTextFromContentNode(rec.text);
+      if (text) return text;
+    }
+  }
+
+  return "";
+}
+
 export function useSupportChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -49,6 +107,17 @@ export function useSupportChat() {
       abortControllerRef.current = new AbortController();
 
       let assistantContent = "";
+      const upsertAssistantMessage = (content: string) => {
+        if (!content.trim()) return;
+        assistantContent = content;
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.role === "assistant") {
+            return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantContent } : m));
+          }
+          return [...prev, { role: "assistant", content: assistantContent }];
+        });
+      };
 
       try {
         const response = await fetch(CHAT_URL, {
@@ -70,13 +139,23 @@ export function useSupportChat() {
         });
 
         if (!response.ok) {
+          const errorBody = await response.text().catch(() => "");
+          let parsedError = "";
+          if (errorBody) {
+            try {
+              const parsed = JSON.parse(errorBody) as Record<string, unknown>;
+              parsedError = typeof parsed.error === "string" ? parsed.error : "";
+            } catch {
+              parsedError = "";
+            }
+          }
           if (response.status === 429) {
             throw new Error("Demasiadas peticiones. Por favor, espera un momento.");
           }
           if (response.status === 402) {
             throw new Error("Límite de servicio alcanzado. Contacta con soporte.");
           }
-          throw new Error("Error al conectar con el asistente");
+          throw new Error(parsedError || "Error al conectar con el asistente");
         }
 
         const returnedConversationId = response.headers.get("x-conversation-id");
@@ -84,19 +163,41 @@ export function useSupportChat() {
           setConversationId(returnedConversationId);
         }
 
-        if (!response.body) {
-          throw new Error("No response body");
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+
+        if (!response.body || !contentType.includes("text/event-stream")) {
+          const raw = await response.text().catch(() => "");
+          let nonStreamContent = "";
+
+          if (raw) {
+            try {
+              nonStreamContent = extractAssistantContent(JSON.parse(raw));
+            } catch {
+              nonStreamContent = raw.trim();
+            }
+          }
+
+          if (!nonStreamContent) {
+            throw new Error("No se pudo interpretar la respuesta del asistente");
+          }
+
+          upsertAssistantMessage(nonStreamContent);
+          return;
         }
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let textBuffer = "";
+        let rawBuffer = "";
+        let doneReceived = false;
 
-        while (true) {
+        while (!doneReceived) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          textBuffer += decoder.decode(value, { stream: true });
+          const decodedChunk = decoder.decode(value, { stream: true });
+          textBuffer += decodedChunk;
+          rawBuffer += decodedChunk;
 
           // Process SSE lines
           let newlineIndex: number;
@@ -109,20 +210,16 @@ export function useSupportChat() {
             if (!line.startsWith("data: ")) continue;
 
             const jsonStr = line.slice(6).trim();
-            if (jsonStr === "[DONE]") break;
+            if (jsonStr === "[DONE]") {
+              doneReceived = true;
+              break;
+            }
 
             try {
               const parsed = JSON.parse(jsonStr);
-              const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+              const content = extractAssistantContent(parsed);
               if (content) {
-                assistantContent += content;
-                setMessages((prev) => {
-                  const last = prev[prev.length - 1];
-                  if (last?.role === "assistant") {
-                    return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantContent } : m));
-                  }
-                  return [...prev, { role: "assistant", content: assistantContent }];
-                });
+                upsertAssistantMessage(assistantContent + content);
               }
             } catch {
               // Incomplete JSON, put back and wait
@@ -143,23 +240,32 @@ export function useSupportChat() {
             if (jsonStr === "[DONE]") continue;
             try {
               const parsed = JSON.parse(jsonStr);
-              const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+              const content = extractAssistantContent(parsed);
               if (content) {
-                assistantContent += content;
+                upsertAssistantMessage(assistantContent + content);
               }
             } catch {
               /* ignore */
             }
           }
-          if (assistantContent) {
-            setMessages((prev) => {
-              const last = prev[prev.length - 1];
-              if (last?.role === "assistant") {
-                return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantContent } : m));
-              }
-              return [...prev, { role: "assistant", content: assistantContent }];
-            });
+        }
+
+        if (!assistantContent.trim() && rawBuffer.trim()) {
+          try {
+            const parsedRaw = JSON.parse(rawBuffer);
+            const fallbackContent = extractAssistantContent(parsedRaw);
+            if (fallbackContent) {
+              upsertAssistantMessage(fallbackContent);
+            }
+          } catch {
+            // ignore
           }
+        }
+
+        if (!assistantContent.trim()) {
+          upsertAssistantMessage(
+            "No he podido generar una respuesta útil en este intento. Vuelve a intentarlo y si persiste, te ayudo a escalarlo a soporte.",
+          );
         }
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
@@ -167,15 +273,19 @@ export function useSupportChat() {
         }
         console.error("Chat error:", err);
         setError(err instanceof Error ? err.message : "Error desconocido");
-        // Add error message as assistant response
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content:
-              "Lo siento, hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo o contacta con soporte@blooglee.com",
-          },
-        ]);
+        // Add error message as assistant response if no assistant message was produced
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.role === "assistant") return prev;
+          return [
+            ...prev,
+            {
+              role: "assistant",
+              content:
+                "Lo siento, hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo o contacta con soporte@blooglee.com",
+            },
+          ];
+        });
       } finally {
         setIsLoading(false);
         abortControllerRef.current = null;
