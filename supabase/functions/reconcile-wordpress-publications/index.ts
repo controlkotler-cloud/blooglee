@@ -164,13 +164,11 @@ async function sendReconcilePublishedEmail(
     const teamEmails = await getTeamMemberEmails(supabase, article.user_id);
     recipients = [profile.email, ...teamEmails.filter((e: string) => e !== profile.email)];
 
-    const notificationFilter = supabase
+    const { data: existingNotification, error: existingNotificationError } = await supabase
       .from("article_email_notifications")
-      .eq("article_id", article.id)
-      .eq("notification_type", "autopublish_reconciled");
-
-    const { data: existingNotification, error: existingNotificationError } = await notificationFilter
       .select("status")
+      .eq("article_id", article.id)
+      .eq("notification_type", "autopublish_reconciled")
       .maybeSingle();
 
     if (existingNotificationError) {
