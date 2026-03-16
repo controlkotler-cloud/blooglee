@@ -1724,22 +1724,112 @@ function dedupeFooterCtas(htmlContent: string, blogUrl: string | null = null, so
   const matches = [...htmlContent.matchAll(paragraphRegex)];
   if (matches.length < 2) return htmlContent;
 
+  // Phase 1: classic CTA dedup (text-pattern based, respects 520 char limit)
   const candidateIndexes = matches
     .map((match, idx) => ({ idx, html: match[0], start: match.index ?? 0 }))
     .filter((item) => item.start >= htmlContent.length * 0.6 && isFooterCtaParagraph(item.html, blogUrl, socialUrl))
     .map((item) => item.idx);
 
-  if (candidateIndexes.length <= 1) return htmlContent;
-
-  const firstIdxToKeep = candidateIndexes[0];
   let cleaned = htmlContent;
-  for (const idx of candidateIndexes) {
-    if (idx === firstIdxToKeep) continue;
-    const block = matches[idx][0];
-    cleaned = cleaned.replace(block, "");
+
+  if (candidateIndexes.length > 1) {
+    const firstIdxToKeep = candidateIndexes[0];
+    for (const idx of candidateIndexes) {
+      if (idx === firstIdxToKeep) continue;
+      const block = matches[idx][0];
+      cleaned = cleaned.replace(block, "");
+    }
+    cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
   }
 
-  return cleaned.replace(/\n{3,}/g, "\n\n").trim();
+  // Phase 2: URL-based dedup — if multiple paragraphs in the last 40% of the
+  // article link to the SAME blog or social URL, keep only the last one.
+  // This catches long mixed-content+CTA paragraphs the text-pattern check misses.
+  if (blogUrl || socialUrl) {
+    cleaned = dedupeByTargetUrl(cleaned, blogUrl, socialUrl);
+  }
+
+  return cleaned;
+}
+
+/**
+ * Scans paragraphs in the last 40% of the article for duplicate links to
+ * blog/social URLs.  When two or more paragraphs share a target URL, all but
+ * the LAST one get their duplicate anchor tags stripped (not the whole paragraph,
+ * since they may contain valuable content).
+ */
+function dedupeByTargetUrl(
+  htmlContent: string,
+  blogUrl: string | null,
+  socialUrl: string | null,
+): string {
+  if (!htmlContent) return htmlContent;
+
+  const paragraphRegex = /<p\b[^>]*>[\s\S]*?<\/p>/gi;
+  const matches = [...htmlContent.matchAll(paragraphRegex)];
+  if (matches.length < 2) return htmlContent;
+
+  const threshold = htmlContent.length * 0.5;
+
+  // Find paragraphs that link to blog or social in the back half of the article
+  const blogParas: Array<{ idx: number; match: RegExpMatchArray }> = [];
+  const socialParas: Array<{ idx: number; match: RegExpMatchArray }> = [];
+
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i];
+    const start = m.index ?? 0;
+    if (start < threshold) continue;
+
+    const hrefs = extractAnchorHrefs(m[0]);
+    if (blogUrl && hasMatchingHref(hrefs, blogUrl)) {
+      blogParas.push({ idx: i, match: m });
+    }
+    if (socialUrl && hasMatchingHref(hrefs, socialUrl)) {
+      socialParas.push({ idx: i, match: m });
+    }
+  }
+
+  let result = htmlContent;
+
+  // For each URL, if multiple paragraphs link to it, strip the link from all
+  // except the last paragraph.  If stripping leaves the paragraph as a pure
+  // CTA shell (very short text), remove the whole paragraph.
+  const stripLink = (
+    paras: Array<{ idx: number; match: RegExpMatchArray }>,
+    targetUrl: string,
+  ) => {
+    if (paras.length <= 1) return;
+    // Keep the last occurrence, strip from earlier ones
+    for (let k = 0; k < paras.length - 1; k++) {
+      const original = paras[k].match[0];
+      if (!result.includes(original)) continue;
+
+      // Remove the anchor tag pointing to targetUrl but keep its text
+      const stripped = original.replace(
+        /<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
+        (_full, href, text) => {
+          if (hasMatchingHref([href], targetUrl)) return text;
+          return _full;
+        },
+      );
+
+      // If the paragraph became a short CTA-only shell, remove it entirely
+      const plainText = stripped.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const isShellCta = plainText.length < 200 &&
+        /(visita|sigue|pásate|consulta|mantente|acompáñanos|encontrarás|para (seguir|ampliar|más))/i.test(plainText);
+
+      if (isShellCta) {
+        result = result.replace(original, "");
+      } else {
+        result = result.replace(original, stripped);
+      }
+    }
+  };
+
+  if (blogUrl) stripLink(blogParas, blogUrl);
+  if (socialUrl) stripLink(socialParas, socialUrl);
+
+  return result.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function removeTrailingFooterCtaParagraphs(
