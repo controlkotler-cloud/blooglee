@@ -169,26 +169,36 @@ function isHomepageUrl(urlString: string): boolean {
   }
 }
 
-async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string> {
-  if (!htmlContent) return htmlContent;
+async function verifyAndCleanExternalLinks(markdownContent: string): Promise<string> {
+  if (!markdownContent) return markdownContent;
   
-  const linkRegex = /<a\s+([^>]*href="(https?:\/\/[^"]+)"[^>]*)>([^<]*)<\/a>/gi;
-  const matches: Array<{ full: string; attrs: string; url: string; text: string }> = [];
+  // Match both Markdown links [text](url) and HTML links <a href="url">text</a>
+  const mdLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+  const htmlLinkRegex = /<a\s+([^>]*href="(https?:\/\/[^"]+)"[^>]*)>([^<]*)<\/a>/gi;
+  
+  interface LinkMatch { full: string; url: string; text: string; isMarkdown: boolean }
+  const matches: LinkMatch[] = [];
   
   let match;
-  while ((match = linkRegex.exec(htmlContent)) !== null) {
-    matches.push({ full: match[0], attrs: match[1], url: match[2], text: match[3] });
+  while ((match = mdLinkRegex.exec(markdownContent)) !== null) {
+    matches.push({ full: match[0], text: match[1], url: match[2], isMarkdown: true });
   }
+  while ((match = htmlLinkRegex.exec(markdownContent)) !== null) {
+    matches.push({ full: match[0], text: match[3], url: match[2], isMarkdown: false });
+  }
+
+  // Filter to external links only (skip internal /features, /pricing, etc.)
+  const externalLinks = matches.filter(m => m.url.startsWith('http'));
   
-  if (matches.length === 0) {
+  if (externalLinks.length === 0) {
     console.log("No external links found in content");
-    return htmlContent;
+    return markdownContent;
   }
   
-  console.log(`Verifying ${matches.length} external links...`);
+  console.log(`Verifying ${externalLinks.length} external links...`);
   
-  const linksToVerify = matches.slice(0, 10);
-  let cleanedContent = htmlContent;
+  const linksToVerify = externalLinks.slice(0, 10);
+  let cleanedContent = markdownContent;
   let fixedCount = 0;
   let keptCount = 0;
 
@@ -221,7 +231,9 @@ async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string>
       if (headResponse.status === 404 || headResponse.status === 410) {
         const originUrl = getOriginUrl(link.url);
         console.log(`Broken link (${headResponse.status}): ${link.url} → ${originUrl}`);
-        const newLink = `<a href="${originUrl}" target="_blank" rel="noopener">${link.text}</a>`;
+        const newLink = link.isMarkdown 
+          ? `[${link.text}](${originUrl})`
+          : `<a href="${originUrl}" target="_blank" rel="noopener">${link.text}</a>`;
         cleanedContent = cleanedContent.replace(link.full, newLink);
         fixedCount++;
         continue;
@@ -243,7 +255,9 @@ async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string>
           if (getResponse.status === 404 || getResponse.status === 410) {
             const originUrl = getOriginUrl(link.url);
             console.log(`Broken link on GET (${getResponse.status}): ${link.url} → ${originUrl}`);
-            const newLink = `<a href="${originUrl}" target="_blank" rel="noopener">${link.text}</a>`;
+            const newLink = link.isMarkdown
+              ? `[${link.text}](${originUrl})`
+              : `<a href="${originUrl}" target="_blank" rel="noopener">${link.text}</a>`;
             cleanedContent = cleanedContent.replace(link.full, newLink);
             fixedCount++;
           } else {
