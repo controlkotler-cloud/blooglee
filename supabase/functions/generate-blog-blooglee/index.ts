@@ -25,6 +25,35 @@ interface BlogPostData {
 // Thematic categories (separate from audience)
 const THEMATIC_CATEGORIES = ['SEO', 'Marketing', 'Tutoriales', 'Comparativas', 'Producto', 'Tendencias'];
 
+// Convert bare URLs in parentheses to proper Markdown links
+// Matches patterns like: "Google Search Console (https://search.google.com)" 
+// and converts to: "[Google Search Console](https://search.google.com)"
+function fixBareUrlsInParentheses(content: string): string {
+  if (!content) return content;
+  let fixed = content;
+  let fixCount = 0;
+
+  // Pattern: "descriptive text (https://url)" where text is NOT already inside []
+  // Negative lookbehind ensures we don't match already-formed Markdown links like [text](url)
+  // Match: word(s) followed by space then (https://...)
+  fixed = fixed.replace(
+    /(?<!\[)([A-ZÁÉÍÓÚÜÑa-záéíóúüñ][\wÁÉÍÓÚÜÑáéíóúüñ\s,.'·\-]{2,80}?)\s+\((https?:\/\/[^\s)]+)\)/g,
+    (_match, text, url) => {
+      const trimmedText = text.trim();
+      // Skip if the text looks like a sentence fragment that shouldn't be a link
+      if (trimmedText.split(/\s+/).length > 12) return _match;
+      // Skip if already inside a markdown link context
+      fixCount++;
+      return `[${trimmedText}](${url})`;
+    }
+  );
+
+  if (fixCount > 0) {
+    console.log(`Fixed ${fixCount} bare URL(s) in parentheses → Markdown links`);
+  }
+  return fixed;
+}
+
 // Post-processing: clean AI-generated content before saving
 function cleanGeneratedContent(content: string): string {
   let cleaned = content;
@@ -40,6 +69,9 @@ function cleanGeneratedContent(content: string): string {
 
   // Trim leading blank lines
   cleaned = cleaned.replace(/^\s*\n+/, '');
+
+  // Fix bare URLs in parentheses → proper Markdown links
+  cleaned = fixBareUrlsInParentheses(cleaned);
 
   return cleaned;
 }
