@@ -3717,6 +3717,30 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ==========================================
+    // DEFINITIVE FINAL DEDUP — runs once, last step before saving
+    // ==========================================
+    const homeUrl = site.blog_url
+      ? new URL(site.blog_url).origin
+      : null;
+
+    if (spanishArticle?.content) {
+      spanishArticle.content = finalDeduplicateInternalLinks(
+        spanishArticle.content,
+        homeUrl,
+        site.blog_url || null,
+        site.instagram_url || null,
+      );
+    }
+    if (catalanArticle?.content) {
+      catalanArticle.content = finalDeduplicateInternalLinks(
+        catalanArticle.content,
+        homeUrl,
+        site.blog_url || null,
+        site.instagram_url || null,
+      );
+    }
+
     // Build generation key for deduplication
     const normalizedPublishFrequency = normalizeFrequency(site.publish_frequency);
     const inputGenerationKey = requestBody.generationKey;
