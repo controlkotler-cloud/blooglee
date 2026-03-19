@@ -1832,6 +1832,80 @@ function dedupeByTargetUrl(
   return result.replace(/\n{3,}/g, "\n\n").trim();
 }
 
+/**
+ * DEFINITIVE final dedup: scans ALL paragraphs and ensures each internal URL
+ * (home, blog, social) appears as a link in AT MOST one paragraph — the last one.
+ * Earlier paragraphs get their duplicate links stripped to plain text.
+ * If stripping leaves a paragraph that is purely a CTA (no substantive content),
+ * the entire paragraph is removed.
+ *
+ * This runs as the VERY LAST step before saving to DB, after all other processing.
+ */
+function finalDeduplicateInternalLinks(
+  htmlContent: string,
+  homeUrl: string | null,
+  blogUrl: string | null,
+  socialUrl: string | null,
+): string {
+  if (!htmlContent) return htmlContent;
+
+  const targetUrls = [homeUrl, blogUrl, socialUrl].filter(Boolean) as string[];
+  if (targetUrls.length === 0) return htmlContent;
+
+  const paragraphRegex = /<p\b[^>]*>[\s\S]*?<\/p>/gi;
+  const allParagraphs = [...htmlContent.matchAll(paragraphRegex)];
+  if (allParagraphs.length < 2) return htmlContent;
+
+  let result = htmlContent;
+
+  for (const targetUrl of targetUrls) {
+    // Find all paragraphs that contain a link to this target
+    const currentParagraphs = [...result.matchAll(/<p\b[^>]*>[\s\S]*?<\/p>/gi)];
+    const parasWithLink: Array<{ idx: number; match: RegExpMatchArray }> = [];
+
+    for (let i = 0; i < currentParagraphs.length; i++) {
+      const p = currentParagraphs[i];
+      const hrefs = extractAnchorHrefs(p[0]);
+      if (hasMatchingHref(hrefs, targetUrl)) {
+        parasWithLink.push({ idx: i, match: p });
+      }
+    }
+
+    if (parasWithLink.length <= 1) continue;
+
+    // Keep ONLY the last paragraph with this link; strip from all others
+    for (let k = 0; k < parasWithLink.length - 1; k++) {
+      const original = parasWithLink[k].match[0];
+      if (!result.includes(original)) continue;
+
+      // Strip anchor tags pointing to this URL, keeping their inner text
+      const stripped = original.replace(
+        /<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
+        (_full: string, href: string, text: string) => {
+          if (hasMatchingHref([href], targetUrl)) return text;
+          return _full;
+        },
+      );
+
+      // Check if the paragraph is now a hollow CTA shell
+      const plainText = stripped.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const isCta = plainText.length < 300 &&
+        /(visita|sigue|pásate|consulta|mantente|acompáñanos|encontrarás|para (seguir|ampliar|más)|síguenos|explor[ae]|no dudes|no te pierdas)/i.test(plainText) &&
+        !/<h[1-6]/i.test(stripped);
+
+      if (isCta) {
+        result = result.replace(original, "");
+        console.log(`[finalDedup] Removed hollow CTA paragraph for URL: ${targetUrl}`);
+      } else {
+        result = result.replace(original, stripped);
+        console.log(`[finalDedup] Stripped duplicate link to ${targetUrl} from paragraph (kept text)`);
+      }
+    }
+  }
+
+  return result.replace(/\n{3,}/g, "\n\n").trim();
+}
+
 function removeTrailingFooterCtaParagraphs(
   htmlContent: string,
   blogUrl: string | null = null,
