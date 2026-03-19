@@ -3723,23 +3723,20 @@ Deno.serve(async (req) => {
 
     // ==========================================
     // DEFINITIVE FINAL DEDUP — runs once, last step before saving
+    // Detects duplicate closing/farewell paragraphs and keeps only the last one.
+    // Home links are intentionally excluded from dedup.
     // ==========================================
-    const homeUrl = site.blog_url
-      ? new URL(site.blog_url).origin
-      : null;
 
     if (spanishArticle?.content) {
-      spanishArticle.content = finalDeduplicateInternalLinks(
+      spanishArticle.content = finalDeduplicateClosingParagraphs(
         spanishArticle.content,
-        homeUrl,
         site.blog_url || null,
         site.instagram_url || null,
       );
     }
     if (catalanArticle?.content) {
-      catalanArticle.content = finalDeduplicateInternalLinks(
+      catalanArticle.content = finalDeduplicateClosingParagraphs(
         catalanArticle.content,
-        homeUrl,
         site.blog_url || null,
         site.instagram_url || null,
       );
