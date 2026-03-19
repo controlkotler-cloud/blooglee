@@ -1833,73 +1833,77 @@ function dedupeByTargetUrl(
 }
 
 /**
- * DEFINITIVE final dedup: scans ALL paragraphs and ensures each internal URL
- * (home, blog, social) appears as a link in AT MOST one paragraph — the last one.
- * Earlier paragraphs get their duplicate links stripped to plain text.
- * If stripping leaves a paragraph that is purely a CTA (no substantive content),
- * the entire paragraph is removed.
+ * DEFINITIVE final dedup: detects duplicate "closing/farewell" paragraphs in
+ * the last 40% of the article and keeps ONLY the last one.
  *
- * This runs as the VERY LAST step before saving to DB, after all other processing.
+ * A "closing paragraph" is one that:
+ *  - Sits in the last 40% of the article
+ *  - Is shorter than 500 characters of plain text
+ *  - Contains farewell/CTA language patterns
+ *
+ * Home links are intentionally EXCLUDED — they can appear multiple times.
+ * Blog and social links are consolidated into the single kept closing paragraph.
  */
-function finalDeduplicateInternalLinks(
+function finalDeduplicateClosingParagraphs(
   htmlContent: string,
-  homeUrl: string | null,
   blogUrl: string | null,
   socialUrl: string | null,
 ): string {
   if (!htmlContent) return htmlContent;
 
-  const targetUrls = [homeUrl, blogUrl, socialUrl].filter(Boolean) as string[];
-  if (targetUrls.length === 0) return htmlContent;
-
   const paragraphRegex = /<p\b[^>]*>[\s\S]*?<\/p>/gi;
   const allParagraphs = [...htmlContent.matchAll(paragraphRegex)];
   if (allParagraphs.length < 2) return htmlContent;
 
+  const threshold = htmlContent.length * 0.6;
+
+  // Detect closing/farewell paragraphs in the tail of the article
+  const closingPatterns =
+    /(en (conclusi[oó]n|resumen|definitiva)|para (concluir|cerrar|terminar|finalizar|seguir avanzando|ampliar|m[aá]s)|si (quieres|necesitas|te interesa|deseas)|visita (nuestro|el)|s[ií]guenos|acomp[aá][ñn]anos|encontrar[aá]s|no (dudes|te pierdas)|esperamos|te invitamos|descubre m[aá]s|puedes encontrar|mantente al d[ií]a|pásate por)/i;
+
+  const closingIndexes: number[] = [];
+
+  for (let i = 0; i < allParagraphs.length; i++) {
+    const m = allParagraphs[i];
+    const start = m.index ?? 0;
+    if (start < threshold) continue;
+
+    const plainText = m[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (plainText.length > 500) continue;
+    if (plainText.length < 10) continue;
+
+    if (closingPatterns.test(plainText)) {
+      closingIndexes.push(i);
+    }
+  }
+
+  // If 0 or 1 closing paragraphs, nothing to dedupe
+  if (closingIndexes.length <= 1) return htmlContent;
+
+  console.log(`[finalDedup] Found ${closingIndexes.length} closing paragraphs, keeping only the last one`);
+
+  // Keep the LAST closing paragraph, remove all others
+  const keepIdx = closingIndexes[closingIndexes.length - 1];
   let result = htmlContent;
 
-  for (const targetUrl of targetUrls) {
-    // Find all paragraphs that contain a link to this target
-    const currentParagraphs = [...result.matchAll(/<p\b[^>]*>[\s\S]*?<\/p>/gi)];
-    const parasWithLink: Array<{ idx: number; match: RegExpMatchArray }> = [];
+  for (let k = closingIndexes.length - 2; k >= 0; k--) {
+    const idx = closingIndexes[k];
+    const original = allParagraphs[idx][0];
+    if (!result.includes(original)) continue;
+    result = result.replace(original, "");
+    console.log(`[finalDedup] Removed duplicate closing paragraph #${idx}`);
+  }
 
-    for (let i = 0; i < currentParagraphs.length; i++) {
-      const p = currentParagraphs[i];
-      const hrefs = extractAnchorHrefs(p[0]);
-      if (hasMatchingHref(hrefs, targetUrl)) {
-        parasWithLink.push({ idx: i, match: p });
-      }
-    }
+  // Now ensure the kept closing paragraph has blog+social links if needed
+  const keptParagraph = allParagraphs[keepIdx][0];
+  if (result.includes(keptParagraph)) {
+    const hrefs = extractAnchorHrefs(keptParagraph);
+    const hasBlog = blogUrl ? hasMatchingHref(hrefs, blogUrl) : true;
+    const hasSocial = socialUrl ? hasMatchingHref(hrefs, socialUrl) : true;
 
-    if (parasWithLink.length <= 1) continue;
-
-    // Keep ONLY the last paragraph with this link; strip from all others
-    for (let k = 0; k < parasWithLink.length - 1; k++) {
-      const original = parasWithLink[k].match[0];
-      if (!result.includes(original)) continue;
-
-      // Strip anchor tags pointing to this URL, keeping their inner text
-      const stripped = original.replace(
-        /<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
-        (_full: string, href: string, text: string) => {
-          if (hasMatchingHref([href], targetUrl)) return text;
-          return _full;
-        },
-      );
-
-      // Check if the paragraph is now a hollow CTA shell
-      const plainText = stripped.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      const isCta = plainText.length < 300 &&
-        /(visita|sigue|pásate|consulta|mantente|acompáñanos|encontrarás|para (seguir|ampliar|más)|síguenos|explor[ae]|no dudes|no te pierdas)/i.test(plainText) &&
-        !/<h[1-6]/i.test(stripped);
-
-      if (isCta) {
-        result = result.replace(original, "");
-        console.log(`[finalDedup] Removed hollow CTA paragraph for URL: ${targetUrl}`);
-      } else {
-        result = result.replace(original, stripped);
-        console.log(`[finalDedup] Stripped duplicate link to ${targetUrl} from paragraph (kept text)`);
-      }
+    if (!hasBlog || !hasSocial) {
+      // The kept paragraph is missing some links — we DON'T add them here
+      // because ensureFooterLinks already handled that. Just leave it.
     }
   }
 
