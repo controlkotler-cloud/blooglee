@@ -1413,7 +1413,8 @@ function isHomepageUrl(urlString: string): boolean {
 async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string> {
   if (!htmlContent) return htmlContent;
 
-  const linkRegex = /<a\s+([^>]*href="(https?:\/\/[^"]+)"[^>]*)>([^<]*)<\/a>/gi;
+  // Support both single and double quoted href attributes
+  const linkRegex = /<a\s+([^>]*href=["'](https?:\/\/[^"']+)["'][^>]*)>([^<]*)<\/a>/gi;
   const matches: Array<{ full: string; attrs: string; url: string; text: string }> = [];
 
   let match;
