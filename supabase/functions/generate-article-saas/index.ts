@@ -1862,6 +1862,9 @@ function finalDeduplicateClosingParagraphs(
   const closingPatterns =
     /(en (conclusi[oó]n|resumen|definitiva)|para (concluir|cerrar|terminar|finalizar|seguir avanzando|ampliar|m[aá]s)|si (quieres|necesitas|te interesa|deseas)|visita (nuestro|el)|s[ií]guenos|acomp[aá][ñn]anos|encontrar[aá]s|no (dudes|te pierdas)|esperamos|te invitamos|descubre m[aá]s|puedes encontrar|mantente al d[ií]a|pásate por)/i;
 
+  // Pattern to detect authority link paragraphs (e.g., "Para ampliar información, consulta <a>...</a>")
+  const authorityLinkPattern = /para ampliar informaci[oó]n.*consulta/i;
+
   const closingIndexes: number[] = [];
 
   for (let i = 0; i < allParagraphs.length; i++) {
@@ -1872,6 +1875,10 @@ function finalDeduplicateClosingParagraphs(
     const plainText = m[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     if (plainText.length > 500) continue;
     if (plainText.length < 10) continue;
+
+    // Skip authority link paragraphs — these are injected programmatically
+    // and should never be removed by the closing dedup
+    if (authorityLinkPattern.test(plainText)) continue;
 
     if (closingPatterns.test(plainText)) {
       closingIndexes.push(i);
