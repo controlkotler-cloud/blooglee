@@ -1413,7 +1413,8 @@ function isHomepageUrl(urlString: string): boolean {
 async function verifyAndCleanExternalLinks(htmlContent: string): Promise<string> {
   if (!htmlContent) return htmlContent;
 
-  const linkRegex = /<a\s+([^>]*href="(https?:\/\/[^"]+)"[^>]*)>([^<]*)<\/a>/gi;
+  // Support both single and double quoted href attributes
+  const linkRegex = /<a\s+([^>]*href=["'](https?:\/\/[^"']+)["'][^>]*)>([^<]*)<\/a>/gi;
   const matches: Array<{ full: string; attrs: string; url: string; text: string }> = [];
 
   let match;
@@ -1861,6 +1862,9 @@ function finalDeduplicateClosingParagraphs(
   const closingPatterns =
     /(en (conclusi[oó]n|resumen|definitiva)|para (concluir|cerrar|terminar|finalizar|seguir avanzando|ampliar|m[aá]s)|si (quieres|necesitas|te interesa|deseas)|visita (nuestro|el)|s[ií]guenos|acomp[aá][ñn]anos|encontrar[aá]s|no (dudes|te pierdas)|esperamos|te invitamos|descubre m[aá]s|puedes encontrar|mantente al d[ií]a|pásate por)/i;
 
+  // Pattern to detect authority link paragraphs (e.g., "Para ampliar información, consulta <a>...</a>")
+  const authorityLinkPattern = /para ampliar informaci[oó]n.*consulta/i;
+
   const closingIndexes: number[] = [];
 
   for (let i = 0; i < allParagraphs.length; i++) {
@@ -1871,6 +1875,10 @@ function finalDeduplicateClosingParagraphs(
     const plainText = m[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     if (plainText.length > 500) continue;
     if (plainText.length < 10) continue;
+
+    // Skip authority link paragraphs — these are injected programmatically
+    // and should never be removed by the closing dedup
+    if (authorityLinkPattern.test(plainText)) continue;
 
     if (closingPatterns.test(plainText)) {
       closingIndexes.push(i);
@@ -1939,10 +1947,17 @@ function removeTrailingFooterCtaParagraphs(
 function rewriteAnchorTextByTargetUrl(paragraphHtml: string, targetUrl: string | null, anchorText: string): string {
   if (!paragraphHtml || !targetUrl) return paragraphHtml;
 
+  const targetNormalized = normalizeUrlForMatch(targetUrl);
+
   return paragraphHtml.replace(
     /<a\s+([^>]*?)href=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi,
     (full, beforeHref, hrefValue, afterHref) => {
-      if (!hasMatchingHref([hrefValue], targetUrl)) return full;
+      const hrefNormalized = normalizeUrlForMatch(hrefValue);
+      // Strict match: href must equal target or be a subpath of target.
+      // Do NOT match if href is a parent path of target (e.g., home URL vs blog URL).
+      const isExact = hrefNormalized === targetNormalized;
+      const isSubpath = hrefNormalized.startsWith(targetNormalized + "/") || hrefNormalized.startsWith(targetNormalized + "?");
+      if (!isExact && !isSubpath) return full;
       return `<a ${beforeHref}href="${hrefValue}"${afterHref}>${anchorText}</a>`;
     },
   );
