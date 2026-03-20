@@ -1940,10 +1940,17 @@ function removeTrailingFooterCtaParagraphs(
 function rewriteAnchorTextByTargetUrl(paragraphHtml: string, targetUrl: string | null, anchorText: string): string {
   if (!paragraphHtml || !targetUrl) return paragraphHtml;
 
+  const targetNormalized = normalizeUrlForMatch(targetUrl);
+
   return paragraphHtml.replace(
     /<a\s+([^>]*?)href=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/a>/gi,
     (full, beforeHref, hrefValue, afterHref) => {
-      if (!hasMatchingHref([hrefValue], targetUrl)) return full;
+      const hrefNormalized = normalizeUrlForMatch(hrefValue);
+      // Strict match: href must equal target or be a subpath of target.
+      // Do NOT match if href is a parent path of target (e.g., home URL vs blog URL).
+      const isExact = hrefNormalized === targetNormalized;
+      const isSubpath = hrefNormalized.startsWith(targetNormalized + "/") || hrefNormalized.startsWith(targetNormalized + "?");
+      if (!isExact && !isSubpath) return full;
       return `<a ${beforeHref}href="${hrefValue}"${afterHref}>${anchorText}</a>`;
     },
   );
