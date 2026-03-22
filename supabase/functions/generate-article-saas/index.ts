@@ -2900,12 +2900,31 @@ Deno.serve(async (req) => {
       ];
       console.log(`Total topics to avoid: ${allAvoidTopics.length}`);
 
+      // Detect overused concepts to warn the AI
+      const conceptFrequency: Record<string, number> = {};
+      for (const t of allAvoidTopics) {
+        const concepts = extractConcepts(t);
+        for (const c of concepts) {
+          conceptFrequency[c] = (conceptFrequency[c] || 0) + 1;
+        }
+      }
+      const overusedConcepts = Object.entries(conceptFrequency)
+        .filter(([_, count]) => count >= 2)
+        .sort((a, b) => b[1] - a[1])
+        .map(([concept, count]) => `${concept} (${count} veces)`)
+        .slice(0, 8);
+
+      const overusedConceptsWarning =
+        overusedConcepts.length > 0
+          ? `\n\n🚫 CONCEPTOS SOBREUSADOS (PROHIBIDO usar estos enfoques de nuevo):\n${overusedConcepts.join(", ")}\nDebes elegir un ángulo COMPLETAMENTE DIFERENTE. No reformules el mismo concepto con otras palabras.`
+          : "";
+
       const usedTopicsSection =
         allAvoidTopics.length > 0
           ? `\n\n⚠️ TEMAS YA USADOS (NO REPETIR NI SIMILARES):\n${allAvoidTopics
               .slice(0, 60)
               .map((t, i) => `${i + 1}. ${t}`)
-              .join("\n")}`
+              .join("\n")}${overusedConceptsWarning}`
           : "";
 
       // Build avoid topics list for prompt
