@@ -2356,6 +2356,81 @@ function trimExcerpt(excerpt: string): string {
 }
 
 // ==========================================
+// CONCEPT GROUPS: words that represent the same core concept
+// If a new topic shares a concept with 3+ existing topics, it's rejected
+const CONCEPT_GROUPS: Record<string, string[]> = {
+  leads: ["leads", "lead", "captar", "capten", "captación", "captacion", "generar_leads", "generación_leads"],
+  seo: ["seo", "posicionamiento", "posicionar", "posicione", "ranking", "serp", "serps"],
+  redes: ["redes", "sociales", "instagram", "linkedin", "tiktok", "facebook", "rrss"],
+  email: ["email", "emailing", "newsletter", "newsletters", "correo", "correos", "mailing"],
+  web: ["web", "página", "pagina", "landing", "landingpage", "sitio_web"],
+  roi: ["roi", "retorno", "inversión", "inversion", "rentabilidad"],
+  conversion: ["conversión", "conversion", "convertir", "conviertan", "conviertas"],
+  branding: ["marca", "marcas", "branding", "brand", "identidad"],
+  publicidad: ["publicidad", "anuncios", "ads", "campañas", "campaña", "sem", "ppc"],
+  automatización: ["automatización", "automatizacion", "automatizar", "automático", "automatico"],
+  analytics: ["analítica", "analitica", "analytics", "métricas", "metricas", "kpi", "kpis"],
+  contenido: ["contenido", "contenidos", "content", "redacción", "redaccion", "copywriting"],
+  ia: ["inteligencia_artificial", "artificial", "chatgpt", "gpt", "gemini"],
+};
+
+function getConceptFromWord(word: string): string | null {
+  for (const [concept, variants] of Object.entries(CONCEPT_GROUPS)) {
+    if (variants.includes(word)) return concept;
+  }
+  return null;
+}
+
+function extractConcepts(text: string): Set<string> {
+  const words = text
+    .toLowerCase()
+    .split(/[\s:,\-–—.;!?¿¡()[\]{}]+/)
+    .filter((w) => w.length > 2);
+  const concepts = new Set<string>();
+  for (const word of words) {
+    const concept = getConceptFromWord(word);
+    if (concept) concepts.add(concept);
+  }
+  return concepts;
+}
+
+/**
+ * Detects if a concept is over-represented in recent topics.
+ * Returns the concept name if any concept appears in 3+ of the last N topics.
+ */
+function detectOverusedConcept(
+  newTitle: string,
+  existingTopics: string[],
+  maxRepetitions = 2,
+): { overused: boolean; concept?: string; count?: number } {
+  const newConcepts = extractConcepts(newTitle);
+  if (newConcepts.size === 0) return { overused: false };
+
+  // Count how many existing topics contain each concept
+  const conceptCounts: Record<string, number> = {};
+  for (const concept of newConcepts) {
+    conceptCounts[concept] = 0;
+  }
+
+  for (const existing of existingTopics) {
+    const existingConcepts = extractConcepts(existing);
+    for (const concept of newConcepts) {
+      if (existingConcepts.has(concept)) {
+        conceptCounts[concept]++;
+      }
+    }
+  }
+
+  // Find any concept that exceeds the threshold
+  for (const [concept, count] of Object.entries(conceptCounts)) {
+    if (count >= maxRepetitions) {
+      return { overused: true, concept, count };
+    }
+  }
+
+  return { overused: false };
+}
+
 // TOPIC SIMILARITY CHECK (deduplication)
 // ==========================================
 function isTooSimilar(
@@ -2484,6 +2559,16 @@ function isTooSimilar(
       return { similar: true, matchedTopic: existing, similarity };
     }
   }
+
+  // CONCEPT-LEVEL CHECK: reject if same core concept appears in 3+ recent topics
+  const conceptCheck = detectOverusedConcept(newTitle, existingTopics, 2);
+  if (conceptCheck.overused) {
+    console.log(
+      `⚠️ Topic "${newTitle}" rejected: concept "${conceptCheck.concept}" already used in ${conceptCheck.count} recent topics`,
+    );
+    return { similar: true, matchedTopic: `[concept: ${conceptCheck.concept}]`, similarity: 1 };
+  }
+
   return { similar: false };
 }
 
