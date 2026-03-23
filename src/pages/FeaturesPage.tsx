@@ -92,9 +92,9 @@ const features = [
   },
   {
     icon: ImageIcon,
-    title: "Imágenes con créditos incluidos",
-    description: "Cada artículo incluye una imagen destacada de alta calidad con los créditos del fotógrafo.",
-    benefits: ["Imágenes libres de derechos", "Alta resolución", "Créditos automáticos"],
+    title: "Imágenes generadas con IA",
+    description: "Cada artículo incluye una imagen destacada única, generada por inteligencia artificial y adaptada al contenido.",
+    benefits: ["Imágenes únicas para cada artículo", "Adaptadas al sector y temática", "Sin problemas de licencias"],
     color: "from-amber-400 to-yellow-400",
   },
   {
