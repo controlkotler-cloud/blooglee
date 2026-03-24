@@ -329,6 +329,26 @@ async function siteUsesElementorPostMarkup(
   }
 }
 
+function wrapWithElementorPostMarkup(content: string): string {
+  return [
+    '<div data-elementor-type="wp-post" data-elementor-id="blooglee-auto" class="elementor elementor-blooglee-auto">',
+    '  <section class="elementor-section elementor-top-section elementor-element elementor-element-blooglee" data-element_type="section">',
+    '    <div class="elementor-container elementor-column-gap-default">',
+    '      <div class="elementor-column elementor-col-100 elementor-top-column elementor-element" data-element_type="column">',
+    '        <div class="elementor-widget-wrap elementor-element-populated">',
+    '          <div class="elementor-element elementor-widget elementor-widget-theme-post-content" data-element_type="widget" data-widget_type="theme-post-content.default">',
+    '            <div class="elementor-widget-container">',
+    content,
+    "            </div>",
+    "          </div>",
+    "        </div>",
+    "      </div>",
+    "    </div>",
+    "  </section>",
+    "</div>",
+  ].join("\n");
+}
+
 Deno.serve(async (req) => {
   const requestId = crypto.randomUUID().slice(0, 8);
   const origin = req.headers.get("origin") || "unknown";
@@ -632,6 +652,8 @@ Deno.serve(async (req) => {
       body.content.includes("elementor-widget");
 
     const historicalElementorPosts = await siteUsesElementorPostMarkup(wpUrl, wpHeaders, requestId);
+    let appliedElementorCompatibilityWrapper = false;
+    let contentToPublish = String(postData.content ?? "");
 
     // Check if the site has "embed_image_in_content" enabled
     let embedImageInContent = false;
@@ -663,9 +685,19 @@ Deno.serve(async (req) => {
 
       const imageHtml = `<img src="${safeImageUrl}" alt="${altText}" class="${classNames}" loading="lazy" decoding="async" style="display:block;margin:0 auto 1.5em;max-width:100%;height:auto;" />`;
 
-      postData.content = `${imageHtml}\n\n${String(postData.content ?? "")}`;
+      contentToPublish = `${imageHtml}\n\n${contentToPublish}`;
       console.log(`[${requestId}][embed_img_inject] Prepended plain centered img only (content preserved)`);
     }
+
+    // Keep legacy visual consistency for Elementor-based sites even when incoming content is plain HTML.
+    // This must stay independent from the image embedding toggle.
+    if (historicalElementorPosts && !incomingLooksElementor) {
+      contentToPublish = wrapWithElementorPostMarkup(contentToPublish);
+      appliedElementorCompatibilityWrapper = true;
+      console.log(`[${requestId}][elementor_compat] Wrapped content using Elementor-compatible post markup`);
+    }
+
+    postData.content = contentToPublish;
 
     console.log(`[${requestId}] Creating post with slug="${slug}"`);
 
@@ -738,7 +770,7 @@ Deno.serve(async (req) => {
     console.log(`[${requestId}][created_new_post] Post ID: ${createdPost.id}, URL: ${createdPost.link}`);
     const warnings: string[] = [];
 
-    if (historicalElementorPosts && !incomingLooksElementor) {
+    if (historicalElementorPosts && !incomingLooksElementor && !appliedElementorCompatibilityWrapper) {
       warnings.push(
         "Este sitio tiene entradas anteriores maquetadas con Elementor. Este artículo se publicó en formato HTML estándar, por lo que el diseño puede verse distinto.",
       );
