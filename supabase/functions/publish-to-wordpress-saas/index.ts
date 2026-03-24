@@ -737,9 +737,7 @@ Deno.serve(async (req) => {
     const warnings: string[] = [];
 
     if (historicalElementorPosts && !incomingLooksElementor) {
-      warnings.push(
-        "Este sitio tiene entradas anteriores maquetadas con Elementor. Este artículo se publicó en formato HTML estándar, por lo que el diseño puede verse distinto.",
-      );
+      console.log(`[${requestId}][elementor] Content was wrapped in Elementor-compatible structure for this site`);
     }
 
     if (requestedYoastMeta) {
