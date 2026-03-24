@@ -447,6 +447,19 @@ Deno.serve(async (req) => {
 
     console.log("WordPress URL:", wpConfig.site_url);
 
+    // Fetch site settings (embed_image_in_content) for content injection
+    let siteEmbedImage = false;
+    try {
+      const siteQuery = isServiceRole
+        ? supabase.from("sites").select("embed_image_in_content").eq("id", body.site_id).single()
+        : supabase.from("sites").select("embed_image_in_content").eq("id", body.site_id).eq("user_id", userId).single();
+      const { data: siteSettings } = await siteQuery;
+      siteEmbedImage = siteSettings?.embed_image_in_content === true;
+      console.log(`[${requestId}] Site embed_image_in_content: ${siteEmbedImage}`);
+    } catch (e) {
+      console.warn(`[${requestId}] Could not fetch site settings, defaulting embed_image_in_content=false`);
+    }
+
     // Normalize WordPress URL to origin (strip /blog, /wp-admin, etc.)
     let wpUrl = wpConfig.site_url.trim();
     try {
@@ -631,6 +644,27 @@ Deno.serve(async (req) => {
 
     const historicalElementorPosts = await siteUsesElementorPostMarkup(wpUrl, wpHeaders, requestId);
 
+    // =========================================================
+    // STEP 2b: Elementor content wrapping & image injection
+    // =========================================================
+    let finalContent = postData.content as string;
+
+    // Embed image in content for Elementor sites or when explicitly enabled
+    if ((historicalElementorPosts || siteEmbedImage) && body.image_url && !incomingLooksElementor) {
+      const imgAlt = body.image_alt || body.title || "";
+      const imageBlock = `<div style="text-align:center;margin-bottom:2rem;"><img src="${body.image_url}" alt="${imgAlt}" style="max-width:100%;height:auto;border-radius:8px;" /></div>`;
+      finalContent = imageBlock + "\n" + finalContent;
+      console.log(`[${requestId}][image_inject] Prepended inline image to content`);
+    }
+
+    // Wrap content in Elementor-compatible structure for Elementor sites
+    if (historicalElementorPosts && !incomingLooksElementor) {
+      finalContent = `<div class="elementor-element elementor-widget elementor-widget-theme-post-content" data-element_type="widget"><div class="elementor-widget-container">${finalContent}</div></div>`;
+      console.log(`[${requestId}][elementor_wrap] Wrapped content in Elementor-compatible structure`);
+    }
+
+    postData.content = finalContent;
+
     console.log(`[${requestId}] Creating post with slug="${slug}"`);
 
     const postResponse = await fetch(`${wpUrl}/wp-json/wp/v2/posts`, {
@@ -703,9 +737,7 @@ Deno.serve(async (req) => {
     const warnings: string[] = [];
 
     if (historicalElementorPosts && !incomingLooksElementor) {
-      warnings.push(
-        "Este sitio tiene entradas anteriores maquetadas con Elementor. Este artículo se publicó en formato HTML estándar, por lo que el diseño puede verse distinto.",
-      );
+      console.log(`[${requestId}][elementor] Content was wrapped in Elementor-compatible structure for this site`);
     }
 
     if (requestedYoastMeta) {
