@@ -114,6 +114,7 @@ const formSchema = z.object({
   custom_topic: z.string().optional(),
   auto_generate: z.boolean(),
   include_featured_image: z.boolean(),
+  embed_image_in_content: z.boolean(),
   blog_url: z.string().url().optional().or(z.literal("")),
   instagram_url: z.string().url().optional().or(z.literal("")),
   // Content profile fields
