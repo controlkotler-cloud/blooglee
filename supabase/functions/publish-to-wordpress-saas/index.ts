@@ -301,10 +301,13 @@ async function siteUsesElementorPostMarkup(
   requestId: string,
 ): Promise<boolean> {
   try {
-    const response = await fetch(`${wpUrl}/wp-json/wp/v2/posts?per_page=5&_fields=id,content.rendered`, {
-      method: "GET",
-      headers: wpHeaders,
-    });
+    const response = await fetch(
+      `${wpUrl}/wp-json/wp/v2/posts?per_page=20&_fields=id,content.rendered&status=publish,draft,future,pending,private`,
+      {
+        method: "GET",
+        headers: wpHeaders,
+      },
+    );
     if (!response.ok) {
       console.warn(`[${requestId}][elementor_probe] Could not inspect recent posts, status=${response.status}`);
       return false;
@@ -329,9 +332,11 @@ async function siteUsesElementorPostMarkup(
   }
 }
 
+const ELEMENTOR_POST_ID_TOKEN = "__BLOOGLEE_ELEMENTOR_POST_ID__";
+
 function wrapWithElementorPostMarkup(content: string): string {
   return [
-    '<div data-elementor-type="wp-post" data-elementor-id="blooglee-auto" class="elementor elementor-blooglee-auto">',
+    `<div data-elementor-type="wp-post" data-elementor-id="${ELEMENTOR_POST_ID_TOKEN}" class="elementor elementor-${ELEMENTOR_POST_ID_TOKEN}" data-elementor-post-type="post">`,
     '  <section class="elementor-section elementor-top-section elementor-element elementor-element-blooglee" data-element_type="section">',
     '    <div class="elementor-container elementor-column-gap-default">',
     '      <div class="elementor-column elementor-col-100 elementor-top-column elementor-element" data-element_type="column">',
@@ -347,6 +352,71 @@ function wrapWithElementorPostMarkup(content: string): string {
     "  </section>",
     "</div>",
   ].join("\n");
+}
+
+function hydrateElementorWrapperWithPostId(content: string, postId: number): string {
+  return content.split(ELEMENTOR_POST_ID_TOKEN).join(String(postId));
+}
+
+async function verifyElementorMetaPersistence(
+  wpUrl: string,
+  credentials: string,
+  postId: number,
+  requestId: string,
+): Promise<{ saved: boolean; missingKeys: string[] }> {
+  const requiredKeys = ["_elementor_edit_mode", "_elementor_template_type"];
+
+  try {
+    const verifyUrl = `${wpUrl}/wp-json/wp/v2/posts/${postId}?context=edit&_fields=id,meta`;
+    const verifyResponse = await fetch(verifyUrl, {
+      method: "GET",
+      headers: { Authorization: `Basic ${credentials}` },
+    });
+
+    if (!verifyResponse.ok) {
+      console.warn(`[${requestId}][elementor_verify] Could not verify Elementor meta, status=${verifyResponse.status}`);
+      return { saved: false, missingKeys: requiredKeys };
+    }
+
+    const verifyData = await verifyResponse.json();
+    const meta = (verifyData?.meta || {}) as Record<string, unknown>;
+    const missingKeys = requiredKeys.filter((key) => {
+      const value = meta[key];
+      return typeof value !== "string" || value.trim().length === 0;
+    });
+
+    return { saved: missingKeys.length === 0, missingKeys };
+  } catch (error) {
+    console.error(`[${requestId}][elementor_verify] Error verifying Elementor meta persistence:`, error);
+    return { saved: false, missingKeys: requiredKeys };
+  }
+}
+
+async function storeElementorDiagnostic(
+  supabase: any,
+  siteId: string,
+  userId: string,
+  status: "ok" | "warning",
+  message: string,
+  rawResponse: Record<string, unknown>,
+  requestId: string,
+): Promise<void> {
+  try {
+    const { error } = await supabase.from("wordpress_diagnostics").insert({
+      site_id: siteId,
+      user_id: userId,
+      check_type: "elementor_format",
+      status,
+      message,
+      raw_response: rawResponse,
+      checked_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error(`[${requestId}][elementor_diag] Could not insert Elementor diagnostic:`, error.message);
+    }
+  } catch (error) {
+    console.error(`[${requestId}][elementor_diag] Exception inserting Elementor diagnostic:`, error);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -769,6 +839,72 @@ Deno.serve(async (req) => {
     const createdPost = JSON.parse(postResponseText);
     console.log(`[${requestId}][created_new_post] Post ID: ${createdPost.id}, URL: ${createdPost.link}`);
     const warnings: string[] = [];
+
+    if (appliedElementorCompatibilityWrapper && !incomingLooksElementor) {
+      const hydratedElementorContent = hydrateElementorWrapperWithPostId(String(postData.content ?? ""), createdPost.id);
+      const elementorResponse = await fetch(`${wpUrl}/wp-json/wp/v2/posts/${createdPost.id}`, {
+        method: "POST",
+        headers: wpHeaders,
+        body: JSON.stringify({
+          content: hydratedElementorContent,
+          meta: {
+            _elementor_edit_mode: "builder",
+            _elementor_template_type: "wp-post",
+          },
+        }),
+      });
+
+      if (!elementorResponse.ok) {
+        const warningMessage =
+          "No se pudo marcar el post como Elementor por API REST; puede aparecer sin la etiqueta Elementor en WordPress.";
+        warnings.push(warningMessage);
+        await storeElementorDiagnostic(
+          supabaseService,
+          body.site_id,
+          userId,
+          "warning",
+          warningMessage,
+          {
+            post_id: createdPost.id,
+            rest_status: elementorResponse.status,
+          },
+          requestId,
+        );
+      } else {
+        const elementorCheck = await verifyElementorMetaPersistence(wpUrl, credentials, createdPost.id, requestId);
+
+        if (!elementorCheck.saved) {
+          const warningMessage =
+            "WordPress creó el post pero no guardó todos los metadatos de Elementor por REST; el formato puede diferir del resto.";
+          warnings.push(warningMessage);
+          await storeElementorDiagnostic(
+            supabaseService,
+            body.site_id,
+            userId,
+            "warning",
+            warningMessage,
+            {
+              post_id: createdPost.id,
+              missing_meta_keys: elementorCheck.missingKeys,
+            },
+            requestId,
+          );
+        } else {
+          await storeElementorDiagnostic(
+            supabaseService,
+            body.site_id,
+            userId,
+            "ok",
+            "Post marcado como Elementor correctamente por API REST.",
+            {
+              post_id: createdPost.id,
+              saved_meta_keys: ["_elementor_edit_mode", "_elementor_template_type"],
+            },
+            requestId,
+          );
+        }
+      }
+    }
 
     if (historicalElementorPosts && !incomingLooksElementor && !appliedElementorCompatibilityWrapper) {
       warnings.push(
