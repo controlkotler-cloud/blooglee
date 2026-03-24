@@ -577,7 +577,7 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
             <AlertTitle>Imagen destacada con Elementor</AlertTitle>
             <AlertDescription className="text-sm">
               Detectamos que este sitio usa Elementor. Si la imagen destacada no se muestra en tus entradas, 
-              activa el toggle <strong>«Incrustar imagen en contenido»</strong> en la pestaña <strong>Ajustes</strong> del sitio.
+              activa el toggle <strong>«Incrustar imagen en contenido»</strong> en la pestaña <strong>Configuración</strong> del sitio.
             </AlertDescription>
           </Alert>
         )}
