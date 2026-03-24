@@ -506,7 +506,6 @@ Deno.serve(async (req) => {
     // STEP 2: Upload featured image if provided
     // =========================================================
     let featuredMediaId: number | undefined;
-    let featuredMediaWpUrl: string | undefined;
     if (body.image_url) {
       console.log("Uploading featured image:", body.image_url);
       try {
@@ -541,8 +540,7 @@ Deno.serve(async (req) => {
           if (mediaResponse.ok) {
             const mediaData = JSON.parse(mediaResponseText);
             featuredMediaId = mediaData.id;
-            featuredMediaWpUrl = mediaData.source_url || undefined;
-            console.log("Featured media ID:", featuredMediaId, "WP URL:", featuredMediaWpUrl);
+            console.log("Featured media ID:", featuredMediaId);
 
             if (body.image_alt && featuredMediaId) {
               await fetch(`${wpUrl}/wp-json/wp/v2/media/${featuredMediaId}`, {
@@ -632,29 +630,6 @@ Deno.serve(async (req) => {
       body.content.includes("elementor-widget");
 
     const historicalElementorPosts = await siteUsesElementorPostMarkup(wpUrl, wpHeaders, requestId);
-
-    // Check if the site has "embed_image_in_content" enabled
-    let embedImageInContent = false;
-    try {
-      const { data: siteSettings } = await supabaseService
-        .from("sites")
-        .select("embed_image_in_content")
-        .eq("id", body.site_id)
-        .single();
-      embedImageInContent = siteSettings?.embed_image_in_content === true;
-    } catch (e) {
-      console.warn(`[${requestId}] Could not fetch site embed_image_in_content setting`);
-    }
-
-    // If the site has embed_image_in_content enabled, prepend the featured
-    // image as an <img> block inside the post content so it always renders,
-    // regardless of the theme/Elementor template configuration.
-    if (featuredMediaWpUrl && embedImageInContent && !incomingLooksElementor) {
-      const altText = body.image_alt || body.title || "";
-      const imageBlock = `<figure class="wp-block-image size-large"><img src="${featuredMediaWpUrl}" alt="${altText.replace(/"/g, "&quot;")}" class="wp-image-${featuredMediaId}" /></figure>\n\n`;
-      postData.content = imageBlock + (postData.content as string);
-      console.log(`[${requestId}][embed_img_inject] Prepended featured image to content (site setting enabled)`);
-    }
 
     console.log(`[${requestId}] Creating post with slug="${slug}"`);
 

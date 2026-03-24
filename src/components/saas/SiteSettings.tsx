@@ -114,7 +114,6 @@ const formSchema = z.object({
   custom_topic: z.string().optional(),
   auto_generate: z.boolean(),
   include_featured_image: z.boolean(),
-  embed_image_in_content: z.boolean(),
   blog_url: z.string().url().optional().or(z.literal("")),
   instagram_url: z.string().url().optional().or(z.literal("")),
   // Content profile fields
@@ -183,7 +182,6 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       custom_topic: site.custom_topic || "",
       auto_generate: site.auto_generate,
       include_featured_image: site.include_featured_image,
-      embed_image_in_content: site.embed_image_in_content ?? false,
       blog_url: site.blog_url || "",
       instagram_url: site.instagram_url || "",
       // Content profile fields
@@ -308,7 +306,6 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       custom_topic: data.custom_topic || null,
       auto_generate: effectiveAutoGenerate,
       include_featured_image: data.include_featured_image,
-      embed_image_in_content: data.embed_image_in_content,
       blog_url: data.blog_url || null,
       instagram_url: data.instagram_url || null,
       // Content profile fields
@@ -496,21 +493,6 @@ export function SiteSettings({ site }: SiteSettingsProps) {
                 onCheckedChange={(checked) => setValue("include_featured_image", checked, { shouldDirty: true })}
               />
             </div>
-
-            {watchedIncludeImage && (
-              <div className="flex items-center justify-between py-2 border-t pt-3">
-                <div>
-                  <Label>Incrustar imagen en contenido</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Actívalo si tu tema o Elementor no muestra la imagen destacada automáticamente en el post
-                  </p>
-                </div>
-                <Switch
-                  checked={watch("embed_image_in_content")}
-                  onCheckedChange={(checked) => setValue("embed_image_in_content", checked, { shouldDirty: true })}
-                />
-              </div>
-            )}
 
             {watchedIncludeImage && (
               <div className="space-y-4 pt-2 border-t">
