@@ -647,16 +647,27 @@ Deno.serve(async (req) => {
     }
 
     // If the site has embed_image_in_content enabled, prepend the featured
-    // image as an <img> block inside the post content so it always renders,
-    // regardless of the theme/Elementor template configuration.
-    if (featuredMediaWpUrl && embedImageInContent && !incomingLooksElementor) {
-      const altText = body.image_alt || body.title || "";
-      // Use simple, theme-agnostic HTML that won't conflict with Elementor or
-      // other page builders.  Avoid Gutenberg block classes like wp-block-image
-      // which can break the layout on classic/Elementor themes.
-      const imageBlock = `<p style="text-align:center;margin-bottom:1.5em;"><img src="${featuredMediaWpUrl}" alt="${altText.replace(/"/g, "&quot;")}" style="max-width:100%;height:auto;" /></p>\n\n`;
-      postData.content = imageBlock + (postData.content as string);
-      console.log(`[${requestId}][embed_img_inject] Prepended featured image to content (site setting enabled, theme-agnostic)`);
+    // image and wrap all content in a styled container so it renders properly
+    // on Elementor/classic themes that don't apply their own content area styles.
+    if (embedImageInContent && !incomingLooksElementor) {
+      const rawContent = postData.content as string;
+
+      // Build optional image block
+      let imageHtml = "";
+      if (featuredMediaWpUrl) {
+        const altText = body.image_alt || body.title || "";
+        imageHtml = `<p style="text-align:center;margin-bottom:1.5em;"><img src="${featuredMediaWpUrl}" alt="${altText.replace(/"/g, "&quot;")}" style="max-width:100%;height:auto;" /></p>\n\n`;
+      }
+
+      // Wrap everything in a container with proper max-width + centered margins
+      // so the text doesn't bleed edge-to-edge on themes that lack a content wrapper.
+      postData.content =
+        `<div style="max-width:800px;margin:0 auto;padding:0 1em;">\n` +
+        imageHtml +
+        rawContent +
+        `\n</div>`;
+
+      console.log(`[${requestId}][embed_img_inject] Wrapped content in styled container (site setting enabled)`);
     }
 
     console.log(`[${requestId}] Creating post with slug="${slug}"`);
