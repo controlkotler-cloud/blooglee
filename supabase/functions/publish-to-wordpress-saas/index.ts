@@ -644,6 +644,27 @@ Deno.serve(async (req) => {
 
     const historicalElementorPosts = await siteUsesElementorPostMarkup(wpUrl, wpHeaders, requestId);
 
+    // =========================================================
+    // STEP 2b: Elementor content wrapping & image injection
+    // =========================================================
+    let finalContent = postData.content as string;
+
+    // Embed image in content for Elementor sites or when explicitly enabled
+    if ((historicalElementorPosts || siteEmbedImage) && body.image_url && !incomingLooksElementor) {
+      const imgAlt = body.image_alt || body.title || "";
+      const imageBlock = `<div style="text-align:center;margin-bottom:2rem;"><img src="${body.image_url}" alt="${imgAlt}" style="max-width:100%;height:auto;border-radius:8px;" /></div>`;
+      finalContent = imageBlock + "\n" + finalContent;
+      console.log(`[${requestId}][image_inject] Prepended inline image to content`);
+    }
+
+    // Wrap content in Elementor-compatible structure for Elementor sites
+    if (historicalElementorPosts && !incomingLooksElementor) {
+      finalContent = `<div class="elementor-element elementor-widget elementor-widget-theme-post-content" data-element_type="widget"><div class="elementor-widget-container">${finalContent}</div></div>`;
+      console.log(`[${requestId}][elementor_wrap] Wrapped content in Elementor-compatible structure`);
+    }
+
+    postData.content = finalContent;
+
     console.log(`[${requestId}] Creating post with slug="${slug}"`);
 
     const postResponse = await fetch(`${wpUrl}/wp-json/wp/v2/posts`, {
