@@ -506,6 +506,7 @@ Deno.serve(async (req) => {
     // STEP 2: Upload featured image if provided
     // =========================================================
     let featuredMediaId: number | undefined;
+    let featuredMediaWpUrl: string | undefined;
     if (body.image_url) {
       console.log("Uploading featured image:", body.image_url);
       try {
@@ -540,7 +541,8 @@ Deno.serve(async (req) => {
           if (mediaResponse.ok) {
             const mediaData = JSON.parse(mediaResponseText);
             featuredMediaId = mediaData.id;
-            console.log("Featured media ID:", featuredMediaId);
+            featuredMediaWpUrl = mediaData.source_url || undefined;
+            console.log("Featured media ID:", featuredMediaId, "WP URL:", featuredMediaWpUrl);
 
             if (body.image_alt && featuredMediaId) {
               await fetch(`${wpUrl}/wp-json/wp/v2/media/${featuredMediaId}`, {
@@ -630,6 +632,20 @@ Deno.serve(async (req) => {
       body.content.includes("elementor-widget");
 
     const historicalElementorPosts = await siteUsesElementorPostMarkup(wpUrl, wpHeaders, requestId);
+
+    // If the site uses Elementor, its single-post template may not render
+    // the featured_media automatically.  Prepend an <img> block so the
+    // image always appears inside the post content.
+    if (
+      featuredMediaWpUrl &&
+      !incomingLooksElementor &&
+      historicalElementorPosts
+    ) {
+      const altText = body.image_alt || body.title || "";
+      const imageBlock = `<figure class="wp-block-image size-large"><img src="${featuredMediaWpUrl}" alt="${altText.replace(/"/g, "&quot;")}" class="wp-image-${featuredMediaId}" /></figure>\n\n`;
+      postData.content = imageBlock + (postData.content as string);
+      console.log(`[${requestId}][elementor_img_inject] Prepended featured image to content for Elementor site`);
+    }
 
     console.log(`[${requestId}] Creating post with slug="${slug}"`);
 
