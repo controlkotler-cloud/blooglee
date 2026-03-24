@@ -541,7 +541,8 @@ Deno.serve(async (req) => {
           if (mediaResponse.ok) {
             const mediaData = JSON.parse(mediaResponseText);
             featuredMediaId = mediaData.id;
-            console.log("Featured media ID:", featuredMediaId);
+            featuredMediaWpUrl = mediaData.source_url || undefined;
+            console.log("Featured media ID:", featuredMediaId, "WP URL:", featuredMediaWpUrl);
 
             if (body.image_alt && featuredMediaId) {
               await fetch(`${wpUrl}/wp-json/wp/v2/media/${featuredMediaId}`, {
