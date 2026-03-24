@@ -646,8 +646,8 @@ Deno.serve(async (req) => {
       console.warn(`[${requestId}] Could not fetch site embed_image_in_content setting`);
     }
 
-    // If the site has embed_image_in_content enabled, inject ONLY the image as a
-    // standalone Gutenberg image block and keep the article HTML untouched.
+    // If embed_image_in_content is enabled, prepend ONLY a centered image tag.
+    // No wrappers/blocks around the article body to avoid affecting text layout.
     if (featuredMediaWpUrl && embedImageInContent && !incomingLooksElementor) {
       const altText = (body.image_alt || body.title || "")
         .replace(/&/g, "&amp;")
@@ -657,15 +657,14 @@ Deno.serve(async (req) => {
         .replace(/'/g, "&#39;");
 
       const safeImageUrl = encodeURI(featuredMediaWpUrl);
-      const imageClass = featuredMediaId ? `wp-image-${featuredMediaId}` : "";
-      const imageBlock = [
-        '<!-- wp:image {"align":"center","sizeSlug":"large","linkDestination":"none"} -->',
-        `<figure class="wp-block-image aligncenter size-large"><img class="${imageClass}" src="${safeImageUrl}" alt="${altText}" loading="lazy" decoding="async" style="max-width:100%;height:auto;" /></figure>`,
-        "<!-- /wp:image -->",
-      ].join("\n");
+      const classNames = ["aligncenter", "size-large", featuredMediaId ? `wp-image-${featuredMediaId}` : ""]
+        .filter(Boolean)
+        .join(" ");
 
-      postData.content = `${imageBlock}\n${String(postData.content ?? "")}`;
-      console.log(`[${requestId}][embed_img_inject] Prepended Gutenberg image block only (content preserved)`);
+      const imageHtml = `<img src="${safeImageUrl}" alt="${altText}" class="${classNames}" loading="lazy" decoding="async" style="display:block;margin:0 auto 1.5em;max-width:100%;height:auto;" />`;
+
+      postData.content = `${imageHtml}\n\n${String(postData.content ?? "")}`;
+      console.log(`[${requestId}][embed_img_inject] Prepended plain centered img only (content preserved)`);
     }
 
     console.log(`[${requestId}] Creating post with slug="${slug}"`);
