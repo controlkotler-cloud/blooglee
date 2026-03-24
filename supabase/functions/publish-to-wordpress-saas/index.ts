@@ -649,6 +649,15 @@ Deno.serve(async (req) => {
     // =========================================================
     let finalContent = postData.content as string;
 
+    // Center H1 headings for Elementor sites (theme may not apply centering)
+    if (historicalElementorPosts && !incomingLooksElementor) {
+      finalContent = finalContent.replace(
+        /<h1([^>]*)>/gi,
+        '<h1$1 style="text-align:center;">'
+      );
+      console.log(`[${requestId}][elementor_h1] Centered H1 headings`);
+    }
+
     // Embed image in content for Elementor sites or when explicitly enabled
     if ((historicalElementorPosts || siteEmbedImage) && body.image_url && !incomingLooksElementor) {
       const imgAlt = body.image_alt || body.title || "";
