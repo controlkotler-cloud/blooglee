@@ -646,28 +646,14 @@ Deno.serve(async (req) => {
       console.warn(`[${requestId}] Could not fetch site embed_image_in_content setting`);
     }
 
-    // If the site has embed_image_in_content enabled, prepend the featured
-    // image and wrap all content in a styled container so it renders properly
-    // on Elementor/classic themes that don't apply their own content area styles.
-    if (embedImageInContent && !incomingLooksElementor) {
-      const rawContent = postData.content as string;
-
-      // Build optional image block
-      let imageHtml = "";
-      if (featuredMediaWpUrl) {
-        const altText = body.image_alt || body.title || "";
-        imageHtml = `<p style="text-align:center;margin-bottom:1.5em;"><img src="${featuredMediaWpUrl}" alt="${altText.replace(/"/g, "&quot;")}" style="max-width:100%;height:auto;" /></p>\n\n`;
-      }
-
-      // Wrap everything in a container with proper max-width + centered margins
-      // so the text doesn't bleed edge-to-edge on themes that lack a content wrapper.
-      postData.content =
-        `<div style="max-width:800px;margin:0 auto;padding:0 1em;">\n` +
-        imageHtml +
-        rawContent +
-        `\n</div>`;
-
-      console.log(`[${requestId}][embed_img_inject] Wrapped content in styled container (site setting enabled)`);
+    // If the site has embed_image_in_content enabled, ONLY prepend the featured
+    // image. Do NOT wrap or modify the rest of the content — the theme/Elementor
+    // already handles text layout correctly.
+    if (featuredMediaWpUrl && embedImageInContent && !incomingLooksElementor) {
+      const altText = body.image_alt || body.title || "";
+      const imageHtml = `<p style="text-align:center;margin-bottom:1.5em;"><img src="${featuredMediaWpUrl}" alt="${altText.replace(/"/g, "&quot;")}" style="max-width:100%;height:auto;" /></p>\n\n`;
+      postData.content = imageHtml + (postData.content as string);
+      console.log(`[${requestId}][embed_img_inject] Prepended featured image only (site setting enabled)`);
     }
 
     console.log(`[${requestId}] Creating post with slug="${slug}"`);
