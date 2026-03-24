@@ -1,0 +1,1 @@
+ALTER TABLE public.sites ADD COLUMN embed_image_in_content boolean NOT NULL DEFAULT false;

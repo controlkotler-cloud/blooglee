@@ -633,18 +633,27 @@ Deno.serve(async (req) => {
 
     const historicalElementorPosts = await siteUsesElementorPostMarkup(wpUrl, wpHeaders, requestId);
 
-    // If the site uses Elementor, its single-post template may not render
-    // the featured_media automatically.  Prepend an <img> block so the
-    // image always appears inside the post content.
-    if (
-      featuredMediaWpUrl &&
-      !incomingLooksElementor &&
-      historicalElementorPosts
-    ) {
+    // Check if the site has "embed_image_in_content" enabled
+    let embedImageInContent = false;
+    try {
+      const { data: siteSettings } = await supabaseService
+        .from("sites")
+        .select("embed_image_in_content")
+        .eq("id", body.site_id)
+        .single();
+      embedImageInContent = siteSettings?.embed_image_in_content === true;
+    } catch (e) {
+      console.warn(`[${requestId}] Could not fetch site embed_image_in_content setting`);
+    }
+
+    // If the site has embed_image_in_content enabled, prepend the featured
+    // image as an <img> block inside the post content so it always renders,
+    // regardless of the theme/Elementor template configuration.
+    if (featuredMediaWpUrl && embedImageInContent && !incomingLooksElementor) {
       const altText = body.image_alt || body.title || "";
       const imageBlock = `<figure class="wp-block-image size-large"><img src="${featuredMediaWpUrl}" alt="${altText.replace(/"/g, "&quot;")}" class="wp-image-${featuredMediaId}" /></figure>\n\n`;
       postData.content = imageBlock + (postData.content as string);
-      console.log(`[${requestId}][elementor_img_inject] Prepended featured image to content for Elementor site`);
+      console.log(`[${requestId}][embed_img_inject] Prepended featured image to content (site setting enabled)`);
     }
 
     console.log(`[${requestId}] Creating post with slug="${slug}"`);
