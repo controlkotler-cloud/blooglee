@@ -646,14 +646,26 @@ Deno.serve(async (req) => {
       console.warn(`[${requestId}] Could not fetch site embed_image_in_content setting`);
     }
 
-    // If the site has embed_image_in_content enabled, ONLY prepend the featured
-    // image. Do NOT wrap or modify the rest of the content — the theme/Elementor
-    // already handles text layout correctly.
+    // If the site has embed_image_in_content enabled, inject ONLY the image as a
+    // standalone Gutenberg image block and keep the article HTML untouched.
     if (featuredMediaWpUrl && embedImageInContent && !incomingLooksElementor) {
-      const altText = body.image_alt || body.title || "";
-      const imageHtml = `<p style="text-align:center;margin-bottom:1.5em;"><img src="${featuredMediaWpUrl}" alt="${altText.replace(/"/g, "&quot;")}" style="max-width:100%;height:auto;" /></p>\n\n`;
-      postData.content = imageHtml + (postData.content as string);
-      console.log(`[${requestId}][embed_img_inject] Prepended featured image only (site setting enabled)`);
+      const altText = (body.image_alt || body.title || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+      const safeImageUrl = encodeURI(featuredMediaWpUrl);
+      const imageClass = featuredMediaId ? `wp-image-${featuredMediaId}` : "";
+      const imageBlock = [
+        '<!-- wp:image {"align":"center","sizeSlug":"large","linkDestination":"none"} -->',
+        `<figure class="wp-block-image aligncenter size-large"><img class="${imageClass}" src="${safeImageUrl}" alt="${altText}" loading="lazy" decoding="async" style="max-width:100%;height:auto;" /></figure>`,
+        "<!-- /wp:image -->",
+      ].join("\n");
+
+      postData.content = `${imageBlock}\n${String(postData.content ?? "")}`;
+      console.log(`[${requestId}][embed_img_inject] Prepended Gutenberg image block only (content preserved)`);
     }
 
     console.log(`[${requestId}] Creating post with slug="${slug}"`);
