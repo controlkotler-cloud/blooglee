@@ -447,6 +447,19 @@ Deno.serve(async (req) => {
 
     console.log("WordPress URL:", wpConfig.site_url);
 
+    // Fetch site settings (embed_image_in_content) for content injection
+    let siteEmbedImage = false;
+    try {
+      const siteQuery = isServiceRole
+        ? supabase.from("sites").select("embed_image_in_content").eq("id", body.site_id).single()
+        : supabase.from("sites").select("embed_image_in_content").eq("id", body.site_id).eq("user_id", userId).single();
+      const { data: siteSettings } = await siteQuery;
+      siteEmbedImage = siteSettings?.embed_image_in_content === true;
+      console.log(`[${requestId}] Site embed_image_in_content: ${siteEmbedImage}`);
+    } catch (e) {
+      console.warn(`[${requestId}] Could not fetch site settings, defaulting embed_image_in_content=false`);
+    }
+
     // Normalize WordPress URL to origin (strip /blog, /wp-admin, etc.)
     let wpUrl = wpConfig.site_url.trim();
     try {
