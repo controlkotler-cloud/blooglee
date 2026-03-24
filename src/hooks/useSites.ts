@@ -80,6 +80,7 @@ export interface SiteInput {
   preferred_length?: string | null;
   color_palette?: string | null;
   mood?: string | null;
+  embed_image_in_content?: boolean;
 }
 
 async function resolveEffectiveOwnerId(userId: string): Promise<string> {
