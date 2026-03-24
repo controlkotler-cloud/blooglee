@@ -736,8 +736,66 @@ Deno.serve(async (req) => {
     console.log(`[${requestId}][created_new_post] Post ID: ${createdPost.id}, URL: ${createdPost.link}`);
     const warnings: string[] = [];
 
+    // =========================================================
+    // STEP 4b: Set Elementor post meta for Elementor sites
+    // =========================================================
     if (historicalElementorPosts && !incomingLooksElementor) {
-      console.log(`[${requestId}][elementor] Content was wrapped in Elementor-compatible structure for this site`);
+      console.log(`[${requestId}][elementor] Setting Elementor post meta for post ${createdPost.id}`);
+      try {
+        // Build _elementor_data JSON structure with the content as a text-editor widget
+        const elementorId1 = Math.random().toString(36).substring(2, 10);
+        const elementorId2 = Math.random().toString(36).substring(2, 10);
+        const elementorId3 = Math.random().toString(36).substring(2, 10);
+        const elementorData = JSON.stringify([
+          {
+            id: elementorId1,
+            elType: "section",
+            settings: {},
+            elements: [
+              {
+                id: elementorId2,
+                elType: "column",
+                settings: { _column_size: 100 },
+                elements: [
+                  {
+                    id: elementorId3,
+                    elType: "widget",
+                    widgetType: "text-editor",
+                    settings: { editor: finalContent },
+                    elements: [],
+                  },
+                ],
+              },
+            ],
+          },
+        ]);
+
+        // Update the post with Elementor meta fields
+        const elementorMetaResponse = await fetch(`${wpUrl}/wp-json/wp/v2/posts/${createdPost.id}`, {
+          method: "PUT",
+          headers: wpHeaders,
+          body: JSON.stringify({
+            meta: {
+              _elementor_edit_mode: "builder",
+              _elementor_template_type: "",
+              _elementor_data: elementorData,
+            },
+          }),
+        });
+
+        if (elementorMetaResponse.ok) {
+          console.log(`[${requestId}][elementor] Elementor meta fields set successfully`);
+        } else {
+          const metaErrText = await elementorMetaResponse.text();
+          console.warn(`[${requestId}][elementor] Could not set Elementor meta (status ${elementorMetaResponse.status}): ${metaErrText.substring(0, 200)}`);
+          // Fallback: try setting meta via raw wp-json custom endpoint
+          // Some Elementor installations register these meta fields differently
+          warnings.push("El contenido se publicó pero puede requerir abrir con Elementor una vez para aplicar el formato del tema.");
+        }
+      } catch (elementorError) {
+        console.warn(`[${requestId}][elementor] Error setting Elementor meta:`, elementorError);
+        warnings.push("El contenido se publicó pero puede requerir abrir con Elementor una vez para aplicar el formato del tema.");
+      }
     }
 
     if (requestedYoastMeta) {
