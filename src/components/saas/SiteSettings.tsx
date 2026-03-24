@@ -308,6 +308,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       custom_topic: data.custom_topic || null,
       auto_generate: effectiveAutoGenerate,
       include_featured_image: data.include_featured_image,
+      embed_image_in_content: data.embed_image_in_content,
       blog_url: data.blog_url || null,
       instagram_url: data.instagram_url || null,
       // Content profile fields

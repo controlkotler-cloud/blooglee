@@ -48,6 +48,7 @@ export interface Site {
   last_pillar_index: number;
   created_at: string;
   updated_at: string;
+  embed_image_in_content: boolean;
 }
 
 export interface SiteInput {
