@@ -506,6 +506,7 @@ Deno.serve(async (req) => {
     // STEP 2: Upload featured image if provided
     // =========================================================
     let featuredMediaId: number | undefined;
+    let featuredMediaWpUrl: string | undefined;
     if (body.image_url) {
       console.log("Uploading featured image:", body.image_url);
       try {
