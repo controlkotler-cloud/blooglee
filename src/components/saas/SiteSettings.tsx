@@ -183,6 +183,7 @@ export function SiteSettings({ site }: SiteSettingsProps) {
       custom_topic: site.custom_topic || "",
       auto_generate: site.auto_generate,
       include_featured_image: site.include_featured_image,
+      embed_image_in_content: site.embed_image_in_content ?? false,
       blog_url: site.blog_url || "",
       instagram_url: site.instagram_url || "",
       // Content profile fields
