@@ -574,21 +574,10 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
         {config && elementorDiagnostic && elementorDiagnostic.status !== "ok" && (
           <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Posible desajuste de diseño con Elementor</AlertTitle>
-            <AlertDescription className="text-sm flex flex-wrap items-center gap-x-3 gap-y-2">
-              <span>
-                {elementorDiagnostic?.message || "Pulsa Re-sincronizar para verificar compatibilidad con Elementor."}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs text-amber-700 dark:text-amber-300 hover:text-amber-800 p-0"
-                onClick={() => syncMutation.mutate(config.id)}
-                disabled={syncMutation.isPending}
-              >
-                <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-                Re-sincronizar
-              </Button>
+            <AlertTitle>Imagen destacada con Elementor</AlertTitle>
+            <AlertDescription className="text-sm">
+              Detectamos que este sitio usa Elementor. Si la imagen destacada no se muestra en tus entradas, 
+              activa el toggle <strong>«Incrustar imagen en contenido»</strong> en la pestaña <strong>Ajustes</strong> del sitio.
             </AlertDescription>
           </Alert>
         )}
