@@ -771,9 +771,9 @@ Responde SOLO con JSON válido (sin markdown):
     const elementorProbe = await siteUsesElementorPostMarkup(wpUrl, wpHeaders);
     if (elementorProbe.usesElementorMarkup) {
       elementorStatus = {
-        ok: false,
+        ok: true,
         message:
-          "Detectamos entradas previas maquetadas con Elementor. Para evitar diseños distintos, crea/ajusta la plantilla Single Post en Elementor o maqueta estas entradas con Elementor.",
+          "Detectamos Elementor en tu sitio. Blooglee adapta automáticamente el formato y las imágenes para que se vean correctamente.",
         raw: {
           uses_elementor_markup: true,
           scanned_posts: elementorProbe.scannedPosts,
