@@ -1,1 +1,0 @@
-DELETE FROM articles WHERE id = '63480e9a-6f29-4b6b-9512-82cf3f1dcce0';
