@@ -758,6 +758,7 @@ export type Database = {
           created_at: string
           custom_topic: string | null
           description: string | null
+          embed_image_in_content: boolean
           geographic_scope: string
           id: string
           include_featured_image: boolean
@@ -797,6 +798,7 @@ export type Database = {
           created_at?: string
           custom_topic?: string | null
           description?: string | null
+          embed_image_in_content?: boolean
           geographic_scope?: string
           id?: string
           include_featured_image?: boolean
@@ -836,6 +838,7 @@ export type Database = {
           created_at?: string
           custom_topic?: string | null
           description?: string | null
+          embed_image_in_content?: boolean
           geographic_scope?: string
           id?: string
           include_featured_image?: boolean
