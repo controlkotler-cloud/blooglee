@@ -840,6 +840,72 @@ Deno.serve(async (req) => {
     console.log(`[${requestId}][created_new_post] Post ID: ${createdPost.id}, URL: ${createdPost.link}`);
     const warnings: string[] = [];
 
+    if (appliedElementorCompatibilityWrapper && !incomingLooksElementor) {
+      const hydratedElementorContent = hydrateElementorWrapperWithPostId(String(postData.content ?? ""), createdPost.id);
+      const elementorResponse = await fetch(`${wpUrl}/wp-json/wp/v2/posts/${createdPost.id}`, {
+        method: "POST",
+        headers: wpHeaders,
+        body: JSON.stringify({
+          content: hydratedElementorContent,
+          meta: {
+            _elementor_edit_mode: "builder",
+            _elementor_template_type: "wp-post",
+          },
+        }),
+      });
+
+      if (!elementorResponse.ok) {
+        const warningMessage =
+          "No se pudo marcar el post como Elementor por API REST; puede aparecer sin la etiqueta Elementor en WordPress.";
+        warnings.push(warningMessage);
+        await storeElementorDiagnostic(
+          supabaseService,
+          body.site_id,
+          userId,
+          "warning",
+          warningMessage,
+          {
+            post_id: createdPost.id,
+            rest_status: elementorResponse.status,
+          },
+          requestId,
+        );
+      } else {
+        const elementorCheck = await verifyElementorMetaPersistence(wpUrl, credentials, createdPost.id, requestId);
+
+        if (!elementorCheck.saved) {
+          const warningMessage =
+            "WordPress creó el post pero no guardó todos los metadatos de Elementor por REST; el formato puede diferir del resto.";
+          warnings.push(warningMessage);
+          await storeElementorDiagnostic(
+            supabaseService,
+            body.site_id,
+            userId,
+            "warning",
+            warningMessage,
+            {
+              post_id: createdPost.id,
+              missing_meta_keys: elementorCheck.missingKeys,
+            },
+            requestId,
+          );
+        } else {
+          await storeElementorDiagnostic(
+            supabaseService,
+            body.site_id,
+            userId,
+            "ok",
+            "Post marcado como Elementor correctamente por API REST.",
+            {
+              post_id: createdPost.id,
+              saved_meta_keys: ["_elementor_edit_mode", "_elementor_template_type"],
+            },
+            requestId,
+          );
+        }
+      }
+    }
+
     if (historicalElementorPosts && !incomingLooksElementor && !appliedElementorCompatibilityWrapper) {
       warnings.push(
         "Este sitio tiene entradas anteriores maquetadas con Elementor. Este artículo se publicó en formato HTML estándar, por lo que el diseño puede verse distinto.",
