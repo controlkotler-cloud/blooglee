@@ -498,6 +498,21 @@ export function SiteSettings({ site }: SiteSettingsProps) {
             </div>
 
             {watchedIncludeImage && (
+              <div className="flex items-center justify-between py-2 border-t pt-3">
+                <div>
+                  <Label>Incrustar imagen en contenido</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Actívalo si tu tema o Elementor no muestra la imagen destacada automáticamente en el post
+                  </p>
+                </div>
+                <Switch
+                  checked={watch("embed_image_in_content")}
+                  onCheckedChange={(checked) => setValue("embed_image_in_content", checked, { shouldDirty: true })}
+                />
+              </div>
+            )}
+
+            {watchedIncludeImage && (
               <div className="space-y-4 pt-2 border-t">
                 <PaletteSelector
                   value={watch("color_palette")}
