@@ -651,9 +651,12 @@ Deno.serve(async (req) => {
     // regardless of the theme/Elementor template configuration.
     if (featuredMediaWpUrl && embedImageInContent && !incomingLooksElementor) {
       const altText = body.image_alt || body.title || "";
-      const imageBlock = `<figure class="wp-block-image size-large"><img src="${featuredMediaWpUrl}" alt="${altText.replace(/"/g, "&quot;")}" class="wp-image-${featuredMediaId}" /></figure>\n\n`;
+      // Use simple, theme-agnostic HTML that won't conflict with Elementor or
+      // other page builders.  Avoid Gutenberg block classes like wp-block-image
+      // which can break the layout on classic/Elementor themes.
+      const imageBlock = `<p style="text-align:center;margin-bottom:1.5em;"><img src="${featuredMediaWpUrl}" alt="${altText.replace(/"/g, "&quot;")}" style="max-width:100%;height:auto;" /></p>\n\n`;
       postData.content = imageBlock + (postData.content as string);
-      console.log(`[${requestId}][embed_img_inject] Prepended featured image to content (site setting enabled)`);
+      console.log(`[${requestId}][embed_img_inject] Prepended featured image to content (site setting enabled, theme-agnostic)`);
     }
 
     console.log(`[${requestId}] Creating post with slug="${slug}"`);
