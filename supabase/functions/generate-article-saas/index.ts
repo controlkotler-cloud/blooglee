@@ -2247,19 +2247,33 @@ function ensureFooterLinks(
   const hasSocialInLastParagraph = instagramUrl ? hasMatchingHref(lastParagraphHrefs, instagramUrl) : true;
 
   if (!hasBlogInLastParagraph || !hasSocialInLastParagraph) {
-    const missingBlogUrl = hasBlogInLastParagraph ? null : blogUrl;
-    const missingSocialUrl = hasSocialInLastParagraph ? null : instagramUrl;
-    const ctaSentence = buildFooterCtaSentence(
-      siteName,
-      missingBlogUrl,
-      missingSocialUrl,
-      `${normalizedContent.length}|${normalizeTextForMatch(lastParagraph).slice(-120)}`,
-    );
+    // Check if the last paragraph already contains closing/farewell language
+    // with ANY external links — if so, the AI already wrote a good conclusion
+    // and we should NOT append another CTA sentence.
+    const lastPlainText = lastParagraph.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const closingLanguage =
+      /(en (conclusi[oó]n|resumen|definitiva)|para (concluir|cerrar|terminar|finalizar|seguir avanzando)|si (quieres|necesitas|te interesa)|visita|s[ií]guenos|acomp[aá][ñn]anos|encontrar[aá]s|no (dudes|te pierdas)|esperamos|te invitamos|descubre m[aá]s|mantente al d[ií]a|p[aá]sate por)/i;
+    const hasClosingLanguage = closingLanguage.test(lastPlainText);
+    const hasAnyLinks = /<a\s+[^>]*href=/i.test(lastParagraph);
 
-    if (ctaSentence) {
-      lastParagraph = appendSentenceToParagraph(lastParagraph, ctaSentence);
-      lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, blogUrl, "blog");
-      lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, instagramUrl, "redes sociales");
+    if (hasClosingLanguage && hasAnyLinks) {
+      // The AI already wrote a proper conclusion with links — skip CTA injection
+      console.log("[ensureFooterLinks] Last paragraph already has closing language with links, skipping CTA append");
+    } else {
+      const missingBlogUrl = hasBlogInLastParagraph ? null : blogUrl;
+      const missingSocialUrl = hasSocialInLastParagraph ? null : instagramUrl;
+      const ctaSentence = buildFooterCtaSentence(
+        siteName,
+        missingBlogUrl,
+        missingSocialUrl,
+        `${normalizedContent.length}|${normalizeTextForMatch(lastParagraph).slice(-120)}`,
+      );
+
+      if (ctaSentence) {
+        lastParagraph = appendSentenceToParagraph(lastParagraph, ctaSentence);
+        lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, blogUrl, "blog");
+        lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, instagramUrl, "redes sociales");
+      }
     }
   }
 
@@ -3583,12 +3597,6 @@ Deno.serve(async (req) => {
     processedSpanishContent = addHomeLinkToContent(processedSpanishContent, site.name, site.blog_url || null);
     processedSpanishContent = ensureHomeLinkPresence(processedSpanishContent, site.name, homeUrl);
     processedSpanishContent = ensureAuthorityLinks(processedSpanishContent, selectedAuthoritySources, ownedDomains);
-    processedSpanishContent = ensureFooterLinks(
-      processedSpanishContent,
-      site.name,
-      site.blog_url || null,
-      site.instagram_url || null,
-    );
     processedSpanishContent = sanitizeUnlinkedBrandMentions(
       processedSpanishContent,
       site.name,
@@ -3602,12 +3610,6 @@ Deno.serve(async (req) => {
       let processedCatalanContent = addHomeLinkToContent(catalanArticle.content, site.name, site.blog_url || null);
       processedCatalanContent = ensureHomeLinkPresence(processedCatalanContent, site.name, homeUrl);
       processedCatalanContent = ensureAuthorityLinks(processedCatalanContent, selectedAuthoritySources, ownedDomains);
-      processedCatalanContent = ensureFooterLinks(
-        processedCatalanContent,
-        site.name,
-        site.blog_url || null,
-        site.instagram_url || null,
-      );
       processedCatalanContent = sanitizeUnlinkedBrandMentions(
         processedCatalanContent,
         site.name,
