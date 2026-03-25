@@ -3583,12 +3583,6 @@ Deno.serve(async (req) => {
     processedSpanishContent = addHomeLinkToContent(processedSpanishContent, site.name, site.blog_url || null);
     processedSpanishContent = ensureHomeLinkPresence(processedSpanishContent, site.name, homeUrl);
     processedSpanishContent = ensureAuthorityLinks(processedSpanishContent, selectedAuthoritySources, ownedDomains);
-    processedSpanishContent = ensureFooterLinks(
-      processedSpanishContent,
-      site.name,
-      site.blog_url || null,
-      site.instagram_url || null,
-    );
     processedSpanishContent = sanitizeUnlinkedBrandMentions(
       processedSpanishContent,
       site.name,
@@ -3602,12 +3596,6 @@ Deno.serve(async (req) => {
       let processedCatalanContent = addHomeLinkToContent(catalanArticle.content, site.name, site.blog_url || null);
       processedCatalanContent = ensureHomeLinkPresence(processedCatalanContent, site.name, homeUrl);
       processedCatalanContent = ensureAuthorityLinks(processedCatalanContent, selectedAuthoritySources, ownedDomains);
-      processedCatalanContent = ensureFooterLinks(
-        processedCatalanContent,
-        site.name,
-        site.blog_url || null,
-        site.instagram_url || null,
-      );
       processedCatalanContent = sanitizeUnlinkedBrandMentions(
         processedCatalanContent,
         site.name,
