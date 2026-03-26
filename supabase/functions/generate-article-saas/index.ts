@@ -3650,7 +3650,7 @@ Deno.serve(async (req) => {
           sector: sector,
           description: site.description ? `CONTEXT: ${site.description}` : "",
           composition_style: compositionStyle,
-          color_palette: site.color_palette || "warm neutrals",
+          color_palette: hexPaletteToDescription(site.color_palette) || "warm neutrals",
           mood: site.mood || "warm and welcoming",
         },
         FALLBACK_PROMPTS.image,
