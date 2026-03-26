@@ -443,20 +443,22 @@ COMPOSITION: {{composition_style}}
 
 MOOD: {{mood}}
 
-COLOR PALETTE: Use {{color_palette}} tones throughout the image.
+COLOR INSPIRATION: The overall color feeling should lean towards {{color_palette}} tones.
 
 VISUAL STYLE GUIDELINES:
 - Editorial photography style, high quality
 - The composition must feel intentional and varied, not generic
 - Lighting should match the mood specified above
-- Colors must align with the palette specified above
+- Colors should subtly influence the scene (background, props, lighting) but NOT be displayed as literal swatches
 
 STRICT REQUIREMENTS:
-- NO text of any kind
+- NO text of any kind (no letters, no numbers, no hex codes, no labels)
+- NO color palettes, NO color swatches, NO color bars, NO hex color codes rendered in the image
 - NO logos, NO watermarks
 - NO human faces
 - All products must be completely generic and unbranded
 - No visible text, labels or packaging on any product
+- The image must be a clean photograph with NO overlays, annotations, or design elements
 - Suitable for blog header, 16:9 ratio`,
 };
 
@@ -823,6 +825,46 @@ function getMaxPreferredLengthForPlan(plan: string, isSuperAdmin: boolean): Pref
 function clampPreferredLength(preferred: PreferredLength, maxAllowed: PreferredLength): PreferredLength {
   const rank: Record<PreferredLength, number> = { short: 1, medium: 2, long: 3 };
   return rank[preferred] <= rank[maxAllowed] ? preferred : maxAllowed;
+}
+
+// ==========================================
+// HEX PALETTE TO DESCRIPTIVE COLORS
+// ==========================================
+function hexToColorName(hex: string): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2 / 255;
+  if (l < 0.15) return "dark";
+  if (l > 0.85) return "light";
+  const d = max - min;
+  if (d < 30) return l > 0.5 ? "soft gray" : "charcoal";
+  let hue = 0;
+  if (max === r) hue = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+  else if (max === g) hue = ((b - r) / d + 2) * 60;
+  else hue = ((r - g) / d + 4) * 60;
+  if (hue < 15) return "red";
+  if (hue < 40) return "orange";
+  if (hue < 65) return "yellow";
+  if (hue < 80) return "lime";
+  if (hue < 160) return "green";
+  if (hue < 190) return "teal";
+  if (hue < 220) return "blue";
+  if (hue < 260) return "indigo";
+  if (hue < 290) return "purple";
+  if (hue < 335) return "pink";
+  return "red";
+}
+
+function hexPaletteToDescription(palette: string | null): string | null {
+  if (!palette) return null;
+  const hexPattern = /#[0-9a-fA-F]{6}/g;
+  const hexes = palette.match(hexPattern);
+  if (!hexes || hexes.length === 0) return palette;
+  const names = [...new Set(hexes.map(hexToColorName))];
+  return names.join(", ");
 }
 
 // ==========================================
@@ -3648,7 +3690,7 @@ Deno.serve(async (req) => {
           sector: sector,
           description: site.description ? `CONTEXT: ${site.description}` : "",
           composition_style: compositionStyle,
-          color_palette: site.color_palette || "warm neutrals",
+          color_palette: hexPaletteToDescription(site.color_palette) || "warm neutrals",
           mood: site.mood || "warm and welcoming",
         },
         FALLBACK_PROMPTS.image,
@@ -3729,7 +3771,7 @@ Deno.serve(async (req) => {
         console.log("AI image attempt 1 failed, retrying with simplified prompt in 2s...");
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
-        const simplifiedPrompt = `Generate a professional blog header image for a ${sector} business about "${topic}". Editorial photography style, 16:9 ratio. NO text, NO logos, NO human faces, NO branded products.`;
+        const simplifiedPrompt = `Generate a professional blog header image for a ${sector} business about "${topic}". Editorial photography style, 16:9 ratio. NO text, NO logos, NO human faces, NO branded products. Do NOT render any color palettes, color swatches, hex codes, or annotations.`;
         aiSuccess = await attemptAIImage(simplifiedPrompt, "attempt 2");
       }
 
