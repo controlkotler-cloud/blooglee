@@ -3771,7 +3771,7 @@ Deno.serve(async (req) => {
         console.log("AI image attempt 1 failed, retrying with simplified prompt in 2s...");
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
-        const simplifiedPrompt = `Generate a professional blog header image for a ${sector} business about "${topic}". Editorial photography style, 16:9 ratio. NO text, NO logos, NO human faces, NO branded products.`;
+        const simplifiedPrompt = `Generate a professional blog header image for a ${sector} business about "${topic}". Editorial photography style, 16:9 ratio. NO text, NO logos, NO human faces, NO branded products. Do NOT render any color palettes, color swatches, hex codes, or annotations.`;
         aiSuccess = await attemptAIImage(simplifiedPrompt, "attempt 2");
       }
 
