@@ -828,6 +828,46 @@ function clampPreferredLength(preferred: PreferredLength, maxAllowed: PreferredL
 }
 
 // ==========================================
+// HEX PALETTE TO DESCRIPTIVE COLORS
+// ==========================================
+function hexToColorName(hex: string): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2 / 255;
+  if (l < 0.15) return "dark";
+  if (l > 0.85) return "light";
+  const d = max - min;
+  if (d < 30) return l > 0.5 ? "soft gray" : "charcoal";
+  let hue = 0;
+  if (max === r) hue = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+  else if (max === g) hue = ((b - r) / d + 2) * 60;
+  else hue = ((r - g) / d + 4) * 60;
+  if (hue < 15) return "red";
+  if (hue < 40) return "orange";
+  if (hue < 65) return "yellow";
+  if (hue < 80) return "lime";
+  if (hue < 160) return "green";
+  if (hue < 190) return "teal";
+  if (hue < 220) return "blue";
+  if (hue < 260) return "indigo";
+  if (hue < 290) return "purple";
+  if (hue < 335) return "pink";
+  return "red";
+}
+
+function hexPaletteToDescription(palette: string | null): string | null {
+  if (!palette) return null;
+  const hexPattern = /#[0-9a-fA-F]{6}/g;
+  const hexes = palette.match(hexPattern);
+  if (!hexes || hexes.length === 0) return palette;
+  const names = [...new Set(hexes.map(hexToColorName))];
+  return names.join(", ");
+}
+
+// ==========================================
 // SECTOR CONTEXTS
 // ==========================================
 const SECTOR_IMAGE_CONTEXTS: Record<string, SectorContext> = {
