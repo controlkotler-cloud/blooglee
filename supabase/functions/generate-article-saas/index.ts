@@ -1729,6 +1729,61 @@ function linkKeywordNearEnd(htmlContent: string, keywordRegex: RegExp, url: stri
   return `${head}${linkedTail}`;
 }
 
+/**
+ * Strips AI-generated closing/CTA paragraphs that mention blog, Instagram,
+ * or redes sociales as PLAIN TEXT (without real <a> links).
+ * These are removed because the system will inject its own CTA with real links later.
+ * Must run BEFORE ensureFooterLinks / ensureAuthorityLinks.
+ */
+function stripAiGeneratedClosingCta(htmlContent: string): string {
+  if (!htmlContent) return htmlContent;
+
+  const paragraphRegex = /<p\b[^>]*>[\s\S]*?<\/p>/gi;
+  const allParagraphs = [...htmlContent.matchAll(paragraphRegex)];
+  if (allParagraphs.length < 2) return htmlContent;
+
+  // Only scan the last 30% of the content
+  const threshold = htmlContent.length * 0.7;
+
+  // Patterns that indicate the AI wrote its own blog/social CTA
+  const plainTextCtaPatterns =
+    /(visit[aá]\s+(nuestro|el)\s+blog|nuestro\s+blog|nuestras?\s+redes\s+sociales|s[ií]guenos\s+en\s+(instagram|redes)|seguirnos\s+en\s+(instagram|redes)|en\s+(nuestro|el)\s+blog|en\s+instagram|en\s+nuestras\s+redes|p[aá]sate\s+por\s+(nuestro|el)\s+blog|encuentra\s+m[aá]s\s+en\s+(nuestro|el)\s+blog|seguir\s+profundizando)/i;
+
+  let result = htmlContent;
+  let removed = 0;
+
+  for (let i = allParagraphs.length - 1; i >= 0 && removed < 3; i--) {
+    const m = allParagraphs[i];
+    const start = m.index ?? 0;
+    if (start < threshold) break;
+
+    const paragraphHtml = m[0];
+    const plainText = paragraphHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+    // Skip long paragraphs (they're real content, not CTAs)
+    if (plainText.length > 400) continue;
+    if (plainText.length < 15) continue;
+
+    // Skip paragraphs that already have real <a> links to blog/social URLs
+    const hasRealLinks = /<a\s+[^>]*href=["']https?:\/\//i.test(paragraphHtml);
+    if (hasRealLinks) continue;
+
+    // Check if the paragraph mentions blog/redes/Instagram as plain text
+    if (plainTextCtaPatterns.test(plainText)) {
+      console.log(`[stripAiClosingCta] Removing AI-generated CTA paragraph: "${plainText.slice(0, 80)}..."`);
+      result = result.replace(paragraphHtml, "");
+      removed++;
+    }
+  }
+
+  if (removed > 0) {
+    result = result.replace(/\n{3,}/g, "\n\n").trim();
+    console.log(`[stripAiClosingCta] Removed ${removed} AI-generated closing CTA paragraph(s)`);
+  }
+
+  return result;
+}
+
 function isFooterCtaParagraph(
   paragraphHtml: string,
   blogUrl: string | null = null,
