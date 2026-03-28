@@ -1977,7 +1977,12 @@ function finalDeduplicateClosingParagraphs(
     // and should never be removed by the closing dedup
     if (authorityLinkPattern.test(plainText)) continue;
 
-    if (closingPatterns.test(plainText)) {
+    // Also detect plain-text mentions of blog/redes/Instagram without <a> links
+    const plainTextBlogSocial =
+      /(blog|instagram|redes sociales|nuestras redes)/i.test(plainText) &&
+      !/<a\s+[^>]*href=["']https?:\/\//i.test(m[0]);
+
+    if (closingPatterns.test(plainText) || plainTextBlogSocial) {
       closingIndexes.push(i);
     }
   }
@@ -1985,10 +1990,16 @@ function finalDeduplicateClosingParagraphs(
   // If 0 or 1 closing paragraphs, nothing to dedupe
   if (closingIndexes.length <= 1) return htmlContent;
 
-  console.log(`[finalDedup] Found ${closingIndexes.length} closing paragraphs, keeping only the last one`);
+  console.log(`[finalDedup] Found ${closingIndexes.length} closing paragraphs`);
 
-  // Keep the LAST closing paragraph, remove all others
-  const keepIdx = closingIndexes[closingIndexes.length - 1];
+  // Prefer keeping the paragraph that has real <a> links; otherwise keep the last one
+  let keepIdx = closingIndexes[closingIndexes.length - 1];
+  for (const ci of closingIndexes) {
+    if (/<a\s+[^>]*href=["']https?:\/\//i.test(allParagraphs[ci][0])) {
+      keepIdx = ci;
+      // Keep the LAST one with real links
+    }
+  }
   let result = htmlContent;
 
   for (let k = closingIndexes.length - 2; k >= 0; k--) {
@@ -2331,7 +2342,18 @@ function ensureFooterLinks(
     return `<p>${fallbackSentence}</p>`;
   }
 
-  const lastMatch = matches[matches.length - 1];
+  // Find the last paragraph that is NOT an authority link paragraph
+  const authorityPattern = /para ampliar informaci[oó]n.*consulta/i;
+  let targetMatchIdx = matches.length - 1;
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const plain = matches[i][0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (!authorityPattern.test(plain)) {
+      targetMatchIdx = i;
+      break;
+    }
+  }
+
+  const lastMatch = matches[targetMatchIdx];
   const lastParagraphStart = lastMatch.index ?? 0;
   const lastParagraphEnd = lastParagraphStart + lastMatch[0].length;
 
