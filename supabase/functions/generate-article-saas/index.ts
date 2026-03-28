@@ -355,8 +355,8 @@ ENLACES EXTERNOS (2 OBLIGATORIOS):
 - Formato: <a href='URL' target='_blank' rel='noopener'>texto ancla descriptivo</a>
 
 FRASE FINAL:
-- NO escribas un cierre promocional de blog/redes en el contenido.
-- El sistema añadirá automáticamente un CTA final unificado en el último párrafo.
+- PROHIBIDO: NO escribas NINGÚN párrafo final que mencione blog, redes sociales, Instagram o que invite a visitar/seguir canales. El sistema lo añade automáticamente. Si lo incluyes, se generará duplicado.
+- Tu artículo debe terminar con un párrafo de conclusión sobre el TEMA, sin mencionar blog, redes ni canales.
 
 ═══════════════════════════════════════
 12. TEMAS Y TÉRMINOS PROHIBIDOS
@@ -393,7 +393,7 @@ Recuerda:
 - Longitud: ~{{lengthWords}} palabras
 - Incluye un enlace a {{homeUrl}} de forma natural (puedes usar "{{siteName}}" como ancla solo si encaja gramaticalmente; si no, usa "nuestra web" o similar)
 - 2 enlaces externos a fuentes de autoridad
-- NO añadas frase final promocional de blog/redes (el sistema la integra automáticamente en el último párrafo)
+- PROHIBIDO: NO escribas ningún párrafo final que mencione blog, redes sociales, Instagram o que invite a visitar/seguir canales (el sistema lo añade automáticamente, si lo escribes se duplicará)
 - Focus keyword mínimo 5 veces, en seo_title al inicio, meta_description, primer párrafo y 2+ subtítulos
 - 1-2 H2 en formato pregunta (PAA)
 - NO <h1>, empieza con <h2> gancho diferente al título
