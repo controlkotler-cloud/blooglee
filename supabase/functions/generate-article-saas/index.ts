@@ -3941,23 +3941,27 @@ Deno.serve(async (req) => {
     console.log("Verifying external links in generated content...");
 
     if (spanishArticle?.content) {
+      spanishArticle.content = stripAiGeneratedClosingCta(spanishArticle.content);
       spanishArticle.content = await verifyAndCleanExternalLinks(spanishArticle.content);
-      spanishArticle.content = ensureAuthorityLinks(spanishArticle.content, selectedAuthoritySources, ownedDomains);
       spanishArticle.content = ensureFooterLinks(
         spanishArticle.content,
         site.name,
         site.blog_url || null,
         site.instagram_url || null,
       );
+      spanishArticle.content = ensureAuthorityLinks(spanishArticle.content, selectedAuthoritySources, ownedDomains);
     }
     if (catalanArticle?.content) {
+      catalanArticle.content = stripAiGeneratedClosingCta(catalanArticle.content);
       catalanArticle.content = await verifyAndCleanExternalLinks(catalanArticle.content);
-      catalanArticle.content = ensureAuthorityLinks(catalanArticle.content, selectedAuthoritySources, ownedDomains);
       catalanArticle.content = ensureFooterLinks(
         catalanArticle.content,
         site.name,
         site.blog_url || null,
         site.instagram_url || null,
+      );
+      catalanArticle.content = ensureAuthorityLinks(catalanArticle.content, selectedAuthoritySources, ownedDomains);
+    }
       );
     }
 
