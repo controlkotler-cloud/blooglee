@@ -1,64 +1,57 @@
 
 
-# Plan: Fix Elementor formatting and image display for Farmacia La Explanada
+# Plan: Eliminar definitivamente la duplicación de párrafos de cierre
 
-## Problem
+## Problema raíz (análisis de los artículos generados hoy)
 
-Two issues affect only this site (which uses Elementor as its page builder):
+El pipeline tiene dos fuentes de cierre que se solapan:
 
-1. **Content without formatting**: When Blooglee publishes via REST API, WordPress saves the HTML as a standard Gutenberg block. In Elementor-based themes, this raw HTML renders without the theme's typography, margins, or styles. The user must manually open "Edit with Elementor" and re-publish to fix it.
+1. **La IA genera su propio cierre** con menciones a "blog", "Instagram", "redes" como texto plano (sin `<a>` tags), ignorando la instrucción del prompt "NO escribas un cierre promocional".
+2. **`ensureFooterLinks` añade un CTA programático** con enlaces reales al blog y redes sociales en el último párrafo.
+3. **`ensureAuthorityLinks` añade un párrafo de fuentes** que luego `ensureFooterLinks` extiende con CTA de blog/redes, creando un segundo cierre.
+4. **`finalDeduplicateClosingParagraphs` no detecta** los párrafos de cierre de la IA que mencionan blog/redes como texto plano sin `<a>` tags.
 
-2. **Featured image not visible inside the post**: The image is uploaded as `featured_media`, which Elementor single-post templates sometimes ignore. The image shows on the blog listing (archive) but not on the individual post page.
+Resultado: 2-3 párrafos finales redundantes con menciones repetidas a blog, Instagram y redes sociales.
 
-## Root cause
+## Solución (3 cambios en `generate-article-saas/index.ts`)
 
-The publish function (`publish-to-wordpress-saas`) detects Elementor sites (`siteUsesElementorPostMarkup`) but only adds a warning — it never wraps the content or embeds the image. The `embed_image_in_content` column exists in `sites` but is never read during publishing.
+### Cambio 1: Limpiar cierres de la IA antes del post-procesado
 
-## Solution (scoped to Elementor sites only)
+Crear una función `stripAiGeneratedClosingCta()` que se ejecute **justo después de parsear el JSON** (tras `cleanMarkdownFromHtml`, antes de cualquier link injection). Esta función:
 
-All changes go in `supabase/functions/publish-to-wordpress-saas/index.ts`. No other sites are affected because the logic is gated by `historicalElementorPosts === true`.
+- Busca en el último 30% del contenido párrafos `<p>` cortos (<400 chars) que contengan patrones de cierre de blog/redes SIN `<a>` tags reales (texto plano como "visitar nuestro blog", "seguirnos en Instagram", "nuestras redes sociales")
+- Los elimina completamente, ya que el sistema inyectará su propio CTA después
+- No toca párrafos que tengan enlaces `<a>` reales (esos son del post-procesado)
 
-### Step 1 — Load site settings before publishing
+### Cambio 2: Mover `ensureAuthorityLinks` DESPUÉS de `ensureFooterLinks` y proteger su párrafo
 
-After fetching `wpConfig`, also fetch the site row to read `embed_image_in_content` and detect Elementor flag:
+Reordenar el pipeline para que la autoridad se añada después del CTA, y asegurar que `ensureFooterLinks` no inyecte CTA en el párrafo de autoridad:
 
-```sql
-SELECT embed_image_in_content FROM sites WHERE id = body.site_id
+```
+1. verifyAndCleanExternalLinks
+2. ensureFooterLinks (añade CTA al último párrafo del contenido real)
+3. ensureAuthorityLinks (añade párrafo de fuentes SEPARADO, sin CTA)
 ```
 
-### Step 2 — Wrap content in Elementor-compatible structure
+Además, modificar `ensureFooterLinks` para que detecte si el último párrafo es un párrafo de autoridad ("Para ampliar información, consulta...") y en ese caso aplique el CTA al **penúltimo** párrafo.
 
-When `historicalElementorPosts` is true and the incoming content is plain HTML (not already Elementor markup), wrap the entire `body.content` in a minimal Elementor-compatible div structure:
+### Cambio 3: Reforzar `finalDeduplicateClosingParagraphs` para detectar cierres sin links
 
-```html
-<div class="elementor-element elementor-widget elementor-widget-theme-post-content" data-element_type="widget">
-  <div class="elementor-widget-container">
-    {content}
-  </div>
-</div>
-```
+Ampliar la detección de párrafos de cierre duplicados para que también capture párrafos que mencionan "blog", "instagram", "redes sociales" como texto plano, no solo los que tienen `<a>` tags. Si hay múltiples párrafos de cierre, conservar SOLO el que tenga `<a>` tags reales a blog/redes, eliminando los de texto plano.
 
-This ensures the Elementor theme applies its default typography and spacing without requiring manual re-editing.
+### Cambio 4: Actualizar prompt en BD y código
 
-### Step 3 — Embed image in content for Elementor sites
+Reforzar la instrucción en `saas.article.system` y `saas.article.user` (tanto en la BD como en `FALLBACK_PROMPTS`):
 
-When `historicalElementorPosts` is true OR `embed_image_in_content` is true, prepend a centered `<img>` tag with inline styles at the beginning of the content (before the Elementor wrapper if applicable):
+- Cambiar de "NO escribas un cierre promocional de blog/redes en el contenido" a:
+  "PROHIBIDO: NO escribas ningún párrafo final que mencione blog, redes sociales, Instagram o que invite a visitar/seguir canales. El sistema lo añade automáticamente. Si lo incluyes, se generará duplicado."
 
-```html
-<div style="text-align:center;margin-bottom:2rem;">
-  <img src="{image_url}" alt="{image_alt}" style="max-width:100%;height:auto;border-radius:8px;" />
-</div>
-```
+## Archivos afectados
 
-This ensures the image is always visible inside the post, regardless of whether the theme's single-post template renders the featured image.
+- `supabase/functions/generate-article-saas/index.ts` — nueva función + reordenar pipeline + reforzar dedup
+- Migración SQL — actualizar prompts `saas.article.system` y `saas.article.user` en la tabla `prompts` + bump `prompt_cache_version`
 
-### Step 4 — Remove the warning, keep diagnostics
+## Resultado esperado
 
-Replace the current Elementor warning toast with a log entry. The content is now properly formatted, so the user doesn't need to be warned.
-
-### Safety
-
-- All logic is gated by `historicalElementorPosts === true` — sites without Elementor history are completely unaffected.
-- The `incomingLooksElementor` check prevents double-wrapping if the content already contains Elementor markup.
-- Deploy only the `publish-to-wordpress-saas` function.
+Un único párrafo de cierre al final con enlaces reales a blog y redes sociales, seguido opcionalmente de un párrafo de fuentes de autoridad sin CTA. Sin duplicados ni menciones redundantes.
 
