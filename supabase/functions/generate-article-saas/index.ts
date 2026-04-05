@@ -1730,6 +1730,35 @@ function linkKeywordNearEnd(htmlContent: string, keywordRegex: RegExp, url: stri
 }
 
 /**
+ * Normalizes the tail of article HTML so that unclosed <p> tags at the end
+ * are properly closed. This ensures downstream functions (strip, dedup) can
+ * detect ALL paragraphs via the standard <p>...</p> regex.
+ */
+function normalizeArticleTailHtml(htmlContent: string): string {
+  if (!htmlContent) return htmlContent;
+
+  // 1. Trim trailing whitespace
+  let content = htmlContent.trimEnd();
+
+  // 2. Close any dangling <p> that was never closed at the end.
+  //    We look at the last 500 chars for an unclosed <p>.
+  const tail = content.slice(-500);
+  const lastOpenP = tail.lastIndexOf("<p");
+  const lastCloseP = tail.lastIndexOf("</p>");
+
+  if (lastOpenP > -1 && (lastCloseP === -1 || lastCloseP < lastOpenP)) {
+    // There's an unclosed <p> at the end
+    content = content + "</p>";
+    console.log("[normalizeArticleTailHtml] Closed dangling <p> tag at end of article");
+  }
+
+  // 3. Remove orphan closing tags at the very end (e.g. stray </p></p>)
+  content = content.replace(/(<\/p>\s*){2,}$/i, "</p>");
+
+  return content;
+}
+
+/**
  * Strips AI-generated closing/CTA paragraphs that mention blog, Instagram,
  * or redes sociales as PLAIN TEXT (without real <a> links).
  * These are removed because the system will inject its own CTA with real links later.
