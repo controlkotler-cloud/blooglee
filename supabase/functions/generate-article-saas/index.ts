@@ -3967,11 +3967,18 @@ Deno.serve(async (req) => {
     const weekOfMonth = Math.ceil(dayOfMonth / 7);
 
     // ==========================================
-    // VERIFY AND CLEAN EXTERNAL LINKS
+    // POST-PROCESSING PIPELINE (order matters!)
+    // 1. normalizeArticleTailHtml — close dangling tags
+    // 2. stripAiGeneratedClosingCta — remove AI-generated closings
+    // 3. verifyAndCleanExternalLinks — validate external URLs
+    // 4. ensureFooterLinks — inject CTA with blog/social links
+    // 5. ensureAuthorityLinks — add authority source paragraph
+    // 6. finalDeduplicateClosingParagraphs — keep only one closing
     // ==========================================
-    console.log("Verifying external links in generated content...");
+    console.log("Running post-processing pipeline on generated content...");
 
     if (spanishArticle?.content) {
+      spanishArticle.content = normalizeArticleTailHtml(spanishArticle.content);
       spanishArticle.content = stripAiGeneratedClosingCta(spanishArticle.content);
       spanishArticle.content = await verifyAndCleanExternalLinks(spanishArticle.content);
       spanishArticle.content = ensureFooterLinks(
@@ -3983,6 +3990,7 @@ Deno.serve(async (req) => {
       spanishArticle.content = ensureAuthorityLinks(spanishArticle.content, selectedAuthoritySources, ownedDomains);
     }
     if (catalanArticle?.content) {
+      catalanArticle.content = normalizeArticleTailHtml(catalanArticle.content);
       catalanArticle.content = stripAiGeneratedClosingCta(catalanArticle.content);
       catalanArticle.content = await verifyAndCleanExternalLinks(catalanArticle.content);
       catalanArticle.content = ensureFooterLinks(
@@ -3992,8 +4000,6 @@ Deno.serve(async (req) => {
         site.instagram_url || null,
       );
       catalanArticle.content = ensureAuthorityLinks(catalanArticle.content, selectedAuthoritySources, ownedDomains);
-    }
-      );
     }
 
     // ==========================================
