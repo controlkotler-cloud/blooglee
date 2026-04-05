@@ -1,57 +1,63 @@
 
+He encontrado la diferencia real: mkpro y farmapro NO usan rutas distintas; ambos pasan por `generate-article-saas`. El comportamiento distinto viene de una combinación de fallos en el pipeline, no del sitio en sí.
 
-# Plan: Eliminar definitivamente la duplicación de párrafos de cierre
+Qué está pasando:
+1. El prompt activo en la base de datos sigue desalineado:
+   - `saas.article.user` todavía contiene una regla antigua del tipo “La frase final debe incluir todos los enlaces disponibles”.
+   - Como los prompts de base de datos tienen prioridad sobre los del código, la IA sigue generando su propio cierre con blog/Instagram.
+2. En mkpro hay artículos recientes que terminan con HTML mal cerrado:
+   - El último párrafo no acaba en `</p>`.
+   - Las funciones `stripAiGeneratedClosingCta`, `removeTrailingFooterCtaParagraphs` y `finalDeduplicateClosingParagraphs` solo detectan párrafos completos `<p>...</p>`, así que ese segundo cierre queda invisible y no se limpia.
+3. Hay un bug lógico en la deduplicación final:
+   - `finalDeduplicateClosingParagraphs` calcula qué párrafo debería conservar (`keepIdx`), pero luego en la práctica borra “todos menos el último”.
+   - Eso hace que el resultado dependa del orden exacto en que la IA escribió los cierres.
+4. Farmapro no “lo hace perfecto” por una lógica especial:
+   - Simplemente sus posts recientes suelen llegar con HTML de cierre bien formado, por eso el post-procesado sí consigue limpiarlos.
+5. mkpro además tiene menos contexto editorial configurado que farmapro (menos señales de contenido), lo que puede empujar a la IA a meter más autopromoción, pero no es la causa técnica principal.
 
-## Problema raíz (análisis de los artículos generados hoy)
+Plan de solución definitiva:
+1. Corregir los prompts activos
+   - Actualizar `saas.article.system` y `saas.article.user`.
+   - Eliminar cualquier instrucción que pida meter blog/Instagram en la frase final.
+   - Sustituirla por una prohibición explícita del cierre promocional.
+   - Forzar refresco de caché de prompts.
 
-El pipeline tiene dos fuentes de cierre que se solapan:
+2. Normalizar el HTML antes de deduplicar
+   - Añadir una función tipo `normalizeArticleTailHtml()` justo antes de `stripAiGeneratedClosingCta`.
+   - Cerrar `<p>` abiertos al final y limpiar cola HTML rota.
+   - Objetivo: que todos los cierres queden convertidos en bloques detectables.
 
-1. **La IA genera su propio cierre** con menciones a "blog", "Instagram", "redes" como texto plano (sin `<a>` tags), ignorando la instrucción del prompt "NO escribas un cierre promocional".
-2. **`ensureFooterLinks` añade un CTA programático** con enlaces reales al blog y redes sociales en el último párrafo.
-3. **`ensureAuthorityLinks` añade un párrafo de fuentes** que luego `ensureFooterLinks` extiende con CTA de blog/redes, creando un segundo cierre.
-4. **`finalDeduplicateClosingParagraphs` no detecta** los párrafos de cierre de la IA que mencionan blog/redes como texto plano sin `<a>` tags.
+3. Arreglar la deduplicación final
+   - Hacer que `finalDeduplicateClosingParagraphs` conserve realmente `keepIdx`.
+   - Si hay varios cierres candidatos, mantener solo uno.
+   - Priorizar el CTA oficial con enlaces correctos.
+   - Eliminar también párrafos de autopromoción de marca que terminen hablando de blog/Instagram aunque no empiecen como CTA puro.
 
-Resultado: 2-3 párrafos finales redundantes con menciones repetidas a blog, Instagram y redes sociales.
+4. Simplificar el pipeline
+   - Dejar `ensureAuthorityLinks` en una única fase final.
+   - Orden recomendado:
+     1. `cleanMarkdownFromHtml`
+     2. `normalizeArticleTailHtml`
+     3. `stripAiGeneratedClosingCta`
+     4. `verifyAndCleanExternalLinks`
+     5. `ensureFooterLinks`
+     6. `ensureAuthorityLinks`
+     7. `finalDeduplicateClosingParagraphs`
+   - Así el footer no dependerá de párrafos previos ya contaminados o mal cerrados.
 
-## Solución (3 cambios en `generate-article-saas/index.ts`)
+5. Validación final
+   - Probar una generación nueva para mkpro y otra para farmapro.
+   - Confirmar en ambos:
+     - un único cierre final
+     - sin segundo párrafo con blog/Instagram
+     - HTML correctamente cerrado
+     - sin mezclar fuentes de autoridad con el CTA
 
-### Cambio 1: Limpiar cierres de la IA antes del post-procesado
+Archivos y piezas afectadas:
+- `supabase/functions/generate-article-saas/index.ts`
+- prompts activos del backend: `saas.article.system` y `saas.article.user`
+- `prompt_cache_version`
 
-Crear una función `stripAiGeneratedClosingCta()` que se ejecute **justo después de parsear el JSON** (tras `cleanMarkdownFromHtml`, antes de cualquier link injection). Esta función:
-
-- Busca en el último 30% del contenido párrafos `<p>` cortos (<400 chars) que contengan patrones de cierre de blog/redes SIN `<a>` tags reales (texto plano como "visitar nuestro blog", "seguirnos en Instagram", "nuestras redes sociales")
-- Los elimina completamente, ya que el sistema inyectará su propio CTA después
-- No toca párrafos que tengan enlaces `<a>` reales (esos son del post-procesado)
-
-### Cambio 2: Mover `ensureAuthorityLinks` DESPUÉS de `ensureFooterLinks` y proteger su párrafo
-
-Reordenar el pipeline para que la autoridad se añada después del CTA, y asegurar que `ensureFooterLinks` no inyecte CTA en el párrafo de autoridad:
-
-```
-1. verifyAndCleanExternalLinks
-2. ensureFooterLinks (añade CTA al último párrafo del contenido real)
-3. ensureAuthorityLinks (añade párrafo de fuentes SEPARADO, sin CTA)
-```
-
-Además, modificar `ensureFooterLinks` para que detecte si el último párrafo es un párrafo de autoridad ("Para ampliar información, consulta...") y en ese caso aplique el CTA al **penúltimo** párrafo.
-
-### Cambio 3: Reforzar `finalDeduplicateClosingParagraphs` para detectar cierres sin links
-
-Ampliar la detección de párrafos de cierre duplicados para que también capture párrafos que mencionan "blog", "instagram", "redes sociales" como texto plano, no solo los que tienen `<a>` tags. Si hay múltiples párrafos de cierre, conservar SOLO el que tenga `<a>` tags reales a blog/redes, eliminando los de texto plano.
-
-### Cambio 4: Actualizar prompt en BD y código
-
-Reforzar la instrucción en `saas.article.system` y `saas.article.user` (tanto en la BD como en `FALLBACK_PROMPTS`):
-
-- Cambiar de "NO escribas un cierre promocional de blog/redes en el contenido" a:
-  "PROHIBIDO: NO escribas ningún párrafo final que mencione blog, redes sociales, Instagram o que invite a visitar/seguir canales. El sistema lo añade automáticamente. Si lo incluyes, se generará duplicado."
-
-## Archivos afectados
-
-- `supabase/functions/generate-article-saas/index.ts` — nueva función + reordenar pipeline + reforzar dedup
-- Migración SQL — actualizar prompts `saas.article.system` y `saas.article.user` en la tabla `prompts` + bump `prompt_cache_version`
-
-## Resultado esperado
-
-Un único párrafo de cierre al final con enlaces reales a blog y redes sociales, seguido opcionalmente de un párrafo de fuentes de autoridad sin CTA. Sin duplicados ni menciones redundantes.
-
+Resultado esperado:
+- mkpro y farmapro quedarán alineados porque el cierre ya no dependerá ni del prompt antiguo ni de HTML mal cerrado.
+- Habrá un único pie final con enlaces correctos, sin duplicados.
