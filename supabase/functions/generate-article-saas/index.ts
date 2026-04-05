@@ -1730,6 +1730,35 @@ function linkKeywordNearEnd(htmlContent: string, keywordRegex: RegExp, url: stri
 }
 
 /**
+ * Normalizes the tail of article HTML so that unclosed <p> tags at the end
+ * are properly closed. This ensures downstream functions (strip, dedup) can
+ * detect ALL paragraphs via the standard <p>...</p> regex.
+ */
+function normalizeArticleTailHtml(htmlContent: string): string {
+  if (!htmlContent) return htmlContent;
+
+  // 1. Trim trailing whitespace
+  let content = htmlContent.trimEnd();
+
+  // 2. Close any dangling <p> that was never closed at the end.
+  //    We look at the last 500 chars for an unclosed <p>.
+  const tail = content.slice(-500);
+  const lastOpenP = tail.lastIndexOf("<p");
+  const lastCloseP = tail.lastIndexOf("</p>");
+
+  if (lastOpenP > -1 && (lastCloseP === -1 || lastCloseP < lastOpenP)) {
+    // There's an unclosed <p> at the end
+    content = content + "</p>";
+    console.log("[normalizeArticleTailHtml] Closed dangling <p> tag at end of article");
+  }
+
+  // 3. Remove orphan closing tags at the very end (e.g. stray </p></p>)
+  content = content.replace(/(<\/p>\s*){2,}$/i, "</p>");
+
+  return content;
+}
+
+/**
  * Strips AI-generated closing/CTA paragraphs that mention blog, Instagram,
  * or redes sociales as PLAIN TEXT (without real <a> links).
  * These are removed because the system will inject its own CTA with real links later.
@@ -2002,12 +2031,14 @@ function finalDeduplicateClosingParagraphs(
   }
   let result = htmlContent;
 
-  for (let k = closingIndexes.length - 2; k >= 0; k--) {
+  // Remove ALL closing paragraphs except the one at keepIdx
+  for (let k = closingIndexes.length - 1; k >= 0; k--) {
     const idx = closingIndexes[k];
+    if (idx === keepIdx) continue; // preserve the chosen one
     const original = allParagraphs[idx][0];
     if (!result.includes(original)) continue;
     result = result.replace(original, "");
-    console.log(`[finalDedup] Removed duplicate closing paragraph #${idx}`);
+    console.log(`[finalDedup] Removed duplicate closing paragraph #${idx} (keeping #${keepIdx})`);
   }
 
   // Now ensure the kept closing paragraph has blog+social links if needed
@@ -3936,11 +3967,18 @@ Deno.serve(async (req) => {
     const weekOfMonth = Math.ceil(dayOfMonth / 7);
 
     // ==========================================
-    // VERIFY AND CLEAN EXTERNAL LINKS
+    // POST-PROCESSING PIPELINE (order matters!)
+    // 1. normalizeArticleTailHtml — close dangling tags
+    // 2. stripAiGeneratedClosingCta — remove AI-generated closings
+    // 3. verifyAndCleanExternalLinks — validate external URLs
+    // 4. ensureFooterLinks — inject CTA with blog/social links
+    // 5. ensureAuthorityLinks — add authority source paragraph
+    // 6. finalDeduplicateClosingParagraphs — keep only one closing
     // ==========================================
-    console.log("Verifying external links in generated content...");
+    console.log("Running post-processing pipeline on generated content...");
 
     if (spanishArticle?.content) {
+      spanishArticle.content = normalizeArticleTailHtml(spanishArticle.content);
       spanishArticle.content = stripAiGeneratedClosingCta(spanishArticle.content);
       spanishArticle.content = await verifyAndCleanExternalLinks(spanishArticle.content);
       spanishArticle.content = ensureFooterLinks(
@@ -3952,6 +3990,7 @@ Deno.serve(async (req) => {
       spanishArticle.content = ensureAuthorityLinks(spanishArticle.content, selectedAuthoritySources, ownedDomains);
     }
     if (catalanArticle?.content) {
+      catalanArticle.content = normalizeArticleTailHtml(catalanArticle.content);
       catalanArticle.content = stripAiGeneratedClosingCta(catalanArticle.content);
       catalanArticle.content = await verifyAndCleanExternalLinks(catalanArticle.content);
       catalanArticle.content = ensureFooterLinks(
@@ -3961,8 +4000,6 @@ Deno.serve(async (req) => {
         site.instagram_url || null,
       );
       catalanArticle.content = ensureAuthorityLinks(catalanArticle.content, selectedAuthoritySources, ownedDomains);
-    }
-      );
     }
 
     // ==========================================
