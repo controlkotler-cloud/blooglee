@@ -2031,12 +2031,14 @@ function finalDeduplicateClosingParagraphs(
   }
   let result = htmlContent;
 
-  for (let k = closingIndexes.length - 2; k >= 0; k--) {
+  // Remove ALL closing paragraphs except the one at keepIdx
+  for (let k = closingIndexes.length - 1; k >= 0; k--) {
     const idx = closingIndexes[k];
+    if (idx === keepIdx) continue; // preserve the chosen one
     const original = allParagraphs[idx][0];
     if (!result.includes(original)) continue;
     result = result.replace(original, "");
-    console.log(`[finalDedup] Removed duplicate closing paragraph #${idx}`);
+    console.log(`[finalDedup] Removed duplicate closing paragraph #${idx} (keeping #${keepIdx})`);
   }
 
   // Now ensure the kept closing paragraph has blog+social links if needed
