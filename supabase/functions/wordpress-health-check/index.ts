@@ -471,6 +471,49 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Input validation: URL format and SSRF prevention
+    if (typeof site_url !== 'string' || site_url.length > 500) {
+      return new Response(
+        JSON.stringify({ error: "Invalid site_url format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    try {
+      const parsedUrl = new URL(site_url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        return new Response(
+          JSON.stringify({ error: "Only http/https URLs are allowed" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const hostname = parsedUrl.hostname.toLowerCase();
+      if (hostname === 'localhost' || hostname.startsWith('127.') || hostname.startsWith('10.') || hostname.startsWith('192.168.') || hostname.startsWith('172.') || hostname === '0.0.0.0' || hostname === '[::1]') {
+        return new Response(
+          JSON.stringify({ error: "Internal/private URLs are not allowed" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Malformed URL" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate credential lengths if provided
+    if (wp_username && (typeof wp_username !== 'string' || wp_username.length > 200)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid username format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (wp_app_password && (typeof wp_app_password !== 'string' || wp_app_password.length > 500)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid password format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     console.log(`Starting health check phase ${phase} for: ${site_url}`);
 
     const response: HealthCheckResponse = {
