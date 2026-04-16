@@ -37,7 +37,7 @@ const featuresFAQs = [
   {
     question: "¿Qué modelos de IA utiliza Blooglee?",
     answer:
-      "Blooglee utiliza los modelos de IA más avanzados disponibles: GPT-5 de OpenAI y Gemini 2.5 de Google. Esto garantiza contenido de alta calidad, coherente y adaptado al contexto de cada negocio.",
+      "Blooglee utiliza los modelos de IA más avanzados disponibles: los últimos modelos de OpenAI y Google. Esto garantiza contenido de alta calidad, coherente y adaptado al contexto de cada negocio.",
   },
   {
     question: "¿Es compatible con Yoast SEO?",
