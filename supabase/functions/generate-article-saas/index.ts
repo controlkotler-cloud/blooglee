@@ -2447,7 +2447,7 @@ function ensureFooterLinks(
       if (ctaSentence) {
         lastParagraph = appendSentenceToParagraph(lastParagraph, ctaSentence);
         lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, blogUrl, "blog");
-        lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, instagramUrl, "redes sociales");
+        lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, instagramUrl, lang === "ca" ? "xarxes socials" : "redes sociales");
       }
     }
   }
