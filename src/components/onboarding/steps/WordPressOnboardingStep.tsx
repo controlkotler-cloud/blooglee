@@ -135,6 +135,9 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
       const content = article.content_spanish as unknown as ArticleContent | null;
       if (!content) throw new Error("Sin contenido del artículo");
 
+      // Allow future auto-publish now that user explicitly authorized publishing
+      await supabase.from("articles").update({ skip_auto_publish: false } as any).eq("id", articleId);
+
       const result = await publishMutation.mutateAsync({
         site_id: siteId,
         title: content.title,
