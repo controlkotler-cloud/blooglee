@@ -1,21 +1,24 @@
-import { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { RefreshCw } from 'lucide-react';
-import { track } from '@/lib/analytics';
-import type { OnboardingStepData } from '@/hooks/useOnboarding';
+import { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { RefreshCw } from "lucide-react";
+import { track } from "@/lib/analytics";
+import type { OnboardingStepData } from "@/hooks/useOnboarding";
 
 const TIPS = [
-  '📈 Los negocios con blog reciben un 55% más de visitas.',
-  '📍 El contenido local posiciona mejor en Google.',
-  '🔄 Publicar regularmente mejora tu autoridad online.',
-  '💪 Un artículo de blog trabaja para ti 24/7.',
+  "📈 Los negocios con blog reciben un 55% más de visitas.",
+  "📍 El contenido local posiciona mejor en Google.",
+  "🔄 Publicar regularmente mejora tu autoridad online.",
+  "💪 Un artículo de blog trabaja para ti 24/7.",
 ];
 
 const TONE_LABELS: Record<string, string> = {
-  friendly: 'Cercano', professional: 'Profesional', expert: 'Experto', educational: 'Divulgativo',
+  friendly: "Cercano",
+  professional: "Profesional",
+  expert: "Experto",
+  educational: "Divulgativo",
 };
 
 interface GeneratingStepProps {
@@ -26,7 +29,7 @@ interface GeneratingStepProps {
 }
 
 export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: GeneratingStepProps) {
-  const [status, setStatus] = useState<'generating' | 'done' | 'error'>('generating');
+  const [status, setStatus] = useState<"generating" | "done" | "error">("generating");
   const [tipIndex, setTipIndex] = useState(0);
   const [tipVisible, setTipVisible] = useState(true);
   const [progress, setProgressValue] = useState(0);
@@ -34,14 +37,14 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
   const isGeneratingRef = useRef(false);
   const startTimeRef = useRef(Date.now());
 
-  const topic = (stepData?.step3?.selected_topic as string) ?? 'Tu artículo';
-  const businessName = (stepData?.step1?.business_name as string) ?? 'tu negocio';
-  const tone = (stepData?.step2?.tone as string) ?? '';
+  const topic = (stepData?.step3?.selected_topic as string) ?? "Tu artículo";
+  const businessName = (stepData?.step1?.business_name as string) ?? "tu negocio";
+  const tone = (stepData?.step2?.tone as string) ?? "";
   const toneLabel = TONE_LABELS[tone] || tone;
 
   // Simulated progress animation
   useEffect(() => {
-    if (status !== 'generating') return;
+    if (status !== "generating") return;
     startTimeRef.current = Date.now();
 
     const interval = setInterval(() => {
@@ -73,13 +76,29 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
   useEffect(() => {
     if (generatedRef.current || isGeneratingRef.current || !siteId) return;
 
-    // If article was already generated in a previous session, skip to next
+    // If article was already generated in a previous session, verify it actually exists
     const existingArticleId = stepData?.step5?.article_id;
     if (existingArticleId) {
-      generatedRef.current = true;
-      setProgressValue(100);
-      setStatus('done');
-      setTimeout(() => onNext(), 600);
+      // Verify the article exists and has content before skipping
+      supabase
+        .from("articles")
+        .select("id, content_spanish")
+        .eq("id", existingArticleId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.content_spanish) {
+            generatedRef.current = true;
+            setProgressValue(100);
+            setStatus("done");
+            setTimeout(() => onNext(), 600);
+          } else {
+            // Article doesn't exist or is empty — regenerate
+            console.warn("Saved article_id not found or empty, regenerating...");
+            isGeneratingRef.current = true;
+            generatedRef.current = true;
+            generateArticle();
+          }
+        });
       return;
     }
 
@@ -89,30 +108,33 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
   }, [siteId]);
 
   const generateArticle = async () => {
-    setStatus('generating');
+    setStatus("generating");
     const startTime = Date.now();
-    track('onboarding_article_generation_started');
+    track("onboarding_article_generation_started");
 
     try {
       const now = new Date();
-      const { data, error } = await supabase.functions.invoke('generate-article-saas', {
+      const { data, error } = await supabase.functions.invoke("generate-article-saas", {
         body: { siteId, topic, month: now.getMonth() + 1, year: now.getFullYear() },
       });
 
       if (error) throw error;
 
       const articleId = data?.article?.id || data?.articleId || data?.article_id || data?.id;
-      if (articleId) await saveStepData('step5', { article_id: articleId });
+      if (articleId) await saveStepData("step5", { article_id: articleId });
 
       const durationSeconds = Math.round((Date.now() - startTime) / 1000);
-      track('onboarding_article_generation_completed', { duration_seconds: durationSeconds, word_count: data?.word_count ?? 0 });
+      track("onboarding_article_generation_completed", {
+        duration_seconds: durationSeconds,
+        word_count: data?.word_count ?? 0,
+      });
 
       setProgressValue(100);
-      setStatus('done');
+      setStatus("done");
       setTimeout(() => onNext(), 1200);
     } catch (err) {
-      console.error('Article generation failed:', err);
-      setStatus('error');
+      console.error("Article generation failed:", err);
+      setStatus("error");
       generatedRef.current = false;
       isGeneratingRef.current = false;
     }
@@ -124,9 +146,13 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
       <div className="text-center space-y-3">
         <p className="text-3xl">✨</p>
         <h2 className="text-lg sm:text-xl font-display font-bold text-foreground">
-          {status === 'done' ? '¡Artículo generado!' : status === 'error' ? 'Algo ha fallado' : 'Estamos escribiendo tu artículo...'}
+          {status === "done"
+            ? "¡Artículo generado!"
+            : status === "error"
+              ? "Algo ha fallado"
+              : "Estamos escribiendo tu artículo..."}
         </h2>
-        {status === 'generating' && (
+        {status === "generating" && (
           <>
             <p className="text-base sm:text-lg font-semibold text-foreground italic max-w-md mx-auto leading-snug">
               &ldquo;{topic}&rdquo;
@@ -139,8 +165,10 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
       </div>
 
       {/* Central content */}
-      <div className={`rounded-xl bg-muted/50 border border-border p-4 sm:p-6 min-h-[180px] sm:min-h-[200px] flex flex-col items-center justify-center gap-5 transition-colors duration-300 ${status === 'done' ? 'animate-flash-done' : ''}`}>
-        {status === 'generating' && (
+      <div
+        className={`rounded-xl bg-muted/50 border border-border p-4 sm:p-6 min-h-[180px] sm:min-h-[200px] flex flex-col items-center justify-center gap-5 transition-colors duration-300 ${status === "done" ? "animate-flash-done" : ""}`}
+      >
+        {status === "generating" && (
           <>
             {/* Skeleton writing effect */}
             <div className="w-full max-w-sm space-y-3">
@@ -154,22 +182,23 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
             </div>
             {/* Progress bar */}
             <div className="w-full max-w-sm space-y-1.5">
-              <Progress value={progress} className="h-2 [&>div]:transition-[width] [&>div]:duration-1000 [&>div]:ease-linear" />
-              <p className="text-xs text-muted-foreground text-center">
-                Escribiendo... {Math.round(progress)}%
-              </p>
+              <Progress
+                value={progress}
+                className="h-2 [&>div]:transition-[width] [&>div]:duration-1000 [&>div]:ease-linear"
+              />
+              <p className="text-xs text-muted-foreground text-center">Escribiendo... {Math.round(progress)}%</p>
             </div>
           </>
         )}
 
-        {status === 'done' && (
+        {status === "done" && (
           <div className="text-center space-y-2">
             <p className="text-4xl">🎉</p>
             <p className="text-sm font-medium text-foreground">¡Tu primer artículo está listo!</p>
           </div>
         )}
 
-        {status === 'error' && (
+        {status === "error" && (
           <div className="text-center space-y-4">
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
               Ha habido un problema al generar tu artículo. No te preocupes, vamos a intentarlo de nuevo.
@@ -183,9 +212,11 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
       </div>
 
       {/* Rotating tips */}
-      {status === 'generating' && (
+      {status === "generating" && (
         <div className="h-10 flex items-center justify-center">
-          <p className={`text-xs sm:text-sm text-muted-foreground text-center transition-opacity duration-400 ${tipVisible ? 'opacity-100' : 'opacity-0'}`}>
+          <p
+            className={`text-xs sm:text-sm text-muted-foreground text-center transition-opacity duration-400 ${tipVisible ? "opacity-100" : "opacity-0"}`}
+          >
             {TIPS[tipIndex]}
           </p>
         </div>
