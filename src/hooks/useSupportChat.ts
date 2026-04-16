@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Message {
@@ -88,6 +88,16 @@ export function useSupportChat() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { session } = useAuth();
+
+  // Cleanup: abort any pending request on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
 
   const sendMessage = useCallback(
     async (userMessage: string, errorContext?: ErrorContext, userMetadata?: UserMetadata) => {
@@ -273,7 +283,6 @@ export function useSupportChat() {
         }
         console.error("Chat error:", err);
         setError(err instanceof Error ? err.message : "Error desconocido");
-        // Add error message as assistant response if no assistant message was produced
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last?.role === "assistant") return prev;
