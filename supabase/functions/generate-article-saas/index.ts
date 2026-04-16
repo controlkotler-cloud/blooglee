@@ -3174,7 +3174,7 @@ Deno.serve(async (req) => {
     try {
       const { data: sectorData } = await supabase
         .from("sector_contexts")
-        .select("prohibited_terms, authority_sources")
+        .select("sector_key, prohibited_terms, authority_sources")
         .or(`sector_key.eq.${sectorCategory},sector_key.eq.general`)
         .order("sector_key", { ascending: false }); // sector-specific first
 
@@ -3189,6 +3189,55 @@ Deno.serve(async (req) => {
         if (authoritySources.length === 0) {
           console.warn(`[authority] No authority sources found for sector="${sectorCategory}". Article will be generated WITHOUT external sources to avoid hallucinated URLs.`);
         }
+      }
+
+      // AUTO-GENERATION: If sectorCategory is NOT "general" but we have NO specific row for it,
+      // fire-and-forget background job to generate authority_sources via AI.
+      // Next article will benefit from this. Current article uses "general" fallback.
+      const hasSpecificRow = (sectorData || []).some((s: any) => s.sector_key === sectorCategory);
+      const sectorKeyToStore = sectorCategory.toLowerCase().replace(/[^a-z0-9_]+/g, "_").substring(0, 50);
+
+      if (
+        sectorCategory !== "general" &&
+        sectorKeyToStore &&
+        !hasSpecificRow &&
+        LOVABLE_API_KEY
+      ) {
+        console.log(`[auto-authority] Sector "${sectorCategory}" has no specific row. Triggering async generation...`);
+        const sectorLabel = site.sector || sectorCategory;
+        const siteIdForRef = siteId;
+
+        // Fire-and-forget — don't block article generation
+        (async () => {
+          try {
+            const newSources = await autoGenerateAuthoritySources(sectorLabel, LOVABLE_API_KEY!);
+            if (newSources.length >= 3) {
+              const { error: insertErr } = await supabase.from("sector_contexts").upsert(
+                {
+                  sector_key: sectorKeyToStore,
+                  sector_keywords: [sectorLabel.toLowerCase()],
+                  image_examples: [],
+                  prohibited_terms: [],
+                  fallback_query: "professional business",
+                  authority_sources: newSources,
+                  auto_generated: true,
+                  needs_review: true,
+                  created_by_site_id: siteIdForRef,
+                } as any,
+                { onConflict: "sector_key" },
+              );
+              if (insertErr) {
+                console.warn("[auto-authority] Failed to save sector_context:", insertErr.message);
+              } else {
+                console.log(`[auto-authority] Saved ${newSources.length} verified sources for "${sectorKeyToStore}". Marked for admin review.`);
+              }
+            } else {
+              console.warn(`[auto-authority] Not enough verified sources for "${sectorLabel}" (got ${newSources.length})`);
+            }
+          } catch (err) {
+            console.error("[auto-authority] Async generation error:", err);
+          }
+        })().catch((err) => console.error("[auto-authority] Unhandled:", err));
       }
     } catch (e) {
       console.log("Could not load sector prohibited terms:", e);
