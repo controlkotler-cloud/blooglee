@@ -281,6 +281,7 @@ export default function AdminUsers() {
                       size="sm"
                       disabled={updateRole.isPending}
                       onClick={async () => {
+                        if (!confirm('¿Seguro que quieres quitar el rol admin a este usuario?')) return;
                         await updateRole.mutateAsync({ userId: editingUser.user_id, role: 'admin', action: 'remove' });
                         setEditingUser({ ...editingUser, roles: editingUser.roles.filter((r: string) => r !== 'admin') });
                         toast.success('Rol admin eliminado');

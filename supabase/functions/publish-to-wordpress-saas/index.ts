@@ -232,7 +232,7 @@ async function resolveFallbackCategoryId(
   wpUrl: string,
   wpHeaders: Record<string, string>,
   requestId: string,
-): Promise<number | null> {
+): Promise<{ id: number; name: string } | null> {
   try {
     const categoriesResponse = await fetch(
       `${wpUrl}/wp-json/wp/v2/categories?per_page=100&_fields=id,name,slug,count`,
@@ -281,14 +281,14 @@ async function resolveFallbackCategoryId(
       console.log(
         `[${requestId}][category_fallback] Selected preferred category id=${preferred.id} slug=${preferred.slug || ""}`,
       );
-      return preferred.id;
+      return { id: preferred.id, name: preferred.name || preferred.slug || String(preferred.id) };
     }
 
     nonGeneric.sort((a, b) => (b.count || 0) - (a.count || 0));
     console.log(
       `[${requestId}][category_fallback] Selected most-used category id=${nonGeneric[0].id} slug=${nonGeneric[0].slug || ""} count=${nonGeneric[0].count || 0}`,
     );
-    return nonGeneric[0].id;
+    return { id: nonGeneric[0].id, name: nonGeneric[0].name || nonGeneric[0].slug || String(nonGeneric[0].id) };
   } catch (error) {
     console.error(`[${requestId}][category_fallback] Error resolving fallback category:`, error);
     return null;
@@ -625,9 +625,10 @@ Deno.serve(async (req) => {
 
     let effectiveCategoryIds = body.category_ids;
     if (!effectiveCategoryIds || effectiveCategoryIds.length === 0) {
-      const fallbackCategoryId = await resolveFallbackCategoryId(wpUrl, wpHeaders, requestId);
-      if (fallbackCategoryId) {
-        effectiveCategoryIds = [fallbackCategoryId];
+      const fallbackCategory = await resolveFallbackCategoryId(wpUrl, wpHeaders, requestId);
+      if (fallbackCategory) {
+        effectiveCategoryIds = [fallbackCategory.id];
+        warnings.push("Se asignó la categoría '" + fallbackCategory.name + "' automáticamente. Puedes cambiarla desde WordPress.");
       }
     }
 

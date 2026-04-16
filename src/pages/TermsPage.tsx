@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 const TermsPage = () => {
   return (
-    <LegalLayout title="Términos y Condiciones" lastUpdated="25 de enero de 2024">
+    <LegalLayout title="Términos y Condiciones" lastUpdated="16 de abril de 2026">
       <h2>1. Definiciones</h2>
       <p>
         En los presentes Términos y Condiciones, los siguientes términos tendrán los significados que se indican a continuación:
@@ -91,11 +91,6 @@ const TermsPage = () => {
         <strong>Email:</strong> <a href="mailto:info@blooglee.com" className="text-violet-600 hover:underline">info@blooglee.com</a>
       </p>
 
-      <div className="mt-8 p-4 bg-violet-50 rounded-xl">
-        <p className="text-sm text-foreground/60">
-          <strong>Nota:</strong> Este documento es un modelo y debe ser revisado por un profesional legal antes de su uso definitivo.
-        </p>
-      </div>
     </LegalLayout>
   );
 };

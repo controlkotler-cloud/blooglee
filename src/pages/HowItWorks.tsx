@@ -43,7 +43,7 @@ const howToSteps = [
   },
   {
     name: "Genera tu artículo",
-    text: "Blooglee usa IA avanzada (GPT-5, Gemini) para crear un artículo único de 800-1200 palabras con imagen destacada y SEO optimizado.",
+    text: "Blooglee usa IA avanzada para crear un artículo único de 800-2500 palabras con imagen destacada y SEO optimizado.",
   },
   {
     name: "Revisa y publica",
@@ -75,7 +75,7 @@ const steps = [
     icon: Sparkles,
     title: "Genera tu artículo",
     description:
-      'Haz clic en "Generar artículo". La IA crea un artículo único de 800-1200 palabras con título, contenido, imagen y meta descripción optimizados para SEO.',
+      'Haz clic en "Generar artículo". La IA crea un artículo único de 800-2500 palabras con título, contenido, imagen y meta descripción optimizados para SEO.',
     time: "60 segundos",
     color: "from-pink-500 to-orange-400",
   },

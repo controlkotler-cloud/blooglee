@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 const CookiesPage = () => {
   return (
-    <LegalLayout title="Política de Cookies" lastUpdated="25 de enero de 2024">
+    <LegalLayout title="Política de Cookies" lastUpdated="16 de abril de 2026">
       <h2>1. ¿Qué son las cookies?</h2>
       <p>
         Las cookies son pequeños archivos de texto que se almacenan en tu dispositivo cuando visitas un sitio web. Se utilizan ampliamente para hacer que los sitios web funcionen de manera más eficiente, así como para proporcionar información a los propietarios del sitio.
@@ -151,11 +151,6 @@ const CookiesPage = () => {
         <strong>Email:</strong> <a href="mailto:info@blooglee.com" className="text-violet-600 hover:underline">info@blooglee.com</a>
       </p>
 
-      <div className="mt-8 p-4 bg-violet-50 rounded-xl">
-        <p className="text-sm text-foreground/60">
-          <strong>Nota:</strong> Este documento es un modelo y debe ser revisado por un profesional legal antes de su uso definitivo.
-        </p>
-      </div>
     </LegalLayout>
   );
 };
