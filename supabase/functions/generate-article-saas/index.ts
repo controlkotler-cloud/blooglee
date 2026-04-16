@@ -347,7 +347,7 @@ ENLACE INTERNO (OBLIGATORIO):
 - Formato: <a href="{{homeUrl}}" target="_blank" rel="noopener">texto ancla natural</a>
 
 ENLACES EXTERNOS (2 OBLIGATORIOS):
-- Incluye 2 enlaces a fuentes de autoridad relevantes para el sector
+- Si te hemos proporcionado un "pool de fuentes", incluye 2 enlaces a dominios EXACTOS de ese pool. Si NO hay pool, NO incluyas ningún enlace externo (es preferible ningún enlace a uno inventado).
 - Enlaza SIEMPRE al dominio raíz o sección principal del sitio, NUNCA a artículos o URLs específicas que no puedas verificar con certeza
 - Prioriza: asociaciones profesionales del sector, organismos oficiales, medios especializados de referencia
 - PROHIBIDO: Wikipedia genérica, competidores directos, URLs inventadas
@@ -1050,29 +1050,51 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3)
 }
 
 function detectSectorCategory(sector: string | null | undefined): string {
-  if (!sector) return "default";
+  if (!sector) return "general";
   const s = sector.toLowerCase();
 
-  // IMPORTANT: Check specific sectors BEFORE generic ones
-  // "farmacia" must be checked before "digital" (a pharmacy site might mention "digital")
+  // IMPORTANT: Specific sectors first
   if (s.includes("farmacia") || s.includes("parafarm") || s.includes("dermofarm") || s.includes("botica"))
     return "farmacia";
-  if (s.includes("peluqu") || s.includes("cabello") || s.includes("estétic") || s.includes("beauty")) return "belleza";
-  if (
-    s.includes("restaur") ||
-    s.includes("hotel") ||
-    s.includes("hostel") ||
-    s.includes("bar ") ||
-    s.includes("cafeter")
-  )
+  if (s.includes("dental") || s.includes("odontolog") || s.includes("ortodonc"))
+    return "clinica_dental";
+  if (s.includes("veterinar") || s.includes("mascot"))
+    return "veterinaria";
+  if (s.includes("psicolog") || s.includes("terapia") || s.includes("mental"))
+    return "psicologia";
+  if (s.includes("nutric") || s.includes("dietista") || s.includes("diet") || s.includes("alimentaci"))
+    return "nutricion";
+  if (s.includes("fisioterap") || s.includes("rehabilit") || s.includes("osteopat"))
+    return "fisioterapia";
+  if (s.includes("abogad") || s.includes("legal") || s.includes("juridic") || s.includes("bufete"))
+    return "abogacia";
+  if (s.includes("arquitect") || s.includes("construc"))
+    return "arquitectura";
+  if (s.includes("educaci") || s.includes("academia") || s.includes("formaci") || s.includes("escuela") || s.includes("curso"))
+    return "educacion";
+  if (s.includes("fotograf"))
+    return "fotografia";
+  if (s.includes("asesor") || s.includes("gestor") || s.includes("contable") || s.includes("fiscal"))
+    return "asesoria";
+  if (s.includes("inmobiliar") || s.includes("real estate") || s.includes("vivienda"))
+    return "inmobiliaria";
+  if (s.includes("gimnasio") || s.includes("fitness") || s.includes("deport") || s.includes("crossfit"))
+    return "gimnasio";
+  if (s.includes("ecommerce") || s.includes("tienda online") || s.includes("e-commerce"))
+    return "ecommerce";
+  if (s.includes("peluqu") || s.includes("cabello") || s.includes("estetic") || s.includes("beauty") || s.includes("cosmet"))
+    return "belleza";
+  if (s.includes("restaur")) return "restaurante";
+  if (s.includes("hotel") || s.includes("hostel") || s.includes("bar ") || s.includes("cafeter") || s.includes("turismo"))
     return "hosteleria";
   if (s.includes("marketing") || s.includes("seo") || s.includes("publicidad") || s.includes("agencia"))
     return "marketing";
-  if (s.includes("tecnolog") || s.includes("software") || s.includes("informát") || s.includes("saas"))
+  if (s.includes("tecnolog") || s.includes("software") || s.includes("inform") || s.includes("saas") || s.includes("programaci") || s.includes("desarroll"))
     return "tecnologia";
-  if (s.includes("salud") || s.includes("médic") || s.includes("clínic") || s.includes("wellness")) return "salud";
+  if (s.includes("salud") || s.includes("medic") || s.includes("clinic") || s.includes("wellness") || s.includes("bienestar"))
+    return "salud";
 
-  return "default";
+  return "general";
 }
 
 function buildGeoContext(site: SiteData): { geoContext: string; locationInfo: string } {
@@ -3056,6 +3078,9 @@ Deno.serve(async (req) => {
         );
         console.log(`Loaded ${sectorProhibitedTerms.length} prohibited terms for sector ${sectorCategory}`);
         console.log(`Loaded ${authoritySources.length} authority sources for sector ${sectorCategory}`);
+        if (authoritySources.length === 0) {
+          console.warn(`[authority] No authority sources found for sector="${sectorCategory}". Article will be generated WITHOUT external sources to avoid hallucinated URLs.`);
+        }
       }
     } catch (e) {
       console.log("Could not load sector prohibited terms:", e);
@@ -3444,7 +3469,9 @@ Deno.serve(async (req) => {
         blogUrl: site.blog_url || "",
         instagramUrl: site.instagram_url || "",
         lengthWords: lengthTarget.words.toString(),
-        authoritySources: authoritySourcesInstruction || "(usa dos fuentes de autoridad adecuadas al sector)",
+        authoritySources: authoritySourcesInstruction
+          ? `Pool sugerido:\n${authoritySourcesInstruction}\n\nUsa EXACTAMENTE 2 dominios del pool anterior. NUNCA inventes URLs que no estén en esa lista.`
+          : `NO hay fuentes autorizadas para este sector. NO inventes URLs de dominios oficiales, gubernamentales, periodísticos ni ninguna URL externa. Escribe el artículo sin enlaces externos — prefiero un artículo sin enlaces que con enlaces inventados que no existan.`,
       },
       FALLBACK_PROMPTS.articleUser,
     );
