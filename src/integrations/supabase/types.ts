@@ -674,10 +674,13 @@ export type Database = {
       sector_contexts: {
         Row: {
           authority_sources: Json
+          auto_generated: boolean
           created_at: string
+          created_by_site_id: string | null
           fallback_query: string
           id: string
           image_examples: string[]
+          needs_review: boolean
           prohibited_terms: string[]
           sector_key: string
           sector_keywords: string[]
@@ -686,10 +689,13 @@ export type Database = {
         }
         Insert: {
           authority_sources?: Json
+          auto_generated?: boolean
           created_at?: string
+          created_by_site_id?: string | null
           fallback_query: string
           id?: string
           image_examples?: string[]
+          needs_review?: boolean
           prohibited_terms?: string[]
           sector_key: string
           sector_keywords?: string[]
@@ -698,17 +704,28 @@ export type Database = {
         }
         Update: {
           authority_sources?: Json
+          auto_generated?: boolean
           created_at?: string
+          created_by_site_id?: string | null
           fallback_query?: string
           id?: string
           image_examples?: string[]
+          needs_review?: boolean
           prohibited_terms?: string[]
           sector_key?: string
           sector_keywords?: string[]
           tone_description?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sector_contexts_created_by_site_id_fkey"
+            columns: ["created_by_site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       site_activity_log: {
         Row: {
