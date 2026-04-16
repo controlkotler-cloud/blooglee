@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 const copyaiFAQs = [
   {
     question: '¿Cuál es la principal diferencia entre Blooglee y Copy.ai?',
-    answer: 'Blooglee genera artículos largos (800-1200 palabras) optimizados para SEO y los publica en WordPress. Copy.ai se enfoca en textos cortos: ads, emails, posts de redes sociales.',
+    answer: 'Blooglee genera artículos largos (800-2500 palabras) optimizados para SEO y los publica en WordPress. Copy.ai se enfoca en textos cortos: ads, emails, posts de redes sociales.',
   },
   {
     question: '¿Copy.ai puede crear artículos de blog?',
@@ -28,7 +28,7 @@ const copyaiFAQs = [
 ];
 
 const comparisonData = [
-  { feature: 'Tipo de contenido', blooglee: 'Artículos largos (800-1200 palabras)', copyai: 'Textos cortos (ads, emails, social)' },
+  { feature: 'Tipo de contenido', blooglee: 'Artículos largos (800-2500 palabras)', copyai: 'Textos cortos (ads, emails, social)' },
   { feature: 'Optimización SEO', blooglee: 'Automática y completa', copyai: 'No incluida' },
   { feature: 'Publicación WordPress', blooglee: 'Sí, 1 clic', copyai: 'No' },
   { feature: 'Imágenes incluidas', blooglee: 'Sí, con créditos', copyai: 'No' },
@@ -42,7 +42,7 @@ const advantages = [
   {
     icon: FileText,
     title: 'Artículos largos',
-    description: 'Blooglee genera 800-1200 palabras estructuradas. Copy.ai hace textos cortos que no sirven para SEO.',
+    description: 'Blooglee genera 800-2500 palabras estructuradas. Copy.ai hace textos cortos que no sirven para SEO.',
   },
   {
     icon: Search,

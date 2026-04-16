@@ -19,7 +19,7 @@ const alternativesFAQs = [
   },
   {
     question: '¿Cuál es la diferencia entre Blooglee y Copy.ai?',
-    answer: 'Blooglee genera artículos largos (800-1200 palabras) optimizados para SEO y los publica en WordPress. Copy.ai se enfoca en textos cortos para ads y redes sociales.',
+    answer: 'Blooglee genera artículos largos (800-2500 palabras) optimizados para SEO y los publica en WordPress. Copy.ai se enfoca en textos cortos para ads y redes sociales.',
   },
 ];
 

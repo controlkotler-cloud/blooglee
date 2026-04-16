@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 const PrivacyPage = () => {
   return (
-    <LegalLayout title="Política de Privacidad" lastUpdated="25 de enero de 2024">
+    <LegalLayout title="Política de Privacidad" lastUpdated="16 de abril de 2026">
       <h2>1. Introducción</h2>
       <p>
         En Blooglee nos comprometemos a proteger la privacidad de nuestros usuarios. Esta Política de Privacidad explica cómo recopilamos, utilizamos y protegemos tu información personal cuando utilizas nuestro servicio.
@@ -107,11 +107,6 @@ const PrivacyPage = () => {
         <strong>Email:</strong> <a href="mailto:info@blooglee.com" className="text-violet-600 hover:underline">info@blooglee.com</a>
       </p>
 
-      <div className="mt-8 p-4 bg-violet-50 rounded-xl">
-        <p className="text-sm text-foreground/60">
-          <strong>Nota:</strong> Este documento es un modelo y debe ser revisado por un profesional legal antes de su uso definitivo.
-        </p>
-      </div>
     </LegalLayout>
   );
 };

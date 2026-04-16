@@ -22,7 +22,7 @@ const featuresFAQs = [
   {
     question: "¿Qué tipo de artículos genera Blooglee?",
     answer:
-      "Blooglee genera artículos de blog profesionales de 800-1200 palabras, adaptados al sector de cada negocio (salud, retail, servicios, tecnología, etc.). Cada artículo incluye título optimizado para SEO, meta descripción, estructura con encabezados H2-H3, imagen destacada con créditos, y slug SEO-friendly.",
+      "Blooglee genera artículos de blog profesionales de 800-2500 palabras, adaptados al sector de cada negocio (salud, retail, servicios, tecnología, etc.). Cada artículo incluye título optimizado para SEO, meta descripción, estructura con encabezados H2-H3, imagen destacada con créditos, y slug SEO-friendly.",
   },
   {
     question: "¿Las imágenes de Blooglee están libres de derechos?",
