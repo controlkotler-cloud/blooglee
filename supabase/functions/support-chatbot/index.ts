@@ -602,16 +602,16 @@ Deno.serve(async (req) => {
     const articlesContext = buildArticlesContext(relevantArticles);
 
     const diagnosticsContext = isVerified ? await buildDiagnosticsContext(supabase, error_context?.siteId) : "";
-    const errorContextBlock = error_context
+    const errorContextLines = error_context
       ? [
-          "CONTEXTO DE ERROR RECIENTE:",
           error_context.code ? `- Código: ${error_context.code}` : "",
           error_context.action ? `- Acción: ${error_context.action}` : "",
           error_context.message ? `- Mensaje: ${error_context.message}` : "",
           error_context.siteId ? `- Site ID: ${error_context.siteId}` : "",
-        ]
-          .filter(Boolean)
-          .join("\n")
+        ].filter(Boolean)
+      : [];
+    const errorContextBlock = errorContextLines.length > 0
+      ? ["CONTEXTO DE ERROR RECIENTE:", ...errorContextLines].join("\n")
       : "";
     const userContextBlock = user_metadata
       ? [

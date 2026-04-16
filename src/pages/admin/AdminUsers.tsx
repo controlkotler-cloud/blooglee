@@ -282,9 +282,13 @@ export default function AdminUsers() {
                       disabled={updateRole.isPending}
                       onClick={async () => {
                         if (!confirm('¿Seguro que quieres quitar el rol admin a este usuario?')) return;
-                        await updateRole.mutateAsync({ userId: editingUser.user_id, role: 'admin', action: 'remove' });
-                        setEditingUser({ ...editingUser, roles: editingUser.roles.filter((r: string) => r !== 'admin') });
-                        toast.success('Rol admin eliminado');
+                        try {
+                          await updateRole.mutateAsync({ userId: editingUser.user_id, role: 'admin', action: 'remove' });
+                          setEditingUser({ ...editingUser, roles: editingUser.roles.filter((r: string) => r !== 'admin') });
+                          toast.success('Rol admin eliminado');
+                        } catch {
+                          toast.error('Error al eliminar el rol admin');
+                        }
                       }}
                     >
                       Quitar Admin
@@ -295,9 +299,13 @@ export default function AdminUsers() {
                       size="sm"
                       disabled={updateRole.isPending}
                       onClick={async () => {
-                        await updateRole.mutateAsync({ userId: editingUser.user_id, role: 'admin', action: 'add' });
-                        setEditingUser({ ...editingUser, roles: [...editingUser.roles, 'admin'] });
-                        toast.success('Rol admin asignado');
+                        try {
+                          await updateRole.mutateAsync({ userId: editingUser.user_id, role: 'admin', action: 'add' });
+                          setEditingUser({ ...editingUser, roles: [...editingUser.roles, 'admin'] });
+                          toast.success('Rol admin asignado');
+                        } catch {
+                          toast.error('Error al asignar el rol admin');
+                        }
                       }}
                     >
                       Hacer Admin

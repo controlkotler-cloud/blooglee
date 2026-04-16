@@ -46,7 +46,7 @@ export default function AdminDashboard() {
     },
     {
       title: 'Beta Activos',
-      value: `${activeBetaUsers}/100`,
+      value: `${activeBetaUsers}/${totalBetaSlots || 100}`,
       description: `${expiringBetaUsers.length} próximos a expirar`,
       icon: UserCheck,
       color: 'text-green-500',

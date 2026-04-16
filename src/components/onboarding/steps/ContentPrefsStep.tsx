@@ -76,6 +76,11 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
   const handleNext = async () => {
     setIsSaving(true);
     try {
+      if (instagramUrl.trim() && !instagramUrl.trim().startsWith('http')) {
+        toast.error('La URL de red social debe empezar por http:// o https://');
+        setIsSaving(false);
+        return;
+      }
       const languages = catalan ? ["spanish", "catalan"] : ["spanish"];
       const avoidArray = avoidTopics
         .split(",")
