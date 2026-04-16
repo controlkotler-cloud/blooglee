@@ -38,7 +38,7 @@ const landingFAQs = [
   {
     question: "¿Cuánto cuesta Blooglee?",
     answer:
-      "Blooglee ofrece un plan gratuito que incluye 1 sitio y 1 artículo para probar. Los planes de pago empiezan en 19€/mes (Starter: 4 artículos), 49€/mes (Pro: 30 artículos, 3 sitios) y 149€/mes (Agencia: 100 artículos, 10 sitios). Sin permanencia.",
+      "Blooglee ofrece un plan gratuito que incluye 1 sitio y 1 artículo para probar. Los planes de pago empiezan en 19€/mes (Starter: 4 artículos), 39€/mes (Pro: 46 artículos, 3 sitios) y 99€/mes (Agencia: artículos ilimitados, 10 sitios). Sin permanencia.",
   },
   {
     question: "¿Blooglee genera contenido en varios idiomas?",

@@ -289,7 +289,7 @@ export function ToneStep({ onNext, onBack, saveStepData, stepData, siteId }: Ton
         <Textarea
           id="custom_topic"
           rows={3}
-          placeholder="Define las lineas tematicas y el angulo general del contenido."
+          placeholder="Define las líneas temáticas y el ángulo general del contenido."
           value={customTopic}
           onChange={(e) => setCustomTopic(e.target.value)}
           className="text-base resize-none rounded-lg min-h-[48px]"

@@ -698,13 +698,13 @@ Deno.serve(async (req) => {
 
     if (!upstream) {
       if (lastUpstreamStatus === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+        return new Response(JSON.stringify({ error: "Demasiadas solicitudes. Por favor, inténtalo más tarde." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       if (lastUpstreamStatus === 402) {
-        return new Response(JSON.stringify({ error: "Service limit reached. Please contact support." }), {
+        return new Response(JSON.stringify({ error: "Límite de servicio alcanzado. Contacta con soporte@blooglee.com." }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
