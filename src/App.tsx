@@ -60,6 +60,7 @@ const AdminPrompts = lazy(() => import("./pages/admin/AdminPrompts"));
 const AdminSurveys = lazy(() => import("./pages/admin/AdminSurveys"));
 const AdminSocialContent = lazy(() => import("./pages/admin/AdminSocialContent"));
 const AdminPermissions = lazy(() => import("./pages/admin/AdminPermissions"));
+const AdminSectors = lazy(() => import("./pages/admin/AdminSectors"));
 
 // Beta
 const BetaSignup = lazy(() => import("./pages/BetaSignup"));
@@ -245,6 +246,14 @@ const App = () => (
                     element={
                       <ProtectedRoute requireSuperAdmin>
                         <AdminPermissions />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/sectors"
+                    element={
+                      <ProtectedRoute requireSuperAdmin>
+                        <AdminSectors />
                       </ProtectedRoute>
                     }
                   />
