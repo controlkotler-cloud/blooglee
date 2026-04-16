@@ -482,6 +482,25 @@ Deno.serve(async (req) => {
       }
     }
 
+    // === CHALLENGE PAGE DETECTION ===
+    if (html) {
+      const challenge = detectChallengePage(html);
+      if (challenge.isChallenge) {
+        console.warn("[extract] Challenge page detected:", challenge.type);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "challenge_page_detected",
+            challenge_type: challenge.type,
+            message: challenge.type === "cloudflare"
+              ? "Tu web está protegida por Cloudflare y bloquea el análisis. Desactiva temporalmente el 'Bot Fight Mode' en Cloudflare o añade nuestro IP a la whitelist. Mientras tanto, puedes rellenar los datos manualmente."
+              : "Tu web está protegida por reCAPTCHA y bloquea el análisis automático. Puedes rellenar los datos manualmente.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     // === EXTRACT DATA ===
     // Priority 1: Use Firecrawl branding colors (most accurate - from logo/header)
     let colors: string[] = [];
