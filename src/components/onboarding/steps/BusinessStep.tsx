@@ -308,6 +308,7 @@ export function BusinessStep({
           instagram_url: detectedSocialUrl || null,
           languages: detectedLanguages.length > 0 ? detectedLanguages : ["spanish"],
           color_palette: detectedColors.length > 0 ? detectedColors.join(",") : null,
+          auto_generate: false,
         })
         .select()
         .single();
