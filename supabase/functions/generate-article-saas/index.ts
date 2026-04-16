@@ -2134,34 +2134,54 @@ function buildFooterCtaSentence(
   blogUrl: string | null,
   socialUrl: string | null,
   seed: string,
+  lang: "es" | "ca" = "es",
 ): string {
-  const blogAnchor = blogUrl ? `<a href="${blogUrl}" target="_blank" rel="noopener">blog</a>` : "";
-  const socialAnchor = socialUrl ? `<a href="${socialUrl}" target="_blank" rel="noopener">redes sociales</a>` : "";
+  const blogText = lang === "ca" ? "blog" : "blog";
+  const socialText = lang === "ca" ? "xarxes socials" : "redes sociales";
+  const blogAnchor = blogUrl ? `<a href="${blogUrl}" target="_blank" rel="noopener">${blogText}</a>` : "";
+  const socialAnchor = socialUrl ? `<a href="${socialUrl}" target="_blank" rel="noopener">${socialText}</a>` : "";
 
   if (blogAnchor && socialAnchor) {
-    const variants = [
+    const variantsEs = [
       `Para seguir avanzando, visita nuestro ${blogAnchor} y síguenos en nuestras ${socialAnchor}.`,
       `Si quieres más ideas prácticas, pásate por nuestro ${blogAnchor} y mantente al día en nuestras ${socialAnchor}.`,
       `Encontrarás más recursos en nuestro ${blogAnchor} y novedades frecuentes en nuestras ${socialAnchor}.`,
       `Para ampliar esta guía, consulta nuestro ${blogAnchor} y acompáñanos en nuestras ${socialAnchor}.`,
     ];
-    return variants[pickVariantIndex(`${siteName}|${seed}`, variants.length)];
+    const variantsCa = [
+      `Per continuar avançant, visita el nostre ${blogAnchor} i segueix-nos a les nostres ${socialAnchor}.`,
+      `Si vols més idees pràctiques, passa pel nostre ${blogAnchor} i mantén-te al dia a les nostres ${socialAnchor}.`,
+      `Trobaràs més recursos al nostre ${blogAnchor} i novetats freqüents a les nostres ${socialAnchor}.`,
+      `Per ampliar aquesta guia, consulta el nostre ${blogAnchor} i acompanya'ns a les nostres ${socialAnchor}.`,
+    ];
+    const variants = lang === "ca" ? variantsCa : variantsEs;
+    return variants[pickVariantIndex(`${siteName}|${seed}|${lang}`, variants.length)];
   }
 
   if (blogAnchor) {
-    const variants = [
+    const variantsEs = [
       `Para ampliar esta información, visita nuestro ${blogAnchor}.`,
       `Puedes encontrar más contenido útil en nuestro ${blogAnchor}.`,
     ];
-    return variants[pickVariantIndex(`${siteName}|${seed}|blog`, variants.length)];
+    const variantsCa = [
+      `Per ampliar aquesta informació, visita el nostre ${blogAnchor}.`,
+      `Pots trobar més contingut útil al nostre ${blogAnchor}.`,
+    ];
+    const variants = lang === "ca" ? variantsCa : variantsEs;
+    return variants[pickVariantIndex(`${siteName}|${seed}|blog|${lang}`, variants.length)];
   }
 
   if (socialAnchor) {
-    const variants = [
+    const variantsEs = [
       `Síguenos en nuestras ${socialAnchor} para más novedades.`,
       `Si quieres seguir el día a día, acompáñanos en nuestras ${socialAnchor}.`,
     ];
-    return variants[pickVariantIndex(`${siteName}|${seed}|social`, variants.length)];
+    const variantsCa = [
+      `Segueix-nos a les nostres ${socialAnchor} per a més novetats.`,
+      `Si vols seguir el dia a dia, acompanya'ns a les nostres ${socialAnchor}.`,
+    ];
+    const variants = lang === "ca" ? variantsCa : variantsEs;
+    return variants[pickVariantIndex(`${siteName}|${seed}|social|${lang}`, variants.length)];
   }
 
   return "";
