@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, Shield, Sparkles } from "lucide-react";
+import { UsageStats } from "@/components/saas/UsageStats";
 import { NotificationBell } from "@/components/saas/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useIsSuperAdmin } from "@/hooks/useProfile";
@@ -339,6 +340,16 @@ export default function SaasDashboard() {
                   sitesNeedingAttention={sitesNeedingAttention}
                   onFilterClick={setActiveFilter}
                 />
+
+                {/* Plan usage stats */}
+                {sites.length <= 3 && (
+                  <UsageStats
+                    sitesUsed={sites.length}
+                    sitesLimit={sitesLimit}
+                    articlesThisMonth={articlesThisMonth}
+                    articlesLimit={profile?.posts_limit}
+                  />
+                )}
 
                 {/* Toolbar */}
                 <SitesToolbar
