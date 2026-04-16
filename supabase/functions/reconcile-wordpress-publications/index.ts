@@ -463,6 +463,7 @@ Deno.serve(async (req) => {
         "id, site_id, user_id, content_spanish, content_catalan, image_url, generated_at, wp_post_url, topic, autopublish_enabled, generation_source",
       )
       .is("wp_post_url", null)
+      .eq("skip_auto_publish", false)
       .eq("generation_source", "scheduled")
       .gte("generated_at", since)
       .order("generated_at", { ascending: !prioritizeRecent })
