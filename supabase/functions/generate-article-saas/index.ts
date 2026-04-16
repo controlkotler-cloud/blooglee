@@ -4553,6 +4553,9 @@ Deno.serve(async (req) => {
         },
         image: imageResult,
         auto_publish: autoPublishOutcome,
+        catalan_warning: site.languages?.includes("catalan") && !catalanArticle
+          ? `No se pudo generar la versión en catalán: ${catalanFailureReason || "error desconocido"}`
+          : null,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
