@@ -2389,7 +2389,7 @@ function ensureFooterLinks(
   const matches = [...normalizedContent.matchAll(paragraphRegex)];
 
   if (!matches.length) {
-    const fallbackSentence = buildFooterCtaSentence(siteName, blogUrl, instagramUrl, normalizedContent.slice(-200));
+    const fallbackSentence = buildFooterCtaSentence(siteName, blogUrl, instagramUrl, normalizedContent.slice(-200), lang);
     if (!fallbackSentence) return dedupeFooterCtas(normalizedContent, blogUrl, instagramUrl);
     return `<p>${fallbackSentence}</p>`;
   }
