@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Building2, Briefcase, ExternalLink, FileText, Loader2 } from 'lucide-react';
-import { useNewsletterSubscribe } from '@/hooks/useNewsletterSubscribe';
-import { LeadMagnet } from './LeadMagnetCard';
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Building2, Briefcase, ExternalLink, FileText, Loader2 } from "lucide-react";
+import { useNewsletterSubscribe } from "@/hooks/useNewsletterSubscribe";
+import { LeadMagnet } from "./LeadMagnetCard";
+import { useToast } from "@/hooks/use-toast";
 
 interface LeadMagnetModalProps {
   isOpen: boolean;
@@ -15,18 +16,19 @@ interface LeadMagnetModalProps {
 }
 
 export const LeadMagnetModal = ({ isOpen, onClose, leadMagnet }: LeadMagnetModalProps) => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [audience, setAudience] = useState<'empresas' | 'agencias' | null>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [audience, setAudience] = useState<"empresas" | "agencias" | null>(null);
   const [gdprConsent, setGdprConsent] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [downloadReady, setDownloadReady] = useState(false);
 
   const { subscribe, isLoading } = useNewsletterSubscribe();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!audience) return;
 
     const result = await subscribe({
@@ -35,7 +37,7 @@ export const LeadMagnetModal = ({ isOpen, onClose, leadMagnet }: LeadMagnetModal
       audience,
       gdprConsent,
       marketingConsent,
-      source: `lead-magnet-${leadMagnet?.id || 'unknown'}`,
+      source: `lead-magnet-${leadMagnet?.id || "unknown"}`,
     });
 
     if (result.success) {
@@ -44,13 +46,22 @@ export const LeadMagnetModal = ({ isOpen, onClose, leadMagnet }: LeadMagnetModal
   };
 
   const handleDownload = () => {
-    // Open resource in new tab - user can print to PDF
-    window.open(`/resources/${leadMagnet?.fileName || 'resource.html'}`, '_blank');
-    
+    const resourceUrl = `/resources/${leadMagnet?.fileName || "resource.html"}`;
+    const newTab = window.open(resourceUrl, "_blank");
+
+    if (!newTab) {
+      toast({
+        title: "Popup bloqueado",
+        description: "Tu navegador ha bloqueado la ventana. Permite popups para este sitio o usa este enlace directo.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Reset and close
     setTimeout(() => {
-      setName('');
-      setEmail('');
+      setName("");
+      setEmail("");
       setAudience(null);
       setGdprConsent(false);
       setMarketingConsent(false);
@@ -60,8 +71,8 @@ export const LeadMagnetModal = ({ isOpen, onClose, leadMagnet }: LeadMagnetModal
   };
 
   const handleClose = () => {
-    setName('');
-    setEmail('');
+    setName("");
+    setEmail("");
     setAudience(null);
     setGdprConsent(false);
     setMarketingConsent(false);
@@ -76,12 +87,12 @@ export const LeadMagnetModal = ({ isOpen, onClose, leadMagnet }: LeadMagnetModal
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
-            {downloadReady ? '¡Tu recurso está listo!' : `Accede a: ${leadMagnet.title}`}
+            {downloadReady ? "¡Tu recurso está listo!" : `Accede a: ${leadMagnet.title}`}
           </DialogTitle>
           <DialogDescription>
-            {downloadReady 
-              ? 'Gracias por suscribirte. Pulsa el botón para abrir tu recurso.'
-              : 'Introduce tus datos para acceder al recurso gratuito.'}
+            {downloadReady
+              ? "Gracias por suscribirte. Pulsa el botón para abrir tu recurso."
+              : "Introduce tus datos para acceder al recurso gratuito."}
           </DialogDescription>
         </DialogHeader>
 
@@ -90,10 +101,7 @@ export const LeadMagnetModal = ({ isOpen, onClose, leadMagnet }: LeadMagnetModal
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center mb-4">
               <FileText className="w-8 h-8 text-white" />
             </div>
-            <Button 
-              onClick={handleDownload}
-              className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400"
-            >
+            <Button onClick={handleDownload} className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400">
               <ExternalLink className="w-4 h-4 mr-2" />
               Ver recurso
             </Button>
@@ -132,20 +140,20 @@ export const LeadMagnetModal = ({ isOpen, onClose, leadMagnet }: LeadMagnetModal
               <div className="flex gap-3">
                 <Button
                   type="button"
-                  variant={audience === 'empresas' ? 'default' : 'outline'}
+                  variant={audience === "empresas" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setAudience('empresas')}
-                  className={audience === 'empresas' ? 'bg-violet-600' : ''}
+                  onClick={() => setAudience("empresas")}
+                  className={audience === "empresas" ? "bg-violet-600" : ""}
                 >
                   <Building2 className="w-4 h-4 mr-2" />
                   Empresa
                 </Button>
                 <Button
                   type="button"
-                  variant={audience === 'agencias' ? 'default' : 'outline'}
+                  variant={audience === "agencias" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setAudience('agencias')}
-                  className={audience === 'agencias' ? 'bg-violet-600' : ''}
+                  onClick={() => setAudience("agencias")}
+                  className={audience === "agencias" ? "bg-violet-600" : ""}
                 >
                   <Briefcase className="w-4 h-4 mr-2" />
                   Agencia
@@ -161,7 +169,11 @@ export const LeadMagnetModal = ({ isOpen, onClose, leadMagnet }: LeadMagnetModal
                   onCheckedChange={(checked) => setGdprConsent(checked === true)}
                 />
                 <Label htmlFor="gdpr" className="text-xs text-foreground/70 leading-tight cursor-pointer">
-                  Acepto la <a href="/privacy" className="underline">política de privacidad</a> y el tratamiento de mis datos.
+                  Acepto la{" "}
+                  <a href="/privacy" className="underline">
+                    política de privacidad
+                  </a>{" "}
+                  y el tratamiento de mis datos.
                 </Label>
               </div>
               <div className="flex items-start gap-2">
@@ -176,8 +188,8 @@ export const LeadMagnetModal = ({ isOpen, onClose, leadMagnet }: LeadMagnetModal
               </div>
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400"
               disabled={isLoading || !audience || !gdprConsent || !marketingConsent}
             >
