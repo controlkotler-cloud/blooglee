@@ -562,11 +562,8 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const authUser = await resolveAuthUser(supabase, req.headers.get("Authorization"), user_metadata, error_context);
-    const metadataUserId = (user_metadata?.userId || "").trim();
-    const metadataUserIdIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      metadataUserId,
-    );
-    const effectiveUserId = authUser?.id || (metadataUserIdIsUuid ? metadataUserId : null);
+    const effectiveUserId = authUser?.id || null;
+    const isVerified = authUser?.verified === true;
 
     const rateLimitIdentifier =
       effectiveUserId ||
@@ -604,7 +601,7 @@ Deno.serve(async (req) => {
     const relevantArticles = await searchKnowledgeBase(supabase, userQuery, errorCode, pluginHints);
     const articlesContext = buildArticlesContext(relevantArticles);
 
-    const diagnosticsContext = await buildDiagnosticsContext(supabase, error_context?.siteId);
+    const diagnosticsContext = isVerified ? await buildDiagnosticsContext(supabase, error_context?.siteId) : "";
     const errorContextBlock = error_context
       ? [
           "CONTEXTO DE ERROR RECIENTE:",
