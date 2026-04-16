@@ -68,6 +68,7 @@ export type Database = {
           month: number
           pexels_query: string | null
           site_id: string
+          skip_auto_publish: boolean
           topic: string
           user_id: string
           week_of_month: number | null
@@ -89,6 +90,7 @@ export type Database = {
           month: number
           pexels_query?: string | null
           site_id: string
+          skip_auto_publish?: boolean
           topic: string
           user_id: string
           week_of_month?: number | null
@@ -110,6 +112,7 @@ export type Database = {
           month?: number
           pexels_query?: string | null
           site_id?: string
+          skip_auto_publish?: boolean
           topic?: string
           user_id?: string
           week_of_month?: number | null
