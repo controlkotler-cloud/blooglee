@@ -89,7 +89,9 @@ export function useColorPalette() {
       }
 
       if (profile.success === false) {
-        console.error("[useColorPalette] Extract function returned success=false:", profile.error || "unknown");
+        const errorCode = profile.error || "unknown";
+        const userMessage = (profile as any).message || "No hemos podido analizar la web.";
+        console.warn("[useColorPalette] Extraction returned failure:", { errorCode, userMessage });
         setExtractionStatus("failed");
         return null;
       }
