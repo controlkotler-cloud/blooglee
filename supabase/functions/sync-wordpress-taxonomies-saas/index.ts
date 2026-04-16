@@ -32,6 +32,7 @@ interface WordPressContext {
   avgLength: number;
   commonCategories: Array<{ name: string; count: number }>;
   lastTopics: string[];
+  lastTopicsByLang?: { es: string[]; ca: string[] };
   detected_tone?: string;
   main_themes?: string[];
   style_notes?: string;
@@ -506,7 +507,7 @@ Deno.serve(async (req) => {
     if (analyzeContent) {
       try {
         // Fetch last 15 published posts
-        const postsUrl = `${wpUrl}/wp-json/wp/v2/posts?per_page=15&status=publish&orderby=date&order=desc`;
+        const postsUrl = `${wpUrl}/wp-json/wp/v2/posts?per_page=25&status=publish&orderby=date&order=desc`;
         console.log("Fetching posts from:", postsUrl);
 
         const postsResponse = await fetch(postsUrl, { headers: wpHeaders });
@@ -552,10 +553,29 @@ Deno.serve(async (req) => {
                 return { name: category?.name || `Category ${catId}`, count };
               });
 
+            // Separate titles by language if Polylang is active (each post has a "lang" field in REST)
+            const titlesByLang: Record<string, string[]> = { es: [], ca: [], other: [] };
+            posts.forEach((p: any, i: number) => {
+              const lang = typeof p.lang === "string" ? p.lang.toLowerCase().slice(0, 2) : "other";
+              const bucket = lang === "es" ? "es" : lang === "ca" ? "ca" : "other";
+              const title = titles[i];
+              if (title) titlesByLang[bucket].push(title);
+            });
+
+            // If no language info, put all in "es" as fallback
+            const hasLangInfo = titlesByLang.es.length + titlesByLang.ca.length > 0;
+            const finalLastTopics = hasLangInfo
+              ? [...titlesByLang.es, ...titlesByLang.ca].slice(0, 20)
+              : titles.slice(0, 20);
+
             contentAnalysis = {
               avgLength,
               commonCategories,
-              lastTopics: titles.slice(0, 10),
+              lastTopics: finalLastTopics,
+              lastTopicsByLang: hasLangInfo ? {
+                es: titlesByLang.es.slice(0, 15),
+                ca: titlesByLang.ca.slice(0, 15),
+              } : undefined,
               analyzed_at: new Date().toISOString(),
             };
             console.log("Content analysis prepared:", JSON.stringify(contentAnalysis));

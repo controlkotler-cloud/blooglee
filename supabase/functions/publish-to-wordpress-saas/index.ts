@@ -901,7 +901,7 @@ Deno.serve(async (req) => {
       warnings: warnings.length > 0 ? warnings : undefined,
     };
 
-    // Fire-and-forget: trigger full WordPress sync to update context
+    // Trigger WordPress sync to update context, with retry on failure
     try {
       const { data: wpCfg } = await supabaseService
         .from("wordpress_configs")
@@ -911,24 +911,44 @@ Deno.serve(async (req) => {
 
       if (wpCfg?.id) {
         const syncUrl = `${supabaseUrl}/functions/v1/sync-wordpress-taxonomies-saas`;
-        fetch(syncUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            wordpress_config_id: wpCfg.id,
-            analyze_content: true,
-          }),
-        })
-          .then((res) => {
-            console.log(`[sync-after-publish] Response status: ${res.status}`);
-          })
-          .catch((err) => {
-            console.error("[sync-after-publish] Error:", err);
-          });
-        console.log("[sync-after-publish] Triggered full WordPress sync for config:", wpCfg.id);
+        const maxRetries = 3;
+        let attempt = 0;
+
+        const runSync = async (): Promise<void> => {
+          attempt++;
+          try {
+            const res = await fetch(syncUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                wordpress_config_id: wpCfg.id,
+                analyze_content: true,
+              }),
+            });
+            if (!res.ok && attempt < maxRetries) {
+              const waitMs = Math.pow(2, attempt) * 1000;
+              console.warn(`[sync-after-publish] Attempt ${attempt} failed (${res.status}), retrying in ${waitMs}ms`);
+              await new Promise((r) => setTimeout(r, waitMs));
+              return runSync();
+            }
+            console.log(`[sync-after-publish] Attempt ${attempt} status: ${res.status}`);
+          } catch (err) {
+            if (attempt < maxRetries) {
+              const waitMs = Math.pow(2, attempt) * 1000;
+              console.warn(`[sync-after-publish] Attempt ${attempt} error, retrying in ${waitMs}ms:`, err);
+              await new Promise((r) => setTimeout(r, waitMs));
+              return runSync();
+            }
+            console.error("[sync-after-publish] All retries failed:", err);
+          }
+        };
+
+        // Fire-and-forget with retry — don't block the publish response
+        runSync().catch((err) => console.error("[sync-after-publish] Unexpected:", err));
+        console.log("[sync-after-publish] Triggered sync (with retry) for config:", wpCfg.id);
       }
     } catch (syncError) {
       console.error("[sync-after-publish] Non-blocking error:", syncError);
