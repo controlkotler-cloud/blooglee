@@ -84,7 +84,6 @@ export function useOnboarding(siteId?: string) {
   const setProgress = useCallback(
     (updater: OnboardingProgress | null | ((prev: OnboardingProgress | null) => OnboardingProgress | null)) => {
       if (typeof updater !== "function") {
-        // Direct value: update ref immediately so subsequent sync reads see it
         progressRef.current = updater;
       }
       setProgressState((prev) => {
@@ -104,7 +103,6 @@ export function useOnboarding(siteId?: string) {
     const loadProgress = async () => {
       setIsLoading(true);
       try {
-        // Try to find existing progress (any site if siteId not specified)
         let query = supabase
           .from("onboarding_progress")
           .select("*")
@@ -132,10 +130,7 @@ export function useOnboarding(siteId?: string) {
         if (mountedRef.current) {
           if (data && data.length > 0) {
             const record = data[0] as unknown as OnboardingProgress;
-            // Only reset to step 1 if this is the very first load (no progress loaded yet)
-            // and there's no specific siteId — prevents resetting during active sessions
             if (!siteId && !record.wizard_completed && record.current_step > 1 && !progressRef.current) {
-              // Check if progress is stale (older than 30 minutes)
               const updatedAt = new Date(record.updated_at).getTime();
               const isStale = Date.now() - updatedAt > 30 * 60 * 1000;
               if (isStale) {
@@ -145,7 +140,10 @@ export function useOnboarding(siteId?: string) {
                   .from("onboarding_progress")
                   .update({ current_step: 1, step_data: {} } as any)
                   .eq("id", record.id)
-                  .then();
+                  .then(
+                    () => {},
+                    (err) => console.error("Error resetting stale onboarding:", err),
+                  );
               }
             }
             setProgress(record);
@@ -164,7 +162,6 @@ export function useOnboarding(siteId?: string) {
     };
   }, [user?.id, siteId]);
 
-  // Create a new onboarding progress for a site
   const createProgress = useCallback(
     async (newSiteId: string) => {
       if (!user?.id) return null;
@@ -196,7 +193,6 @@ export function useOnboarding(siteId?: string) {
     [user?.id],
   );
 
-  // Save step data (optimistic + async persist)
   const saveStepData = useCallback(
     async (stepKey: string, data: object) => {
       const current = progressRef.current;
@@ -205,13 +201,9 @@ export function useOnboarding(siteId?: string) {
       const newStepData = { ...current.step_data, [stepKey]: data };
       const updated = { ...current, step_data: newStepData };
 
-      // Update ref immediately so subsequent sync calls (e.g. nextStep) see latest data
       progressRef.current = updated;
-
-      // Optimistic state update
       setProgress(updated);
 
-      // Persist
       const { error } = await supabase
         .from("onboarding_progress")
         .update({ step_data: newStepData } as any)
@@ -222,7 +214,6 @@ export function useOnboarding(siteId?: string) {
     [setProgress],
   );
 
-  // Navigate steps
   const MAX_STEP = 9;
 
   const nextStep = useCallback(async () => {
@@ -276,7 +267,6 @@ export function useOnboarding(siteId?: string) {
 
     if (error) console.error("Error completing wizard:", error);
 
-    // Invalidate sites query so ProtectedRoute sees the new site
     queryClient.invalidateQueries({ queryKey: ["sites"] });
   }, [setProgress, queryClient]);
 
