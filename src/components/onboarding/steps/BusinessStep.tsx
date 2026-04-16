@@ -4,7 +4,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, MapPin, Globe, Link2, AlertTriangle, XCircle, Loader2, WandSparkles } from "lucide-react";
+import {
+  Building2,
+  MapPin,
+  Globe,
+  Link2,
+  AlertTriangle,
+  XCircle,
+  Loader2,
+  WandSparkles,
+  CheckCircle2,
+  Sparkles,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
@@ -111,6 +122,10 @@ export function BusinessStep({
   const [keywordsSuggestion, setKeywordsSuggestion] = useState(initialData?.keywords_suggestion ?? "");
   const [isSaving, setIsSaving] = useState(false);
   const [isApplyingDetection, setIsApplyingDetection] = useState(false);
+  const [analysisAttempted, setAnalysisAttempted] = useState(Boolean(initialData?.extracted_from_website));
+  const [analysisFailed, setAnalysisFailed] = useState(false);
+  const [analysisErrorMessage, setAnalysisErrorMessage] = useState<string>("");
+  const [allowManualFill, setAllowManualFill] = useState(Boolean(initialData?.business_name));
   const submittingRef = useRef(false);
   const lastAppliedUrlRef = useRef<string | null>(null);
 
@@ -119,17 +134,36 @@ export function BusinessStep({
   const descriptionExample = useMemo(() => getDescriptionExample(finalSector), [finalSector]);
   const urlAnalysis = useMemo(() => analyzeUrl(websiteUrl), [websiteUrl]);
 
-  const detectedInfoExists = Boolean(
-    detectedBlogUrl ||
-    detectedSocialUrl ||
-    detectedLanguages.length > 0 ||
-    detectedColors.length > 0 ||
-    toneSuggestion ||
-    audienceSuggestion ||
-    contentGoalSuggestion ||
-    editorialFocusSuggestion ||
+  // Count how many fields got auto-filled from extraction
+  const detectedFieldsCount = useMemo(() => {
+    let count = 0;
+    if (businessName) count++;
+    if (businessDescription) count++;
+    if (location) count++;
+    if (finalSector) count++;
+    if (detectedBlogUrl) count++;
+    if (detectedSocialUrl) count++;
+    if (detectedColors.length > 0) count++;
+    if (toneSuggestion) count++;
+    if (audienceSuggestion) count++;
+    if (contentGoalSuggestion) count++;
+    if (editorialFocusSuggestion) count++;
+    if (keywordsSuggestion) count++;
+    return count;
+  }, [
+    businessName,
+    businessDescription,
+    location,
+    finalSector,
+    detectedBlogUrl,
+    detectedSocialUrl,
+    detectedColors,
+    toneSuggestion,
+    audienceSuggestion,
+    contentGoalSuggestion,
+    editorialFocusSuggestion,
     keywordsSuggestion,
-  );
+  ]);
 
   useEffect(() => {
     if (!sector) return;
@@ -161,7 +195,7 @@ export function BusinessStep({
     setBusinessDescription((prev) => prev || extractedProfile.description || "");
     setDetectedBlogUrl(extractedProfile.blog_url || "");
     setDetectedSocialUrl(extractedProfile.social_link || "");
-    setDetectedLanguages(extractedProfile.languages || []);
+    setDetectedLanguages(extractedProfile.languages || ["spanish"]);
     setDetectedColors(extractedProfile.colors || []);
     setToneSuggestion(extractedProfile.tone_suggestion || "");
     setAudienceSuggestion(extractedProfile.audience_suggestion || "");
@@ -170,11 +204,14 @@ export function BusinessStep({
     setKeywordsSuggestion(extractedProfile.keywords || "");
     lastAppliedUrlRef.current = identityKey;
     setIsApplyingDetection(false);
+    setAllowManualFill(true);
   }, [extractedProfile, sector, websiteUrl]);
 
   const canAnalyze =
     websiteUrl.trim().length > 0 && urlAnalysis.status !== "invalid" && extractionStatus !== "extracting";
+
   const canProceed =
+    allowManualFill &&
     businessName.trim().length > 0 &&
     businessType.length > 0 &&
     finalSector.length > 0 &&
@@ -199,12 +236,28 @@ export function BusinessStep({
     const finalUrl = normalizeFinalUrl();
     if (!finalUrl) return;
 
+    setAnalysisAttempted(true);
+    setAnalysisFailed(false);
+    setAnalysisErrorMessage("");
+
     const profile = await triggerExtraction(finalUrl);
     if (profile) {
-      toast.success("Hemos detectado información de tu web. Revísala y ajusta lo que haga falta.");
+      toast.success("¡Web analizada! Revisa los datos y ajusta lo que haga falta.");
+      setAllowManualFill(true);
     } else {
-      toast.error("No hemos podido analizar la web. Puedes completar los datos manualmente.");
+      setAnalysisFailed(true);
+      setAnalysisErrorMessage(
+        "No hemos podido analizar tu web. Puede que esté protegida por un firewall (Cloudflare, reCAPTCHA) o que no tengamos acceso. Puedes rellenar los datos manualmente a continuación.",
+      );
+      setAllowManualFill(true);
+      toast.error("No hemos podido analizar la web automáticamente.");
     }
+  };
+
+  const handleSkipAnalysis = () => {
+    setAnalysisAttempted(true);
+    setAllowManualFill(true);
+    toast.info("Rellena tus datos manualmente.");
   };
 
   const handleNext = async () => {
@@ -294,6 +347,9 @@ export function BusinessStep({
     }
   };
 
+  const isExtracting = extractionStatus === "extracting";
+  const showFormFields = allowManualFill;
+
   return (
     <div className="space-y-5">
       <div className="text-center space-y-2 mb-4 sm:mb-6">
@@ -301,11 +357,11 @@ export function BusinessStep({
           Conecta tu web y empezamos por ti
         </h2>
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
-          Analizamos tu web para proponerte una base de configuración. Después solo revisas, ajustas y generas tu primer
-          post.
+          Analizamos tu web para rellenar todo por ti. Después solo revisas, ajustas y generas tu primer post.
         </p>
       </div>
 
+      {/* Step 1: URL Input + Analyze button (always visible) */}
       <div className="space-y-3 rounded-xl border bg-card p-4">
         <div className="space-y-1.5">
           <Label htmlFor="website-url" className="flex items-center gap-2 text-sm font-medium">
@@ -318,12 +374,14 @@ export function BusinessStep({
             value={websiteUrl}
             onChange={(e) => {
               if (extractionStatus !== "idle") resetExtraction();
+              setAnalysisFailed(false);
               setWebsiteUrl(e.target.value);
             }}
             className="h-12 sm:h-11 text-base rounded-lg"
             autoFocus
             autoComplete="off"
             data-1p-ignore
+            disabled={isExtracting}
           />
         </div>
 
@@ -348,221 +406,297 @@ export function BusinessStep({
           </div>
         )}
 
-        {urlAnalysis.status === "invalid" && (
+        {urlAnalysis.status === "invalid" && websiteUrl.trim().length > 0 && (
           <div className="flex items-start gap-2 text-destructive text-sm">
             <XCircle className="w-4 h-4 mt-0.5" />
             <span>La URL no parece válida. Revísala antes de continuar.</span>
           </div>
         )}
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">
-            Detectamos nombre, sector, ubicación, blog, redes, idiomas y colores para rellenar lo posible por ti.
-          </p>
-          <Button type="button" onClick={handleAnalyzeWebsite} disabled={!canAnalyze} className="gap-2 self-start">
-            {extractionStatus === "extracting" ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            onClick={handleAnalyzeWebsite}
+            disabled={!canAnalyze || isExtracting}
+            className="w-full gap-2 h-12 text-base bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white"
+          >
+            {isExtracting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Analizando tu web...
+              </>
             ) : (
-              <WandSparkles className="w-4 h-4" />
+              <>
+                <WandSparkles className="w-5 h-5" />
+                {analysisAttempted ? "Volver a analizar" : "Analizar mi web"}
+              </>
             )}
-            {extractionStatus === "extracting" ? "Analizando web..." : "Analizar mi web"}
           </Button>
+          <p className="text-xs text-muted-foreground text-center">
+            Detectamos nombre, sector, ubicación, descripción, tono, audiencia, objetivos y colores automáticamente.
+          </p>
+          {!allowManualFill && !isExtracting && (
+            <button
+              type="button"
+              onClick={handleSkipAnalysis}
+              className="text-xs text-muted-foreground hover:text-foreground underline self-center"
+            >
+              Prefiero rellenar los datos manualmente
+            </button>
+          )}
         </div>
       </div>
 
-      {(extractedProfile || initialData?.extracted_from_website || isApplyingDetection) && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-          Hemos detectado esta información a partir de tu web. Revísala y modifícala si algo no encaja del todo con tu
-          negocio.
-        </div>
-      )}
-
-      <div className="space-y-1.5">
-        <Label htmlFor="business-name" className="flex items-center gap-2 text-sm font-medium">
-          <Building2 className="w-4 h-4 text-primary" />
-          Nombre de tu negocio <span className="text-destructive">*</span>
-        </Label>
-        <Input
-          id="business-name"
-          placeholder="Ej: Farmacia López"
-          value={businessName}
-          onChange={(e) => setBusinessName(e.target.value)}
-          className="h-12 sm:h-11 text-base rounded-lg"
-          maxLength={100}
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label className="flex items-center gap-2 text-sm font-medium">
-            <span className="text-lg">🧩</span>
-            Tipo de negocio <span className="text-destructive">*</span>
-          </Label>
-          <Select value={businessType} onValueChange={setBusinessType}>
-            <SelectTrigger className="h-12 sm:h-11 text-base rounded-lg">
-              <SelectValue placeholder="Selecciona el tipo de negocio..." />
-            </SelectTrigger>
-            <SelectContent>
-              {BUSINESS_TYPES.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="flex items-center gap-2 text-sm font-medium">
-            <span className="text-lg">🏷️</span>
-            Sector <span className="text-destructive">*</span>
-          </Label>
-          <Select value={sector} onValueChange={setSector}>
-            <SelectTrigger className="h-12 sm:h-11 text-base rounded-lg">
-              <SelectValue placeholder="Selecciona tu sector..." />
-            </SelectTrigger>
-            <SelectContent>
-              {SECTORS.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  <span className="mr-2">{s.icon}</span>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {sector === "otro" && (
-        <div className="space-y-1.5">
-          <Label htmlFor="custom-sector" className="text-sm font-medium">
-            Especifica tu sector
-          </Label>
-          <Input
-            id="custom-sector"
-            placeholder="Ej: Clínica estética"
-            value={customSector}
-            onChange={(e) => setCustomSector(e.target.value)}
-            className="h-12 sm:h-11 text-base rounded-lg"
-            maxLength={80}
-          />
-        </div>
-      )}
-
-      <div className="space-y-1.5">
-        <Label htmlFor="business-description" className="flex items-center gap-2 text-sm font-medium">
-          <Building2 className="w-4 h-4 text-primary" />
-          Describe tu negocio
-        </Label>
-        <Textarea
-          id="business-description"
-          placeholder={descriptionPlaceholder}
-          value={businessDescription}
-          onChange={(e) => setBusinessDescription(e.target.value)}
-          className="min-h-[120px] rounded-lg text-base"
-          maxLength={600}
-        />
-        <p className="text-[13px] text-muted-foreground">Describe tu negocio en 2-4 líneas.</p>
-        <p className="text-xs text-muted-foreground">
-          <span className="font-medium">Ejemplo:</span> {descriptionExample}
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="location" className="flex items-center gap-2 text-sm font-medium">
-            <MapPin className="w-4 h-4 text-primary" />
-            Ubicación principal <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="location"
-            placeholder="Ej: Barcelona"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            className="h-12 sm:h-11 text-base rounded-lg"
-            maxLength={80}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="flex items-center gap-2 text-sm font-medium">
-            <Globe className="w-4 h-4 text-primary" />
-            Alcance <span className="text-destructive">*</span>
-          </Label>
-          <Select value={scope} onValueChange={setScope}>
-            <SelectTrigger className="h-12 sm:h-11 text-base rounded-lg">
-              <SelectValue placeholder="Selecciona el alcance..." />
-            </SelectTrigger>
-            <SelectContent>
-              {SCOPES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  <span className="mr-2">{s.icon}</span>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {detectedInfoExists && (
-        <div className="rounded-xl border bg-card p-4 space-y-3">
-          <p className="text-sm font-semibold">Lo que hemos detectado</p>
-          <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-            {detectedBlogUrl && (
-              <p>
-                <span className="font-medium text-foreground">Blog:</span> {detectedBlogUrl}
-              </p>
-            )}
-            {detectedSocialUrl && (
-              <p>
-                <span className="font-medium text-foreground">Red social:</span> {detectedSocialUrl}
-              </p>
-            )}
-            {detectedLanguages.length > 0 && (
-              <p>
-                <span className="font-medium text-foreground">Idiomas:</span> {detectedLanguages.join(", ")}
-              </p>
-            )}
-            {detectedColors.length > 0 && (
-              <p>
-                <span className="font-medium text-foreground">Colores:</span> {detectedColors.join(", ")}
-              </p>
-            )}
-            {toneSuggestion && (
-              <p>
-                <span className="font-medium text-foreground">Tono sugerido:</span> {toneSuggestion}
-              </p>
-            )}
-            {audienceSuggestion && (
-              <p>
-                <span className="font-medium text-foreground">Audiencia sugerida:</span> {audienceSuggestion}
-              </p>
-            )}
-            {contentGoalSuggestion && (
-              <p>
-                <span className="font-medium text-foreground">Objetivo sugerido:</span> {contentGoalSuggestion}
-              </p>
-            )}
-            {editorialFocusSuggestion && (
-              <p>
-                <span className="font-medium text-foreground">Enfoque sugerido:</span> {editorialFocusSuggestion}
-              </p>
-            )}
-            {keywordsSuggestion && (
-              <p>
-                <span className="font-medium text-foreground">Keywords detectadas:</span> {keywordsSuggestion}
-              </p>
-            )}
+      {/* Extraction failure message */}
+      {analysisFailed && analysisErrorMessage && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 flex gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold">No hemos podido analizar tu web</p>
+            <p>{analysisErrorMessage}</p>
           </div>
         </div>
       )}
 
-      <OnboardingNavButtons
-        onNext={handleNext}
-        nextDisabled={!canProceed || urlAnalysis.status === "invalid"}
-        isSaving={isSaving}
-      />
+      {/* Success: Detection summary */}
+      {extractedProfile && !analysisFailed && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-start gap-3">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold text-emerald-900">
+              Hemos detectado <strong>{detectedFieldsCount}</strong> campo{detectedFieldsCount !== 1 ? "s" : ""} de tu
+              web
+            </p>
+            <p className="text-sm text-emerald-800">
+              Revisa la información a continuación. Puedes modificar cualquier campo antes de continuar.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Form fields — only visible after analysis or explicit skip */}
+      {showFormFields && (
+        <>
+          <div className="space-y-1.5">
+            <Label htmlFor="business-name" className="flex items-center gap-2 text-sm font-medium">
+              <Building2 className="w-4 h-4 text-primary" />
+              Nombre de tu negocio <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="business-name"
+              placeholder="Ej: Farmacia López"
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+              className="h-12 sm:h-11 text-base rounded-lg"
+              maxLength={100}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-2 text-sm font-medium">
+                <span className="text-lg">🧩</span>
+                Tipo de negocio <span className="text-destructive">*</span>
+              </Label>
+              <Select value={businessType} onValueChange={setBusinessType}>
+                <SelectTrigger className="h-12 sm:h-11 text-base rounded-lg">
+                  <SelectValue placeholder="Selecciona el tipo de negocio..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {BUSINESS_TYPES.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-2 text-sm font-medium">
+                <span className="text-lg">🏷️</span>
+                Sector <span className="text-destructive">*</span>
+              </Label>
+              <Select value={sector} onValueChange={setSector}>
+                <SelectTrigger className="h-12 sm:h-11 text-base rounded-lg">
+                  <SelectValue placeholder="Selecciona tu sector..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {SECTORS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      <span className="mr-2">{s.icon}</span>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {sector === "otro" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="custom-sector" className="text-sm font-medium">
+                Especifica tu sector
+              </Label>
+              <Input
+                id="custom-sector"
+                placeholder="Ej: Clínica estética"
+                value={customSector}
+                onChange={(e) => setCustomSector(e.target.value)}
+                className="h-12 sm:h-11 text-base rounded-lg"
+                maxLength={80}
+              />
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="business-description" className="flex items-center gap-2 text-sm font-medium">
+              <Building2 className="w-4 h-4 text-primary" />
+              Describe tu negocio
+            </Label>
+            <Textarea
+              id="business-description"
+              placeholder={descriptionPlaceholder}
+              value={businessDescription}
+              onChange={(e) => setBusinessDescription(e.target.value)}
+              className="min-h-[120px] rounded-lg text-base"
+              maxLength={600}
+            />
+            <p className="text-[13px] text-muted-foreground">Describe tu negocio en 2-4 líneas.</p>
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium">Ejemplo:</span> {descriptionExample}
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="location" className="flex items-center gap-2 text-sm font-medium">
+                <MapPin className="w-4 h-4 text-primary" />
+                Ubicación principal <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="location"
+                placeholder="Ej: Barcelona"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="h-12 sm:h-11 text-base rounded-lg"
+                maxLength={80}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-2 text-sm font-medium">
+                <Globe className="w-4 h-4 text-primary" />
+                Alcance <span className="text-destructive">*</span>
+              </Label>
+              <Select value={scope} onValueChange={setScope}>
+                <SelectTrigger className="h-12 sm:h-11 text-base rounded-lg">
+                  <SelectValue placeholder="Selecciona el alcance..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCOPES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      <span className="mr-2">{s.icon}</span>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Extra detected info (read-only display) */}
+          {(detectedBlogUrl ||
+            detectedSocialUrl ||
+            detectedColors.length > 0 ||
+            toneSuggestion ||
+            audienceSuggestion ||
+            contentGoalSuggestion ||
+            editorialFocusSuggestion ||
+            keywordsSuggestion) && (
+            <div className="rounded-xl border bg-card p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <p className="text-sm font-semibold">Información adicional detectada</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Esta información se usará en los siguientes pasos. Podrás ajustarla más adelante.
+              </p>
+              <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                {detectedBlogUrl && (
+                  <p>
+                    <span className="font-medium text-foreground">Blog:</span> {detectedBlogUrl}
+                  </p>
+                )}
+                {detectedSocialUrl && (
+                  <p>
+                    <span className="font-medium text-foreground">Red social:</span> {detectedSocialUrl}
+                  </p>
+                )}
+                {detectedLanguages.length > 0 && (
+                  <p>
+                    <span className="font-medium text-foreground">Idiomas:</span> {detectedLanguages.join(", ")}
+                  </p>
+                )}
+                {detectedColors.length > 0 && (
+                  <p className="flex items-center gap-2">
+                    <span className="font-medium text-foreground">Colores:</span>
+                    <span className="inline-flex gap-1">
+                      {detectedColors.map((color, i) => (
+                        <span
+                          key={i}
+                          className="inline-block w-4 h-4 rounded border border-gray-300"
+                          style={{ backgroundColor: color }}
+                          title={color}
+                        />
+                      ))}
+                    </span>
+                  </p>
+                )}
+                {toneSuggestion && (
+                  <p>
+                    <span className="font-medium text-foreground">Tono:</span> {toneSuggestion}
+                  </p>
+                )}
+                {audienceSuggestion && (
+                  <p>
+                    <span className="font-medium text-foreground">Audiencia:</span> {audienceSuggestion}
+                  </p>
+                )}
+                {contentGoalSuggestion && (
+                  <p>
+                    <span className="font-medium text-foreground">Objetivo:</span> {contentGoalSuggestion}
+                  </p>
+                )}
+                {editorialFocusSuggestion && (
+                  <p className="sm:col-span-2">
+                    <span className="font-medium text-foreground">Enfoque:</span> {editorialFocusSuggestion}
+                  </p>
+                )}
+                {keywordsSuggestion && (
+                  <p className="sm:col-span-2">
+                    <span className="font-medium text-foreground">Keywords:</span> {keywordsSuggestion}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <OnboardingNavButtons
+            onNext={handleNext}
+            nextDisabled={!canProceed || urlAnalysis.status === "invalid"}
+            isSaving={isSaving}
+          />
+        </>
+      )}
+
+      {/* Placeholder message when form is hidden */}
+      {!showFormFields && !isExtracting && (
+        <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
+          <Sparkles className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">Analiza tu web para pre-rellenar los datos automáticamente.</p>
+        </div>
+      )}
     </div>
   );
 }
