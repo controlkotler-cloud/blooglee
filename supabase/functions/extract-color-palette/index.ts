@@ -784,49 +784,56 @@ async function saveData(siteId: string, data: ExtractedData) {
 async function extractWithAI(
   html: string,
   url: string,
-  needsBusinessName: boolean,
-  needsDescription: boolean,
-  needsKeywords: boolean,
-): Promise<{ business_name?: string; description?: string; keywords?: string }> {
+): Promise<{
+  business_name?: string;
+  description?: string;
+  keywords?: string;
+  sector?: string;
+  business_type?: string;
+  location?: string;
+  tone_suggestion?: string;
+  audience_suggestion?: string;
+  content_goal_suggestion?: string;
+  editorial_focus_suggestion?: string;
+  languages?: string[];
+}> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!apiKey) {
     console.warn("[extract] No LOVABLE_API_KEY, skipping AI enrichment");
     return {};
   }
 
-  // Strip scripts/styles and take a reasonable chunk of visible text
   const visibleText = html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .substring(0, 6000);
+    .substring(0, 12000);
 
   if (visibleText.length < 50) return {};
 
-  const parts: string[] = [];
-  if (needsBusinessName) {
-    parts.push(
-      '"business_name": nombre comercial exacto de la empresa o marca principal del sitio (2-6 palabras). Sin eslóganes ni claims.',
-    );
-  }
-  if (needsDescription) {
-    parts.push(
-      '"description": una frase de 1-2 líneas que resuma qué hace este negocio, su sector y su propuesta de valor. Máximo 200 caracteres. En español.',
-    );
-  }
-  if (needsKeywords) {
-    parts.push(
-      '"keywords": entre 3 y 8 palabras clave del negocio separadas por comas, en español. Deben ser términos que describan el sector, los servicios o productos principales. NO incluyas nombres de ciudades, localidades, direcciones ni ubicaciones geográficas.',
-    );
-  }
-
-  const prompt = `Analiza el contenido de esta web (${url}) y extrae la siguiente información en formato JSON:
+  const prompt = `Analiza el contenido de esta web (${url}) y extrae información completa para pre-rellenar el onboarding de una plataforma SaaS de generación de contenido. Responde en formato JSON con estos campos:
 
 {
-  ${parts.join(",\n  ")}
+  "business_name": "Nombre comercial exacto (2-6 palabras, sin eslóganes)",
+  "description": "Descripción breve del negocio en 1-2 líneas, máx 200 caracteres, en español",
+  "keywords": "3-8 palabras clave del sector separadas por comas, en español (sin ubicaciones)",
+  "sector": "Sector del negocio. Usa SOLO uno de estos valores: farmacia, clinica_dental, restaurante, peluqueria, veterinaria, ecommerce, marketing, gimnasio, asesoria, inmobiliaria, otro",
+  "business_type": "Tipo de negocio. Usa SOLO uno de: local_business, ecommerce, service_provider, agency, professional, other",
+  "location": "Ciudad o zona principal si se menciona explícitamente (ej: Barcelona, Madrid centro). Si no aparece, string vacío.",
+  "tone_suggestion": "Tono editorial apropiado. Usa SOLO uno de: friendly, professional, expert, educational",
+  "audience_suggestion": "Audiencia principal del blog en 1 frase (máx 100 caracteres)",
+  "content_goal_suggestion": "Objetivo principal del contenido. Usa SOLO uno de: attract_customers, educate, build_authority, drive_sales, retain_customers",
+  "editorial_focus_suggestion": "Enfoque editorial concreto en 1-2 frases (máx 250 caracteres). Qué temas trataría el blog.",
+  "languages": ["spanish"] o ["spanish","catalan"] o ["spanish","english"] según idiomas que detectes en la web
 }
+
+Reglas estrictas:
+- Si un campo no puedes deducirlo del contenido, déjalo como string vacío (o array con solo "spanish" para languages).
+- NUNCA inventes datos que no estén en la web.
+- El negocio es real y debe poder reconocerse del contenido.
+- Si la página parece una página de verificación, error, o protección (reCAPTCHA, Cloudflare, etc.), devuelve todos los campos vacíos.
 
 Contenido de la web:
 ${visibleText}
@@ -840,9 +847,9 @@ Responde SOLO con el JSON, sin markdown ni explicaciones.`;
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash-lite",
+      model: "google/gemini-2.5-pro",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.3,
+      temperature: 0.2,
     }),
   });
 
@@ -854,20 +861,43 @@ Responde SOLO con el JSON, sin markdown ni explicaciones.`;
   const data = await response.json();
   const content = data.choices?.[0]?.message?.content || "";
 
-  // Parse JSON from response (strip fences if present)
   const cleaned = content
     .replace(/```json\s*/gi, "")
     .replace(/```/g, "")
     .trim();
+
   try {
     const parsed = JSON.parse(cleaned);
+
+    const validSectors = new Set(["farmacia","clinica_dental","restaurante","peluqueria","veterinaria","ecommerce","marketing","gimnasio","asesoria","inmobiliaria","otro"]);
+    const validBusinessTypes = new Set(["local_business","ecommerce","service_provider","agency","professional","other"]);
+    const validTones = new Set(["friendly","professional","expert","educational"]);
+    const validGoals = new Set(["attract_customers","educate","build_authority","drive_sales","retain_customers"]);
+
+    const sectorValue = typeof parsed.sector === "string" ? parsed.sector.toLowerCase().trim() : "";
+    const businessTypeValue = typeof parsed.business_type === "string" ? parsed.business_type.toLowerCase().trim() : "";
+    const toneValue = typeof parsed.tone_suggestion === "string" ? parsed.tone_suggestion.toLowerCase().trim() : "";
+    const goalValue = typeof parsed.content_goal_suggestion === "string" ? parsed.content_goal_suggestion.toLowerCase().trim() : "";
+
+    const languagesArray = Array.isArray(parsed.languages)
+      ? parsed.languages.filter((l: unknown): l is string => typeof l === "string").map((l: string) => l.toLowerCase())
+      : ["spanish"];
+
     return {
       business_name: typeof parsed.business_name === "string" ? sanitizeBusinessName(parsed.business_name) : undefined,
-      description: typeof parsed.description === "string" ? parsed.description.substring(0, 250) : undefined,
-      keywords: typeof parsed.keywords === "string" ? parsed.keywords.substring(0, 300) : undefined,
+      description: typeof parsed.description === "string" && parsed.description.trim() ? parsed.description.substring(0, 250) : undefined,
+      keywords: typeof parsed.keywords === "string" && parsed.keywords.trim() ? parsed.keywords.substring(0, 300) : undefined,
+      sector: validSectors.has(sectorValue) ? sectorValue : undefined,
+      business_type: validBusinessTypes.has(businessTypeValue) ? businessTypeValue : undefined,
+      location: typeof parsed.location === "string" && parsed.location.trim() ? parsed.location.substring(0, 100) : undefined,
+      tone_suggestion: validTones.has(toneValue) ? toneValue : undefined,
+      audience_suggestion: typeof parsed.audience_suggestion === "string" && parsed.audience_suggestion.trim() ? parsed.audience_suggestion.substring(0, 150) : undefined,
+      content_goal_suggestion: validGoals.has(goalValue) ? goalValue : undefined,
+      editorial_focus_suggestion: typeof parsed.editorial_focus_suggestion === "string" && parsed.editorial_focus_suggestion.trim() ? parsed.editorial_focus_suggestion.substring(0, 300) : undefined,
+      languages: languagesArray.length > 0 ? languagesArray : ["spanish"],
     };
   } catch {
-    console.warn("[extract] Failed to parse AI JSON:", cleaned.substring(0, 100));
+    console.warn("[extract] Failed to parse AI JSON:", cleaned.substring(0, 200));
     return {};
   }
 }
