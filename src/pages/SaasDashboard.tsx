@@ -341,6 +341,16 @@ export default function SaasDashboard() {
                   onFilterClick={setActiveFilter}
                 />
 
+                {/* Plan usage stats */}
+                {sites.length <= 3 && (
+                  <UsageStats
+                    sitesUsed={sites.length}
+                    sitesLimit={sitesLimit}
+                    articlesThisMonth={articlesThisMonth}
+                    articlesLimit={profile?.posts_limit}
+                  />
+                )}
+
                 {/* Toolbar */}
                 <SitesToolbar
                   search={search}
