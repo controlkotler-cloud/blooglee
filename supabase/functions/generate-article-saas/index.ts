@@ -4011,6 +4011,7 @@ Deno.serve(async (req) => {
         site.name,
         site.blog_url || null,
         site.instagram_url || null,
+        "es",
       );
       spanishArticle.content = ensureAuthorityLinks(spanishArticle.content, selectedAuthoritySources, ownedDomains);
     }
@@ -4023,6 +4024,7 @@ Deno.serve(async (req) => {
         site.name,
         site.blog_url || null,
         site.instagram_url || null,
+        "ca",
       );
       catalanArticle.content = ensureAuthorityLinks(catalanArticle.content, selectedAuthoritySources, ownedDomains);
     }
