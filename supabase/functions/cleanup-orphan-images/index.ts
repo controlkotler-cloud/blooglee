@@ -9,47 +9,24 @@ const corsHeaders = {
 
 const PROTECTED_FILES = ["blooglee-avatar.png"];
 
-function getBearerToken(req: Request): string | null {
+function isInternalAuthorized(req: Request, supabaseServiceKey: string, internalSecret?: string | null): boolean {
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  return token || null;
-}
-
-function getRoleFromJwt(token: string | null): string | null {
-  if (!token || token.split(".").length !== 3) return null;
-  try {
-    const payload = token.split(".")[1];
-    const padded = payload + "=".repeat((4 - (payload.length % 4)) % 4);
-    const normalized = padded.replace(/-/g, "+").replace(/_/g, "/");
-    const decoded = atob(normalized);
-    const json = JSON.parse(decoded) as Record<string, unknown>;
-    const role = json.role;
-    return typeof role === "string" ? role : null;
-  } catch {
-    return null;
-  }
-}
-
-function isInternalAuthorized(req: Request, serviceRoleKey: string, internalSecret?: string | null): boolean {
-  const bearerToken = getBearerToken(req);
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
   const apiKeyHeader = req.headers.get("apikey") || req.headers.get("x-api-key");
   const providedSecret = req.headers.get("x-internal-secret") || req.headers.get("x-cron-secret");
 
+  // Check internal secret
   if (internalSecret && providedSecret && providedSecret === internalSecret) {
     return true;
   }
 
-  if (bearerToken && bearerToken === serviceRoleKey) {
+  // Check bearer token matches service role key directly
+  if (bearerToken && bearerToken === supabaseServiceKey) {
     return true;
   }
 
-  if (apiKeyHeader && apiKeyHeader === serviceRoleKey) {
-    return true;
-  }
-
-  const bearerRole = getRoleFromJwt(bearerToken);
-  if (bearerRole === "service_role" || bearerRole === "supabase_admin") {
+  // Check apikey header matches service role key
+  if (apiKeyHeader && apiKeyHeader === supabaseServiceKey) {
     return true;
   }
 
@@ -99,7 +76,6 @@ Deno.serve(async (req) => {
         if (file.id) {
           allFiles.push(fullPath);
         } else {
-          // It's a folder
           folders.push(fullPath);
         }
       }
@@ -107,7 +83,7 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${allFiles.length} files in bucket`);
 
-    // 2. Collect all referenced image_urls from 5 tables
+    // 2. Collect all referenced image_urls from tables
     const tables = [
       { table: "articles", column: "image_url" },
       { table: "blog_posts", column: "image_url" },
