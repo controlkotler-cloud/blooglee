@@ -29,9 +29,11 @@ const WEEKS_OF_MONTH = [
 const HOURS = Array.from({ length: 24 }, (_, i) => ({ value: String(i), label: `${String(i).padStart(2, "0")}:00` }));
 
 function localToUtc(localHour: number): number {
-  const now = new Date();
-  now.setHours(localHour, 0, 0, 0);
-  return now.getUTCHours();
+  const offset = -new Date().getTimezoneOffset() / 60;
+  let utc = localHour - offset;
+  if (utc < 0) utc += 24;
+  if (utc >= 24) utc -= 24;
+  return Math.floor(utc);
 }
 
 interface SchedulingStepProps {
