@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
-import DOMPurify from 'dompurify';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { Rocket } from 'lucide-react';
-import type { OnboardingStepData } from '@/hooks/useOnboarding';
-import type { ArticleContent } from '@/hooks/useArticlesSaas';
+import { useState, useEffect, useMemo } from "react";
+import DOMPurify from "dompurify";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Rocket } from "lucide-react";
+import type { OnboardingStepData } from "@/hooks/useOnboarding";
+import type { ArticleContent } from "@/hooks/useArticlesSaas";
 
 interface ArticleReadyStepProps {
   onFinish: () => void;
@@ -16,40 +17,40 @@ interface ArticleReadyStepProps {
 }
 
 const BASE_CHECKLIST_ITEMS = [
-  { step_key: 'business_setup', status: 'completed' },
-  { step_key: 'style_setup', status: 'completed' },
-  { step_key: 'first_article', status: 'completed' },
-  { step_key: 'wordpress_connect', status: 'pending' },
-  { step_key: 'first_publish', status: 'pending' },
-  { step_key: 'content_profile', status: 'pending' },
-  { step_key: 'auto_publish', status: 'pending' },
+  { step_key: "business_setup", status: "completed" },
+  { step_key: "style_setup", status: "completed" },
+  { step_key: "first_article", status: "completed" },
+  { step_key: "wordpress_connect", status: "pending" },
+  { step_key: "first_publish", status: "pending" },
+  { step_key: "content_profile", status: "pending" },
+  { step_key: "auto_publish", status: "pending" },
 ];
 
 function buildChecklistItems(hasCatalan: boolean) {
   const items = [...BASE_CHECKLIST_ITEMS];
   if (hasCatalan) {
-    // Insert polylang_setup before wordpress_connect
-    const wpIndex = items.findIndex(i => i.step_key === 'wordpress_connect');
-    items.splice(wpIndex, 0, { step_key: 'polylang_setup', status: 'pending' });
+    const wpIndex = items.findIndex((i) => i.step_key === "wordpress_connect");
+    items.splice(wpIndex, 0, { step_key: "polylang_setup", status: "pending" });
   }
   return items;
 }
 
-// CSS confetti particles
-const CONFETTI_COLORS = ['#8B5CF6', '#D946EF', '#F97316', '#22C55E', '#3B82F6', '#EAB308'];
+const CONFETTI_COLORS = ["#8B5CF6", "#D946EF", "#F97316", "#22C55E", "#3B82F6", "#EAB308"];
 
 function ConfettiParticles() {
   const [visible, setVisible] = useState(true);
-  const particles = useMemo(() =>
-    Array.from({ length: 30 }, (_, i) => ({
-      id: i,
-      left: `${Math.random() * 100}%`,
-      delay: `${Math.random() * 1.5}s`,
-      duration: `${1.5 + Math.random() * 1.5}s`,
-      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-      size: 4 + Math.random() * 6,
-    })),
-  []);
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 30 }, (_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 1.5}s`,
+        duration: `${1.5 + Math.random() * 1.5}s`,
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        size: 4 + Math.random() * 6,
+      })),
+    [],
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => setVisible(false), 2500);
@@ -77,31 +78,101 @@ function ConfettiParticles() {
   );
 }
 
+const ALLOWED_TAGS = [
+  "p",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "ul",
+  "ol",
+  "li",
+  "strong",
+  "em",
+  "a",
+  "blockquote",
+  "code",
+  "pre",
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "td",
+  "th",
+  "div",
+  "span",
+  "hr",
+  "img",
+  "br",
+];
+const ALLOWED_ATTR = ["href", "target", "rel", "class", "id", "src", "alt"];
+
+function ArticlePreview({ content, imageUrl }: { content: ArticleContent; imageUrl?: string | null }) {
+  return (
+    <div className="p-3 sm:p-4 space-y-4">
+      {imageUrl && <img src={imageUrl} alt={content.title} className="w-full max-h-48 object-cover rounded-lg" />}
+      <h3 className="text-base font-semibold leading-snug">{content.title}</h3>
+      <div
+        className="prose prose-sm dark:prose-invert max-w-none"
+        dangerouslySetInnerHTML={{
+          __html: DOMPurify.sanitize(content.content, {
+            ALLOWED_TAGS,
+            ALLOWED_ATTR,
+            ALLOW_DATA_ATTR: false,
+          }),
+        }}
+      />
+    </div>
+  );
+}
+
 export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteId }: ArticleReadyStepProps) {
   const { user } = useAuth();
   const [article, setArticle] = useState<{
     content_spanish: ArticleContent | null;
+    content_catalan: ArticleContent | null;
     image_url: string | null;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const articleId = stepData?.step5?.article_id as string | undefined;
+  const hasCatalan = !!(stepData?.step_content_prefs as Record<string, unknown> | undefined)?.catalan;
 
   useEffect(() => {
-    if (!articleId) { setIsLoading(false); return; }
+    if (!articleId) {
+      setIsLoading(false);
+      return;
+    }
     const load = async () => {
-      const { data } = await supabase.from('articles').select('content_spanish, image_url').eq('id', articleId).single();
-      if (data) setArticle({ content_spanish: data.content_spanish as unknown as ArticleContent | null, image_url: data.image_url });
+      const { data } = await supabase
+        .from("articles")
+        .select("content_spanish, content_catalan, image_url")
+        .eq("id", articleId)
+        .single();
+      if (data) {
+        setArticle({
+          content_spanish: data.content_spanish as unknown as ArticleContent | null,
+          content_catalan: data.content_catalan as unknown as ArticleContent | null,
+          image_url: data.image_url,
+        });
+      }
       setIsLoading(false);
     };
     load();
   }, [articleId]);
 
-  const content = article?.content_spanish;
-  const wordCount = content?.content ? content.content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length : 0;
-  const readTime = Math.max(1, Math.round(wordCount / 200));
+  const spanishContent = article?.content_spanish;
+  const catalanContent = article?.content_catalan;
+  const showTabs = hasCatalan && catalanContent && spanishContent;
+  const primaryContent = spanishContent || catalanContent;
 
-  const hasCatalan = !!(stepData?.step_content_prefs as Record<string, unknown> | undefined)?.catalan;
+  const wordCount = primaryContent?.content
+    ? primaryContent.content
+        .replace(/<[^>]*>/g, "")
+        .split(/\s+/)
+        .filter(Boolean).length
+    : 0;
+  const readTime = Math.max(1, Math.round(wordCount / 200));
 
   const handleComplete = async () => {
     if (user?.id && siteId) {
@@ -110,10 +181,10 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
         site_id: siteId,
         step_key: item.step_key,
         status: item.status,
-        completed_at: item.status === 'completed' ? new Date().toISOString() : null,
+        completed_at: item.status === "completed" ? new Date().toISOString() : null,
       }));
-      const { error } = await supabase.from('onboarding_checklist').insert(items as any);
-      if (error) console.error('Error creating checklist:', error);
+      const { error } = await supabase.from("onboarding_checklist").insert(items as any);
+      if (error) console.error("Error creating checklist:", error);
     }
     if (onConnectWordPress) onConnectWordPress();
   };
@@ -122,49 +193,62 @@ export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteI
     <div className="relative space-y-5 sm:space-y-6 py-2">
       <ConfettiParticles />
 
-      {/* Celebration header */}
       <div className="relative z-10 text-center space-y-2 sm:space-y-3">
         <div className="text-4xl sm:text-5xl animate-bounce-in">🎉</div>
-        <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">
-          ¡Tu primer artículo está listo!
-        </h2>
-        {content?.title && (
+        <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">¡Tu primer artículo está listo!</h2>
+        {primaryContent?.title && (
           <p className="text-sm sm:text-base font-medium text-foreground italic max-w-lg mx-auto leading-snug">
-            &ldquo;{content.title}&rdquo;
+            &ldquo;{primaryContent.title}&rdquo;
           </p>
         )}
         {wordCount > 0 && (
           <p className="text-xs sm:text-sm text-muted-foreground">
             📝 {wordCount.toLocaleString()} palabras · ⏱️ {readTime} min de lectura
+            {showTabs && <span> · 🌐 Disponible en español y catalán</span>}
           </p>
         )}
       </div>
 
-      {/* Article preview */}
-      <ScrollArea className="relative z-10 h-[260px] sm:h-[320px] rounded-xl border border-border bg-card p-1 animate-in fade-in slide-in-from-bottom-3 duration-500" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
-        <div className="p-3 sm:p-4 space-y-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-            </div>
-          ) : content ? (
-            <>
-              {article?.image_url && (
-                <img src={article.image_url} alt={content.title} className="w-full max-h-48 object-cover rounded-lg" />
-              )}
-              <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content.content, {
-                ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'strong', 'em', 'a', 'blockquote', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'div', 'span', 'hr', 'img', 'br'],
-                ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'id', 'src', 'alt'],
-                ALLOW_DATA_ATTR: false,
-              }) }} />
-            </>
-          ) : (
+      <div
+        className="relative z-10 animate-in fade-in slide-in-from-bottom-3 duration-500"
+        style={{ animationDelay: "300ms", animationFillMode: "both" }}
+      >
+        {isLoading ? (
+          <div className="h-[260px] sm:h-[320px] rounded-xl border border-border bg-card flex items-center justify-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+          </div>
+        ) : showTabs && spanishContent && catalanContent ? (
+          <Tabs defaultValue="es" className="rounded-xl border border-border bg-card">
+            <TabsList className="w-full justify-start bg-transparent border-b rounded-none h-10 px-2">
+              <TabsTrigger value="es" className="text-xs">
+                🇪🇸 Español
+              </TabsTrigger>
+              <TabsTrigger value="ca" className="text-xs">
+                🏴󠁥󠁳󠁣󠁴󠁿 Català
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="es" className="m-0">
+              <ScrollArea className="h-[260px] sm:h-[320px]">
+                <ArticlePreview content={spanishContent} imageUrl={article?.image_url} />
+              </ScrollArea>
+            </TabsContent>
+            <TabsContent value="ca" className="m-0">
+              <ScrollArea className="h-[260px] sm:h-[320px]">
+                <ArticlePreview content={catalanContent} imageUrl={article?.image_url} />
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        ) : primaryContent ? (
+          <ScrollArea className="h-[260px] sm:h-[320px] rounded-xl border border-border bg-card">
+            <ArticlePreview content={primaryContent} imageUrl={article?.image_url} />
+          </ScrollArea>
+        ) : (
+          <div className="h-[260px] sm:h-[320px] rounded-xl border border-border bg-card flex items-center justify-center">
             <p className="text-center text-muted-foreground py-8">No se pudo cargar la vista previa del artículo.</p>
-          )}
-        </div>
-      </ScrollArea>
+          </div>
+        )}
+      </div>
 
-      {/* CTA */}
       <div className="relative z-10 space-y-3 pt-1 sm:pt-2">
         <Button
           onClick={handleComplete}
