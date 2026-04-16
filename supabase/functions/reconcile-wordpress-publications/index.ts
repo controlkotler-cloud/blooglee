@@ -585,136 +585,127 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const publishPayload = {
-        site_id: article.site_id,
-        title,
-        seo_title: spanish.seo_title || catalan.seo_title,
-        content,
-        slug,
-        status: "publish",
-        image_url: article.image_url || null,
-        image_alt: title,
-        meta_description: spanish.meta_description || catalan.meta_description,
-        excerpt: spanish.excerpt || catalan.excerpt || spanish.meta_description || catalan.meta_description,
-        focus_keyword: spanish.focus_keyword || catalan.focus_keyword,
-        lang: spanish.title ? "es" : "ca",
-      };
+      const publishTasks: Array<{ lang: "es" | "ca"; content: SpanishArticleContent }> = [];
+      if (spanish.title && spanish.content && spanish.slug) {
+        publishTasks.push({ lang: "es", content: spanish });
+      }
+      if (catalan.title && catalan.content && catalan.slug) {
+        publishTasks.push({ lang: "ca", content: catalan });
+      }
 
-      try {
-        const publishRes = await fetch(`${supabaseUrl}/functions/v1/publish-to-wordpress-saas`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceRoleKey}`,
-          },
-          body: JSON.stringify(publishPayload),
-        });
+      if (publishTasks.length === 0) {
+        await skipWithLog(article, "no_publishable_content");
+        continue;
+      }
 
-        if (!publishRes.ok) {
-          const errorText = await publishRes.text();
-          failed++;
-          errors.push({
-            article_id: article.id,
-            site_id: article.site_id,
-            error: `HTTP ${publishRes.status}: ${errorText.substring(0, 500)}`,
-          });
-          await logSiteActivity(
-            supabase,
-            article.site_id,
-            article.user_id,
-            "autopublish_reconcile_failed",
-            "Falló publicación en reconciliador",
-            {
-              article_id: article.id,
-              error: `HTTP ${publishRes.status}: ${errorText.substring(0, 500)}`,
-            },
-          );
-          continue;
-        }
-
-        const result = await publishRes.json();
-        if (!result?.post_url) {
-          failed++;
-          errors.push({
-            article_id: article.id,
-            site_id: article.site_id,
-            error: "Respuesta sin post_url",
-          });
-          await logSiteActivity(
-            supabase,
-            article.site_id,
-            article.user_id,
-            "autopublish_reconcile_failed",
-            "WordPress respondió sin post_url",
-            {
-              article_id: article.id,
-              error: "missing_post_url",
-            },
-          );
-          continue;
-        }
-
-        const { error: updateError } = await supabase
-          .from("articles")
-          .update({ wp_post_url: result.post_url })
-          .eq("id", article.id);
-
-        if (updateError) {
-          failed++;
-          errors.push({
-            article_id: article.id,
-            site_id: article.site_id,
-            error: `Error actualizando wp_post_url: ${updateError.message}`,
-          });
-          await logSiteActivity(
-            supabase,
-            article.site_id,
-            article.user_id,
-            "autopublish_reconcile_failed",
-            "Error actualizando wp_post_url tras reconciliación",
-            {
-              article_id: article.id,
-              error: `Error actualizando wp_post_url: ${updateError.message}`,
-            },
-          );
-          continue;
-        }
-
+      if (dryRun) {
         published++;
-        await logSiteActivity(
-          supabase,
-          article.site_id,
-          article.user_id,
-          "autopublish_reconciled",
-          "Artículo publicado por reconciliador automático",
-          {
-            article_id: article.id,
-            post_url: result.post_url,
-            idempotent: false,
-          },
-        );
+        continue;
+      }
 
-        const siteName = site.name || "tu sitio";
-        await sendReconcilePublishedEmail(supabase, article, siteName, result.post_url);
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        failed++;
-        errors.push({
-          article_id: article.id,
+      let atLeastOneSuccess = false;
+      let lastPostUrl: string | undefined;
+
+      for (const task of publishTasks) {
+        const publishPayload = {
           site_id: article.site_id,
-          error: msg,
-        });
-        await logSiteActivity(
-          supabase,
-          article.site_id,
-          article.user_id,
-          "autopublish_reconcile_failed",
-          "Excepción publicando en reconciliador",
-          {
+          title: task.content.title,
+          seo_title: task.content.seo_title,
+          content: task.content.content,
+          slug: task.content.slug,
+          status: "publish",
+          image_url: article.image_url || null,
+          image_alt: task.content.title,
+          meta_description: task.content.meta_description,
+          excerpt: task.content.excerpt || task.content.meta_description,
+          focus_keyword: task.content.focus_keyword,
+          lang: task.lang,
+        };
+
+        try {
+          const publishRes = await fetch(`${supabaseUrl}/functions/v1/publish-to-wordpress-saas`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify(publishPayload),
+          });
+
+          if (!publishRes.ok) {
+            const errorText = await publishRes.text();
+            errors.push({
+              article_id: article.id,
+              site_id: article.site_id,
+              error: `[${task.lang}] HTTP ${publishRes.status}: ${errorText.substring(0, 400)}`,
+            });
+            await logSiteActivity(
+              supabase,
+              article.site_id,
+              article.user_id,
+              "autopublish_reconcile_failed",
+              `Falló publicación en ${task.lang} en reconciliador`,
+              {
+                article_id: article.id,
+                lang: task.lang,
+                error: `HTTP ${publishRes.status}: ${errorText.substring(0, 500)}`,
+              },
+            );
+            continue;
+          }
+
+          const result = await publishRes.json();
+          if (result?.post_url) {
+            atLeastOneSuccess = true;
+            lastPostUrl = result.post_url;
+          }
+        } catch (publishErr) {
+          errors.push({
             article_id: article.id,
-            error: msg,
-          },
-        );
+            site_id: article.site_id,
+            error: `[${task.lang}] ${publishErr instanceof Error ? publishErr.message : String(publishErr)}`,
+          });
+          await logSiteActivity(
+            supabase,
+            article.site_id,
+            article.user_id,
+            "autopublish_reconcile_failed",
+            `Excepción publicando en ${task.lang} en reconciliador`,
+            {
+              article_id: article.id,
+              lang: task.lang,
+              error: publishErr instanceof Error ? publishErr.message : String(publishErr),
+            },
+          );
+        }
+      }
+
+      if (atLeastOneSuccess) {
+        published++;
+        if (lastPostUrl) {
+          await supabase
+            .from("articles")
+            .update({ wp_post_url: lastPostUrl })
+            .eq("id", article.id);
+
+          await logSiteActivity(
+            supabase,
+            article.site_id,
+            article.user_id,
+            "autopublish_reconciled",
+            "Artículo publicado por reconciliador automático",
+            {
+              article_id: article.id,
+              post_url: lastPostUrl,
+              idempotent: false,
+            },
+          );
+
+          const siteName = site.name || "tu sitio";
+          await sendReconcilePublishedEmail(supabase, article, siteName, lastPostUrl);
+        }
+      } else {
+        failed++;
       }
     }
 
