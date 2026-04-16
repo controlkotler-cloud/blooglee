@@ -11,7 +11,8 @@ import {
   LogOut,
   Menu,
   Share2,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ const menuItems = [
   { path: '/admin/prompts', icon: Settings, label: 'Prompts' },
   { path: '/admin/social', icon: Share2, label: 'Social Media' },
   { path: '/admin/permissions', icon: ShieldCheck, label: 'Permisos' },
+  { path: '/admin/sectors', icon: Sparkles, label: 'Sectores' },
 ];
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
