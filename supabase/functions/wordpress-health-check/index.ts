@@ -372,7 +372,7 @@ async function checkPhase3(
       });
       console.log("Test post deleted successfully");
     } catch (error) {
-      console.log("Could not delete test post:", error);
+      console.error("Could not delete test post (ID: " + testPostId + "). The user may need to delete it manually:", error);
     }
   }
 

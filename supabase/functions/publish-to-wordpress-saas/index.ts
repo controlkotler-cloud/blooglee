@@ -515,6 +515,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    const warnings: string[] = [];
+
     // =========================================================
     // STEP 2: Upload featured image if provided
     // =========================================================
@@ -564,10 +566,12 @@ Deno.serve(async (req) => {
             }
           } else {
             console.error("Media upload failed:", mediaResponseText);
+            warnings.push("La imagen destacada no se pudo subir a WordPress. El artículo se publicó sin imagen.");
           }
         }
       } catch (imageError) {
         console.error("Error uploading image:", imageError);
+        warnings.push("Error al descargar la imagen. El artículo se publicó sin imagen destacada.");
       }
     }
 
@@ -743,7 +747,7 @@ Deno.serve(async (req) => {
     // =========================================================
     const createdPost = JSON.parse(postResponseText);
     console.log(`[${requestId}][created_new_post] Post ID: ${createdPost.id}, URL: ${createdPost.link}`);
-    const warnings: string[] = [];
+    // warnings was declared earlier (before image upload)
 
     // =========================================================
     // STEP 4b: Set Elementor post meta for Elementor sites
