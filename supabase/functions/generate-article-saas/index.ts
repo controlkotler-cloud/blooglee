@@ -1049,6 +1049,114 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3)
   throw lastError || new Error("All retry attempts failed");
 }
 
+/**
+ * Verifies that a URL is reachable (HEAD request with timeout)
+ * Returns true if status < 400, false otherwise
+ */
+async function verifyUrlReachable(url: string, timeoutMs: number = 5000): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(url, {
+      method: "HEAD",
+      signal: controller.signal,
+      redirect: "follow",
+    });
+    clearTimeout(timeoutId);
+    // Accept 2xx and 3xx. Some servers block HEAD, retry with GET
+    if (response.status < 400) return true;
+    if (response.status === 405 || response.status === 403) {
+      // Some servers don't allow HEAD; try GET
+      const getController = new AbortController();
+      const getTimeout = setTimeout(() => getController.abort(), timeoutMs);
+      const getResponse = await fetch(url, {
+        method: "GET",
+        signal: getController.signal,
+        redirect: "follow",
+        headers: { "Range": "bytes=0-0" }, // Minimal bytes
+      });
+      clearTimeout(getTimeout);
+      return getResponse.status < 400;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Auto-generates authority_sources for a new/unknown sector using AI.
+ * Verifies each URL before returning. Returns only URLs that are reachable.
+ */
+async function autoGenerateAuthoritySources(
+  sector: string,
+  apiKey: string,
+): Promise<AuthoritySource[]> {
+  if (!apiKey) return [];
+
+  const prompt = `Eres un experto en SEO y fuentes de autoridad para contenido en español. Para el sector "${sector}", genera EXACTAMENTE 8 fuentes reales y verificables que se usen para enlaces externos en artículos de blog de ese sector en España.
+
+Reglas ESTRICTAS:
+- URLs REALES que existan hoy (2026). NUNCA inventes dominios.
+- Prioriza: organismos oficiales españoles, asociaciones profesionales del sector, publicaciones técnicas establecidas, bases de datos estadísticas.
+- NO uses: Wikipedia, blogs personales, Medium, redes sociales, foros.
+- URLs con https:// y dominio raíz (sin slash final).
+- Labels sin apóstrofes, sin acentos complicados (ej: "AEMPS Espana" no "AEMPS España's").
+- "topics" son 2-4 palabras EN ESPAÑOL SIN ACENTOS.
+- Variar "source_type": algunas "official", algunas "association", algunas "technical", alguna "stats".
+
+Responde SOLO con JSON válido en este formato exacto:
+{"sources":[{"label":"...","url":"https://...","source_type":"official","is_active":true,"topics":["...","..."]}]}`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-pro",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn(`[auto-authority] AI response not ok: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+    const cleaned = content.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+    const candidateSources: AuthoritySource[] = Array.isArray(parsed.sources) ? parsed.sources : [];
+
+    if (candidateSources.length === 0) return [];
+
+    console.log(`[auto-authority] AI suggested ${candidateSources.length} sources for "${sector}". Verifying URLs...`);
+
+    // Verify each URL in parallel
+    const verifications = await Promise.all(
+      candidateSources.map(async (src) => {
+        if (!src?.url || typeof src.url !== "string") return null;
+        const isReachable = await verifyUrlReachable(src.url, 4000);
+        return isReachable ? src : null;
+      }),
+    );
+
+    const verified = verifications.filter((s): s is AuthoritySource => s !== null);
+    console.log(`[auto-authority] Verified ${verified.length}/${candidateSources.length} URLs for "${sector}"`);
+
+    // Require at least 3 valid sources to return anything (else use fallback general)
+    return verified.length >= 3 ? verified.slice(0, 8) : [];
+  } catch (err) {
+    console.warn("[auto-authority] Generation failed:", err);
+    return [];
+  }
+}
+
 function detectSectorCategory(sector: string | null | undefined): string {
   if (!sector) return "general";
   const s = sector.toLowerCase();
