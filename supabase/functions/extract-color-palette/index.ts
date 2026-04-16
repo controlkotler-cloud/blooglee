@@ -900,16 +900,40 @@ function sanitizeBusinessName(rawName: string): string | undefined {
     .replace(/^[\s\-|–—•·:]+|[\s\-|–—•·:]+$/g, "")
     .trim();
 
-  // Remove very common suffixes that are not part of the brand itself.
   name = name.replace(/\b(inicio|home|blog|noticias|news)\b$/i, "").trim();
 
   if (name.length < 2 || name.length > 120) return undefined;
 
   const lowered = name.toLowerCase();
-  const generic = new Set(["inicio", "home", "blog", "noticias", "news", "wordpress", "untitled", "site", "website"]);
+  const generic = new Set([
+    "inicio", "home", "blog", "noticias", "news", "wordpress", "untitled", "site", "website",
+    "recaptcha", "cloudflare", "just a moment", "just a moment...", "attention required",
+    "verification", "verify", "checking your browser", "access denied", "forbidden",
+    "please wait", "loading", "error", "404", "403", "not found", "privacy error"
+  ]);
   if (generic.has(lowered)) return undefined;
 
+  // Reject if contains clear challenge/security keywords
+  if (/\b(recaptcha|cloudflare|challenge|checking your browser|access denied|verification required|please verify|are you human|bot detection|security check)\b/i.test(name)) {
+    return undefined;
+  }
+
   return name;
+}
+
+function detectChallengePage(html: string): { isChallenge: boolean; type?: string } {
+  if (!html) return { isChallenge: false };
+  const lower = html.toLowerCase();
+  if (/cf-browser-verification|cf-challenge|cloudflare.*checking your browser/.test(lower)) {
+    return { isChallenge: true, type: "cloudflare" };
+  }
+  if (/g-recaptcha.*challenge|please verify you are human.*recaptcha/.test(lower)) {
+    return { isChallenge: true, type: "recaptcha" };
+  }
+  if (/just a moment\.{3}/.test(lower) && html.length < 5000) {
+    return { isChallenge: true, type: "cloudflare" };
+  }
+  return { isChallenge: false };
 }
 
 function getHostnameWithoutWww(urlValue: string): string | null {
