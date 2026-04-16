@@ -3230,6 +3230,70 @@ Deno.serve(async (req) => {
                 console.warn("[auto-authority] Failed to save sector_context:", insertErr.message);
               } else {
                 console.log(`[auto-authority] Saved ${newSources.length} verified sources for "${sectorKeyToStore}". Marked for admin review.`);
+
+                // Send notification email to admin
+                try {
+                  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+                  const ADMIN_EMAIL = Deno.env.get("ADMIN_NOTIFICATION_EMAIL") || "info@blooglee.com";
+                  if (RESEND_API_KEY) {
+                    const sourcesHtml = newSources
+                      .map(
+                        (s) =>
+                          `<li style="margin-bottom:8px;"><strong>${s.label}</strong> — <a href="${s.url}" style="color:#8B5CF6;">${s.url}</a> <span style="color:#888;">(${s.source_type || "—"})</span></li>`,
+                      )
+                      .join("");
+
+                    const emailHtml = `<!DOCTYPE html>
+<html>
+<body style="font-family:Inter,Arial,sans-serif;background:#FAFAF8;padding:24px;color:#1A1A2E;">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+    <h1 style="font-size:22px;margin:0 0 8px;color:#1A1A2E;">🔔 Nuevo sector auto-generado</h1>
+    <p style="color:#666;margin:0 0 24px;">Revisa las fuentes de autoridad sugeridas por la IA</p>
+    <p style="margin:0 0 6px;"><strong>Sector detectado:</strong> ${sectorLabel}</p>
+    <p style="margin:0 0 6px;"><strong>Clave guardada:</strong> <code style="background:#f3f3f3;padding:2px 6px;border-radius:4px;">${sectorKeyToStore}</code></p>
+    <p style="margin:0 0 20px;"><strong>Site que lo detectó:</strong> ${site.name || siteIdForRef}</p>
+    <h2 style="font-size:16px;margin:24px 0 12px;">Fuentes generadas y verificadas (${newSources.length}):</h2>
+    <ul style="padding-left:20px;margin:0 0 24px;">${sourcesHtml}</ul>
+    <div style="background:#FEF3C7;border-left:4px solid #F59E0B;padding:12px 16px;border-radius:6px;margin:20px 0;">
+      <p style="margin:0;font-size:14px;color:#78350F;">
+        ⚠️ <strong>Acción requerida:</strong> las URLs se han verificado automáticamente (HEAD request OK), pero recomendamos revisar manualmente que son fuentes fiables y coherentes con el sector.
+      </p>
+    </div>
+    <div style="text-align:center;margin-top:28px;">
+      <a href="https://blooglee.com/admin/sectors" style="display:inline-block;background:#8B5CF6;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">Revisar en panel admin →</a>
+    </div>
+    <hr style="border:none;border-top:1px solid #eee;margin:32px 0 16px;">
+    <p style="color:#999;font-size:12px;margin:0;text-align:center;">Blooglee · Auto-notificación de sectores</p>
+  </div>
+</body>
+</html>`;
+
+                    const emailRes = await fetch("https://api.resend.com/emails", {
+                      method: "POST",
+                      headers: {
+                        Authorization: `Bearer ${RESEND_API_KEY}`,
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        from: "Blooglee Admin <noreply@blooglee.com>",
+                        to: [ADMIN_EMAIL],
+                        subject: `🔔 Nuevo sector auto-generado: ${sectorLabel}`,
+                        html: emailHtml,
+                      }),
+                    });
+
+                    if (!emailRes.ok) {
+                      const errText = await emailRes.text().catch(() => "");
+                      console.warn("[auto-authority] Email notification failed:", emailRes.status, errText.substring(0, 200));
+                    } else {
+                      console.log("[auto-authority] Admin notification email sent to", ADMIN_EMAIL);
+                    }
+                  } else {
+                    console.warn("[auto-authority] RESEND_API_KEY not configured, skipping email notification");
+                  }
+                } catch (emailErr) {
+                  console.error("[auto-authority] Email error (non-blocking):", emailErr);
+                }
               }
             } else {
               console.warn(`[auto-authority] Not enough verified sources for "${sectorLabel}" (got ${newSources.length})`);
