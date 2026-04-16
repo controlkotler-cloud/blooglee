@@ -2422,8 +2422,11 @@ function ensureFooterLinks(
     // with ANY external links — if so, the AI already wrote a good conclusion
     // and we should NOT append another CTA sentence.
     const lastPlainText = lastParagraph.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    const closingLanguage =
+    const closingLanguageEs =
       /(en (conclusi[oó]n|resumen|definitiva)|para (concluir|cerrar|terminar|finalizar|seguir avanzando)|si (quieres|necesitas|te interesa)|visita|s[ií]guenos|acomp[aá][ñn]anos|encontrar[aá]s|no (dudes|te pierdas)|esperamos|te invitamos|descubre m[aá]s|mantente al d[ií]a|p[aá]sate por)/i;
+    const closingLanguageCa =
+      /(en (conclusi[oó]|resum|definitiva)|per (concloure|tancar|acabar|finalitzar|continuar avan[çc]ant)|si (vols|necessites|t'interessa)|visita|segueix-nos|acompanya'ns|trobar[aà]s|no (dubtis|et perdis)|esperem|t'invitem|descobreix m[eé]s|mant[eé]n-te al dia|passa pel)/i;
+    const closingLanguage = lang === "ca" ? closingLanguageCa : closingLanguageEs;
     const hasClosingLanguage = closingLanguage.test(lastPlainText);
     const hasAnyLinks = /<a\s+[^>]*href=/i.test(lastParagraph);
 
