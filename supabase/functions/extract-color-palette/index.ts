@@ -547,31 +547,44 @@ Deno.serve(async (req) => {
     const blogUrl = html ? extractBlogUrl(html, formattedUrl) : undefined;
     let keywords = html ? extractKeywords(html) : undefined;
 
-    // === AI ENRICHMENT: generate missing profile fields ===
-    if (html && (!businessName || !description || !keywords)) {
+    // === AI ENRICHMENT: extract full profile ===
+    // Declare additional extracted fields from AI
+    let aiSector: string | undefined;
+    let aiBusinessType: string | undefined;
+    let aiLocation: string | undefined;
+    let aiToneSuggestion: string | undefined;
+    let aiAudienceSuggestion: string | undefined;
+    let aiContentGoalSuggestion: string | undefined;
+    let aiEditorialFocusSuggestion: string | undefined;
+    let aiLanguages: string[] | undefined;
+
+    // Always run AI enrichment to extract full profile (not only missing basic fields)
+    if (html) {
       try {
-        console.log(
-          "[extract] Missing profile fields (business_name:",
-          !!businessName,
-          ", description:",
-          !!description,
-          ", keywords:",
-          !!keywords,
-          ") — using AI",
-        );
-        const aiResult = await extractWithAI(html, formattedUrl, !businessName, !description, !keywords);
+        console.log("[extract] Running full AI enrichment");
+        const aiResult = await extractWithAI(html, formattedUrl);
         if (!businessName && aiResult.business_name) {
           businessName = aiResult.business_name;
           console.log("[extract] AI business_name:", businessName);
         }
         if (!description && aiResult.description) {
           description = aiResult.description;
-          console.log("[extract] AI description:", description?.substring(0, 80));
         }
         if (!keywords && aiResult.keywords) {
           keywords = aiResult.keywords;
-          console.log("[extract] AI keywords:", keywords?.substring(0, 80));
         }
+        aiSector = aiResult.sector;
+        aiBusinessType = aiResult.business_type;
+        aiLocation = aiResult.location;
+        aiToneSuggestion = aiResult.tone_suggestion;
+        aiAudienceSuggestion = aiResult.audience_suggestion;
+        aiContentGoalSuggestion = aiResult.content_goal_suggestion;
+        aiEditorialFocusSuggestion = aiResult.editorial_focus_suggestion;
+        aiLanguages = aiResult.languages;
+        console.log("[extract] AI extracted fields:", {
+          sector: aiSector, businessType: aiBusinessType, tone: aiToneSuggestion,
+          goal: aiContentGoalSuggestion, languages: aiLanguages,
+        });
       } catch (err) {
         console.warn("[extract] AI enrichment failed:", getErrorMessage(err));
       }
