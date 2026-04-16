@@ -128,35 +128,68 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
     setPhase("publishing");
 
     try {
+      // Allow future auto-publish now that user explicitly authorized publishing
+      await supabase.from("articles").update({ skip_auto_publish: false } as any).eq("id", articleId);
+
       const { data: article } = await supabase.from("articles").select("*").eq("id", articleId).single();
 
       if (!article) throw new Error("Artículo no encontrado");
 
-      const content = article.content_spanish as unknown as ArticleContent | null;
-      if (!content) throw new Error("Sin contenido del artículo");
+      const spanishContent = article.content_spanish as unknown as ArticleContent | null;
+      const catalanContent = article.content_catalan as unknown as ArticleContent | null;
 
-      // Allow future auto-publish now that user explicitly authorized publishing
-      await supabase.from("articles").update({ skip_auto_publish: false } as any).eq("id", articleId);
+      const publishTasks: Array<{ lang: "es" | "ca"; content: ArticleContent }> = [];
+      if (spanishContent?.content && spanishContent?.title && spanishContent?.slug) {
+        publishTasks.push({ lang: "es", content: spanishContent });
+      }
+      if (hasCatalan && catalanContent?.content && catalanContent?.title && catalanContent?.slug) {
+        publishTasks.push({ lang: "ca", content: catalanContent });
+      }
 
-      const result = await publishMutation.mutateAsync({
-        site_id: siteId,
-        title: content.title,
-        seo_title: content.seo_title,
-        content: content.content,
-        slug: content.slug,
-        status: "publish",
-        image_url: article.image_url || undefined,
-        image_alt: content.title,
-        meta_description: content.meta_description,
-        excerpt: content.excerpt || content.meta_description,
-        focus_keyword: content.focus_keyword,
-        lang: "es",
-      });
+      if (publishTasks.length === 0) {
+        throw new Error("Sin contenido del artículo");
+      }
 
-      if (result.success) {
-        if (result.post_url) {
-          await supabase.from("articles").update({ wp_post_url: result.post_url }).eq("id", articleId);
-          setPublishUrl(result.post_url);
+      let atLeastOneSuccess = false;
+      let primaryPostUrl: string | undefined;
+      const publishErrors: string[] = [];
+
+      for (const task of publishTasks) {
+        try {
+          const result = await publishMutation.mutateAsync({
+            site_id: siteId,
+            title: task.content.title,
+            seo_title: task.content.seo_title,
+            content: task.content.content,
+            slug: task.content.slug,
+            status: "publish",
+            image_url: article.image_url || undefined,
+            image_alt: task.content.title,
+            meta_description: task.content.meta_description,
+            excerpt: task.content.excerpt || task.content.meta_description,
+            focus_keyword: task.content.focus_keyword,
+            lang: task.lang,
+          });
+
+          if (result.success) {
+            atLeastOneSuccess = true;
+            if (task.lang === "es" && result.post_url) {
+              primaryPostUrl = result.post_url;
+            } else if (!primaryPostUrl && result.post_url) {
+              primaryPostUrl = result.post_url;
+            }
+          } else {
+            publishErrors.push(`[${task.lang}] ${result.error || "Error desconocido"}`);
+          }
+        } catch (err: any) {
+          publishErrors.push(`[${task.lang}] ${err.message || "Error desconocido"}`);
+        }
+      }
+
+      if (atLeastOneSuccess) {
+        if (primaryPostUrl) {
+          await supabase.from("articles").update({ wp_post_url: primaryPostUrl }).eq("id", articleId);
+          setPublishUrl(primaryPostUrl);
         }
 
         if (user?.id) {
@@ -170,8 +203,12 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
 
         track("onboarding_first_publish_completed");
         setPhase("published");
+
+        if (publishErrors.length > 0) {
+          toast.warning(`Publicado parcialmente. Errores: ${publishErrors.join("; ")}`, { duration: 10000 });
+        }
       } else {
-        throw new Error(result.error || "Error al publicar");
+        throw new Error(publishErrors.join("; ") || "Error al publicar");
       }
     } catch (err: any) {
       console.error("Publish error:", err);
