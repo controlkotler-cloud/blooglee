@@ -577,6 +577,45 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`[scheduler] skip hourly maintenance at minute ${now.getUTCMinutes()}`);
     }
 
+    // Daily WordPress context refresh for all active sites
+    // Only run once per day (UTC) to avoid redundant syncs
+    try {
+      const currentHourUtc = new Date().getUTCHours();
+      const REFRESH_HOUR_UTC = 3; // 3 AM UTC
+      if (currentHourUtc === REFRESH_HOUR_UTC) {
+        console.log("[scheduler] Running daily WordPress context refresh");
+        const { data: configs } = await supabase
+          .from("wordpress_configs")
+          .select("id, site_id");
+
+        if (configs && configs.length > 0) {
+          const syncUrl = `${supabaseUrl}/functions/v1/sync-wordpress-taxonomies-saas`;
+          let synced = 0;
+          for (const cfg of configs as Array<{ id: string; site_id: string }>) {
+            try {
+              fetch(syncUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({
+                  wordpress_config_id: cfg.id,
+                  analyze_content: true,
+                }),
+              }).catch((err) => console.warn(`[scheduler] Daily sync failed for ${cfg.id}:`, err));
+              synced++;
+            } catch (err) {
+              console.warn(`[scheduler] Error dispatching sync for ${cfg.id}:`, err);
+            }
+          }
+          console.log(`[scheduler] Dispatched daily sync to ${synced} WordPress configs`);
+        }
+      }
+    } catch (err) {
+      console.warn("[scheduler] Daily WordPress refresh failed:", err);
+    }
+
     const elapsed = Date.now() - startTime;
     console.log("\n=== SCHEDULER COMPLETE ===");
     console.log(`Time elapsed: ${elapsed}ms`);
