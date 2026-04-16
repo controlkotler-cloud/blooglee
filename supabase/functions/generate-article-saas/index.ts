@@ -3637,11 +3637,11 @@ Deno.serve(async (req) => {
     // Store Spanish content WITHOUT SEO footer for translation
     const spanishContentWithoutSeo = spanishArticle.content;
     let catalanArticle = null;
+    let catalanFailureReason: string | null = null;
 
     if (site.languages?.includes("catalan")) {
       console.log("Generating NATIVE Catalan version (not translation)...");
 
-      // Get native Catalan generation prompt from database
       const catalanPrompt = await getPrompt(
         supabase,
         "saas.translate.catalan",
@@ -3657,64 +3657,106 @@ Deno.serve(async (req) => {
         FALLBACK_PROMPTS.nativeCatalan,
       );
 
-      try {
-        const catalanResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [{ role: "user", content: catalanPrompt }],
-            temperature: 0.5,
-            max_tokens: lengthTarget.maxTokens,
-          }),
-        });
+      const MAX_CATALAN_ATTEMPTS = 2;
+      let catalanAttempt = 0;
 
-        if (catalanResponse.ok) {
+      while (catalanAttempt < MAX_CATALAN_ATTEMPTS && !catalanArticle) {
+        catalanAttempt++;
+        console.log(`[catalan] Attempt ${catalanAttempt}/${MAX_CATALAN_ATTEMPTS}`);
+
+        try {
+          const catalanResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [{ role: "user", content: catalanPrompt }],
+              temperature: 0.5,
+              max_tokens: lengthTarget.maxTokens + (catalanAttempt - 1) * 2000,
+            }),
+          });
+
+          if (!catalanResponse.ok) {
+            const errorText = await catalanResponse.text().catch(() => "");
+            catalanFailureReason = `HTTP ${catalanResponse.status}: ${errorText.substring(0, 200)}`;
+            console.error(`[catalan] Attempt ${catalanAttempt} failed: ${catalanFailureReason}`);
+            if (catalanAttempt < MAX_CATALAN_ATTEMPTS) {
+              await new Promise((r) => setTimeout(r, 1500));
+              continue;
+            }
+            break;
+          }
+
           const catalanData = await catalanResponse.json();
-          let catalanContent = catalanData.choices?.[0]?.message?.content;
+          const catalanContent = catalanData.choices?.[0]?.message?.content;
 
-          if (catalanContent) {
-            let cleanCatalan = catalanContent.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
+          if (!catalanContent) {
+            catalanFailureReason = "Empty response from AI gateway";
+            console.error(`[catalan] Attempt ${catalanAttempt}: empty content in response`);
+            if (catalanAttempt < MAX_CATALAN_ATTEMPTS) continue;
+            break;
+          }
 
-            const jsonMatch = cleanCatalan.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              const cleanedCatalanJson = jsonMatch[0].replace(/[\uFEFF\u200B\u200C\u200D]/g, "");
+          const cleanCatalan = catalanContent.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
+          const jsonMatch = cleanCatalan.match(/\{[\s\S]*\}/);
 
-              try {
-                catalanArticle = JSON.parse(cleanedCatalanJson);
-              } catch (firstError) {
-                console.log("Catalan JSON parse failed on first attempt; applying string-only escaping");
-                const repairedCatalanJson = escapeControlCharsInsideStrings(cleanedCatalanJson);
-                catalanArticle = JSON.parse(repairedCatalanJson);
-              }
-              console.log("Native Catalan article generated successfully");
+          if (!jsonMatch) {
+            catalanFailureReason = "No JSON found in AI response";
+            console.error(`[catalan] Attempt ${catalanAttempt}: no JSON block in AI response. Preview: ${cleanCatalan.substring(0, 200)}`);
+            if (catalanAttempt < MAX_CATALAN_ATTEMPTS) continue;
+            break;
+          }
 
-              // Clean any markdown from Catalan content
-              if (catalanArticle?.content) {
-                catalanArticle.content = cleanMarkdownFromHtml(catalanArticle.content);
-                console.log("Cleaned markdown from Catalan content");
-              }
+          const cleanedCatalanJson = jsonMatch[0].replace(/[\uFEFF\u200B\u200C\u200D]/g, "");
 
-              // Fix meta_description with AI if needed
-              if (catalanArticle?.meta_description) {
-                catalanArticle.meta_description = await fixMetaDescription(
-                  catalanArticle.meta_description,
-                  catalanArticle.focus_keyword || topic,
-                  LOVABLE_API_KEY!,
-                );
-                console.log(`Final Catalan meta_description: ${catalanArticle.meta_description.length} chars`);
-              }
-              if (catalanArticle?.excerpt) {
-                catalanArticle.excerpt = trimExcerpt(catalanArticle.excerpt);
-              }
+          try {
+            catalanArticle = JSON.parse(cleanedCatalanJson);
+          } catch (firstError) {
+            console.warn(`[catalan] JSON parse failed on attempt ${catalanAttempt}, trying to repair control chars`);
+            try {
+              const repairedCatalanJson = escapeControlCharsInsideStrings(cleanedCatalanJson);
+              catalanArticle = JSON.parse(repairedCatalanJson);
+            } catch (secondError) {
+              catalanFailureReason = `JSON parse failed after repair: ${secondError instanceof Error ? secondError.message : "unknown"}`;
+              console.error(`[catalan] Attempt ${catalanAttempt}: ${catalanFailureReason}`);
+              if (catalanAttempt < MAX_CATALAN_ATTEMPTS) continue;
+              break;
             }
           }
+
+          console.log(`[catalan] Attempt ${catalanAttempt}: article generated successfully`);
+          catalanFailureReason = null;
+
+          if (catalanArticle?.content) {
+            catalanArticle.content = cleanMarkdownFromHtml(catalanArticle.content);
+          }
+
+          if (catalanArticle?.meta_description) {
+            catalanArticle.meta_description = await fixMetaDescription(
+              catalanArticle.meta_description,
+              catalanArticle.focus_keyword || topic,
+              LOVABLE_API_KEY!,
+            );
+            console.log(`[catalan] Final meta_description: ${catalanArticle.meta_description.length} chars`);
+          }
+
+          if (catalanArticle?.excerpt) {
+            catalanArticle.excerpt = trimExcerpt(catalanArticle.excerpt);
+          }
+        } catch (error) {
+          catalanFailureReason = error instanceof Error ? error.message : "Unknown error";
+          console.error(`[catalan] Attempt ${catalanAttempt} exception:`, error);
+          if (catalanAttempt < MAX_CATALAN_ATTEMPTS) {
+            await new Promise((r) => setTimeout(r, 1500));
+          }
         }
-      } catch (error) {
-        console.error("Error generating Catalan:", error);
+      }
+
+      if (!catalanArticle && catalanFailureReason) {
+        console.error(`[catalan] ALL attempts failed. Final reason: ${catalanFailureReason}`);
       }
     }
 
@@ -4511,6 +4553,9 @@ Deno.serve(async (req) => {
         },
         image: imageResult,
         auto_publish: autoPublishOutcome,
+        catalan_warning: site.languages?.includes("catalan") && !catalanArticle
+          ? `No se pudo generar la versión en catalán: ${catalanFailureReason || "error desconocido"}`
+          : null,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
