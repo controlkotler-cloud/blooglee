@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Menu, X, ArrowRight } from 'lucide-react';
-import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Menu, X, ArrowRight } from "lucide-react";
+import { BloogleeLogo } from "@/components/saas/BloogleeLogo";
 
 const navLinks = [
-  { label: 'Características', href: '/features' },
-  { label: 'Precios', href: '/pricing' },
-  { label: 'Blog', href: '/blog' },
-  { label: 'Contacto', href: '/contact' },
+  { label: "Características", href: "/features" },
+  { label: "Precios", href: "/pricing" },
+  { label: "Blog", href: "/blog" },
+  { label: "Contacto", href: "/contact" },
 ];
 
 export const PublicNavbar = () => {
@@ -20,13 +20,13 @@ export const PublicNavbar = () => {
           <Link to="/" className="flex items-center gap-2 sm:gap-3 group">
             <BloogleeLogo size="md" />
           </Link>
-          
+
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <Link 
+              <Link
                 key={link.href}
-                to={link.href} 
+                to={link.href}
                 className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors"
               >
                 {link.label}
@@ -36,8 +36,8 @@ export const PublicNavbar = () => {
 
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Desktop/Tablet CTA - hidden on mobile */}
-            <Link 
-              to="/waitlist" 
+            <Link
+              to="/waitlist"
               className="hidden md:flex relative group px-5 py-2.5 rounded-full font-semibold text-white text-sm overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400" />
@@ -46,12 +46,13 @@ export const PublicNavbar = () => {
                 <ArrowRight className="w-4 h-4" />
               </span>
             </Link>
-            
+
             {/* Mobile menu button - only on mobile */}
-            <button 
+            <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
               aria-label="Menú"
+              aria-expanded={mobileMenuOpen}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -60,10 +61,14 @@ export const PublicNavbar = () => {
 
         {/* Mobile menu dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden mt-2 glass-card-strong rounded-2xl p-4 shadow-xl animate-fade-in">
+          <div
+            className="md:hidden mt-2 glass-card-strong rounded-2xl p-4 shadow-xl animate-fade-in"
+            role="navigation"
+            aria-label="Menú principal"
+          >
             <div className="flex flex-col gap-3">
               {navLinks.map((link) => (
-                <Link 
+                <Link
                   key={link.href}
                   to={link.href}
                   className="text-sm font-medium text-foreground/70 hover:text-foreground transition-colors py-2 px-3 rounded-xl hover:bg-muted/50"
@@ -76,7 +81,7 @@ export const PublicNavbar = () => {
               <div className="border-t border-border/50 my-1" />
               {/* CTA button in mobile menu */}
               <Link
-                to="/waitlist" 
+                to="/waitlist"
                 className="relative group mt-1 py-3 rounded-xl font-semibold text-white text-sm text-center overflow-hidden"
                 onClick={() => setMobileMenuOpen(false)}
               >
