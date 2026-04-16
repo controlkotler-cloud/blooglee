@@ -87,27 +87,25 @@ Deno.serve(async (req) => {
     }
 
     const authHeader = req.headers.get("Authorization");
-    let authenticatedUserId: string | null = null;
-    if (authHeader?.startsWith("Bearer ")) {
-      const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const {
-        data: { user: authUser },
-        error: authError,
-      } = await supabaseAuth.auth.getUser();
-
-      if (authError || !authUser) {
-        return jsonResponse({ error: "invalid_auth_token" }, 401);
-      }
-      authenticatedUserId = authUser.id;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return jsonResponse({ error: "authentication_required" }, 401);
     }
 
-    const targetUserId = authenticatedUserId || bodyUserId;
-    if (!targetUserId) {
-      return jsonResponse({ error: "user_id is required when request is unauthenticated" }, 400);
+    const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await supabaseAuth.auth.getUser();
+
+    if (authError || !authUser) {
+      return jsonResponse({ error: "invalid_auth_token" }, 401);
     }
-    if (authenticatedUserId && bodyUserId && bodyUserId !== authenticatedUserId) {
+    const authenticatedUserId = authUser.id;
+
+    const targetUserId = authenticatedUserId;
+    if (bodyUserId && bodyUserId !== authenticatedUserId) {
       return jsonResponse({ error: "user_id does not match authenticated user" }, 403);
     }
 

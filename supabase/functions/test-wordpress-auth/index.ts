@@ -34,6 +34,43 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Input validation: URL format and SSRF prevention
+    if (typeof url !== 'string' || url.length > 500) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid URL format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    try {
+      const parsedUrl = new URL(url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        return new Response(
+          JSON.stringify({ error: 'Only http/https URLs are allowed' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const hostname = parsedUrl.hostname.toLowerCase();
+      if (hostname === 'localhost' || hostname.startsWith('127.') || hostname.startsWith('10.') || hostname.startsWith('192.168.') || hostname.startsWith('172.') || hostname === '0.0.0.0' || hostname === '[::1]') {
+        return new Response(
+          JSON.stringify({ error: 'Internal/private URLs are not allowed' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Malformed URL' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate credential lengths
+    if (typeof username !== 'string' || username.length > 200 || typeof app_password !== 'string' || app_password.length > 500) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid credentials format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const normalizedUrl = url.replace(/\/+$/, '');
     const credentials = btoa(`${username}:${app_password}`);
 

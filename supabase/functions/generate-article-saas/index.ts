@@ -4462,8 +4462,7 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error("Error in generate-article-saas:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: "Ha ocurrido un error al generar el artículo. Inténtalo de nuevo." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

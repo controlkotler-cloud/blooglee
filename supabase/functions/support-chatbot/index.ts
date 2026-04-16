@@ -430,59 +430,24 @@ async function buildDiagnosticsContext(supabase: ReturnType<typeof createClient>
 async function resolveAuthUser(
   supabase: ReturnType<typeof createClient>,
   authHeader: string | null,
-  userMetadata?: UserMetadata,
-  errorContext?: ErrorContext,
-): Promise<{ id: string } | null> {
+  _userMetadata?: UserMetadata,
+  _errorContext?: ErrorContext,
+): Promise<{ id: string; verified: boolean } | null> {
   const token = authHeader?.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
 
   if (token && token.split(".").length === 3) {
     try {
       const { data, error } = await supabase.auth.getUser(token);
       if (!error && data.user) {
-        return { id: data.user.id };
+        return { id: data.user.id, verified: true };
       }
     } catch {
-      // continue with fallbacks
+      // no valid JWT
     }
   }
 
-  const metadataUserId = userMetadata?.userId?.trim();
-  if (
-    metadataUserId &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(metadataUserId)
-  ) {
-    return { id: metadataUserId };
-  }
-
-  const email = userMetadata?.email?.trim().toLowerCase();
-  if (email) {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .ilike("email", email)
-        .limit(1)
-        .maybeSingle();
-
-      if (!error && data?.user_id) {
-        return { id: data.user_id as string };
-      }
-    } catch {
-      // continue with site fallback
-    }
-  }
-
-  const siteId = errorContext?.siteId?.trim();
-  if (!siteId) return null;
-
-  try {
-    const { data, error } = await supabase.from("sites").select("user_id").eq("id", siteId).limit(1).maybeSingle();
-
-    if (error || !data?.user_id) return null;
-    return { id: data.user_id as string };
-  } catch {
-    return null;
-  }
+  // No unverified fallbacks — return null for unauthenticated users
+  return null;
 }
 
 async function upsertConversation(
@@ -597,11 +562,8 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const authUser = await resolveAuthUser(supabase, req.headers.get("Authorization"), user_metadata, error_context);
-    const metadataUserId = (user_metadata?.userId || "").trim();
-    const metadataUserIdIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      metadataUserId,
-    );
-    const effectiveUserId = authUser?.id || (metadataUserIdIsUuid ? metadataUserId : null);
+    const effectiveUserId = authUser?.id || null;
+    const isVerified = authUser?.verified === true;
 
     const rateLimitIdentifier =
       effectiveUserId ||
@@ -639,7 +601,7 @@ Deno.serve(async (req) => {
     const relevantArticles = await searchKnowledgeBase(supabase, userQuery, errorCode, pluginHints);
     const articlesContext = buildArticlesContext(relevantArticles);
 
-    const diagnosticsContext = await buildDiagnosticsContext(supabase, error_context?.siteId);
+    const diagnosticsContext = isVerified ? await buildDiagnosticsContext(supabase, error_context?.siteId) : "";
     const errorContextBlock = error_context
       ? [
           "CONTEXTO DE ERROR RECIENTE:",
@@ -866,7 +828,7 @@ Deno.serve(async (req) => {
     console.error("Support chatbot error:", error);
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: "Ha ocurrido un error interno. Inténtalo de nuevo.",
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
