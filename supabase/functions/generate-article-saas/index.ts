@@ -2441,6 +2441,7 @@ function ensureFooterLinks(
         missingBlogUrl,
         missingSocialUrl,
         `${normalizedContent.length}|${normalizeTextForMatch(lastParagraph).slice(-120)}`,
+        lang,
       );
 
       if (ctaSentence) {
