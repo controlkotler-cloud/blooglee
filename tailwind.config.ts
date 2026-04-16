@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: ["./index.html", "./src/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
     container: {
@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['Sora', 'sans-serif'],
-        body: ['Inter', 'sans-serif'],
+        display: ["Sora", "sans-serif"],
+        body: ["Inter", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -90,14 +90,14 @@ export default {
         "3xl": "2rem",
       },
       boxShadow: {
-        'sm': 'var(--shadow-sm)',
-        'md': 'var(--shadow-md)',
-        'lg': 'var(--shadow-lg)',
-        'xl': 'var(--shadow-xl)',
-        'glow': 'var(--shadow-glow-violet)',
-        'glow-pink': 'var(--shadow-glow-pink)',
-        'glow-cyan': 'var(--shadow-glow-cyan)',
-        'card': 'var(--shadow-card)',
+        sm: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
+        xl: "var(--shadow-xl)",
+        glow: "var(--shadow-glow-violet)",
+        "glow-pink": "var(--shadow-glow-pink)",
+        "glow-cyan": "var(--shadow-glow-cyan)",
+        card: "var(--shadow-card)",
       },
       keyframes: {
         "accordion-down": {
@@ -128,7 +128,7 @@ export default {
           from: { opacity: "0", transform: "translateX(40px)" },
           to: { opacity: "1", transform: "translateX(0)" },
         },
-        "float": {
+        float: {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-15px)" },
         },
@@ -204,7 +204,7 @@ export default {
         "scale-in": "scale-in 0.4s ease-out forwards",
         "slide-in-left": "slide-in-left 0.5s ease-out forwards",
         "slide-in-right": "slide-in-right 0.6s ease-out forwards",
-        "float": "float 4s ease-in-out infinite",
+        float: "float 4s ease-in-out infinite",
         "mockup-float": "mockup-float 6s ease-in-out infinite",
         "pulse-glow": "pulse-glow 4s ease-in-out infinite",
         "aurora-shift": "aurora-shift 15s ease-in-out infinite",
