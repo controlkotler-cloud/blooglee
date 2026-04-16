@@ -436,7 +436,7 @@ export function BusinessStep({
           <p className="text-xs text-muted-foreground text-center">
             Detectamos nombre, sector, ubicación, descripción, tono, audiencia, objetivos y colores automáticamente.
           </p>
-          {!allowManualFill && !isExtracting && (
+          {analysisFailed && !allowManualFill && !isExtracting && (
             <button
               type="button"
               onClick={handleSkipAnalysis}

@@ -258,3 +258,21 @@ export function getSeasonalWarning(businessType?: string | null, pillars?: strin
   }
   return null;
 }
+
+export const SECTOR_DEFAULT_SOURCES: Record<string, string[]> = {
+  farmacia: ["aemps.gob.es", "farmaceuticos.com", "sanidad.gob.es"],
+  clinica_dental: ["consejodentistas.es", "who.int", "colgate.com/es-es/oral-health"],
+  restaurante: ["gastronomiaycia.com", "directoalpaladar.com", "aesan.gob.es"],
+  peluqueria: ["vogue.es", "harpersbazaar.com/es", "elle.com/es/belleza"],
+  veterinaria: ["avepa.org", "vetsmart.es", "msdvetmanual.com"],
+  ecommerce: ["shopify.com/blog/es", "prestashop.com/es/blog", "woocommerce.com/blog"],
+  marketing: ["search.google.com", "developers.google.com", "thinkwithgoogle.com", "iabspain.es"],
+  gimnasio: ["efsa.europa.eu", "acsm.org", "who.int/health-topics/physical-activity"],
+  asesoria: ["agenciatributaria.es", "boe.es", "seg-social.es"],
+  inmobiliaria: ["fotocasa.es", "idealista.com", "cnmv.es"],
+};
+
+export function getDefaultSourceDomains(sector?: string | null): string[] {
+  if (!sector) return [];
+  return SECTOR_DEFAULT_SOURCES[sector] || [];
+}

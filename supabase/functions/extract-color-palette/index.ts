@@ -590,6 +590,25 @@ Deno.serve(async (req) => {
       }
     }
 
+    // If we detected fewer than 3 colors, ask AI to complete the palette
+    if (colors.length < 3 && html) {
+      console.log("[extract] Only", colors.length, "colors detected, asking AI for palette");
+      try {
+        const suggestedColors = await suggestColorPaletteAI(
+          businessName || "",
+          description || "",
+          aiSector || "",
+          colors,
+        );
+        if (suggestedColors.length > colors.length) {
+          colors = suggestedColors;
+          console.log("[extract] AI completed palette to", colors.length, "colors");
+        }
+      } catch (err) {
+        console.warn("[extract] Failed to complete palette:", err);
+      }
+    }
+
     console.log(
       "[extract] Results — colors:",
       colors.length,
@@ -780,6 +799,56 @@ async function saveData(siteId: string, data: ExtractedData) {
 // =========================================
 // AI-POWERED EXTRACTION (Gemini Flash)
 // =========================================
+
+async function suggestColorPaletteAI(
+  businessName: string,
+  description: string,
+  sector: string,
+  existingColors: string[],
+): Promise<string[]> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) return existingColors;
+
+  try {
+    const prompt = `Eres un experto en branding. Un negocio tiene estos datos:
+- Nombre: ${businessName || "(desconocido)"}
+- Sector: ${sector || "(desconocido)"}
+- Descripción: ${description || "(desconocida)"}
+- Colores ya detectados: ${existingColors.length > 0 ? existingColors.join(", ") : "(ninguno)"}
+
+Sugiere una paleta de EXACTAMENTE 4 colores hex coherentes con la marca. Si ya había colores detectados, respétalos y completa con colores complementarios acordes al sector. Evita blanco, negro y grises puros.
+
+Responde SOLO con JSON: {"colors":["#xxxxxx","#xxxxxx","#xxxxxx","#xxxxxx"]}`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-pro",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) return existingColors;
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+    const cleaned = content.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+    const newColors: string[] = Array.isArray(parsed.colors)
+      ? parsed.colors.filter((c: unknown): c is string => typeof c === "string" && /^#[0-9a-fA-F]{6}$/.test(c))
+      : [];
+    const merged = [...existingColors];
+    for (const c of newColors) {
+      const lower = c.toLowerCase();
+      if (!merged.some((existing) => existing.toLowerCase() === lower)) merged.push(lower);
+    }
+    return merged.slice(0, 6);
+  } catch (err) {
+    console.warn("[extract] AI color palette suggestion failed:", err);
+    return existingColors;
+  }
+}
 
 async function extractWithAI(
   html: string,
