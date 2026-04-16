@@ -4050,6 +4050,8 @@ Deno.serve(async (req) => {
       // Article-level intent: only scheduled runs are eligible for automatic publish/reconcile.
       autopublish_enabled: Boolean(isScheduled),
       generation_source: requestedGenerationSource,
+      // Manual/onboarding articles must NOT be picked by the auto-publish reconciler.
+      skip_auto_publish: !isScheduled,
     };
 
     // Check if article already exists for this generation key
