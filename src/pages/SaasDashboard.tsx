@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, Shield, Sparkles } from "lucide-react";
+import { UsageStats } from "@/components/saas/UsageStats";
 import { NotificationBell } from "@/components/saas/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile, useIsSuperAdmin } from "@/hooks/useProfile";
