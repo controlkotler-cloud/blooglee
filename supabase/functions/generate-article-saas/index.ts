@@ -2411,7 +2411,7 @@ function ensureFooterLinks(
 
   let lastParagraph = lastMatch[0];
   lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, blogUrl, "blog");
-  lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, instagramUrl, "redes sociales");
+  lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, instagramUrl, lang === "ca" ? "xarxes socials" : "redes sociales");
 
   const lastParagraphHrefs = extractAnchorHrefs(lastParagraph);
   const hasBlogInLastParagraph = blogUrl ? hasMatchingHref(lastParagraphHrefs, blogUrl) : true;
