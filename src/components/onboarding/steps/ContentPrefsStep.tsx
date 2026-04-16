@@ -16,6 +16,7 @@ import type { OnboardingStepData } from "@/hooks/useOnboarding";
 import {
   getAngleToAvoidPlaceholder,
   getAvoidTopicsPlaceholder,
+  getDefaultSourceDomains,
   getPreferredSourcesPlaceholder,
   getPriorityTopicsPlaceholder,
 } from "@/lib/site-profile";
@@ -43,9 +44,12 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
   const [avoidTopics, setAvoidTopics] = useState<string>((savedPrefs?.avoid_topics as string) ?? "");
   const [priorityTopics, setPriorityTopics] = useState<string>((savedPrefs?.priority_topics as string) ?? "");
   const [angleToAvoid, setAngleToAvoid] = useState<string>((savedPrefs?.angle_to_avoid as string) ?? "");
-  const [preferredSourceDomains, setPreferredSourceDomains] = useState<string>(
-    (savedPrefs?.preferred_source_domains as string) ?? "",
-  );
+  const [preferredSourceDomains, setPreferredSourceDomains] = useState<string>(() => {
+    const saved = (savedPrefs?.preferred_source_domains as string) ?? "";
+    if (saved.trim()) return saved;
+    const defaults = getDefaultSourceDomains(sector);
+    return defaults.length > 0 ? defaults.join(", ") : "";
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [polylangGuideOpen, setPolylangGuideOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(

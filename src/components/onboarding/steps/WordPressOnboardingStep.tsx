@@ -328,7 +328,14 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
             Publicar en mi blog →
           </Button>
 
-          <Button variant="ghost" onClick={handleGoToDashboard} className="w-full h-11 text-muted-foreground">
+          <Button
+            variant="ghost"
+            onClick={async () => {
+              await onFinish();
+              navigate(`/site/${siteId}`);
+            }}
+            className="w-full h-11 text-muted-foreground"
+          >
             Prefiero revisarlo antes →
           </Button>
         </div>
