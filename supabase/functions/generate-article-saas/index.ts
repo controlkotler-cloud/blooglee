@@ -1776,7 +1776,7 @@ function stripAiGeneratedClosingCta(htmlContent: string): string {
 
   // Patterns that indicate the AI wrote its own blog/social CTA
   const plainTextCtaPatterns =
-    /(visit[aá]\s+(nuestro|el)\s+blog|nuestro\s+blog|nuestras?\s+redes\s+sociales|s[ií]guenos\s+en\s+(instagram|redes)|seguirnos\s+en\s+(instagram|redes)|en\s+(nuestro|el)\s+blog|en\s+instagram|en\s+nuestras\s+redes|p[aá]sate\s+por\s+(nuestro|el)\s+blog|encuentra\s+m[aá]s\s+en\s+(nuestro|el)\s+blog|seguir\s+profundizando)/i;
+    /(visit[aá]\s+(nuestro|el)\s+blog|nuestro\s+blog|nuestras?\s+redes\s+sociales|s[ií]guenos\s+en\s+(instagram|redes)|seguirnos\s+en\s+(instagram|redes)|en\s+(nuestro|el)\s+blog|en\s+instagram|en\s+nuestras\s+redes|p[aá]sate\s+por\s+(nuestro|el)\s+blog|encuentra\s+m[aá]s\s+en\s+(nuestro|el)\s+blog|seguir\s+profundizando|visita\s+el\s+nostre\s+blog|el\s+nostre\s+blog|les\s+nostres\s+xarxes\s+socials|segueix-nos\s+a\s+(instagram|les\s+xarxes)|a\s+(el|les|les\s+nostres)\s+(nostre\s+blog|xarxes)|passa\s+pel\s+(nostre|el)\s+blog|troba\s+m[eé]s\s+al\s+(nostre|el)\s+blog)/i;
 
   let result = htmlContent;
   let removed = 0;
