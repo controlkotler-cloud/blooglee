@@ -2351,6 +2351,7 @@ function ensureFooterLinks(
   siteName: string,
   blogUrl: string | null,
   instagramUrl: string | null,
+  lang: "es" | "ca" = "es",
 ): string {
   if (!htmlContent) return htmlContent;
 
