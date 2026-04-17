@@ -781,6 +781,8 @@ export type Database = {
           created_at: string
           custom_topic: string | null
           description: string | null
+          domain_age_checked_at: string | null
+          domain_registered_at: string | null
           embed_image_in_content: boolean
           geographic_scope: string
           id: string
@@ -821,6 +823,8 @@ export type Database = {
           created_at?: string
           custom_topic?: string | null
           description?: string | null
+          domain_age_checked_at?: string | null
+          domain_registered_at?: string | null
           embed_image_in_content?: boolean
           geographic_scope?: string
           id?: string
@@ -861,6 +865,8 @@ export type Database = {
           created_at?: string
           custom_topic?: string | null
           description?: string | null
+          domain_age_checked_at?: string | null
+          domain_registered_at?: string | null
           embed_image_in_content?: boolean
           geographic_scope?: string
           id?: string
