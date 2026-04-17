@@ -17,6 +17,7 @@ export interface BlogPost {
   is_published: boolean;
   seo_keywords: string[] | null;
   created_at: string;
+  language?: string;
 }
 
 export interface FormattedBlogPost {
