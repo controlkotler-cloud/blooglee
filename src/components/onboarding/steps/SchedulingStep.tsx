@@ -165,6 +165,44 @@ export function SchedulingStep({ onNext, onBack, saveStepData, stepData, siteId 
             </label>
           </div>
         </RadioGroup>
+
+        {/* Mensaje informativo contextual por frecuencia elegida */}
+        {frequency === "weekly" && (
+          <div
+            role="status"
+            className="rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 p-3 text-xs sm:text-sm"
+          >
+            <p className="font-semibold mb-0.5">Frecuencia ideal para crecer en SEO</p>
+            <p className="opacity-90">
+              4 artículos al mes es el ritmo recomendado. Google favorece la consistencia sobre el volumen,
+              especialmente en dominios nuevos.
+            </p>
+          </div>
+        )}
+        {frequency === "biweekly" && (
+          <div
+            role="status"
+            className="rounded-lg border border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-200 p-3 text-xs sm:text-sm"
+          >
+            <p className="font-semibold mb-0.5">Frecuencia equilibrada</p>
+            <p className="opacity-90">
+              2 artículos al mes es un buen punto de partida. Podrás subir a semanal desde Configuración cuando quieras
+              acelerar.
+            </p>
+          </div>
+        )}
+        {frequency === "monthly" && (
+          <div
+            role="status"
+            className="rounded-lg border border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200 p-3 text-xs sm:text-sm"
+          >
+            <p className="font-semibold mb-0.5">Frecuencia baja</p>
+            <p className="opacity-90">
+              Con 1 artículo al mes tu blog crecerá despacio. Si buscas resultados SEO notables, considera subir a
+              quincenal o semanal. Puedes cambiarlo cuando quieras.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Day, Week & Hour */}
