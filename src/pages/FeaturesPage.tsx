@@ -37,7 +37,7 @@ const featuresFAQs = [
   {
     question: "¿Qué modelos de IA utiliza Blooglee?",
     answer:
-      "Blooglee utiliza los modelos de IA más avanzados disponibles: los últimos modelos de OpenAI y Google. Esto garantiza contenido de alta calidad, coherente y adaptado al contexto de cada negocio.",
+      "Blooglee utiliza los modelos de IA más avanzados disponibles, incluyendo los últimos modelos de OpenAI y Google. Esto garantiza contenido de alta calidad, coherente y adaptado al contexto de cada negocio.",
   },
   {
     question: "¿Es compatible con Yoast SEO?",
@@ -93,7 +93,8 @@ const features = [
   {
     icon: ImageIcon,
     title: "Imágenes generadas con IA",
-    description: "Cada artículo incluye una imagen destacada única, generada por inteligencia artificial y adaptada al contenido.",
+    description:
+      "Cada artículo incluye una imagen destacada única, generada por inteligencia artificial y adaptada al contenido.",
     benefits: ["Imágenes únicas para cada artículo", "Adaptadas al sector y temática", "Sin problemas de licencias"],
     color: "from-amber-400 to-yellow-400",
   },
@@ -141,10 +142,10 @@ const FeaturesPage = () => {
   return (
     <PublicLayout>
       <SEOHead
-        title="Características"
-        description="Descubre las funcionalidades de Blooglee: generación de artículos con IA, publicación automática en WordPress, SEO incluido y soporte multi-idioma. Prueba gratis."
+        title="Características: Generación IA, SEO automático y WordPress"
+        description="Generación de artículos con IA, publicación directa en WordPress con un clic, SEO automático, imágenes incluidas y soporte multi-idioma. Ahorra 95% del tiempo."
         canonicalUrl="/features"
-        keywords="características Blooglee, generación IA, WordPress automático, SEO automático, contenido multiidioma"
+        keywords="características Blooglee, generación artículos IA, WordPress automático, SEO automático, contenido multiidioma, publicación blog"
       />
       <FAQSchema faqs={featuresFAQs} />
       {/* Hero Section */}
@@ -262,7 +263,7 @@ const FeaturesPage = () => {
           <div className="text-center p-6 sm:p-8 rounded-2xl bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl">
             <Users className="w-10 h-10 text-orange-500 mx-auto mb-4" />
             <div className="font-display text-3xl sm:text-4xl font-bold text-orange-600 mb-2">500+</div>
-            <p className="text-foreground/60">posts creados </p>
+            <p className="text-foreground/60">artículos creados </p>
           </div>
         </div>
 
