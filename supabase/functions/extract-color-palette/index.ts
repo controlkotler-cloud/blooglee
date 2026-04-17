@@ -204,6 +204,29 @@ function getBearerToken(req: Request): string | null {
   const token = authHeader.slice(7).trim();
   return token.length > 0 ? token : null;
 }
+// Fire-and-forget: dispara check-domain-age para obtener la fecha de registro
+// del dominio vía RDAP. No bloquea la respuesta de extract-color-palette.
+async function triggerDomainAgeCheck(siteId: string): Promise<void> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    if (!supabaseUrl || !serviceRoleKey) return;
+
+    // No await: fire-and-forget
+    fetch(`${supabaseUrl}/functions/v1/check-domain-age`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({ site_id: siteId }),
+    }).catch((err) => {
+      console.log("[extract] check-domain-age fire-and-forget failed:", err);
+    });
+  } catch (err) {
+    console.log("[extract] triggerDomainAgeCheck error:", err);
+  }
+}
 
 async function canPersistForSite(siteId: string, accessToken: string | null): Promise<boolean> {
   if (!accessToken) {
@@ -492,9 +515,10 @@ Deno.serve(async (req) => {
             success: false,
             error: "challenge_page_detected",
             challenge_type: challenge.type,
-            message: challenge.type === "cloudflare"
-              ? "Tu web está protegida por Cloudflare y bloquea el análisis. Desactiva temporalmente el 'Bot Fight Mode' en Cloudflare o añade nuestro IP a la whitelist. Mientras tanto, puedes rellenar los datos manualmente."
-              : "Tu web está protegida por reCAPTCHA y bloquea el análisis automático. Puedes rellenar los datos manualmente.",
+            message:
+              challenge.type === "cloudflare"
+                ? "Tu web está protegida por Cloudflare y bloquea el análisis. Desactiva temporalmente el 'Bot Fight Mode' en Cloudflare o añade nuestro IP a la whitelist. Mientras tanto, puedes rellenar los datos manualmente."
+                : "Tu web está protegida por reCAPTCHA y bloquea el análisis automático. Puedes rellenar los datos manualmente.",
           }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
@@ -582,8 +606,11 @@ Deno.serve(async (req) => {
         aiEditorialFocusSuggestion = aiResult.editorial_focus_suggestion;
         aiLanguages = aiResult.languages;
         console.log("[extract] AI extracted fields:", {
-          sector: aiSector, businessType: aiBusinessType, tone: aiToneSuggestion,
-          goal: aiContentGoalSuggestion, languages: aiLanguages,
+          sector: aiSector,
+          businessType: aiBusinessType,
+          tone: aiToneSuggestion,
+          goal: aiContentGoalSuggestion,
+          languages: aiLanguages,
         });
       } catch (err) {
         console.warn("[extract] AI enrichment failed:", getErrorMessage(err));
@@ -833,7 +860,10 @@ Responde SOLO con JSON: {"colors":["#xxxxxx","#xxxxxx","#xxxxxx","#xxxxxx"]}`;
     if (!response.ok) return existingColors;
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
-    const cleaned = content.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
+    const cleaned = content
+      .replace(/```json\s*/gi, "")
+      .replace(/```/g, "")
+      .trim();
     const parsed = JSON.parse(cleaned);
     const newColors: string[] = Array.isArray(parsed.colors)
       ? parsed.colors.filter((c: unknown): c is string => typeof c === "string" && /^#[0-9a-fA-F]{6}$/.test(c))
@@ -938,15 +968,35 @@ Responde SOLO con el JSON, sin markdown ni explicaciones.`;
   try {
     const parsed = JSON.parse(cleaned);
 
-    const validSectors = new Set(["farmacia","clinica_dental","restaurante","peluqueria","veterinaria","ecommerce","marketing","gimnasio","asesoria","inmobiliaria","otro"]);
-    const validBusinessTypes = new Set(["local_business","ecommerce","service_provider","agency","professional","other"]);
-    const validTones = new Set(["friendly","professional","expert","educational"]);
-    const validGoals = new Set(["attract_customers","educate","build_authority","drive_sales","retain_customers"]);
+    const validSectors = new Set([
+      "farmacia",
+      "clinica_dental",
+      "restaurante",
+      "peluqueria",
+      "veterinaria",
+      "ecommerce",
+      "marketing",
+      "gimnasio",
+      "asesoria",
+      "inmobiliaria",
+      "otro",
+    ]);
+    const validBusinessTypes = new Set([
+      "local_business",
+      "ecommerce",
+      "service_provider",
+      "agency",
+      "professional",
+      "other",
+    ]);
+    const validTones = new Set(["friendly", "professional", "expert", "educational"]);
+    const validGoals = new Set(["attract_customers", "educate", "build_authority", "drive_sales", "retain_customers"]);
 
     const sectorValue = typeof parsed.sector === "string" ? parsed.sector.toLowerCase().trim() : "";
     const businessTypeValue = typeof parsed.business_type === "string" ? parsed.business_type.toLowerCase().trim() : "";
     const toneValue = typeof parsed.tone_suggestion === "string" ? parsed.tone_suggestion.toLowerCase().trim() : "";
-    const goalValue = typeof parsed.content_goal_suggestion === "string" ? parsed.content_goal_suggestion.toLowerCase().trim() : "";
+    const goalValue =
+      typeof parsed.content_goal_suggestion === "string" ? parsed.content_goal_suggestion.toLowerCase().trim() : "";
 
     const languagesArray = Array.isArray(parsed.languages)
       ? parsed.languages.filter((l: unknown): l is string => typeof l === "string").map((l: string) => l.toLowerCase())
@@ -954,15 +1004,26 @@ Responde SOLO con el JSON, sin markdown ni explicaciones.`;
 
     return {
       business_name: typeof parsed.business_name === "string" ? sanitizeBusinessName(parsed.business_name) : undefined,
-      description: typeof parsed.description === "string" && parsed.description.trim() ? parsed.description.substring(0, 250) : undefined,
-      keywords: typeof parsed.keywords === "string" && parsed.keywords.trim() ? parsed.keywords.substring(0, 300) : undefined,
+      description:
+        typeof parsed.description === "string" && parsed.description.trim()
+          ? parsed.description.substring(0, 250)
+          : undefined,
+      keywords:
+        typeof parsed.keywords === "string" && parsed.keywords.trim() ? parsed.keywords.substring(0, 300) : undefined,
       sector: validSectors.has(sectorValue) ? sectorValue : undefined,
       business_type: validBusinessTypes.has(businessTypeValue) ? businessTypeValue : undefined,
-      location: typeof parsed.location === "string" && parsed.location.trim() ? parsed.location.substring(0, 100) : undefined,
+      location:
+        typeof parsed.location === "string" && parsed.location.trim() ? parsed.location.substring(0, 100) : undefined,
       tone_suggestion: validTones.has(toneValue) ? toneValue : undefined,
-      audience_suggestion: typeof parsed.audience_suggestion === "string" && parsed.audience_suggestion.trim() ? parsed.audience_suggestion.substring(0, 150) : undefined,
+      audience_suggestion:
+        typeof parsed.audience_suggestion === "string" && parsed.audience_suggestion.trim()
+          ? parsed.audience_suggestion.substring(0, 150)
+          : undefined,
       content_goal_suggestion: validGoals.has(goalValue) ? goalValue : undefined,
-      editorial_focus_suggestion: typeof parsed.editorial_focus_suggestion === "string" && parsed.editorial_focus_suggestion.trim() ? parsed.editorial_focus_suggestion.substring(0, 300) : undefined,
+      editorial_focus_suggestion:
+        typeof parsed.editorial_focus_suggestion === "string" && parsed.editorial_focus_suggestion.trim()
+          ? parsed.editorial_focus_suggestion.substring(0, 300)
+          : undefined,
       languages: languagesArray.length > 0 ? languagesArray : ["spanish"],
     };
   } catch {
@@ -1005,15 +1066,41 @@ function sanitizeBusinessName(rawName: string): string | undefined {
 
   const lowered = name.toLowerCase();
   const generic = new Set([
-    "inicio", "home", "blog", "noticias", "news", "wordpress", "untitled", "site", "website",
-    "recaptcha", "cloudflare", "just a moment", "just a moment...", "attention required",
-    "verification", "verify", "checking your browser", "access denied", "forbidden",
-    "please wait", "loading", "error", "404", "403", "not found", "privacy error"
+    "inicio",
+    "home",
+    "blog",
+    "noticias",
+    "news",
+    "wordpress",
+    "untitled",
+    "site",
+    "website",
+    "recaptcha",
+    "cloudflare",
+    "just a moment",
+    "just a moment...",
+    "attention required",
+    "verification",
+    "verify",
+    "checking your browser",
+    "access denied",
+    "forbidden",
+    "please wait",
+    "loading",
+    "error",
+    "404",
+    "403",
+    "not found",
+    "privacy error",
   ]);
   if (generic.has(lowered)) return undefined;
 
   // Reject if contains clear challenge/security keywords
-  if (/\b(recaptcha|cloudflare|challenge|checking your browser|access denied|verification required|please verify|are you human|bot detection|security check)\b/i.test(name)) {
+  if (
+    /\b(recaptcha|cloudflare|challenge|checking your browser|access denied|verification required|please verify|are you human|bot detection|security check)\b/i.test(
+      name,
+    )
+  ) {
     return undefined;
   }
 
