@@ -658,6 +658,10 @@ Deno.serve(async (req) => {
       const canPersist = await canPersistForSite(normalizedSiteId, accessToken);
       if (canPersist) {
         await saveData(normalizedSiteId, { colors, description, socialLink, blogUrl, keywords });
+        // Fire-and-forget: consulta RDAP para obtener edad del dominio.
+        // El resultado se guarda en sites.domain_registered_at y lo usa
+        // FrequencyAdvisor para personalizar avisos sobre frecuencia de publicación.
+        triggerDomainAgeCheck(normalizedSiteId);
       } else {
         console.warn("[extract] site_id provided but ownership validation failed; skipping persistence");
       }
