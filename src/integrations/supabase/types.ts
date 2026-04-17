@@ -641,6 +641,33 @@ export type Database = {
         }
         Relationships: []
       }
+      prompts_backup: {
+        Row: {
+          backup_at: string
+          backup_reason: string | null
+          content: string
+          id: number
+          key: string
+          original_updated_at: string | null
+        }
+        Insert: {
+          backup_at?: string
+          backup_reason?: string | null
+          content: string
+          id?: number
+          key: string
+          original_updated_at?: string | null
+        }
+        Update: {
+          backup_at?: string
+          backup_reason?: string | null
+          content?: string
+          id?: number
+          key?: string
+          original_updated_at?: string | null
+        }
+        Relationships: []
+      }
       scheduler_runs: {
         Row: {
           dispatched_sites: number | null
