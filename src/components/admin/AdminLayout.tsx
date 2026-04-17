@@ -12,7 +12,8 @@ import {
   Menu,
   Share2,
   ShieldCheck,
-  Sparkles
+  Sparkles,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ const menuItems = [
   { path: '/admin/social', icon: Share2, label: 'Social Media' },
   { path: '/admin/permissions', icon: ShieldCheck, label: 'Permisos' },
   { path: '/admin/sectors', icon: Sparkles, label: 'Sectores' },
+  { path: '/admin/blog', icon: FileText, label: 'Blog' },
 ];
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
