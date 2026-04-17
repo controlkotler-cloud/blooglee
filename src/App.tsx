@@ -61,6 +61,7 @@ const AdminSurveys = lazy(() => import("./pages/admin/AdminSurveys"));
 const AdminSocialContent = lazy(() => import("./pages/admin/AdminSocialContent"));
 const AdminPermissions = lazy(() => import("./pages/admin/AdminPermissions"));
 const AdminSectors = lazy(() => import("./pages/admin/AdminSectors"));
+const AdminBlogPosts = lazy(() => import("./pages/admin/AdminBlogPosts"));
 
 // Beta
 const BetaSignup = lazy(() => import("./pages/BetaSignup"));
@@ -254,6 +255,14 @@ const App = () => (
                     element={
                       <ProtectedRoute requireSuperAdmin>
                         <AdminSectors />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/blog"
+                    element={
+                      <ProtectedRoute requireSuperAdmin>
+                        <AdminBlogPosts />
                       </ProtectedRoute>
                     }
                   />
