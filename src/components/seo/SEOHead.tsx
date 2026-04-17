@@ -8,6 +8,7 @@ interface SEOHeadProps {
   canonicalUrl?: string;
   ogImage?: string;
   ogType?: "website" | "article";
+  language?: "es" | "ca";
   article?: {
     publishedTime?: string;
     author?: string;
@@ -28,6 +29,7 @@ export const SEOHead = ({
   canonicalUrl,
   ogImage = DEFAULT_OG_IMAGE,
   ogType = "website",
+  language = "es",
   article,
   noIndex = false,
 }: SEOHeadProps) => {
@@ -38,8 +40,11 @@ export const SEOHead = ({
   // Use explicit canonicalUrl if provided, otherwise auto-detect from current route
   const fullCanonicalUrl = canonicalUrl ? `${BASE_URL}${canonicalUrl}` : `${BASE_URL}${location.pathname}`;
 
+  const ogLocale = language === "ca" ? "ca_ES" : "es_ES";
+  const htmlLang = language === "ca" ? "ca" : "es";
+
   return (
-    <Helmet>
+    <Helmet htmlAttributes={{ lang: htmlLang }}>
       {/* Título */}
       <title>{fullTitle}</title>
 
@@ -59,7 +64,7 @@ export const SEOHead = ({
       <meta property="og:image" content={ogImage} />
       <meta property="og:site_name" content={SITE_NAME} />
       <meta property="og:url" content={fullCanonicalUrl} />
-      <meta property="og:locale" content="es_ES" />
+      <meta property="og:locale" content={ogLocale} />
 
       {/* Article specific */}
       {ogType === "article" && article && (
@@ -85,7 +90,7 @@ export const SEOHead = ({
       <meta name="twitter:image" content={ogImage} />
 
       {/* Hreflang */}
-      <link rel="alternate" hrefLang="es" href={fullCanonicalUrl} />
+      <link rel="alternate" hrefLang={htmlLang} href={fullCanonicalUrl} />
       <link rel="alternate" hrefLang="x-default" href={fullCanonicalUrl} />
     </Helmet>
   );
