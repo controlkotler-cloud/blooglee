@@ -432,6 +432,50 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Industry-specific landing pages + alternatives */}
+      <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16">
+        <div className="text-center mb-10">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
+            Casos de uso y alternativas
+          </h2>
+          <p className="text-foreground/60 max-w-2xl mx-auto">
+            Blooglee se adapta a distintos sectores. Descubre cómo funciona en el tuyo, o compáralo con otras herramientas.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <Link to="/para/clinicas" className="group p-5 rounded-2xl bg-white/70 hover:bg-white border border-white/50 shadow-md hover:shadow-xl transition-all text-center">
+            <div className="text-3xl mb-2">🩺</div>
+            <p className="font-semibold text-sm">Para clínicas</p>
+            <p className="text-xs text-foreground/50 mt-1">Contenido sanitario con rigor</p>
+          </Link>
+          <Link to="/para/agencias-marketing" className="group p-5 rounded-2xl bg-white/70 hover:bg-white border border-white/50 shadow-md hover:shadow-xl transition-all text-center">
+            <div className="text-3xl mb-2">📈</div>
+            <p className="font-semibold text-sm">Para agencias</p>
+            <p className="text-xs text-foreground/50 mt-1">Gestión multicliente</p>
+          </Link>
+          <Link to="/para/tiendas-online" className="group p-5 rounded-2xl bg-white/70 hover:bg-white border border-white/50 shadow-md hover:shadow-xl transition-all text-center">
+            <div className="text-3xl mb-2">🛒</div>
+            <p className="font-semibold text-sm">Para ecommerce</p>
+            <p className="text-xs text-foreground/50 mt-1">Blog para WooCommerce</p>
+          </Link>
+          <Link to="/para/autonomos" className="group p-5 rounded-2xl bg-white/70 hover:bg-white border border-white/50 shadow-md hover:shadow-xl transition-all text-center">
+            <div className="text-3xl mb-2">💼</div>
+            <p className="font-semibold text-sm">Para autónomos</p>
+            <p className="text-xs text-foreground/50 mt-1">SEO sin agencia</p>
+          </Link>
+          <Link to="/alternativas" className="group p-5 rounded-2xl bg-gradient-to-br from-violet-50 to-fuchsia-50 hover:from-violet-100 hover:to-fuchsia-100 border border-violet-200/50 shadow-md hover:shadow-xl transition-all text-center">
+            <div className="text-3xl mb-2">⚖️</div>
+            <p className="font-semibold text-sm">Comparativas</p>
+            <p className="text-xs text-foreground/50 mt-1">vs Jasper, Copy.ai, NextBlog</p>
+          </Link>
+        </div>
+        <div className="text-center mt-8">
+          <Link to="/como-funciona" className="inline-flex items-center gap-2 text-violet-600 hover:text-violet-700 font-medium">
+            Ver cómo funciona en 4 pasos →
+          </Link>
+        </div>
+      </section>
+
       {/* CTA Section - Mobile optimized */}
       <section className="relative py-12 sm:py-16 lg:py-24 px-4 sm:px-6 z-10">
         <div className="container-custom">
