@@ -35,6 +35,7 @@ export interface FormattedBlogPost {
     avatar: string;
     role: string;
   };
+  language?: string;
 }
 
 function formatDate(dateString: string): string {
