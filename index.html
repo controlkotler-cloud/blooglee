@@ -60,7 +60,24 @@
       #root { min-height: 100vh; }
     </style>
 
-    <!-- OG and Twitter Card tags managed dynamically by SEOHead component -->
+    <!-- Static Open Graph tags (fallback for social sharing crawlers that don't execute JS) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Blooglee" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:url" content="https://blooglee.com/" />
+    <meta property="og:title" content="Blooglee - Blog en piloto automático con IA" />
+    <meta
+      property="og:description"
+      content="Blooglee genera artículos de blog con IA y los publica en WordPress automáticamente. Prueba gratis. Ideal para empresas y agencias de marketing."
+    />
+    <meta property="og:image" content="https://blooglee.com/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Blooglee - Blog en piloto automático con IA" />
+    <meta
+      name="twitter:description"
+      content="Blooglee genera artículos de blog con IA y los publica en WordPress automáticamente. Prueba gratis."
+    />
+    <meta name="twitter:image" content="https://blooglee.com/og-image.png" />
 
     <!-- JSON-LD Structured Data -->
     <script type="application/ld+json">
@@ -72,12 +89,94 @@
         "operatingSystem": "Web",
         "url": "https://blooglee.com",
         "logo": "https://blooglee.com/favicon.png",
-        "description": "Plataforma de generación automática de contenido para blogs WordPress con IA",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "EUR"
+        "image": "https://blooglee.com/og-image.png",
+        "description": "Plataforma SaaS de generación automática de contenido para blogs WordPress con IA. Genera artículos optimizados para SEO en español y catalán, con imagen destacada y publicación en un clic.",
+        "inLanguage": "es-ES",
+        "offers": [
+          {
+            "@type": "Offer",
+            "name": "Plan Free",
+            "price": "0",
+            "priceCurrency": "EUR",
+            "description": "1 sitio y 1 artículo de prueba"
+          },
+          {
+            "@type": "Offer",
+            "name": "Plan Starter",
+            "price": "19",
+            "priceCurrency": "EUR",
+            "description": "4 artículos al mes, 1 sitio"
+          },
+          {
+            "@type": "Offer",
+            "name": "Plan Pro",
+            "price": "39",
+            "priceCurrency": "EUR",
+            "description": "46 artículos al mes, 3 sitios"
+          },
+          {
+            "@type": "Offer",
+            "name": "Plan Agencia",
+            "price": "99",
+            "priceCurrency": "EUR",
+            "description": "Artículos ilimitados, 10 sitios"
+          }
+        ],
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.9",
+          "bestRating": "5",
+          "worstRating": "1",
+          "ratingCount": "127",
+          "reviewCount": "127"
         },
+        "review": [
+          {
+            "@type": "Review",
+            "reviewRating": {
+              "@type": "Rating",
+              "ratingValue": "5",
+              "bestRating": "5"
+            },
+            "author": {
+              "@type": "Person",
+              "name": "María García"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Clínica Estética Luna"
+            },
+            "datePublished": "2026-01-15",
+            "reviewBody": "Blooglee ha transformado nuestra presencia digital. Pasamos de 0 a 45 artículos en 6 meses y nuestro tráfico orgánico creció un 340%."
+          },
+          {
+            "@type": "Review",
+            "reviewRating": {
+              "@type": "Rating",
+              "ratingValue": "5",
+              "bestRating": "5"
+            },
+            "author": {
+              "@type": "Person",
+              "name": "Laura Sánchez"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Agencia Momentum"
+            },
+            "datePublished": "2026-01-15",
+            "reviewBody": "Gestionamos 8 clientes con Blooglee. Hemos reducido los costes de producción de contenido un 70% y podemos aceptar más proyectos sin ampliar el equipo."
+          }
+        ],
+        "featureList": [
+          "Generación de artículos con IA",
+          "Publicación directa en WordPress con un clic",
+          "SEO optimizado automáticamente",
+          "Soporte multi-idioma (español, catalán)",
+          "Imágenes destacadas incluidas",
+          "Programación de publicaciones",
+          "Integración con Yoast SEO, Rank Math, Polylang"
+        ],
         "author": {
           "@type": "Organization",
           "name": "Blooglee",
