@@ -1,45 +1,52 @@
-import { Link } from 'react-router-dom';
-import { BloogleeLogo } from '@/components/saas/BloogleeLogo';
-import { Mail, Linkedin, Instagram, Facebook, Music } from 'lucide-react';
-import { NewsletterForm } from './NewsletterForm';
+import { Link } from "react-router-dom";
+import { BloogleeLogo } from "@/components/saas/BloogleeLogo";
+import { Mail, Linkedin, Instagram, Facebook, Music } from "lucide-react";
+import { NewsletterForm } from "./NewsletterForm";
 
 const footerLinks = {
   producto: [
-    { label: 'Características', href: '/features' },
-    { label: 'Cómo funciona', href: '/como-funciona' },
-    { label: 'Precios', href: '/pricing' },
+    { label: "Características", href: "/features" },
+    { label: "Cómo funciona", href: "/como-funciona" },
+    { label: "Precios", href: "/pricing" },
   ],
   soluciones: [
-    { label: 'Para clínicas', href: '/para/clinicas' },
-    { label: 'Para agencias', href: '/para/agencias-marketing' },
-    { label: 'Para ecommerce', href: '/para/tiendas-online' },
-    { label: 'Para autónomos', href: '/para/autonomos' },
+    { label: "Para clínicas", href: "/para/clinicas" },
+    { label: "Para agencias", href: "/para/agencias-marketing" },
+    { label: "Para ecommerce", href: "/para/tiendas-online" },
+    { label: "Para autónomos", href: "/para/autonomos" },
   ],
   recursos: [
-    { label: 'Blog', href: '/blog' },
-    { label: 'Recursos', href: '/recursos' },
-    { label: 'Alternativas', href: '/alternativas' },
-    { label: 'Ayuda', href: '/help' },
+    { label: "Blog", href: "/blog" },
+    { label: "Recursos", href: "/recursos" },
+    { label: "Alternativas", href: "/alternativas" },
+    { label: "Ayuda", href: "/help" },
   ],
   legal: [
-    { label: 'Términos', href: '/terms' },
-    { label: 'Privacidad', href: '/privacy' },
-    { label: 'Cookies', href: '/cookies' },
+    { label: "Términos", href: "/terms" },
+    { label: "Privacidad", href: "/privacy" },
+    { label: "Cookies", href: "/cookies" },
   ],
 };
 
 const socialLinks = [
-  { icon: Instagram, href: 'https://www.instagram.com/blooglee_', label: 'Instagram' },
-  { icon: Linkedin, href: 'https://linkedin.com/company/blooglee', label: 'LinkedIn' },
-  { icon: Facebook, href: 'https://www.facebook.com/blooglee.ia/', label: 'Facebook' },
-  { icon: Music, href: 'https://www.tiktok.com/@blooglee', label: 'TikTok' },
+  { icon: Instagram, href: "https://www.instagram.com/blooglee_", label: "Instagram" },
+  { icon: Linkedin, href: "https://linkedin.com/company/blooglee", label: "LinkedIn" },
+  { icon: Facebook, href: "https://www.facebook.com/blooglee.ia/", label: "Facebook" },
+  { icon: Music, href: "https://www.tiktok.com/@blooglee", label: "TikTok" },
 ];
+
+// Fecha de última actualización del sitio (editar cuando haya cambios importantes)
+const SITE_LAST_UPDATED = "2026-04-17";
+
+function formatSpanishDate(isoDate: string): string {
+  const date = new Date(isoDate);
+  return date.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+}
 
 export const PublicFooter = () => {
   return (
     <footer className="relative py-12 sm:py-16 lg:py-20 px-4 sm:px-6 z-10 bg-white/50 backdrop-blur-sm border-t border-violet-100/50">
       <div className="container mx-auto max-w-7xl">
-        
         {/* Newsletter Section */}
         <div className="mb-12 sm:mb-16">
           <div className="bg-gradient-to-r from-violet-50 via-fuchsia-50 to-orange-50 rounded-2xl p-6 sm:p-8 border border-violet-100/50">
@@ -67,7 +74,7 @@ export const PublicFooter = () => {
             </p>
             <div className="flex items-center gap-3">
               {socialLinks.map((social) => (
-                <a 
+                <a
                   key={social.label}
                   href={social.href}
                   target="_blank"
@@ -87,10 +94,7 @@ export const PublicFooter = () => {
             <ul className="space-y-3">
               {footerLinks.producto.map((link) => (
                 <li key={link.href}>
-                  <Link 
-                    to={link.href}
-                    className="text-sm text-foreground/60 hover:text-foreground transition-colors"
-                  >
+                  <Link to={link.href} className="text-sm text-foreground/60 hover:text-foreground transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -104,10 +108,7 @@ export const PublicFooter = () => {
             <ul className="space-y-3">
               {footerLinks.soluciones.map((link) => (
                 <li key={link.href}>
-                  <Link 
-                    to={link.href}
-                    className="text-sm text-foreground/60 hover:text-foreground transition-colors"
-                  >
+                  <Link to={link.href} className="text-sm text-foreground/60 hover:text-foreground transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -121,10 +122,7 @@ export const PublicFooter = () => {
             <ul className="space-y-3">
               {footerLinks.recursos.map((link) => (
                 <li key={link.href}>
-                  <Link 
-                    to={link.href}
-                    className="text-sm text-foreground/60 hover:text-foreground transition-colors"
-                  >
+                  <Link to={link.href} className="text-sm text-foreground/60 hover:text-foreground transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -138,10 +136,7 @@ export const PublicFooter = () => {
             <ul className="space-y-3">
               {footerLinks.legal.map((link) => (
                 <li key={link.href}>
-                  <Link 
-                    to={link.href}
-                    className="text-sm text-foreground/60 hover:text-foreground transition-colors"
-                  >
+                  <Link to={link.href} className="text-sm text-foreground/60 hover:text-foreground transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -152,10 +147,16 @@ export const PublicFooter = () => {
 
         {/* Bottom section */}
         <div className="pt-8 border-t border-violet-100/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-foreground/50 text-center sm:text-left">
-            © {new Date().getFullYear()} Blooglee. Todos los derechos reservados.
-          </p>
-          <a 
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
+            <p className="text-sm text-foreground/50">
+              © {new Date().getFullYear()} Blooglee. Todos los derechos reservados.
+            </p>
+            <span className="hidden sm:inline text-foreground/30">·</span>
+            <p className="text-xs text-foreground/50">
+              Última actualización: <time dateTime={SITE_LAST_UPDATED}>{formatSpanishDate(SITE_LAST_UPDATED)}</time>
+            </p>
+          </div>
+          <a
             href="mailto:info@blooglee.com"
             className="flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground transition-colors"
           >
