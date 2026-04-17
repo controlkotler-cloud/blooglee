@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const DOMAIN = "https://blooglee.com";
+const FEED_URL = "https://mxzarwntzmsxhooqzmgq.supabase.co/functions/v1/serve-rss";
 
 const escapeXml = (str: string): string =>
   str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
@@ -55,7 +56,7 @@ Deno.serve(async () => {
     <description>Recursos sobre SEO, marketing de contenidos y automatización de blogs con IA</description>
     <language>es</language>
     <lastBuildDate>${lastBuildDate}</lastBuildDate>
-    <atom:link href="${DOMAIN}/rss.xml" rel="self" type="application/rss+xml"/>
+    <atom:link href="${FEED_URL}" rel="self" type="application/rss+xml"/>
 ${items}
   </channel>
 </rss>`;
@@ -64,6 +65,7 @@ ${items}
     headers: {
       "Content-Type": "application/rss+xml; charset=utf-8",
       "Cache-Control": "public, max-age=3600",
+      "Access-Control-Allow-Origin": "*",
     },
   });
 });
