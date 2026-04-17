@@ -4,10 +4,16 @@ const DOMAIN = "https://blooglee.com";
 const FEED_URL = "https://gqtikajhhggyoiypkbgw.supabase.co/functions/v1/serve-rss";
 
 const escapeXml = (str: string): string =>
-  str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 
 const stripMarkdown = (md: string): string =>
-  md.replace(/^#{1,6}\s+/gm, "")
+  md
+    .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/\*([^*]+)\*/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
@@ -18,10 +24,7 @@ const stripMarkdown = (md: string): string =>
     .trim();
 
 Deno.serve(async () => {
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   const { data: posts } = await supabase
     .from("blog_posts")
@@ -30,10 +33,11 @@ Deno.serve(async () => {
     .order("published_at", { ascending: false })
     .limit(100);
 
-  const items = (posts || []).map((p) => {
-    const desc = stripMarkdown(p.content).slice(0, 300);
-    const pubDate = new Date(p.published_at).toUTCString();
-    return `    <item>
+  const items = (posts || [])
+    .map((p) => {
+      const desc = stripMarkdown(p.content).slice(0, 300);
+      const pubDate = new Date(p.published_at).toUTCString();
+      return `    <item>
       <title>${escapeXml(p.title)}</title>
       <link>${DOMAIN}/blog/${escapeXml(p.slug)}</link>
       <guid isPermaLink="true">${DOMAIN}/blog/${escapeXml(p.slug)}</guid>
@@ -42,11 +46,10 @@ Deno.serve(async () => {
       <author>noreply@blooglee.com (${escapeXml(p.author_name)})</author>
       <category>${escapeXml(p.category)}</category>
     </item>`;
-  }).join("\n");
+    })
+    .join("\n");
 
-  const lastBuildDate = posts?.length
-    ? new Date(posts[0].published_at).toUTCString()
-    : new Date().toUTCString();
+  const lastBuildDate = posts?.length ? new Date(posts[0].published_at).toUTCString() : new Date().toUTCString();
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
@@ -54,7 +57,6 @@ Deno.serve(async () => {
     <title>Blooglee Blog</title>
     <link>${DOMAIN}/blog</link>
     <description>Recursos sobre SEO, marketing de contenidos y automatización de blogs con IA</description>
-    <language>es</language>
     <lastBuildDate>${lastBuildDate}</lastBuildDate>
     <atom:link href="${FEED_URL}" rel="self" type="application/rss+xml"/>
 ${items}
