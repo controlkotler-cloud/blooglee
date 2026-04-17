@@ -17,6 +17,7 @@ export interface BlogPost {
   is_published: boolean;
   seo_keywords: string[] | null;
   created_at: string;
+  language?: string;
 }
 
 export interface FormattedBlogPost {
@@ -34,6 +35,7 @@ export interface FormattedBlogPost {
     avatar: string;
     role: string;
   };
+  language?: string;
 }
 
 function formatDate(dateString: string): string {
@@ -67,6 +69,7 @@ function transformPost(post: BlogPost): FormattedBlogPost {
       avatar: post.author_avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
       role: post.author_role || "Blooglee Team",
     },
+    language: post.language,
   };
 }
 

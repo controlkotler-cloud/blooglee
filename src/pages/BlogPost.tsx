@@ -243,6 +243,7 @@ const BlogPost = () => {
         canonicalUrl={`/blog/${post.slug}`}
         ogImage={post.image}
         ogType="article"
+        language={(post as any).language === 'ca' ? 'ca' : 'es'}
         article={{
           publishedTime: post.date,
           author: post.author.name,

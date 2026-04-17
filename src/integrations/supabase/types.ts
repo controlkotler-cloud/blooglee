@@ -172,6 +172,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_published: boolean
+          language: string
           published_at: string
           read_time: string
           seo_keywords: string[] | null
@@ -191,6 +192,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_published?: boolean
+          language?: string
           published_at?: string
           read_time?: string
           seo_keywords?: string[] | null
@@ -210,6 +212,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_published?: boolean
+          language?: string
           published_at?: string
           read_time?: string
           seo_keywords?: string[] | null
