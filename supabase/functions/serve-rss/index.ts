@@ -1,7 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const DOMAIN = "https://blooglee.com";
-const FEED_URL = "https://mxzarwntzmsxhooqzmgq.supabase.co/functions/v1/serve-rss";
+const FEED_URL = "https://gqtikajhhggyoiypkbgw.supabase.co/functions/v1/serve-rss";
 
 const escapeXml = (str: string): string =>
   str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
