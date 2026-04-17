@@ -69,6 +69,7 @@ function transformPost(post: BlogPost): FormattedBlogPost {
       avatar: post.author_avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
       role: post.author_role || "Blooglee Team",
     },
+    language: post.language,
   };
 }
 
