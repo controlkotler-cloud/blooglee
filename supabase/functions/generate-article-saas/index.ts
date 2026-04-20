@@ -2212,6 +2212,41 @@ function sanitizeCatalanFieldText(text: string | null | undefined): string | nul
     [/\bcambios de dieta\b/g, "canvis de dieta"],
     [/\bcuidan\b/g, "cuiden"],
     [/\bmejora\s/g, "millora "],
+    // Brand accent: "Farmacia" en un artículo catalán casi siempre es "Farmàcia"
+    [/\bFarmacia\b/g, "Farmàcia"],
+    [/\bfarmacia\b/g, "farmàcia"],
+
+    // Verbos castellanos que se cuelan en el cuerpo
+    [/\btrabajamos\b/g, "treballem"],
+    [/\btrabajan\b/g, "treballen"],
+    [/\btrabaja\b/g, "treballa"],
+    [/\btrabajar\b/g, "treballar"],
+    [/\btrabajado\b/g, "treballat"],
+    [/\bdemuestran\b/g, "demostren"],
+    [/\bdemuestra\b/g, "demostra"],
+    [/\bdemostrar\b/g, "demostrar"], // igual
+    [/\brefleja\b/g, "reflecteix"],
+    [/\breflejan\b/g, "reflecteixen"],
+
+    // Demostrativos y adjetivos castellanos frecuentes
+    [/\beste enfoque\b/g, "aquest enfocament"],
+    [/\beste tipo\b/g, "aquest tipus"],
+    [/\besta forma\b/g, "aquesta forma"],
+    [/\besta manera\b/g, "aquesta manera"],
+    [/\benfoque\b/g, "enfocament"],
+
+    // Opciones y conjugaciones que se cuelan
+    [/\bopciones\b/g, "opcions"],
+    [/\bnecesidades\b/g, "necessitats"],
+    [/\brecursos\b/g, "recursos"], // igual
+    [/\bdetalle\b/g, "detall"],
+    [/\bdetalles\b/g, "detalls"],
+    [/\bsalud\b/g, "salut"],
+    [/\bsalud ocular\b/g, "salut ocular"], // redundante pero seguro
+
+    // Pronombres castellanos frecuentes
+    [/\bellas mismas\b/g, "elles mateixes"],
+    [/\bellos mismos\b/g, "ells mateixos"],
   ];
 
   let result = text;
