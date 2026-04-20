@@ -202,6 +202,7 @@ export interface Article {
   generated_at: string;
   week_of_month: number | null;
   day_of_month: number | null;
+  generation_key: string | null;
   wp_post_url: string | null;
 }
 
