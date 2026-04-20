@@ -2106,6 +2106,42 @@ function softenEmptyAdjectives(htmlContent: string): string {
 
   return result;
 }
+/**
+ * Defensa 3: corrige misuse de marca cuando aparece como sustantivo común
+ * con artículo determinante ("la mkpro observa", "el mkpro indica").
+ * Elimina el artículo delante del enlace de marca para que quede como
+ * nombre propio. Solo actúa en la primera aparición linkeada.
+ */
+function sanitizeLinkedBrandMisuse(htmlContent: string, siteName: string): string {
+  if (!htmlContent || !siteName) return htmlContent;
+
+  const siteNameEscaped = siteName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Matchea: "la|el|una|un|del|al + <a...>siteName</a>"
+  const articleBrandRegex = new RegExp(
+    `\\b(la|el|una|un|del|al|los|las)\\s+(<a[^>]*>\\s*${siteNameEscaped}\\s*<\\/a>)`,
+    "gi",
+  );
+
+  let replaced = 0;
+  const result = htmlContent.replace(articleBrandRegex, (_match, article, link) => {
+    replaced++;
+    // Preservar mayúscula si el artículo arrancaba oración
+    const firstChar = article.charAt(0);
+    if (firstChar === firstChar.toUpperCase()) {
+      return link.replace(
+        new RegExp(`>\\s*${siteNameEscaped}\\s*<`),
+        (matchInner: string) => matchInner.replace(siteName, siteName.charAt(0).toUpperCase() + siteName.slice(1)),
+      );
+    }
+    return link;
+  });
+
+  if (replaced > 0) {
+    console.log(`[sanitizeLinkedBrandMisuse] Fixed ${replaced} brand-as-common-noun usage(s)`);
+  }
+
+  return result;
+}
 function isFooterCtaParagraph(
   paragraphHtml: string,
   blogUrl: string | null = null,
