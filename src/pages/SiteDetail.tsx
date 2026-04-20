@@ -26,6 +26,7 @@ import {
 import { useSites } from "@/hooks/useSites";
 import { useArticlesSaas, useGenerateArticleSaas } from "@/hooks/useArticlesSaas";
 import { useWordPressConfig } from "@/hooks/useWordPressConfigSaas";
+import { useIsAdmin } from "@/hooks/useProfile";
 import { BloogleeLogo } from "@/components/saas/BloogleeLogo";
 import { SiteArticles } from "@/components/saas/SiteArticles";
 import { SiteSettings } from "@/components/saas/SiteSettings";
@@ -34,6 +35,31 @@ import { WordPressConfigForm } from "@/components/saas/WordPressConfigForm";
 
 import { toast } from "sonner";
 import { useGeneration } from "@/contexts/GenerationContext";
+
+const normalizeFrequency = (rawFrequency?: string | null) => {
+  if (!rawFrequency) return "monthly";
+  return rawFrequency === "fortnightly" ? "biweekly" : rawFrequency;
+};
+
+const buildCurrentGenerationKey = (frequency?: string | null, now = new Date()) => {
+  const normalizedFrequency = normalizeFrequency(frequency);
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(now.getUTCDate()).padStart(2, "0");
+  const weekOfMonth = Math.ceil(now.getUTCDate() / 7);
+
+  switch (normalizedFrequency) {
+    case "daily":
+    case "daily_weekdays":
+      return `${year}-${month}-${day}`;
+    case "weekly":
+    case "biweekly":
+      return `${year}-${month}-w${weekOfMonth}`;
+    case "monthly":
+    default:
+      return `${year}-${month}`;
+  }
+};
 
 export default function SiteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -54,14 +80,17 @@ export default function SiteDetail() {
   const currentYear = new Date().getFullYear();
   const { data: articles = [] } = useArticlesSaas(id, currentMonth, currentYear);
   const { data: wpConfig } = useWordPressConfig(id);
+  const { isAdmin } = useIsAdmin();
 
   const generateMutation = useGenerateArticleSaas();
   const { isGenerating: checkGenerating } = useGeneration();
 
   const canGenerate = !!wpConfig;
   const isGenerating = site ? checkGenerating(site.id) : false;
-
-  const hasPublishedArticle = articles.some((a) => !!a.wp_post_url);
+  const currentGenerationKey = site ? buildCurrentGenerationKey(site.publish_frequency) : null;
+  const hasPublishedArticleInCurrentPeriod = articles.some(
+    (article) => article.generation_key === currentGenerationKey && !!article.wp_post_url,
+  );
 
   const handleGenerateArticle = () => {
     if (!site) return;
@@ -70,7 +99,7 @@ export default function SiteDetail() {
       setActiveTab("wordpress");
       return;
     }
-    if (hasPublishedArticle) {
+    if (hasPublishedArticleInCurrentPeriod && !isAdmin) {
       toast.info("Ya tienes un artículo publicado para este periodo");
       return;
     }
@@ -94,7 +123,6 @@ export default function SiteDetail() {
     );
   }
 
-  // WP status indicator
   const renderWpStatus = () => {
     if (wpConfig) {
       return (
@@ -122,10 +150,8 @@ export default function SiteDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
-          {/* Row 1: Back + Logo */}
           <div className="flex items-center gap-3 mb-3 sm:mb-0">
             <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate("/dashboard")}>
               <ArrowLeft className="w-4 h-4" />
@@ -133,17 +159,18 @@ export default function SiteDetail() {
             <BloogleeLogo size="sm" />
           </div>
 
-          {/* Row 2 (mobile) / inline (desktop): Status badges */}
           <div className="flex items-center gap-2 flex-wrap sm:mt-0 mt-1 sm:justify-end">
             {renderWpStatus()}
 
-            {hasPublishedArticle ? (
+            {hasPublishedArticleInCurrentPeriod && (
               <Badge variant="outline" className="text-emerald-600 border-emerald-500/30 px-3 py-1.5">
                 <CheckCircle2 className="w-4 h-4 mr-1.5" />
                 <span className="hidden sm:inline">Publicado este periodo</span>
                 <span className="sm:hidden">Publicado</span>
               </Badge>
-            ) : (
+            )}
+
+            {(!hasPublishedArticleInCurrentPeriod || isAdmin) && (
               <Button
                 onClick={handleGenerateArticle}
                 disabled={isGenerating}
@@ -173,7 +200,6 @@ export default function SiteDetail() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        {/* Breadcrumb */}
         <Breadcrumb className="mb-4">
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -186,7 +212,6 @@ export default function SiteDetail() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        {/* Site header */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
             <h1 className="text-2xl font-bold">{site.name}</h1>
@@ -208,7 +233,6 @@ export default function SiteDetail() {
           <p className="text-muted-foreground">{articles.length} artículos generados este mes</p>
         </div>
 
-        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
             <TabsList className="mb-6 w-max sm:w-auto">
