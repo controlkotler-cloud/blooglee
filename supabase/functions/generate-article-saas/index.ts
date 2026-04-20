@@ -4399,6 +4399,8 @@ Deno.serve(async (req) => {
     if (spanishArticle?.content) {
       spanishArticle.content = normalizeArticleTailHtml(spanishArticle.content);
       spanishArticle.content = stripAiGeneratedClosingCta(spanishArticle.content);
+      spanishArticle.content = stripAiSourcesFooter(spanishArticle.content);
+      spanishArticle.content = softenEmptyAdjectives(spanishArticle.content);
       spanishArticle.content = await verifyAndCleanExternalLinks(spanishArticle.content);
       spanishArticle.content = ensureFooterLinks(
         spanishArticle.content,
