@@ -1997,72 +1997,99 @@ function stripAiSourcesFooter(htmlContent: string): string {
 }
 
 /**
- * Defensa 2: limita la repetición de adjetivos vacíos típicos de contenido IA
- * (crucial, fundamental, esencial, vital, indispensable). Permite máximo 1
- * ocurrencia por adjetivo; las excedentes se sustituyen por alternativas
- * concretas rotatorias, preservando concordancia de género básica.
+ * Defensa 2: limita la repetición de adjetivos vacíos típicos de contenido IA.
+ * Permite máximo 1 ocurrencia por lema (incluye singular y plural); las
+ * excedentes se sustituyen por alternativas concretas rotatorias, preservando
+ * concordancia de género y número.
  */
 function softenEmptyAdjectives(htmlContent: string): string {
   if (!htmlContent) return htmlContent;
 
-  // Alternativas: [masculino, femenino]
-  const ADJECTIVE_ALTERNATIVES: Record<string, Array<[string, string]>> = {
+  // Alternativas: [masculino-sg, femenino-sg, masculino-pl, femenino-pl]
+  const ADJECTIVE_ALTERNATIVES: Record<
+    string,
+    Array<[string, string, string, string]>
+  > = {
     crucial: [
-      ["determinante", "determinante"],
-      ["decisivo", "decisiva"],
-      ["necesario", "necesaria"],
+      ["determinante", "determinante", "determinantes", "determinantes"],
+      ["decisivo", "decisiva", "decisivos", "decisivas"],
+      ["necesario", "necesaria", "necesarios", "necesarias"],
     ],
     fundamental: [
-      ["básico", "básica"],
-      ["central", "central"],
-      ["principal", "principal"],
+      ["básico", "básica", "básicos", "básicas"],
+      ["central", "central", "centrales", "centrales"],
+      ["principal", "principal", "principales", "principales"],
     ],
     esencial: [
-      ["necesario", "necesaria"],
-      ["básico", "básica"],
-      ["principal", "principal"],
+      ["necesario", "necesaria", "necesarios", "necesarias"],
+      ["básico", "básica", "básicos", "básicas"],
+      ["principal", "principal", "principales", "principales"],
     ],
     vital: [
-      ["necesario", "necesaria"],
-      ["básico", "básica"],
-      ["primordial", "primordial"],
+      ["necesario", "necesaria", "necesarios", "necesarias"],
+      ["básico", "básica", "básicos", "básicas"],
+      ["primordial", "primordial", "primordiales", "primordiales"],
     ],
     indispensable: [
-      ["imprescindible", "imprescindible"],
-      ["necesario", "necesaria"],
-      ["básico", "básica"],
+      ["imprescindible", "imprescindible", "imprescindibles", "imprescindibles"],
+      ["necesario", "necesaria", "necesarios", "necesarias"],
+      ["básico", "básica", "básicos", "básicas"],
     ],
   };
 
-  // Palabras femeninas típicas que preceden al adjetivo (pista de género)
-  // Miramos las ~80 chars anteriores al match para detectar género.
+  // Palabras femeninas típicas que preceden al adjetivo (pista de género).
   const FEMININE_HINT_REGEX =
-    /\b(la|una|esta|esa|aquella|cualidad|estrategia|herramienta|práctica|técnica|fase|etapa|acción|decisión|tarea|misión|visión|función|aplicación|interacción|gestión|solución|información|inversión|cuestión|oportunidad|necesidad|calidad|prioridad|identidad|realidad|capacidad|seguridad|privacidad|confianza|empresa|marca|campaña|agencia|audiencia|experiencia|presencia|relevancia|importancia|tendencia|frecuencia|medición|segmentación|personalización|automatización|optimización|transformación|reputación|comunicación|planificación|relación|conversión|retención)\s+(?:muy\s+|bastante\s+|especialmente\s+|verdaderamente\s+)?$/i;
+    /\b(la|una|esta|esa|aquella|cualidad|estrategia|herramienta|práctica|técnica|fase|etapa|acción|decisión|tarea|misión|visión|función|aplicación|interacción|gestión|solución|información|inversión|cuestión|oportunidad|necesidad|calidad|prioridad|identidad|realidad|capacidad|seguridad|privacidad|confianza|empresa|marca|campaña|agencia|audiencia|experiencia|presencia|relevancia|importancia|tendencia|frecuencia|medición|segmentación|personalización|automatización|optimización|transformación|reputación|comunicación|planificación|relación|conversión|retención|transparencia|coherencia|consistencia|persistencia|permanencia|competencia|eficiencia|diferencia|evidencia|preocupación|participación|colaboración|adaptación|integración|visibilidad|responsabilidad|productividad|creatividad|adaptabilidad|flexibilidad|usabilidad|funcionalidad|accesibilidad|escalabilidad|rentabilidad|calidad)\s+(?:muy\s+|bastante\s+|especialmente\s+|verdaderamente\s+)?$/i;
 
-  const MAX_PER_ADJECTIVE = 1;
+  const MAX_PER_LEMMA = 1;
   let result = htmlContent;
   let totalReplaced = 0;
 
-  for (const [adj, alternatives] of Object.entries(ADJECTIVE_ALTERNATIVES)) {
-    const variants = [adj, adj.charAt(0).toUpperCase() + adj.slice(1)];
+  for (const [lemma, alternatives] of Object.entries(ADJECTIVE_ALTERNATIVES)) {
+    // Construye variantes: singular y plural, minúscula y mayúscula
+    const pluralSuffix = lemma.endsWith("al") ? "ales" : "es";
+    const plural = lemma.slice(0, -(lemma.endsWith("al") ? 2 : 1)) + pluralSuffix;
+    const normalizedPlural =
+      lemma === "crucial" ? "cruciales" :
+      lemma === "fundamental" ? "fundamentales" :
+      lemma === "esencial" ? "esenciales" :
+      lemma === "vital" ? "vitales" :
+      lemma === "indispensable" ? "indispensables" :
+      plural;
+
+    const variants = [
+      { text: lemma, isPlural: false },
+      { text: lemma.charAt(0).toUpperCase() + lemma.slice(1), isPlural: false },
+      { text: normalizedPlural, isPlural: true },
+      {
+        text: normalizedPlural.charAt(0).toUpperCase() + normalizedPlural.slice(1),
+        isPlural: true,
+      },
+    ];
+
+    let count = 0;
+    let altIndex = 0;
 
     for (const variant of variants) {
-      const regex = new RegExp(`\\b${variant}\\b`, "g");
-      let count = 0;
-      let altIndex = 0;
+      const regex = new RegExp(`\\b${variant.text}\\b`, "g");
 
       result = result.replace(regex, (match, offset: number) => {
         count++;
-        if (count <= MAX_PER_ADJECTIVE) return match;
+        if (count <= MAX_PER_LEMMA) return match;
 
-        // Detectar género mirando las palabras anteriores
-        const before = result.slice(Math.max(0, offset - 80), offset);
+        // Ventana ampliada: 200 chars previos para detectar género en oraciones largas
+        const before = result.slice(Math.max(0, offset - 200), offset);
         const isFeminine = FEMININE_HINT_REGEX.test(before);
-        const [masculine, feminine] = alternatives[altIndex % alternatives.length];
+        const [masc, fem, mascPl, femPl] = alternatives[altIndex % alternatives.length];
         altIndex++;
         totalReplaced++;
 
-        let replacement = isFeminine ? feminine : masculine;
+        let replacement: string;
+        if (variant.isPlural) {
+          replacement = isFeminine ? femPl : mascPl;
+        } else {
+          replacement = isFeminine ? fem : masc;
+        }
         if (match[0] === match[0].toUpperCase()) {
           replacement = replacement.charAt(0).toUpperCase() + replacement.slice(1);
         }
@@ -2072,12 +2099,13 @@ function softenEmptyAdjectives(htmlContent: string): string {
   }
 
   if (totalReplaced > 0) {
-    console.log(`[softenEmptyAdjectives] Replaced ${totalReplaced} empty adjective repetition(s)`);
+    console.log(
+      `[softenEmptyAdjectives] Replaced ${totalReplaced} empty adjective repetition(s)`,
+    );
   }
 
   return result;
 }
-
 function isFooterCtaParagraph(
   paragraphHtml: string,
   blogUrl: string | null = null,
