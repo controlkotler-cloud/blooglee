@@ -1942,13 +1942,6 @@ function stripAiGeneratedClosingCta(htmlContent: string): string {
 
   return result;
 }
-  if (removed > 0) {
-    result = result.replace(/\n{3,}/g, "\n\n").trim();
-    console.log(`[stripAiClosingCta] Removed ${removed} AI-generated closing CTA paragraph(s)`);
-  }
-
-  return result;
-}
 
 /**
  * Defensa 1: elimina párrafos finales de tipo "Para ampliar información, consulta X"
