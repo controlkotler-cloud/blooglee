@@ -831,11 +831,12 @@ function clampPreferredLength(preferred: PreferredLength, maxAllowed: PreferredL
 // HEX PALETTE TO DESCRIPTIVE COLORS
 // ==========================================
 function hexToColorName(hex: string): string {
-  const h = hex.replace('#', '');
+  const h = hex.replace("#", "");
   const r = parseInt(h.substring(0, 2), 16);
   const g = parseInt(h.substring(2, 4), 16);
   const b = parseInt(h.substring(4, 6), 16);
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b);
   const l = (max + min) / 2 / 255;
   if (l < 0.15) return "dark";
   if (l > 0.85) return "light";
@@ -1073,7 +1074,7 @@ async function verifyUrlReachable(url: string, timeoutMs: number = 5000): Promis
         method: "GET",
         signal: getController.signal,
         redirect: "follow",
-        headers: { "Range": "bytes=0-0" }, // Minimal bytes
+        headers: { Range: "bytes=0-0" }, // Minimal bytes
       });
       clearTimeout(getTimeout);
       return getResponse.status < 400;
@@ -1088,10 +1089,7 @@ async function verifyUrlReachable(url: string, timeoutMs: number = 5000): Promis
  * Auto-generates authority_sources for a new/unknown sector using AI.
  * Verifies each URL before returning. Returns only URLs that are reachable.
  */
-async function autoGenerateAuthoritySources(
-  sector: string,
-  apiKey: string,
-): Promise<AuthoritySource[]> {
+async function autoGenerateAuthoritySources(sector: string, apiKey: string): Promise<AuthoritySource[]> {
   if (!apiKey) return [];
 
   const prompt = `Eres un experto en SEO y fuentes de autoridad para contenido en español. Para el sector "${sector}", genera EXACTAMENTE 8 fuentes reales y verificables que se usen para enlaces externos en artículos de blog de ese sector en España.
@@ -1129,7 +1127,10 @@ Responde SOLO con JSON válido en este formato exacto:
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
-    const cleaned = content.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
+    const cleaned = content
+      .replace(/```json\s*/gi, "")
+      .replace(/```/g, "")
+      .trim();
     const parsed = JSON.parse(cleaned);
     const candidateSources: AuthoritySource[] = Array.isArray(parsed.sources) ? parsed.sources : [];
 
@@ -1164,42 +1165,63 @@ function detectSectorCategory(sector: string | null | undefined): string {
   // IMPORTANT: Specific sectors first
   if (s.includes("farmacia") || s.includes("parafarm") || s.includes("dermofarm") || s.includes("botica"))
     return "farmacia";
-  if (s.includes("dental") || s.includes("odontolog") || s.includes("ortodonc"))
-    return "clinica_dental";
-  if (s.includes("veterinar") || s.includes("mascot"))
-    return "veterinaria";
-  if (s.includes("psicolog") || s.includes("terapia") || s.includes("mental"))
-    return "psicologia";
+  if (s.includes("dental") || s.includes("odontolog") || s.includes("ortodonc")) return "clinica_dental";
+  if (s.includes("veterinar") || s.includes("mascot")) return "veterinaria";
+  if (s.includes("psicolog") || s.includes("terapia") || s.includes("mental")) return "psicologia";
   if (s.includes("nutric") || s.includes("dietista") || s.includes("diet") || s.includes("alimentaci"))
     return "nutricion";
-  if (s.includes("fisioterap") || s.includes("rehabilit") || s.includes("osteopat"))
-    return "fisioterapia";
-  if (s.includes("abogad") || s.includes("legal") || s.includes("juridic") || s.includes("bufete"))
-    return "abogacia";
-  if (s.includes("arquitect") || s.includes("construc"))
-    return "arquitectura";
-  if (s.includes("educaci") || s.includes("academia") || s.includes("formaci") || s.includes("escuela") || s.includes("curso"))
+  if (s.includes("fisioterap") || s.includes("rehabilit") || s.includes("osteopat")) return "fisioterapia";
+  if (s.includes("abogad") || s.includes("legal") || s.includes("juridic") || s.includes("bufete")) return "abogacia";
+  if (s.includes("arquitect") || s.includes("construc")) return "arquitectura";
+  if (
+    s.includes("educaci") ||
+    s.includes("academia") ||
+    s.includes("formaci") ||
+    s.includes("escuela") ||
+    s.includes("curso")
+  )
     return "educacion";
-  if (s.includes("fotograf"))
-    return "fotografia";
-  if (s.includes("asesor") || s.includes("gestor") || s.includes("contable") || s.includes("fiscal"))
-    return "asesoria";
-  if (s.includes("inmobiliar") || s.includes("real estate") || s.includes("vivienda"))
-    return "inmobiliaria";
+  if (s.includes("fotograf")) return "fotografia";
+  if (s.includes("asesor") || s.includes("gestor") || s.includes("contable") || s.includes("fiscal")) return "asesoria";
+  if (s.includes("inmobiliar") || s.includes("real estate") || s.includes("vivienda")) return "inmobiliaria";
   if (s.includes("gimnasio") || s.includes("fitness") || s.includes("deport") || s.includes("crossfit"))
     return "gimnasio";
-  if (s.includes("ecommerce") || s.includes("tienda online") || s.includes("e-commerce"))
-    return "ecommerce";
-  if (s.includes("peluqu") || s.includes("cabello") || s.includes("estetic") || s.includes("beauty") || s.includes("cosmet"))
+  if (s.includes("ecommerce") || s.includes("tienda online") || s.includes("e-commerce")) return "ecommerce";
+  if (
+    s.includes("peluqu") ||
+    s.includes("cabello") ||
+    s.includes("estetic") ||
+    s.includes("beauty") ||
+    s.includes("cosmet")
+  )
     return "belleza";
   if (s.includes("restaur")) return "restaurante";
-  if (s.includes("hotel") || s.includes("hostel") || s.includes("bar ") || s.includes("cafeter") || s.includes("turismo"))
+  if (
+    s.includes("hotel") ||
+    s.includes("hostel") ||
+    s.includes("bar ") ||
+    s.includes("cafeter") ||
+    s.includes("turismo")
+  )
     return "hosteleria";
   if (s.includes("marketing") || s.includes("seo") || s.includes("publicidad") || s.includes("agencia"))
     return "marketing";
-  if (s.includes("tecnolog") || s.includes("software") || s.includes("inform") || s.includes("saas") || s.includes("programaci") || s.includes("desarroll"))
+  if (
+    s.includes("tecnolog") ||
+    s.includes("software") ||
+    s.includes("inform") ||
+    s.includes("saas") ||
+    s.includes("programaci") ||
+    s.includes("desarroll")
+  )
     return "tecnologia";
-  if (s.includes("salud") || s.includes("medic") || s.includes("clinic") || s.includes("wellness") || s.includes("bienestar"))
+  if (
+    s.includes("salud") ||
+    s.includes("medic") ||
+    s.includes("clinic") ||
+    s.includes("wellness") ||
+    s.includes("bienestar")
+  )
     return "salud";
 
   return "general";
@@ -1917,7 +1939,10 @@ function stripAiGeneratedClosingCta(htmlContent: string): string {
     if (start < threshold) break;
 
     const paragraphHtml = m[0];
-    const plainText = paragraphHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const plainText = paragraphHtml
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
 
     // Skip long paragraphs (they're real content, not CTAs)
     if (plainText.length > 400) continue;
@@ -1969,7 +1994,10 @@ function stripAiSourcesFooter(htmlContent: string): string {
     if (start < threshold) break;
 
     const paragraphHtml = m[0];
-    const plainText = paragraphHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const plainText = paragraphHtml
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
 
     if (plainText.length > 300) continue;
     if (plainText.length < 10) continue;
@@ -1999,10 +2027,7 @@ function softenEmptyAdjectives(htmlContent: string): string {
   if (!htmlContent) return htmlContent;
 
   // Alternativas: [masculino-sg, femenino-sg, masculino-pl, femenino-pl]
-  const ADJECTIVE_ALTERNATIVES: Record<
-    string,
-    Array<[string, string, string, string]>
-  > = {
+  const ADJECTIVE_ALTERNATIVES: Record<string, Array<[string, string, string, string]>> = {
     crucial: [
       ["determinante", "determinante", "determinantes", "determinantes"],
       ["decisivo", "decisiva", "decisivos", "decisivas"],
@@ -2043,12 +2068,17 @@ function softenEmptyAdjectives(htmlContent: string): string {
     const pluralSuffix = lemma.endsWith("al") ? "ales" : "es";
     const plural = lemma.slice(0, -(lemma.endsWith("al") ? 2 : 1)) + pluralSuffix;
     const normalizedPlural =
-      lemma === "crucial" ? "cruciales" :
-      lemma === "fundamental" ? "fundamentales" :
-      lemma === "esencial" ? "esenciales" :
-      lemma === "vital" ? "vitales" :
-      lemma === "indispensable" ? "indispensables" :
-      plural;
+      lemma === "crucial"
+        ? "cruciales"
+        : lemma === "fundamental"
+          ? "fundamentales"
+          : lemma === "esencial"
+            ? "esenciales"
+            : lemma === "vital"
+              ? "vitales"
+              : lemma === "indispensable"
+                ? "indispensables"
+                : plural;
 
     const variants = [
       { text: lemma, isPlural: false },
@@ -2092,9 +2122,7 @@ function softenEmptyAdjectives(htmlContent: string): string {
   }
 
   if (totalReplaced > 0) {
-    console.log(
-      `[softenEmptyAdjectives] Replaced ${totalReplaced} empty adjective repetition(s)`,
-    );
+    console.log(`[softenEmptyAdjectives] Replaced ${totalReplaced} empty adjective repetition(s)`);
   }
 
   return result;
@@ -2121,9 +2149,8 @@ function sanitizeLinkedBrandMisuse(htmlContent: string, siteName: string): strin
     // Preservar mayúscula si el artículo arrancaba oración
     const firstChar = article.charAt(0);
     if (firstChar === firstChar.toUpperCase()) {
-      return link.replace(
-        new RegExp(`>\\s*${siteNameEscaped}\\s*<`),
-        (matchInner: string) => matchInner.replace(siteName, siteName.charAt(0).toUpperCase() + siteName.slice(1)),
+      return link.replace(new RegExp(`>\\s*${siteNameEscaped}\\s*<`), (matchInner: string) =>
+        matchInner.replace(siteName, siteName.charAt(0).toUpperCase() + siteName.slice(1)),
       );
     }
     return link;
@@ -2134,6 +2161,89 @@ function sanitizeLinkedBrandMisuse(htmlContent: string, siteName: string): strin
   }
 
   return result;
+}
+/**
+ * Defensa 5: corrige palabras castellanas infiltradas en campos de artículo
+ * catalán (meta_description, excerpt, title, seo_title). Mapa de reemplazos
+ * focalizado en las palabras que más a menudo se cuelan tras la traducción
+ * nativa.
+ */
+function sanitizeCatalanFieldText(text: string | null | undefined): string | null {
+  if (!text) return text ?? null;
+
+  // Mapa de palabras castellano → catalán (solo palabras que NO existen en catalán
+  // o que tienen sentido diferente, para evitar falsos positivos)
+  const REPLACEMENTS: Array<[RegExp, string]> = [
+    // Imperativos castellanos al inicio o tras puntuación
+    [/\bEncuentra\b/g, "Troba"],
+    [/\bencuentra\b/g, "troba"],
+    [/\bDescubre\b/g, "Descobreix"],
+    [/\bdescubre\b/g, "descobreix"],
+    [/\bAprende\b/g, "Aprèn"],
+    [/\baprende\b/g, "aprèn"],
+    [/\bSorpréndela\b/g, "Sorprèn-la"],
+    [/\bsorpréndela\b/g, "sorprèn-la"],
+    [/\bAlivia\b/g, "Alleuja"],
+    [/\balivia\b/g, "alleuja"],
+    [/\bConoce\b/g, "Coneix"],
+    [/\bconoce\b/g, "coneix"],
+    [/\bVisita\b/g, "Visita"], // igual en catalán
+    [/\bProtege\b/g, "Protegeix"],
+    [/\bprotege\b/g, "protegeix"],
+    [/\bCuida\b/g, "Cuida"], // igual
+
+    // Preposiciones y conectores típicos que se cuelan
+    [/\bcon\s/g, "amb "],
+    [/\bCon\s/g, "Amb "],
+    [/\bpara\s/g, "per a "],
+    [/\bPara\s/g, "Per a "],
+
+    // Posesivos simples (solo si están claramente en castellano)
+    [/\bsu bienestar\b/g, "el seu benestar"],
+    [/\bsu salud\b/g, "la seva salut"],
+    [/\btu afecto\b/g, "el teu afecte"],
+    [/\btu salud\b/g, "la teva salut"],
+    [/\btu digestión\b/g, "la teva digestió"],
+
+    // Sustantivos/adjetivos frecuentes en castellano que se cuelan
+    [/\bbienestar\b/g, "benestar"],
+    [/\bafecto genuino\b/g, "afecte genuí"],
+    [/\bconsejos prácticos\b/g, "consells pràctics"],
+    [/\bcambios de dieta\b/g, "canvis de dieta"],
+    [/\bcuidan\b/g, "cuiden"],
+    [/\bmejora\s/g, "millora "],
+  ];
+
+  let result = text;
+  let changed = 0;
+  for (const [pattern, replacement] of REPLACEMENTS) {
+    const before = result;
+    result = result.replace(pattern, replacement);
+    if (result !== before) changed++;
+  }
+
+  return result;
+}
+
+/**
+ * Aplica el sanitizado catalán a los campos textuales del artículo catalán.
+ */
+function sanitizeCatalanArticleFields(article: Record<string, unknown>): void {
+  if (!article) return;
+  const fieldsToClean = ["title", "seo_title", "meta_description", "excerpt", "focus_keyword"];
+  let touched = 0;
+  for (const field of fieldsToClean) {
+    const original = article[field];
+    if (typeof original !== "string") continue;
+    const cleaned = sanitizeCatalanFieldText(original);
+    if (cleaned !== original) {
+      article[field] = cleaned;
+      touched++;
+    }
+  }
+  if (touched > 0) {
+    console.log(`[sanitizeCatalanArticleFields] Cleaned ${touched} field(s) from Spanish leakage`);
+  }
 }
 function isFooterCtaParagraph(
   paragraphHtml: string,
@@ -2207,11 +2317,7 @@ function dedupeFooterCtas(htmlContent: string, blogUrl: string | null = null, so
  * the LAST one get their duplicate anchor tags stripped (not the whole paragraph,
  * since they may contain valuable content).
  */
-function dedupeByTargetUrl(
-  htmlContent: string,
-  blogUrl: string | null,
-  socialUrl: string | null,
-): string {
+function dedupeByTargetUrl(htmlContent: string, blogUrl: string | null, socialUrl: string | null): string {
   if (!htmlContent) return htmlContent;
 
   const paragraphRegex = /<p\b[^>]*>[\s\S]*?<\/p>/gi;
@@ -2243,10 +2349,7 @@ function dedupeByTargetUrl(
   // For each URL, if multiple paragraphs link to it, strip the link from all
   // except the last paragraph.  If stripping leaves the paragraph as a pure
   // CTA shell (very short text), remove the whole paragraph.
-  const stripLink = (
-    paras: Array<{ idx: number; match: RegExpMatchArray }>,
-    targetUrl: string,
-  ) => {
+  const stripLink = (paras: Array<{ idx: number; match: RegExpMatchArray }>, targetUrl: string) => {
     if (paras.length <= 1) return;
     // Keep the last occurrence, strip from earlier ones
     for (let k = 0; k < paras.length - 1; k++) {
@@ -2263,8 +2366,12 @@ function dedupeByTargetUrl(
       );
 
       // If the paragraph became a short CTA-only shell, remove it entirely
-      const plainText = stripped.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      const isShellCta = plainText.length < 200 &&
+      const plainText = stripped
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      const isShellCta =
+        plainText.length < 200 &&
         /(visita|sigue|pásate|consulta|mantente|acompáñanos|encontrarás|para (seguir|ampliar|más))/i.test(plainText);
 
       if (isShellCta) {
@@ -2320,7 +2427,10 @@ function finalDeduplicateClosingParagraphs(
     const start = m.index ?? 0;
     if (start < threshold) continue;
 
-    const plainText = m[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const plainText = m[0]
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     if (plainText.length > 500) continue;
     if (plainText.length < 10) continue;
 
@@ -2417,7 +2527,8 @@ function rewriteAnchorTextByTargetUrl(paragraphHtml: string, targetUrl: string |
       // Strict match: href must equal target or be a subpath of target.
       // Do NOT match if href is a parent path of target (e.g., home URL vs blog URL).
       const isExact = hrefNormalized === targetNormalized;
-      const isSubpath = hrefNormalized.startsWith(targetNormalized + "/") || hrefNormalized.startsWith(targetNormalized + "?");
+      const isSubpath =
+        hrefNormalized.startsWith(targetNormalized + "/") || hrefNormalized.startsWith(targetNormalized + "?");
       if (!isExact && !isSubpath) return full;
       return `<a ${beforeHref}href="${hrefValue}"${afterHref}>${anchorText}</a>`;
     },
@@ -2664,9 +2775,7 @@ function ensureAuthorityLinks(
   // 2) Si ninguna mención encaja, aceptar el artículo sin enlace de autoridad
   //    (no añadir footer "Para ampliar información..." — eso penaliza SEO)
 
-  const missingSources = selectedSources.filter(
-    (source) => !existingDomains.has(normalizeDomain(source.url)),
-  );
+  const missingSources = selectedSources.filter((source) => !existingDomains.has(normalizeDomain(source.url)));
   if (missingSources.length === 0) return htmlContent;
 
   let result = htmlContent;
@@ -2691,16 +2800,12 @@ function ensureAuthorityLinks(
         return `${before}<a href="${getOriginUrl(source.url)}" target="_blank" rel="noopener">${label}</a>`;
       });
       linked++;
-      console.log(
-        `[ensureAuthorityLinks] Converted plain mention "${source.label}" to hyperlink`,
-      );
+      console.log(`[ensureAuthorityLinks] Converted plain mention "${source.label}" to hyperlink`);
     }
   }
 
   if (linked === 0) {
-    console.log(
-      `[ensureAuthorityLinks] No plain mention to hyperlink; article will ship without authority footer`,
-    );
+    console.log(`[ensureAuthorityLinks] No plain mention to hyperlink; article will ship without authority footer`);
   }
 
   return result;
@@ -2749,7 +2854,13 @@ function ensureFooterLinks(
   const matches = [...normalizedContent.matchAll(paragraphRegex)];
 
   if (!matches.length) {
-    const fallbackSentence = buildFooterCtaSentence(siteName, blogUrl, instagramUrl, normalizedContent.slice(-200), lang);
+    const fallbackSentence = buildFooterCtaSentence(
+      siteName,
+      blogUrl,
+      instagramUrl,
+      normalizedContent.slice(-200),
+      lang,
+    );
     if (!fallbackSentence) return dedupeFooterCtas(normalizedContent, blogUrl, instagramUrl);
     return `<p>${fallbackSentence}</p>`;
   }
@@ -2758,7 +2869,10 @@ function ensureFooterLinks(
   const authorityPattern = /para ampliar informaci[oó]n.*consulta/i;
   let targetMatchIdx = matches.length - 1;
   for (let i = matches.length - 1; i >= 0; i--) {
-    const plain = matches[i][0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const plain = matches[i][0]
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     if (!authorityPattern.test(plain)) {
       targetMatchIdx = i;
       break;
@@ -2771,7 +2885,11 @@ function ensureFooterLinks(
 
   let lastParagraph = lastMatch[0];
   lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, blogUrl, "blog");
-  lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, instagramUrl, lang === "ca" ? "xarxes socials" : "redes sociales");
+  lastParagraph = rewriteAnchorTextByTargetUrl(
+    lastParagraph,
+    instagramUrl,
+    lang === "ca" ? "xarxes socials" : "redes sociales",
+  );
 
   const lastParagraphHrefs = extractAnchorHrefs(lastParagraph);
   const hasBlogInLastParagraph = blogUrl ? hasMatchingHref(lastParagraphHrefs, blogUrl) : true;
@@ -2781,7 +2899,10 @@ function ensureFooterLinks(
     // Check if the last paragraph already contains closing/farewell language
     // with ANY external links — if so, the AI already wrote a good conclusion
     // and we should NOT append another CTA sentence.
-    const lastPlainText = lastParagraph.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const lastPlainText = lastParagraph
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     const closingLanguageEs =
       /(en (conclusi[oó]n|resumen|definitiva)|para (concluir|cerrar|terminar|finalizar|seguir avanzando)|si (quieres|necesitas|te interesa)|visita|s[ií]guenos|acomp[aá][ñn]anos|encontrar[aá]s|no (dudes|te pierdas)|esperamos|te invitamos|descubre m[aá]s|mantente al d[ií]a|p[aá]sate por)/i;
     const closingLanguageCa =
@@ -2807,7 +2928,11 @@ function ensureFooterLinks(
       if (ctaSentence) {
         lastParagraph = appendSentenceToParagraph(lastParagraph, ctaSentence);
         lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, blogUrl, "blog");
-        lastParagraph = rewriteAnchorTextByTargetUrl(lastParagraph, instagramUrl, lang === "ca" ? "xarxes socials" : "redes sociales");
+        lastParagraph = rewriteAnchorTextByTargetUrl(
+          lastParagraph,
+          instagramUrl,
+          lang === "ca" ? "xarxes socials" : "redes sociales",
+        );
       }
     }
   }
@@ -3417,7 +3542,9 @@ Deno.serve(async (req) => {
         console.log(`Loaded ${sectorProhibitedTerms.length} prohibited terms for sector ${sectorCategory}`);
         console.log(`Loaded ${authoritySources.length} authority sources for sector ${sectorCategory}`);
         if (authoritySources.length === 0) {
-          console.warn(`[authority] No authority sources found for sector="${sectorCategory}". Article will be generated WITHOUT external sources to avoid hallucinated URLs.`);
+          console.warn(
+            `[authority] No authority sources found for sector="${sectorCategory}". Article will be generated WITHOUT external sources to avoid hallucinated URLs.`,
+          );
         }
       }
 
@@ -3425,14 +3552,12 @@ Deno.serve(async (req) => {
       // fire-and-forget background job to generate authority_sources via AI.
       // Next article will benefit from this. Current article uses "general" fallback.
       const hasSpecificRow = (sectorData || []).some((s: any) => s.sector_key === sectorCategory);
-      const sectorKeyToStore = sectorCategory.toLowerCase().replace(/[^a-z0-9_]+/g, "_").substring(0, 50);
+      const sectorKeyToStore = sectorCategory
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, "_")
+        .substring(0, 50);
 
-      if (
-        sectorCategory !== "general" &&
-        sectorKeyToStore &&
-        !hasSpecificRow &&
-        LOVABLE_API_KEY
-      ) {
+      if (sectorCategory !== "general" && sectorKeyToStore && !hasSpecificRow && LOVABLE_API_KEY) {
         console.log(`[auto-authority] Sector "${sectorCategory}" has no specific row. Triggering async generation...`);
         const sectorLabel = site.sector || sectorCategory;
         const siteIdForRef = siteId;
@@ -3459,7 +3584,9 @@ Deno.serve(async (req) => {
               if (insertErr) {
                 console.warn("[auto-authority] Failed to save sector_context:", insertErr.message);
               } else {
-                console.log(`[auto-authority] Saved ${newSources.length} verified sources for "${sectorKeyToStore}". Marked for admin review.`);
+                console.log(
+                  `[auto-authority] Saved ${newSources.length} verified sources for "${sectorKeyToStore}". Marked for admin review.`,
+                );
 
                 // Send notification email to admin
                 try {
@@ -3514,7 +3641,11 @@ Deno.serve(async (req) => {
 
                     if (!emailRes.ok) {
                       const errText = await emailRes.text().catch(() => "");
-                      console.warn("[auto-authority] Email notification failed:", emailRes.status, errText.substring(0, 200));
+                      console.warn(
+                        "[auto-authority] Email notification failed:",
+                        emailRes.status,
+                        errText.substring(0, 200),
+                      );
                     } else {
                       console.log("[auto-authority] Admin notification email sent to", ADMIN_EMAIL);
                     }
@@ -3526,7 +3657,9 @@ Deno.serve(async (req) => {
                 }
               }
             } else {
-              console.warn(`[auto-authority] Not enough verified sources for "${sectorLabel}" (got ${newSources.length})`);
+              console.warn(
+                `[auto-authority] Not enough verified sources for "${sectorLabel}" (got ${newSources.length})`,
+              );
             }
           } catch (err) {
             console.error("[auto-authority] Async generation error:", err);
@@ -4156,7 +4289,9 @@ Deno.serve(async (req) => {
 
           if (!jsonMatch) {
             catalanFailureReason = "No JSON found in AI response";
-            console.error(`[catalan] Attempt ${catalanAttempt}: no JSON block in AI response. Preview: ${cleanCatalan.substring(0, 200)}`);
+            console.error(
+              `[catalan] Attempt ${catalanAttempt}: no JSON block in AI response. Preview: ${cleanCatalan.substring(0, 200)}`,
+            );
             if (catalanAttempt < MAX_CATALAN_ATTEMPTS) continue;
             break;
           }
@@ -4525,7 +4660,7 @@ Deno.serve(async (req) => {
     if (spanishArticle?.content) {
       spanishArticle.content = normalizeArticleTailHtml(spanishArticle.content);
       spanishArticle.content = stripAiGeneratedClosingCta(spanishArticle.content);
-            spanishArticle.content = stripAiSourcesFooter(spanishArticle.content);
+      spanishArticle.content = stripAiSourcesFooter(spanishArticle.content);
       spanishArticle.content = sanitizeLinkedBrandMisuse(spanishArticle.content, site.name);
       spanishArticle.content = softenEmptyAdjectives(spanishArticle.content);
       spanishArticle.content = await verifyAndCleanExternalLinks(spanishArticle.content);
@@ -4541,7 +4676,7 @@ Deno.serve(async (req) => {
     if (catalanArticle?.content) {
       catalanArticle.content = normalizeArticleTailHtml(catalanArticle.content);
       catalanArticle.content = stripAiGeneratedClosingCta(catalanArticle.content);
-            catalanArticle.content = stripAiSourcesFooter(catalanArticle.content);
+      catalanArticle.content = stripAiSourcesFooter(catalanArticle.content);
       catalanArticle.content = sanitizeLinkedBrandMisuse(catalanArticle.content, site.name);
       catalanArticle.content = softenEmptyAdjectives(catalanArticle.content);
       catalanArticle.content = await verifyAndCleanExternalLinks(catalanArticle.content);
@@ -5010,9 +5145,10 @@ Deno.serve(async (req) => {
         },
         image: imageResult,
         auto_publish: autoPublishOutcome,
-        catalan_warning: site.languages?.includes("catalan") && !catalanArticle
-          ? `No se pudo generar la versión en catalán: ${catalanFailureReason || "error desconocido"}`
-          : null,
+        catalan_warning:
+          site.languages?.includes("catalan") && !catalanArticle
+            ? `No se pudo generar la versión en catalán: ${catalanFailureReason || "error desconocido"}`
+            : null,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
