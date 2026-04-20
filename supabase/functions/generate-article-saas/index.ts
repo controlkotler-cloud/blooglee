@@ -1942,6 +1942,110 @@ function stripAiGeneratedClosingCta(htmlContent: string): string {
 
   return result;
 }
+  if (removed > 0) {
+    result = result.replace(/\n{3,}/g, "\n\n").trim();
+    console.log(`[stripAiClosingCta] Removed ${removed} AI-generated closing CTA paragraph(s)`);
+  }
+
+  return result;
+}
+
+/**
+ * Defensa 1: elimina párrafos finales de tipo "Para ampliar información, consulta X"
+ * que la IA añade como bibliografía pese a estar prohibido en el prompt.
+ * Solo escanea el último 30% del contenido y solo elimina párrafos cortos (<300 chars).
+ */
+function stripAiSourcesFooter(htmlContent: string): string {
+  if (!htmlContent) return htmlContent;
+
+  const paragraphRegex = /<p\b[^>]*>[\s\S]*?<\/p>/gi;
+  const allParagraphs = [...htmlContent.matchAll(paragraphRegex)];
+  if (allParagraphs.length < 2) return htmlContent;
+
+  const threshold = htmlContent.length * 0.7;
+
+  const sourcesFooterPatterns =
+    /^(para\s+(ampliar|m[aá]s)\s+(informaci[oó]n|recursos|detalles)|consulta\s+(tambi[eé]n|m[aá]s)?|te\s+recomendamos\s+(leer|visitar|consultar|ampliar)|puedes\s+(leer|consultar|ampliar)\s+m[aá]s|para\s+obtener\s+m[aá]s\s+informaci[oó]n|si\s+quieres\s+(saber|profundizar|ampliar|conocer)\s+m[aá]s|m[aá]s\s+informaci[oó]n\s+en)/i;
+
+  let result = htmlContent;
+  let removed = 0;
+
+  for (let i = allParagraphs.length - 1; i >= 0 && removed < 2; i--) {
+    const m = allParagraphs[i];
+    const start = m.index ?? 0;
+    if (start < threshold) break;
+
+    const paragraphHtml = m[0];
+    const plainText = paragraphHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+    if (plainText.length > 300) continue;
+    if (plainText.length < 10) continue;
+
+    if (sourcesFooterPatterns.test(plainText)) {
+      console.log(`[stripAiSourcesFooter] Removing sources footer: "${plainText.slice(0, 100)}..."`);
+      result = result.replace(paragraphHtml, "");
+      removed++;
+    }
+  }
+
+  if (removed > 0) {
+    result = result.replace(/\n{3,}/g, "\n\n").trim();
+    console.log(`[stripAiSourcesFooter] Removed ${removed} sources footer paragraph(s)`);
+  }
+
+  return result;
+}
+
+/**
+ * Defensa 2: limita la repetición de adjetivos vacíos típicos de contenido IA
+ * (crucial, fundamental, esencial, vital, indispensable). Permite máximo 1
+ * ocurrencia por adjetivo; las excedentes se sustituyen por alternativas
+ * concretas rotatorias.
+ */
+function softenEmptyAdjectives(htmlContent: string): string {
+  if (!htmlContent) return htmlContent;
+
+  const ADJECTIVE_ALTERNATIVES: Record<string, string[]> = {
+    crucial: ["determinante", "decisivo", "necesario"],
+    fundamental: ["básico", "central", "principal"],
+    esencial: ["necesario", "básico", "principal"],
+    vital: ["necesario", "básico", "primordial"],
+    indispensable: ["imprescindible", "necesario", "básico"],
+  };
+
+  const MAX_PER_ADJECTIVE = 1;
+  let result = htmlContent;
+  let totalReplaced = 0;
+
+  for (const [adj, alternatives] of Object.entries(ADJECTIVE_ALTERNATIVES)) {
+    const variants = [adj, adj.charAt(0).toUpperCase() + adj.slice(1)];
+
+    for (const variant of variants) {
+      const regex = new RegExp(`\\b${variant}\\b`, "g");
+      let count = 0;
+      let altIndex = 0;
+
+      result = result.replace(regex, (match) => {
+        count++;
+        if (count <= MAX_PER_ADJECTIVE) return match;
+
+        const alt = alternatives[altIndex % alternatives.length];
+        altIndex++;
+        totalReplaced++;
+
+        return match[0] === match[0].toUpperCase()
+          ? alt.charAt(0).toUpperCase() + alt.slice(1)
+          : alt;
+      });
+    }
+  }
+
+  if (totalReplaced > 0) {
+    console.log(`[softenEmptyAdjectives] Replaced ${totalReplaced} empty adjective repetition(s)`);
+  }
+
+  return result;
+}
 
 function isFooterCtaParagraph(
   paragraphHtml: string,
