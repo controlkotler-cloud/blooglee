@@ -2596,19 +2596,57 @@ function ensureAuthorityLinks(
       .filter((domain) => !ownedDomains.has(domain)),
   );
 
-  const missingSources = selectedSources.filter((source) => !existingDomains.has(normalizeDomain(source.url)));
   const totalExternalCount = [...existingDomains].length;
-  const needed = Math.max(0, 2 - totalExternalCount);
-  if (needed === 0) return htmlContent;
 
-  const sourcesToInject = missingSources.slice(0, needed);
-  if (sourcesToInject.length === 0) return htmlContent;
+  // Prompt v11 dice: "1 enlace bien integrado es MEJOR que 2 con footer".
+  // Si ya hay al menos 1 enlace de autoridad, no forzamos más.
+  if (totalExternalCount >= 1) return htmlContent;
 
-  const paragraph = `<p>Para ampliar información, consulta ${sourcesToInject
-    .map((source) => `<a href="${getOriginUrl(source.url)}" target="_blank" rel="noopener">${source.label}</a>`)
-    .join(" y ")}.</p>`;
+  // No hay ningún enlace de autoridad. Estrategia:
+  // 1) Intentar convertir menciones de texto plano en hipervínculos (inline)
+  // 2) Si ninguna mención encaja, aceptar el artículo sin enlace de autoridad
+  //    (no añadir footer "Para ampliar información..." — eso penaliza SEO)
 
-  return `${htmlContent}\n${paragraph}`;
+  const missingSources = selectedSources.filter(
+    (source) => !existingDomains.has(normalizeDomain(source.url)),
+  );
+  if (missingSources.length === 0) return htmlContent;
+
+  let result = htmlContent;
+  let linked = 0;
+
+  for (const source of missingSources) {
+    if (linked >= 1) break; // Solo necesitamos 1 enlace
+
+    // Escape label para regex
+    const labelEscaped = source.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    // Busca el label como texto plano, NO dentro de un <a> existente,
+    // NO dentro de atributos HTML (href, alt, title)
+    // Usa lookbehind para evitar matches dentro de <a>...</a>
+    const plainMentionRegex = new RegExp(
+      `(^|[\\s(,.;:¿¡"'—–-])(${labelEscaped})(?![^<]*<\\/a>)(?=[\\s),.;:?!"'—–-]|$)`,
+      "i",
+    );
+
+    if (plainMentionRegex.test(result)) {
+      result = result.replace(plainMentionRegex, (_match, before, label) => {
+        return `${before}<a href="${getOriginUrl(source.url)}" target="_blank" rel="noopener">${label}</a>`;
+      });
+      linked++;
+      console.log(
+        `[ensureAuthorityLinks] Converted plain mention "${source.label}" to hyperlink`,
+      );
+    }
+  }
+
+  if (linked === 0) {
+    console.log(
+      `[ensureAuthorityLinks] No plain mention to hyperlink; article will ship without authority footer`,
+    );
+  }
+
+  return result;
 }
 
 function ensureFooterLinks(
