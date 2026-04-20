@@ -1942,6 +1942,13 @@ function stripAiGeneratedClosingCta(htmlContent: string): string {
 
   return result;
 }
+  if (removed > 0) {
+    result = result.replace(/\n{3,}/g, "\n\n").trim();
+    console.log(`[stripAiClosingCta] Removed ${removed} AI-generated closing CTA paragraph(s)`);
+  }
+
+  return result;
+}
 
 /**
  * Defensa 1: elimina párrafos finales de tipo "Para ampliar información, consulta X"
@@ -1993,18 +2000,44 @@ function stripAiSourcesFooter(htmlContent: string): string {
  * Defensa 2: limita la repetición de adjetivos vacíos típicos de contenido IA
  * (crucial, fundamental, esencial, vital, indispensable). Permite máximo 1
  * ocurrencia por adjetivo; las excedentes se sustituyen por alternativas
- * concretas rotatorias.
+ * concretas rotatorias, preservando concordancia de género básica.
  */
 function softenEmptyAdjectives(htmlContent: string): string {
   if (!htmlContent) return htmlContent;
 
-  const ADJECTIVE_ALTERNATIVES: Record<string, string[]> = {
-    crucial: ["determinante", "decisivo", "necesario"],
-    fundamental: ["básico", "central", "principal"],
-    esencial: ["necesario", "básico", "principal"],
-    vital: ["necesario", "básico", "primordial"],
-    indispensable: ["imprescindible", "necesario", "básico"],
+  // Alternativas: [masculino, femenino]
+  const ADJECTIVE_ALTERNATIVES: Record<string, Array<[string, string]>> = {
+    crucial: [
+      ["determinante", "determinante"],
+      ["decisivo", "decisiva"],
+      ["necesario", "necesaria"],
+    ],
+    fundamental: [
+      ["básico", "básica"],
+      ["central", "central"],
+      ["principal", "principal"],
+    ],
+    esencial: [
+      ["necesario", "necesaria"],
+      ["básico", "básica"],
+      ["principal", "principal"],
+    ],
+    vital: [
+      ["necesario", "necesaria"],
+      ["básico", "básica"],
+      ["primordial", "primordial"],
+    ],
+    indispensable: [
+      ["imprescindible", "imprescindible"],
+      ["necesario", "necesaria"],
+      ["básico", "básica"],
+    ],
   };
+
+  // Palabras femeninas típicas que preceden al adjetivo (pista de género)
+  // Miramos las ~80 chars anteriores al match para detectar género.
+  const FEMININE_HINT_REGEX =
+    /\b(la|una|esta|esa|aquella|cualidad|estrategia|herramienta|práctica|técnica|fase|etapa|acción|decisión|tarea|misión|visión|función|aplicación|interacción|gestión|solución|información|inversión|cuestión|oportunidad|necesidad|calidad|prioridad|identidad|realidad|capacidad|seguridad|privacidad|confianza|empresa|marca|campaña|agencia|audiencia|experiencia|presencia|relevancia|importancia|tendencia|frecuencia|medición|segmentación|personalización|automatización|optimización|transformación|reputación|comunicación|planificación|relación|conversión|retención)\s+(?:muy\s+|bastante\s+|especialmente\s+|verdaderamente\s+)?$/i;
 
   const MAX_PER_ADJECTIVE = 1;
   let result = htmlContent;
@@ -2018,17 +2051,22 @@ function softenEmptyAdjectives(htmlContent: string): string {
       let count = 0;
       let altIndex = 0;
 
-      result = result.replace(regex, (match) => {
+      result = result.replace(regex, (match, offset: number) => {
         count++;
         if (count <= MAX_PER_ADJECTIVE) return match;
 
-        const alt = alternatives[altIndex % alternatives.length];
+        // Detectar género mirando las palabras anteriores
+        const before = result.slice(Math.max(0, offset - 80), offset);
+        const isFeminine = FEMININE_HINT_REGEX.test(before);
+        const [masculine, feminine] = alternatives[altIndex % alternatives.length];
         altIndex++;
         totalReplaced++;
 
-        return match[0] === match[0].toUpperCase()
-          ? alt.charAt(0).toUpperCase() + alt.slice(1)
-          : alt;
+        let replacement = isFeminine ? feminine : masculine;
+        if (match[0] === match[0].toUpperCase()) {
+          replacement = replacement.charAt(0).toUpperCase() + replacement.slice(1);
+        }
+        return replacement;
       });
     }
   }
