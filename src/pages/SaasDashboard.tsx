@@ -194,7 +194,54 @@ export default function SaasDashboard() {
     return result;
   }, [sites, search, activeFilter, sortOption, wpConfigsMap, siteDataMap]);
 
+  const normalizeFrequency = (rawFrequency?: string | null) => {
+    if (!rawFrequency) return "monthly";
+    return rawFrequency === "fortnightly" ? "biweekly" : rawFrequency;
+  };
+
+  const buildCurrentGenerationKey = (frequency?: string | null, now = new Date()) => {
+    const normalizedFrequency = normalizeFrequency(frequency);
+    const year = now.getUTCFullYear();
+    const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(now.getUTCDate()).padStart(2, "0");
+    const weekOfMonth = Math.ceil(now.getUTCDate() / 7);
+
+    switch (normalizedFrequency) {
+      case "daily":
+      case "daily_weekdays":
+        return `${year}-${month}-${day}`;
+      case "weekly":
+      case "biweekly":
+        return `${year}-${month}-w${weekOfMonth}`;
+      case "monthly":
+      default:
+        return `${year}-${month}`;
+    }
+  };
+
   const handleGenerateArticle = (siteId: string) => {
+    const site = sites.find((s) => s.id === siteId);
+    if (!site) return;
+
+    if (!wpConfigsMap[siteId]) {
+      toast.info("Configura WordPress primero para generar artículos");
+      navigate(`/site/${siteId}?tab=wordpress`);
+      return;
+    }
+
+    const currentGenerationKey = buildCurrentGenerationKey(site.publish_frequency);
+    const hasPublishedArticleInCurrentPeriod = allArticles.some(
+      (article) =>
+        article.site_id === siteId &&
+        article.generation_key === currentGenerationKey &&
+        !!article.wp_post_url,
+    );
+
+    if (hasPublishedArticleInCurrentPeriod && !isAdmin) {
+      toast.info("Ya tienes un artículo publicado para este periodo");
+      return;
+    }
+
     generateMutation.mutate({ siteId });
   };
 
