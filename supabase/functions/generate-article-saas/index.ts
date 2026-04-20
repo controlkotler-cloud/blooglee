@@ -2247,6 +2247,26 @@ function sanitizeCatalanFieldText(text: string | null | undefined): string | nul
     // Pronombres castellanos frecuentes
     [/\bellas mismas\b/g, "elles mateixes"],
     [/\bellos mismos\b/g, "ells mateixos"],
+    // Sustantivos y adjetivos castellanos adicionales detectados en metas
+    [/\brendimiento\b/g, "rendiment"],
+    [/\bRendimiento\b/g, "Rendiment"],
+    [/\bdiario\b/g, "diari"],
+    [/\bDiario\b/g, "Diari"],
+    [/\bdiaria\b/g, "diària"],
+    [/\bDiaria\b/g, "Diària"],
+    [/\bagua\b/g, "aigua"],
+    [/\bAgua\b/g, "Aigua"],
+    [/\bcalidad\b/g, "qualitat"],
+    [/\bCalidad\b/g, "Qualitat"],
+    [/\bóptima\b/g, "òptima"],
+    [/\bÓptima\b/g, "Òptima"],
+    [/\bóptimo\b/g, "òptim"],
+    [/\bÓptimo\b/g, "Òptim"],
+    [/\bMejora\b/g, "Millora"],
+    [/\bmejora\s/g, "millora "],
+
+    // "y" → "i" solo cuando es conjunción (entre espacios, no como parte de palabra)
+    [/\s+y\s+/g, " i "],
   ];
 
   let result = text;
