@@ -4674,6 +4674,8 @@ Deno.serve(async (req) => {
       spanishArticle.content = ensureAuthorityLinks(spanishArticle.content, selectedAuthoritySources, ownedDomains);
     }
     if (catalanArticle?.content) {
+      // Limpia palabras castellanas infiltradas en campos textuales del artículo catalán
+      sanitizeCatalanArticleFields(catalanArticle);
       catalanArticle.content = normalizeArticleTailHtml(catalanArticle.content);
       catalanArticle.content = stripAiGeneratedClosingCta(catalanArticle.content);
       catalanArticle.content = stripAiSourcesFooter(catalanArticle.content);
