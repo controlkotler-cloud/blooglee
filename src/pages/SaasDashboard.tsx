@@ -14,7 +14,7 @@ import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, S
 import { UsageStats } from "@/components/saas/UsageStats";
 import { NotificationBell } from "@/components/saas/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
-import { useProfile, useIsSuperAdmin } from "@/hooks/useProfile";
+import { useProfile, useIsSuperAdmin, useIsAdmin } from "@/hooks/useProfile";
 import { useSites } from "@/hooks/useSites";
 import { useAllArticlesSaas, useGenerateArticleSaas } from "@/hooks/useArticlesSaas";
 import { useAllArticlesForUser } from "@/hooks/useAllArticlesForUser";
@@ -39,6 +39,7 @@ export default function SaasDashboard() {
   const { signOut, user } = useAuth();
   const { data: profile, isLoading: loadingProfile } = useProfile();
   const { isSuperAdmin } = useIsSuperAdmin();
+  const { isAdmin } = useIsAdmin();
   const { data: sites = [], isLoading: loadingSites } = useSites();
   const { isGenerating } = useGeneration();
   const { data: teamMembership, isLoading: loadingTeamMembership } = useQuery({
