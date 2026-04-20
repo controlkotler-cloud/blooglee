@@ -2261,11 +2261,20 @@ function sanitizeCatalanFieldText(text: string | null | undefined): string | nul
 }
 
 /**
- * Aplica el sanitizado catalán a los campos textuales del artículo catalán.
+ * Aplica el sanitizado catalán a los campos textuales del artículo catalán,
+ * incluyendo el content (HTML) para limpiar frases castellanas que se hayan
+ * colado tras la traducción nativa.
  */
 function sanitizeCatalanArticleFields(article: Record<string, unknown>): void {
   if (!article) return;
-  const fieldsToClean = ["title", "seo_title", "meta_description", "excerpt", "focus_keyword"];
+  const fieldsToClean = [
+    "title",
+    "seo_title",
+    "meta_description",
+    "excerpt",
+    "focus_keyword",
+    "content", // ← ahora también content
+  ];
   let touched = 0;
   for (const field of fieldsToClean) {
     const original = article[field];
