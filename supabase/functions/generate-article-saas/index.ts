@@ -4414,6 +4414,8 @@ Deno.serve(async (req) => {
     if (catalanArticle?.content) {
       catalanArticle.content = normalizeArticleTailHtml(catalanArticle.content);
       catalanArticle.content = stripAiGeneratedClosingCta(catalanArticle.content);
+      catalanArticle.content = stripAiSourcesFooter(catalanArticle.content);
+      catalanArticle.content = softenEmptyAdjectives(catalanArticle.content);
       catalanArticle.content = await verifyAndCleanExternalLinks(catalanArticle.content);
       catalanArticle.content = ensureFooterLinks(
         catalanArticle.content,
