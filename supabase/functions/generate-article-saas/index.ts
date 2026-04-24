@@ -206,6 +206,12 @@ function cleanMarkdownFromHtml(content: string): string {
 // ==========================================
 // FALLBACK PROMPTS (used if DB prompt not found)
 // ==========================================
+// ⚠️ DRIFT WARNING: Estos prompts se usan SOLO si la query a la tabla `prompts` falla.
+// La fuente de verdad es la DB (editable desde /admin/prompts).
+// Si modificas un prompt en DB, considera también actualizar aquí para que el fallback
+// refleje la versión actual (evita que una caída de DB devuelva al prompt de hace meses).
+// Keys en DB que deben coincidir: saas.topic, saas.article.system, saas.article.user,
+// saas.translate.catalan, saas.image.
 const FALLBACK_PROMPTS = {
   topic: `Eres el mejor estratega de contenido editorial del mundo, especializado en el sector "{{sector}}".
 
