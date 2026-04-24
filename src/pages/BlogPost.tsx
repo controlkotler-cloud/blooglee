@@ -521,6 +521,9 @@ const BlogPost = () => {
                     src={post.author.avatar}
                     alt={`Foto de ${post.author.name}`}
                     loading="lazy"
+                    width={48}
+                    height={48}
+                    decoding="async"
                     className="w-12 h-12 rounded-full object-cover"
                   />
                   <div>
