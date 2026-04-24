@@ -1,13 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Sparkles, FileText, Globe, Zap, Check } from 'lucide-react';
-import bloogleeLogo from '@/assets/blooglee-logo.png';
+import { useState, useEffect } from "react";
+import { Sparkles, FileText, Globe, Zap, Check } from "lucide-react";
+import bloogleeLogo from "@/assets/blooglee-logo.png";
 
 const mockArticles = [
   { title: "10 tendencias de belleza para 2026", status: "published", lang: "ES" },
   { title: "Cómo cuidar tu piel en invierno", status: "generating", lang: "ES" },
   { title: "Els millors tractaments facials", status: "draft", lang: "CA" },
 ];
-
 
 export function ProductMockup() {
   const [activeArticle, setActiveArticle] = useState(0);
@@ -48,11 +47,11 @@ export function ProductMockup() {
     <div className="mockup-container w-full max-w-lg mx-auto">
       {/* Glow effect behind mockup */}
       <div className="mockup-glow" />
-      
+
       {/* Floating mockup */}
       <div className="mockup-float">
         {/* Browser window frame */}
-        <div className="glass-card-strong rounded-2xl overflow-hidden" style={{ boxShadow: 'none' }}>
+        <div className="glass-card-strong rounded-2xl overflow-hidden" style={{ boxShadow: "none" }}>
           {/* Browser header */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 bg-muted/30">
             <div className="flex gap-1.5">
@@ -72,14 +71,20 @@ export function ProductMockup() {
           <div className="p-5 bg-gradient-to-b from-background to-muted/20">
             {/* Mini header */}
             <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <img 
-                src={bloogleeLogo} 
-                alt="Blooglee" 
-                className="w-10 h-10 object-contain"
-              />
-              <span className="font-display font-semibold text-sm bg-gradient-to-r from-purple-600 via-fuchsia-500 to-orange-500 bg-clip-text text-transparent">Blooglee</span>
-            </div>
+              <div className="flex items-center gap-3">
+                <img
+                  src={bloogleeLogo}
+                  alt="Blooglee"
+                  width={40}
+                  height={40}
+                  loading="eager"
+                  decoding="sync"
+                  className="w-10 h-10 object-contain"
+                />
+                <span className="font-display font-semibold text-sm bg-gradient-to-r from-purple-600 via-fuchsia-500 to-orange-500 bg-clip-text text-transparent">
+                  Blooglee
+                </span>
+              </div>
               <div className="badge-aurora text-xs py-1 px-2.5">
                 <Zap className="w-3 h-3" />
                 Pro
@@ -106,21 +111,26 @@ export function ProductMockup() {
                 Últimos artículos
               </div>
               {mockArticles.map((article, i) => (
-                <div 
+                <div
                   key={i}
                   className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-500 ${
-                    i === activeArticle 
-                      ? 'bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 scale-[1.02]' 
-                      : 'bg-background/40 border border-transparent'
+                    i === activeArticle
+                      ? "bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 scale-[1.02]"
+                      : "bg-background/40 border border-transparent"
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    article.status === 'published' ? 'bg-success/20' :
-                    article.status === 'generating' ? 'bg-primary/20' : 'bg-muted'
-                  }`}>
-                    {article.status === 'published' ? (
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      article.status === "published"
+                        ? "bg-success/20"
+                        : article.status === "generating"
+                          ? "bg-primary/20"
+                          : "bg-muted"
+                    }`}
+                  >
+                    {article.status === "published" ? (
                       <Check className="w-4 h-4 text-success" />
-                    ) : article.status === 'generating' ? (
+                    ) : article.status === "generating" ? (
                       <Sparkles className="w-4 h-4 text-primary animate-pulse" />
                     ) : (
                       <FileText className="w-4 h-4 text-muted-foreground" />
@@ -129,15 +139,27 @@ export function ProductMockup() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{article.title}</div>
                     <div className="text-xs text-muted-foreground">
-                      {i === activeArticle && article.status === 'generating' ? (
-                        <span className="text-primary">{typingText}<span className="animate-pulse">|</span></span>
+                      {i === activeArticle && article.status === "generating" ? (
+                        <span className="text-primary">
+                          {typingText}
+                          <span className="animate-pulse">|</span>
+                        </span>
                       ) : (
                         <span className="flex items-center gap-1.5">
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            article.status === 'published' ? 'bg-success' :
-                            article.status === 'generating' ? 'bg-primary animate-pulse' : 'bg-muted-foreground'
-                          }`} />
-                          {article.status === 'published' ? 'Publicado' : article.status === 'generating' ? 'Generando...' : 'Borrador'}
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              article.status === "published"
+                                ? "bg-success"
+                                : article.status === "generating"
+                                  ? "bg-primary animate-pulse"
+                                  : "bg-muted-foreground"
+                            }`}
+                          />
+                          {article.status === "published"
+                            ? "Publicado"
+                            : article.status === "generating"
+                              ? "Generando..."
+                              : "Borrador"}
                         </span>
                       )}
                     </div>
@@ -150,7 +172,10 @@ export function ProductMockup() {
             </div>
 
             {/* CTA mini */}
-            <button type="button" className="w-full mt-5 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+            <button
+              type="button"
+              className="w-full mt-5 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+            >
               <Sparkles className="w-4 h-4" />
               Generar nuevo artículo
             </button>
