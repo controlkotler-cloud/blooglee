@@ -10,14 +10,14 @@ import { SEOHead, BlogPostingSchema, BreadcrumbSchema } from "@/components/seo";
 import { useBlogPost, useRelatedPosts } from "@/hooks/useBlogPosts";
 
 // Responsive srcset for Unsplash images (they support ?w= param)
-function buildBlogSrcSet(url: string | null | undefined): string | undefined {
+const buildBlogSrcSet = (url: string | null | undefined): string | undefined => {
   if (!url) return undefined;
   if (!url.includes("unsplash.com")) return undefined;
   const baseUrl = url.replace(/[?&]w=\d+/g, "").replace(/\?$/, "");
   const separator = baseUrl.includes("?") ? "&" : "?";
   const widths = [400, 640, 800, 1200, 1600];
   return widths.map((w) => `${baseUrl}${separator}w=${w}&auto=format&fit=crop&q=75 ${w}w`).join(", ");
-}
+};
 
 // Utility to generate slug from heading text
 const slugify = (text: string): string => {
