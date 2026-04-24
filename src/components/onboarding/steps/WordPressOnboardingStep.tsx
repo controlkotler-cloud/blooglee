@@ -34,7 +34,7 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
   const queryClient = useQueryClient();
   const [phase, setPhase] = useState<Phase>("setup");
   const [publishUrl, setPublishUrl] = useState<string | null>(null);
-  const [skipAvailable, setSkipAvailable] = useState(false);
+  const [, setIsRunningPreflight] = useState(false);
   const [isRunningPreflight, setIsRunningPreflight] = useState(false);
   const [yoastCheck, setYoastCheck] = useState<DiagnosticCheck | null>(null);
   const [elementorCheck, setElementorCheck] = useState<DiagnosticCheck | null>(null);

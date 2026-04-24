@@ -121,7 +121,7 @@ export function BusinessStep({
   );
   const [keywordsSuggestion, setKeywordsSuggestion] = useState(initialData?.keywords_suggestion ?? "");
   const [isSaving, setIsSaving] = useState(false);
-  const [isApplyingDetection, setIsApplyingDetection] = useState(false);
+  const [, setIsApplyingDetection] = useState(false);
   const [analysisAttempted, setAnalysisAttempted] = useState(Boolean(initialData?.extracted_from_website));
   const [analysisFailed, setAnalysisFailed] = useState(false);
   const [analysisErrorMessage, setAnalysisErrorMessage] = useState<string>("");

@@ -31,7 +31,7 @@ export function WordPressSetup({ siteId, onClose, onComplete }: WordPressSetupPr
   const [verifiedUrl, setVerifiedUrl] = useState('');
   const [authResult, setAuthResult] = useState<AuthResult | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [lastCredentials, setLastCredentials] = useState<{ username: string; appPassword: string } | null>(null);
+  const [, setLastCredentials] = useState<{ username: string; appPassword: string } | null>(null);
   const [blogUrl, setBlogUrl] = useState<string | undefined>(undefined);
   const upsertConfig = useUpsertWordPressConfig();
   const attemptCountRef = useRef(0);
