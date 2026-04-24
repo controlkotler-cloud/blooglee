@@ -130,6 +130,7 @@ export function SitesToolbar({
 
             return (
               <button
+                type="button"
                 key={key}
                 onClick={() => !isDisabled && onFilterChange(key)}
                 disabled={isDisabled}

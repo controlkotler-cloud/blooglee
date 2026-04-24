@@ -88,6 +88,7 @@ export function NotificationBell() {
             <div>
               {notifications.map((notification) => (
                 <button
+                  type="button"
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
                   className={cn(

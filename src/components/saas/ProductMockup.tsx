@@ -150,7 +150,7 @@ export function ProductMockup() {
             </div>
 
             {/* CTA mini */}
-            <button className="w-full mt-5 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+            <button type="button" className="w-full mt-5 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
               <Sparkles className="w-4 h-4" />
               Generar nuevo artículo
             </button>

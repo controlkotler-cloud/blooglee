@@ -235,7 +235,7 @@ function CopyableUrl({ url }: { url: string }) {
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <button onClick={handleCopy} className="inline-flex items-center gap-1 text-foreground hover:text-primary transition-colors">
+    <button type="button" onClick={handleCopy} className="inline-flex items-center gap-1 text-foreground hover:text-primary transition-colors">
       <code className="break-all">{url}</code>
       {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
     </button>
@@ -250,6 +250,7 @@ function SkipSection({ onSkip }: { onSkip?: () => void }) {
         Si prefieres, puedes conectar WordPress más tarde desde tu dashboard.
       </p>
       <button
+        type="button"
         onClick={onSkip}
         className="text-xs text-primary hover:underline"
       >

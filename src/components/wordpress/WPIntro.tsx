@@ -118,6 +118,7 @@ export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }
         {onSkip && (
           <div className="text-center">
             <button
+              type="button"
               onClick={onSkip}
               className="text-sm text-muted-foreground hover:text-foreground hover:underline"
             >
@@ -166,6 +167,7 @@ export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }
         <div className="grid gap-3">
           {/* Yes */}
           <button
+            type="button"
             onClick={onHasWordPress}
             className="flex items-center gap-3 p-4 rounded-xl border-2 border-border bg-card text-left transition-all hover:border-primary/50 hover:bg-primary/5"
           >
@@ -178,6 +180,7 @@ export function WPIntro({ blogUrl, onHasWordPress, onWordPressDetected, onSkip }
 
           {/* No */}
           <button
+            type="button"
             onClick={() => setShowNoPanel(true)}
             className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${
               showNoPanel

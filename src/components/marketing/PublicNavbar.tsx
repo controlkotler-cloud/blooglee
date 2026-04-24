@@ -49,6 +49,7 @@ export const PublicNavbar = () => {
 
             {/* Mobile menu button - only on mobile */}
             <button
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
               aria-label="Menú"
