@@ -257,9 +257,9 @@ export default function AdminUsers() {
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Plan</label>
+                <label htmlFor="admin-user-plan" className="text-sm font-medium">Plan</label>
                 <Select value={selectedPlan} onValueChange={setSelectedPlan}>
-                  <SelectTrigger>
+                  <SelectTrigger id="admin-user-plan">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -273,7 +273,7 @@ export default function AdminUsers() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Rol Admin (acceso completo excepto panel admin)</label>
+                <p className="text-sm font-medium">Rol Admin (acceso completo excepto panel admin)</p>
                 <div className="flex items-center gap-3">
                   {editingUser?.roles.includes('admin') ? (
                     <Button
@@ -318,7 +318,7 @@ export default function AdminUsers() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Roles actuales</label>
+                <p className="text-sm font-medium">Roles actuales</p>
                 <div className="flex gap-2 flex-wrap">
                   {editingUser?.roles.map((role: string) => (
                     <Badge key={role} variant={getRoleBadgeVariant(role)}>

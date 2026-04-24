@@ -87,8 +87,9 @@ export default function AdminBetaInvitations() {
               
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Máximo de usos</label>
+                  <label htmlFor="beta-inv-max-uses" className="text-sm font-medium">Máximo de usos</label>
                   <Input
+                    id="beta-inv-max-uses"
                     type="number"
                     value={maxUses}
                     onChange={(e) => setMaxUses(e.target.value)}
@@ -101,8 +102,9 @@ export default function AdminBetaInvitations() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Expiración (opcional)</label>
+                  <label htmlFor="beta-inv-expires-at" className="text-sm font-medium">Expiración (opcional)</label>
                   <Input
+                    id="beta-inv-expires-at"
                     type="date"
                     value={expiresAt}
                     onChange={(e) => setExpiresAt(e.target.value)}
