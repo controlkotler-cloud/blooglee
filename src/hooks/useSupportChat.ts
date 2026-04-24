@@ -210,8 +210,9 @@ export function useSupportChat() {
           rawBuffer += decodedChunk;
 
           // Process SSE lines
-          let newlineIndex: number;
-          while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          while (true) {
+            const newlineIndex = textBuffer.indexOf("\n");
+            if (newlineIndex === -1) break;
             let line = textBuffer.slice(0, newlineIndex);
             textBuffer = textBuffer.slice(newlineIndex + 1);
 
