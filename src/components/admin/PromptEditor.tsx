@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Save, X, Plus } from 'lucide-react';
+import { Save, X, Plus } from 'lucide-react';
 
 interface PromptEditorProps {
   prompt: Prompt | null;

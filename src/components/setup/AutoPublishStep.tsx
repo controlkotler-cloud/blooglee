@@ -5,7 +5,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, CheckCircle2, Calendar, FileText, Bell } from "lucide-react";
+import { ArrowLeft, Calendar, FileText, Bell } from "lucide-react";
 
 const FREQUENCIES = [
   { value: "weekly", label: "1 artículo por semana", sublabel: "(recomendado)" },

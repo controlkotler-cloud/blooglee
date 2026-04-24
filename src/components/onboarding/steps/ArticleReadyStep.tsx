@@ -126,7 +126,7 @@ function ArticlePreview({ content, imageUrl }: { content: ArticleContent; imageU
   );
 }
 
-export function ArticleReadyStep({ onFinish, onConnectWordPress, stepData, siteId }: ArticleReadyStepProps) {
+export function ArticleReadyStep({ onFinish: _onFinish, onConnectWordPress, stepData, siteId }: ArticleReadyStepProps) {
   const { user } = useAuth();
   const [article, setArticle] = useState<{
     content_spanish: ArticleContent | null;

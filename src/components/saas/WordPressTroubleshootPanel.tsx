@@ -17,7 +17,7 @@ import {
   RefreshCw,
   Tags,
 } from "lucide-react";
-import { CODE_SNIPPETS, getSnippetById } from "@/data/codeSnippets";
+import { getSnippetById } from "@/data/codeSnippets";
 import { useChatWidget } from "@/components/saas/SupportChatWidget";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";

@@ -29,14 +29,8 @@ import { useUpdateSite, useDeleteSite, type Site } from "@/hooks/useSites";
 import { useProfile } from "@/hooks/useProfile";
 import {
   BUSINESS_TYPES,
-  getAngleToAvoidPlaceholder,
-  getAudiencePlaceholder,
-  getAvoidTopicsPlaceholder,
   getBusinessTypeWarning,
-  getContentGoalPlaceholder,
   getDefaultBusinessType,
-  getPreferredSourcesPlaceholder,
-  getPriorityTopicsPlaceholder,
   getSeasonalWarning,
   getStructuredDescriptionPlaceholder,
 } from "@/lib/site-profile";

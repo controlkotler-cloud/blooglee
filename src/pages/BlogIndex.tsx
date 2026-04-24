@@ -13,7 +13,7 @@ const POSTS_PER_PAGE = 6;
 const BASE_CATEGORIES = ["Todos", "SEO", "Marketing", "Tutoriales", "Comparativas", "Producto", "Tendencias"];
 
 const BlogIndex = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const audienceParam = searchParams.get("audiencia");
 
   // Validate audience param - only allow 'empresas' or 'agencias'

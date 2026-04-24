@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, Plus, LogOut, Globe, User, CreditCard, HelpCircle, Settings, Shield, Sparkles } from "lucide-react";
+import { Loader2, Plus, LogOut, User, CreditCard, HelpCircle, Settings, Shield, Sparkles } from "lucide-react";
 import { UsageStats } from "@/components/saas/UsageStats";
 import { NotificationBell } from "@/components/saas/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
@@ -258,14 +258,6 @@ export default function SaasDashboard() {
       </div>
     );
   }
-
-  // Grid class based on site count
-  const getGridClass = () => {
-    const count = filteredSites.length;
-    if (count === 1) return "max-w-[500px] mx-auto";
-    if (count === 2) return "grid gap-4 grid-cols-1 sm:grid-cols-2 max-w-[1024px] mx-auto";
-    return "grid gap-4 md:grid-cols-2 lg:grid-cols-3";
-  };
 
   // Table row data
   const tableData = filteredSites.map((site) => ({

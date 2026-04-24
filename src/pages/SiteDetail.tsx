@@ -17,7 +17,6 @@ import {
   MapPin,
   Loader2,
   Sparkles,
-  Link2,
   Lock,
   CheckCircle2,
   AlertTriangle,

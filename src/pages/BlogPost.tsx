@@ -118,7 +118,7 @@ const parseContent = (content: string): string => {
   });
 
   // Convert markdown tables
-  html = html.replace(/\|(.+)\|\n\|[-:| ]+\|\n((?:\|.+\|\n?)+)/g, (match, header, rows) => {
+  html = html.replace(/\|(.+)\|\n\|[-:| ]+\|\n((?:\|.+\|\n?)+)/g, (_match, header, rows) => {
     const headerCells = header.split("|").filter((c: string) => c.trim());
     const headerHtml = headerCells
       .map(
@@ -152,7 +152,6 @@ const parseContent = (content: string): string => {
   // Convert markdown links - handle internal links specially
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
     const isInternal = url.startsWith("/");
-    const isInstagram = url.includes("instagram.com");
     const linkClass = isInternal
       ? "text-violet-600 hover:text-violet-700 underline decoration-violet-300 hover:decoration-violet-500 transition-colors font-medium"
       : "text-violet-600 hover:text-violet-700 underline decoration-violet-300 hover:decoration-violet-500 transition-colors";
@@ -269,7 +268,6 @@ const BlogPost = () => {
   };
 
   const shareUrl = encodeURIComponent(window.location.href);
-  const shareTitle = encodeURIComponent(post.title);
   const fullUrl = `https://blooglee.com/blog/${post.slug}`;
 
   return (

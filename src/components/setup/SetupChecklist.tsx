@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChecklist } from "@/hooks/useChecklist";
 import { useProfile } from "@/hooks/useProfile";
-import { useSites, useUpdateSite, type Site } from "@/hooks/useSites";
+import { useUpdateSite, type Site } from "@/hooks/useSites";
 import { useAllArticlesSaas, type ArticleContent } from "@/hooks/useArticlesSaas";
 import { useWordPressConfigsBatch } from "@/hooks/useWordPressConfigSaas";
 import { supabase } from "@/integrations/supabase/client";

@@ -14,8 +14,6 @@ import {
   Settings, 
   FileText,
   Trash2,
-  Link2,
-  Lock,
   CheckCircle2,
   AlertTriangle,
   ExternalLink,

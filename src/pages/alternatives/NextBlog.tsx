@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { PublicLayout } from '@/components/marketing/PublicLayout';
 import { SEOHead, FAQSchema } from '@/components/seo';
-import { ArrowRight, Check, X, Globe, Shield, Wallet, Languages } from 'lucide-react';
+import { ArrowRight, Globe, Shield, Wallet, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const nextblogFAQs = [

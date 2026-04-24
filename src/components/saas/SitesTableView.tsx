@@ -22,7 +22,6 @@ import {
   ExternalLink,
   CheckCircle2,
   AlertTriangle,
-  XCircle,
   ArrowUpDown,
 } from 'lucide-react';
 import type { Site } from '@/hooks/useSites';
