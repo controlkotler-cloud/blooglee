@@ -46,7 +46,9 @@ const BlogIndex = () => {
   // Get unique categories from posts
   const categories = useMemo(() => {
     const uniqueCats = new Set(BASE_CATEGORIES);
-    Object.keys(categoryCounts).forEach((cat) => uniqueCats.add(cat));
+    for (const cat of Object.keys(categoryCounts)) {
+      uniqueCats.add(cat);
+    }
     return Array.from(uniqueCats);
   }, [categoryCounts]);
 
