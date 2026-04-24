@@ -192,8 +192,9 @@ export default function BetaSignup() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
+              <label htmlFor="beta-email" className="text-sm font-medium">Email</label>
               <Input
+                id="beta-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -203,8 +204,9 @@ export default function BetaSignup() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Contraseña</label>
+              <label htmlFor="beta-password" className="text-sm font-medium">Contraseña</label>
               <Input
+                id="beta-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -214,8 +216,9 @@ export default function BetaSignup() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Confirmar contraseña</label>
+              <label htmlFor="beta-password-confirm" className="text-sm font-medium">Confirmar contraseña</label>
               <Input
+                id="beta-password-confirm"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
