@@ -8,7 +8,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Search, LayoutGrid, List } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 
 export type ViewMode = 'cards' | 'table';
 export type SortOption = 'name-asc' | 'name-desc' | 'activity' | 'articles' | 'wordpress';

@@ -1,14 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 
-interface SoftwareAppSchemaProps {
-  price?: number;
-  priceCurrency?: string;
-}
-
-export const SoftwareAppSchema = ({ 
-  price = 0, 
-  priceCurrency = 'EUR' 
-}: SoftwareAppSchemaProps) => {
+export const SoftwareAppSchema = () => {
   const softwareData = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',

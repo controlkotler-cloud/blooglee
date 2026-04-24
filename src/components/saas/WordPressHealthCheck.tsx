@@ -58,7 +58,7 @@ function CheckItem({ check }: { check: HealthCheck }) {
 }
 
 export function WordPressHealthCheck({ siteUrl, wpUsername, wpAppPassword, onComplete }: WordPressHealthCheckProps) {
-  const { isChecking, result, error, runHealthCheck, resetHealthCheck } = useWordPressHealthCheck();
+  const { isChecking, result, error, runHealthCheck } = useWordPressHealthCheck();
   const [hasRun, setHasRun] = useState(false);
 
   const handleRunCheck = async () => {
