@@ -98,6 +98,7 @@ function MobileSiteCard({
       {/* Line 1: Name + WP status */}
       <div className="flex items-start justify-between gap-2">
         <button
+          type="button"
           className="font-semibold text-[15px] leading-snug text-left line-clamp-2 hover:text-primary transition-colors"
           onClick={onViewArticles}
         >
@@ -261,6 +262,7 @@ export function SitesTableView({
                 >
                   <TableCell>
                     <button
+                      type="button"
                       className="font-semibold text-sm hover:text-primary transition-colors text-left"
                       onClick={() => onViewArticles(site.id)}
                     >
