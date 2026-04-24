@@ -331,6 +331,10 @@ const BlogPost = () => {
                   <img
                     src={post.author.avatar}
                     alt={`Foto de ${post.author.name}`}
+                    width={40}
+                    height={40}
+                    loading="eager"
+                    decoding="async"
                     className="w-10 h-10 rounded-full object-cover"
                   />
                   <div>
