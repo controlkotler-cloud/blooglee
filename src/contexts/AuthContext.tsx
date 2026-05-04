@@ -28,16 +28,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    // THEN check for existing session
+    // THEN check for existing session and validate it
     supabase.auth
       .getSession()
-      .then(({ data: { session } }) => {
+      .then(async ({ data: { session } }) => {
+        if (session?.access_token) {
+          // Validate the JWT — if claims are invalid (e.g. missing sub),
+          // the stored session is stale and must be cleared.
+          const { data: claims, error } = await supabase.auth.getClaims(session.access_token);
+          if (error || !claims?.claims?.sub) {
+            console.warn("Stale session detected, signing out:", error?.message);
+            await supabase.auth.signOut();
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+        }
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       })
       .catch(() => {
-        // If getSession fails, stop loading so the app doesn't hang
         setLoading(false);
       });
 
