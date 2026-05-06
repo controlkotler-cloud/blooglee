@@ -4531,10 +4531,10 @@ Deno.serve(async (req) => {
 
       // Random composition style selection
       const COMPOSITION_STYLES = [
-        "flat lay with relevant objects from the sector",
-        "close-up macro detail of a key element",
-        "minimalist composition with one strong focal point and negative space",
-        "environmental wide shot showing the context or setting",
+        "lifestyle moment: hands or partial body interacting with the relevant object in a real setting",
+        "candid environmental scene with a person (face not from front) using or experiencing the topic",
+        "close-up of hands using/holding/applying the key product, in a real-world context (NOT isolated on white)",
+        "wide editorial shot of the scene with natural light, person optional but scene must be real (not abstract)",
       ];
       const compositionStyle = COMPOSITION_STYLES[Math.floor(Math.random() * COMPOSITION_STYLES.length)];
       console.log("Selected composition style:", compositionStyle);
