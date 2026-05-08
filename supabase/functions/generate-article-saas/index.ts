@@ -2384,6 +2384,64 @@ function sanitizeCatalanArticleFields(article: Record<string, unknown>): void {
     console.log(`[sanitizeCatalanArticleFields] Cleaned ${touched} field(s) from Spanish leakage`);
   }
 }
+/**
+ * Defensa 7: si la meta_description catalana sigue teniendo demasiados marcadores
+ * de castellano tras el sanitize, descártala y reconstrúyela usando la primera
+ * frase del body del artículo (que sí está limpio en catalán).
+ */
+function validateAndFallbackCatalanMeta(article: Record<string, unknown>): void {
+  if (!article || typeof article.meta_description !== "string") return;
+  const meta = article.meta_description as string;
+
+  // Marcadores claros de español que no deberían aparecer en una meta catalana
+  const SPANISH_MARKERS = [
+    /\b(los|las|del|este|esta|aquellos|aquellas)\s/gi,
+    /\b\w+ción\b/g, // protección, formación, prevención
+    /\b\w+iendo\b/g, // previniendo, ocurriendo
+    /\b(esenciales?|crucial|fundamental|óptimo|necesario|consejos)\b/gi,
+    /\bsu\s+(salud|bienestar|piel|hidratación|digestión)\b/gi,
+    /\b(daños|envejecimiento|cutáneo|protección|prácticos|prácticas)\b/gi,
+    /\b(Descubre|Encuentra|Aprende|Sorpréndela|Alivia|Mantén)\b/g,
+    /\b(con|para|y|sus|tus|sus|mejorar|mejora)\s/g,
+  ];
+
+  let spanishHits = 0;
+  for (const marker of SPANISH_MARKERS) {
+    const matches = meta.match(marker);
+    if (matches) spanishHits += matches.length;
+  }
+
+  if (spanishHits < 3) return; // Meta razonablemente catalana, no toca
+
+  console.log(
+    `[validateCatalanMeta] Detected ${spanishHits} Spanish markers in meta, falling back to body-derived meta`,
+  );
+
+  const content = (article.content as string) || "";
+  const firstParagraphMatch = content.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i);
+  const firstParagraph = firstParagraphMatch ? firstParagraphMatch[1] : "";
+  const plainText = firstParagraph
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!plainText) return;
+
+  const sentences = plainText.split(/(?<=[.!?])\s+/);
+  let fallback = "";
+  for (const s of sentences) {
+    const candidate = fallback ? `${fallback} ${s}` : s;
+    if (candidate.length > 145) break;
+    fallback = candidate;
+    if (fallback.length >= 120) break;
+  }
+
+  if (fallback.length >= 80) {
+    article.meta_description = fallback.replace(/[!?¡¿]/g, "").trim();
+    console.log(`[validateCatalanMeta] Replaced meta with body-derived (${fallback.length} chars)`);
+  }
+}
+
 function isFooterCtaParagraph(
   paragraphHtml: string,
   blogUrl: string | null = null,
