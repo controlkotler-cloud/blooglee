@@ -560,18 +560,74 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
           <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Revisión de Yoast recomendada</AlertTitle>
-            <AlertDescription className="text-sm flex flex-wrap items-center gap-x-3 gap-y-2">
-              <span>{yoastDiagnostic?.message || "Pulsa Re-sincronizar para verificar el estado de Yoast."}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs text-amber-700 dark:text-amber-300 hover:text-amber-800 p-0"
-                onClick={() => syncMutation.mutate(config.id)}
-                disabled={syncMutation.isPending}
-              >
-                <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-                Re-sincronizar
-              </Button>
+            <AlertDescription className="text-sm space-y-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span>{yoastDiagnostic?.message || "Pulsa Re-sincronizar para verificar el estado de Yoast."}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-amber-700 dark:text-amber-300 hover:text-amber-800 p-0"
+                  onClick={() => syncMutation.mutate(config.id)}
+                  disabled={syncMutation.isPending}
+                >
+                  <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+                  Re-sincronizar
+                </Button>
+              </div>
+
+              <Collapsible open={yoastHelpOpen} onOpenChange={setYoastHelpOpen}>
+                <CollapsibleTrigger className="flex items-center gap-1 text-xs font-medium text-amber-800 dark:text-amber-200 hover:text-amber-900 dark:hover:text-amber-100">
+                  <ChevronDown className={`w-3 h-3 transition-transform ${yoastHelpOpen ? "rotate-180" : ""}`} />
+                  ¿Qué tengo que hacer? (instrucciones rápidas)
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3 space-y-3">
+                  <p className="text-xs">
+                    Yoast no está exponiendo la meta descripción, SEO title y focus keyword vía REST. Para arreglarlo
+                    pega este snippet en tu WordPress:
+                  </p>
+                  <ol className="list-decimal pl-5 space-y-1 text-xs">
+                    <li>
+                      Instala el plugin <strong>Code Snippets</strong> (Plugins → Añadir nuevo → buscar "Code Snippets"
+                      → Instalar y activar).
+                    </li>
+                    <li>
+                      Ve a <strong>Snippets → Add New</strong>, pega el código de abajo, modo{" "}
+                      <strong>Run snippet everywhere</strong>, guarda y activa.
+                    </li>
+                    <li>
+                      Vuelve aquí y pulsa <strong>Re-sincronizar</strong>.
+                    </li>
+                  </ol>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium">Código a pegar:</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1 text-xs"
+                        onClick={async () => {
+                          const snippet = getSnippetById("yoast-api-support");
+                          if (!snippet) return;
+                          try {
+                            await navigator.clipboard.writeText(snippet.code);
+                            setYoastCopied(true);
+                            toast.success("Código copiado");
+                            setTimeout(() => setYoastCopied(false), 2000);
+                          } catch {
+                            toast.error("Error al copiar");
+                          }
+                        }}
+                      >
+                        {yoastCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                        {yoastCopied ? "Copiado" : "Copiar"}
+                      </Button>
+                    </div>
+                    <pre className="bg-zinc-900 text-zinc-100 p-3 rounded text-[11px] leading-relaxed overflow-x-auto max-h-64">
+                      <code>{getSnippetById("yoast-api-support")?.code}</code>
+                    </pre>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </AlertDescription>
           </Alert>
         )}
