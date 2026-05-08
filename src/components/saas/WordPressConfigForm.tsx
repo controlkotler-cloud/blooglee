@@ -28,6 +28,7 @@ import { useWordPressDiagnostic } from "@/hooks/useWordPressDiagnostic";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { WordPressTroubleshootPanel } from "./WordPressTroubleshootPanel";
 import { PolylangSetupGuide } from "./PolylangSetupGuide";
+import { getSnippetById } from "@/data/codeSnippets";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -96,6 +97,9 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
   const [polylangGuideOpen, setPolylangGuideOpen] = useState(false);
   const [polylangVerifyResult, setPolylangVerifyResult] = useState<"success" | "error" | null>(null);
   const [polylangVerifyMessage, setPolylangVerifyMessage] = useState<string>("");
+  const [yoastHelpOpen, setYoastHelpOpen] = useState(false);
+  const [yoastCopied, setYoastCopied] = useState(false);
+  const [elementorHelpOpen, setElementorHelpOpen] = useState(false);
 
   // Estados de validación
   const [urlStatus, setUrlStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
