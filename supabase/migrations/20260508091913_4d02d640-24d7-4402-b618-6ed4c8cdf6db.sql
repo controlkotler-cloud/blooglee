@@ -1,0 +1,1 @@
+UPDATE public.prompts SET category='soporte' WHERE key='support-chatbot.system';
