@@ -4860,6 +4860,7 @@ Deno.serve(async (req) => {
       spanishArticle.content = stripAiSourcesFooter(spanishArticle.content);
       spanishArticle.content = sanitizeLinkedBrandMisuse(spanishArticle.content, site.name);
       spanishArticle.content = softenEmptyAdjectives(spanishArticle.content);
+      spanishArticle.content = limitMonthMentions(spanishArticle.content);
       spanishArticle.content = await verifyAndCleanExternalLinks(spanishArticle.content);
       spanishArticle.content = ensureFooterLinks(
         spanishArticle.content,
