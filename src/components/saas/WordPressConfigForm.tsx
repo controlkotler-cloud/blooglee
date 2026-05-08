@@ -17,6 +17,8 @@ import {
   XCircle,
   AlertTriangle,
   RefreshCw,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useWordPressConfig, useUpsertWordPressConfig, useDeleteWordPressConfig } from "@/hooks/useWordPressConfigSaas";
 import { useWordPressHealthCheck, HealthCheckResult } from "@/hooks/useWordPressHealthCheck";
