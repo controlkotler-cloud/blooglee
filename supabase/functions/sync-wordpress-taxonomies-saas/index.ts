@@ -448,12 +448,12 @@ Deno.serve(async (req) => {
     // ==========================================
     console.log("=== UPDATING TAXONOMIES IN DATABASE ===");
 
-    // Delete existing taxonomies
+    // Delete existing taxonomies for this WP config (regardless of historical user_id,
+    // to avoid unique-constraint conflicts when ownership has been reassigned).
     const { error: deleteError } = await supabase
       .from("wordpress_taxonomies_saas")
       .delete()
-      .eq("wordpress_config_id", body.wordpress_config_id)
-      .eq("user_id", userId);
+      .eq("wordpress_config_id", body.wordpress_config_id);
 
     if (deleteError) {
       console.error("Error deleting old taxonomies:", deleteError);
