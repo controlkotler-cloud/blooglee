@@ -4874,10 +4874,12 @@ Deno.serve(async (req) => {
     if (catalanArticle?.content) {
       // Limpia palabras castellanas infiltradas en campos textuales del artículo catalán
       sanitizeCatalanArticleFields(catalanArticle);
+      validateAndFallbackCatalanMeta(catalanArticle);
       catalanArticle.content = normalizeArticleTailHtml(catalanArticle.content);
       catalanArticle.content = stripAiGeneratedClosingCta(catalanArticle.content);
       catalanArticle.content = stripAiSourcesFooter(catalanArticle.content);
       catalanArticle.content = sanitizeLinkedBrandMisuse(catalanArticle.content, site.name);
+      catalanArticle.content = limitMonthMentions(catalanArticle.content);
       catalanArticle.content = softenEmptyAdjectives(catalanArticle.content);
       catalanArticle.content = await verifyAndCleanExternalLinks(catalanArticle.content);
       catalanArticle.content = ensureFooterLinks(
