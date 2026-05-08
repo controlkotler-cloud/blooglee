@@ -637,20 +637,56 @@ export function WordPressConfigForm({ siteId, languages = [], wordpressContext }
           <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Posible desajuste de diseño con Elementor</AlertTitle>
-            <AlertDescription className="text-sm flex flex-wrap items-center gap-x-3 gap-y-2">
-              <span>
-                {elementorDiagnostic?.message || "Pulsa Re-sincronizar para verificar compatibilidad con Elementor."}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs text-amber-700 dark:text-amber-300 hover:text-amber-800 p-0"
-                onClick={() => syncMutation.mutate(config.id)}
-                disabled={syncMutation.isPending}
-              >
-                <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-                Re-sincronizar
-              </Button>
+            <AlertDescription className="text-sm space-y-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span>
+                  {elementorDiagnostic?.message || "Pulsa Re-sincronizar para verificar compatibilidad con Elementor."}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-amber-700 dark:text-amber-300 hover:text-amber-800 p-0"
+                  onClick={() => syncMutation.mutate(config.id)}
+                  disabled={syncMutation.isPending}
+                >
+                  <RefreshCw className={`w-3 h-3 mr-1 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+                  Re-sincronizar
+                </Button>
+              </div>
+
+              <Collapsible open={elementorHelpOpen} onOpenChange={setElementorHelpOpen}>
+                <CollapsibleTrigger className="flex items-center gap-1 text-xs font-medium text-amber-800 dark:text-amber-200 hover:text-amber-900 dark:hover:text-amber-100">
+                  <ChevronDown className={`w-3 h-3 transition-transform ${elementorHelpOpen ? "rotate-180" : ""}`} />
+                  ¿Qué significa esto?
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3 space-y-2 text-xs">
+                  <p>
+                    Tu tema usa Elementor para los posts. Blooglee publica los artículos como bloques nativos de
+                    WordPress (Gutenberg / contenido HTML estándar), no en formato Elementor.
+                  </p>
+                  <p className="font-medium">Qué pasa al publicar:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>El post se publica correctamente y es indexable por Google.</li>
+                    <li>
+                      El diseño puede verse distinto a tus posts manuales hechos en Elementor (sin el layout custom de
+                      tu tema).
+                    </li>
+                  </ul>
+                  <p className="font-medium pt-1">Soluciones:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>
+                      <strong>Recomendada:</strong> en Elementor → Plantillas → Theme Builder, crea un{" "}
+                      <em>Single Post Template</em> que se aplique a todos los posts del blog. Así los posts de Blooglee
+                      heredan tu diseño automáticamente.
+                    </li>
+                    <li>
+                      Alternativa manual: tras publicar, abre el post en WordPress y aplica la plantilla Elementor desde
+                      el editor.
+                    </li>
+                    <li>Si te da igual el diseño exacto del blog: ignora este aviso, el contenido funciona bien.</li>
+                  </ul>
+                </CollapsibleContent>
+              </Collapsible>
             </AlertDescription>
           </Alert>
         )}
