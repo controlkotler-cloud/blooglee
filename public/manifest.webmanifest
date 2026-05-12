@@ -1,0 +1,51 @@
+{
+
+  "name": "Blooglee",
+
+  "short_name": "Blooglee",
+
+  "description": "Plataforma SaaS que genera contenido SEO con IA y lo publica automáticamente en WordPress y redes sociales.",
+
+  "start_url": "/",
+
+  "scope": "/",
+
+  "display": "standalone",
+
+  "orientation": "portrait-primary",
+
+  "background_color": "#ffffff",
+
+  "theme_color": "#7c3aed",
+
+  "lang": "es-ES",
+
+  "icons": [
+
+    {
+
+      "src": "/favicon.png",
+
+      "sizes": "500x500",
+
+      "type": "image/png",
+
+      "purpose": "any"
+
+    },
+
+    {
+
+      "src": "/favicon.png",
+
+      "sizes": "500x500",
+
+      "type": "image/png",
+
+      "purpose": "maskable"
+
+    }
+
+  ]
+
+}
