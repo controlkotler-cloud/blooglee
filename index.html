@@ -26,7 +26,17 @@
 
     <link rel="icon" href="/favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-    <!-- Canonical, hreflang and og:url managed dynamically by SEOHead component -->
+    <!-- Canonical + hreflang fallback (SEOHead client-side los sobrescribirá si aplica) -->
+    <link rel="canonical" href="https://blooglee.com/" />
+    <link rel="alternate" hreflang="es-ES" href="https://blooglee.com/" />
+    <link rel="alternate" hreflang="x-default" href="https://blooglee.com/" />
+
+    <!-- PWA / mobile -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Blooglee" />
     <link
       rel="alternate"
       type="application/rss+xml"
