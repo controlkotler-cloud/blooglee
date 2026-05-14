@@ -1466,6 +1466,15 @@ export type Database = {
         Returns: Json
       }
       team_member_count: { Args: { target_owner_id: string }; Returns: number }
+      validate_beta_token: {
+        Args: { _token: string }
+        Returns: {
+          current_uses: number
+          expires_at: string
+          id: string
+          max_uses: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "mkpro_admin" | "user" | "superadmin" | "beta"
