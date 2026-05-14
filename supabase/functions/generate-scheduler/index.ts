@@ -350,6 +350,15 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Auth guard: only the cron job (with the service role key) may invoke this.
+  const expectedAuth = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`;
+  if (req.headers.get("Authorization") !== expectedAuth) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const startTime = Date.now();
   console.log("=== GENERATE SCHEDULER STARTED ===");
   console.log("Time:", new Date().toISOString());

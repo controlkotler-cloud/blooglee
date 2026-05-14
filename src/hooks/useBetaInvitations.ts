@@ -78,25 +78,20 @@ export function useValidateBetaToken() {
   return useMutation({
     mutationFn: async (token: string): Promise<BetaInvitation | null> => {
       const { data, error } = await supabase
-        .from('beta_invitations')
-        .select('*')
-        .eq('token', token.toUpperCase())
-        .eq('is_active', true)
-        .single();
+        .rpc('validate_beta_token', { _token: token.toUpperCase() });
 
-      if (error) return null;
-      
-      // Check if expired
-      if (data.expires_at && new Date(data.expires_at) < new Date()) {
-        return null;
-      }
+      if (error || !data || data.length === 0) return null;
 
-      // Check if max uses reached
-      if (data.current_uses >= data.max_uses) {
-        return null;
-      }
-
-      return data;
+      const row = data[0];
+      return {
+        id: row.id,
+        token: token.toUpperCase(),
+        max_uses: row.max_uses,
+        current_uses: row.current_uses,
+        expires_at: row.expires_at,
+        created_at: '',
+        is_active: true,
+      };
     },
   });
 }
