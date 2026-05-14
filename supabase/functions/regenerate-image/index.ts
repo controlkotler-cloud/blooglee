@@ -344,6 +344,27 @@ serve(async (req) => {
   }
 
   try {
+    // Auth guard: require a valid Supabase user JWT.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const _supaUrl = Deno.env.get("SUPABASE_URL")!;
+    const _anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const _authClient = createClient(_supaUrl, _anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: _u }, error: _authErr } = await _authClient.auth.getUser();
+    if (_authErr || !_u) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { pexelsQuery, usedImageUrls = [], articleTitle, articleContent, companySector }: RequestBody = await req.json();
     
     const UNSPLASH_ACCESS_KEY = Deno.env.get("UNSPLASH_ACCESS_KEY");
