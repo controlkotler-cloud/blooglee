@@ -2029,6 +2029,34 @@ function stripAiSourcesFooter(htmlContent: string): string {
  * excedentes se sustituyen por alternativas concretas rotatorias, preservando
  * concordancia de género y número.
  */
+function limitMonthMentions(htmlContent: string): string {
+  if (!htmlContent) return htmlContent;
+  const MONTHS = [
+    "enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre",
+    "gener","febrer","març","abril","maig","juny","juliol","agost","setembre","octubre","novembre","desembre",
+  ];
+  const ALTERNATIVES = ["este mes", "el próximo mes", "en las próximas semanas", "a corto plazo"];
+  const MAX_PER_MONTH = 3;
+  let result = htmlContent;
+  let totalReplaced = 0;
+  for (const month of MONTHS) {
+    const regex = new RegExp(`\\b${month}\\b`, "gi");
+    let count = 0;
+    let altIdx = 0;
+    result = result.replace(regex, (match) => {
+      count++;
+      if (count <= MAX_PER_MONTH) return match;
+      const alt = ALTERNATIVES[altIdx % ALTERNATIVES.length];
+      altIdx++;
+      totalReplaced++;
+      if (match[0] === match[0].toUpperCase()) return alt.charAt(0).toUpperCase() + alt.slice(1);
+      return alt;
+    });
+  }
+  if (totalReplaced > 0) console.log(`[limitMonthMentions] Replaced ${totalReplaced} excess month mention(s)`);
+  return result;
+}
+
 function softenEmptyAdjectives(htmlContent: string): string {
   if (!htmlContent) return htmlContent;
 
