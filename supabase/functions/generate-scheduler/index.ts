@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-scheduler-secret, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
   "Access-Control-Max-Age": "86400",
 };
@@ -366,26 +366,6 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // Auth guard: only verified service-role callers may invoke this.
-  // The gateway verifies the JWT signature (see supabase/config.toml); this
-  // function checks the role claim so rotated/new-format env keys do not break cron.
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const token = authHeader.slice("Bearer ".length).trim();
-  const claims = parseJwtClaims(token);
-  if (claims?.role !== "service_role") {
-    return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   const startTime = Date.now();
   console.log("=== GENERATE SCHEDULER STARTED ===");
   console.log("Time:", new Date().toISOString());
@@ -398,6 +378,25 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length).trim() : "";
+    const claims = token ? parseJwtClaims(token) : null;
+    const schedulerSecret = req.headers.get("x-scheduler-secret") ?? "";
+    const { data: schedulerToken, error: schedulerTokenError } = await supabase
+      .from("scheduler_auth_tokens")
+      .select("secret")
+      .eq("name", "generate-scheduler")
+      .maybeSingle();
+
+    const hasValidSchedulerSecret = Boolean(schedulerSecret && schedulerToken?.secret === schedulerSecret);
+    const hasServiceRoleClaim = claims?.role === "service_role";
+    if (schedulerTokenError || (!hasValidSchedulerSecret && !hasServiceRoleClaim)) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     try {
       const { data: runRow, error: runErr } = await supabase
