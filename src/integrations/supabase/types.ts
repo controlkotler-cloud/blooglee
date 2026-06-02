@@ -755,6 +755,24 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduler_auth_tokens: {
+        Row: {
+          name: string
+          secret: string
+          updated_at: string
+        }
+        Insert: {
+          name: string
+          secret: string
+          updated_at?: string
+        }
+        Update: {
+          name?: string
+          secret?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       scheduler_runs: {
         Row: {
           dispatched_sites: number | null

@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-scheduler-secret, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
   "Access-Control-Max-Age": "86400",
 };
@@ -350,15 +350,6 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // Auth guard: only the cron job (with the service role key) may invoke this.
-  const expectedAuth = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`;
-  if (req.headers.get("Authorization") !== expectedAuth) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   const startTime = Date.now();
   console.log("=== GENERATE SCHEDULER STARTED ===");
   console.log("Time:", new Date().toISOString());
@@ -371,6 +362,23 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const authHeader = req.headers.get("Authorization");
+    const schedulerSecret = req.headers.get("x-scheduler-secret") ?? "";
+    const { data: schedulerToken, error: schedulerTokenError } = await supabase
+      .from("scheduler_auth_tokens")
+      .select("secret")
+      .eq("name", "generate-scheduler")
+      .maybeSingle();
+
+    const hasValidSchedulerSecret = Boolean(schedulerSecret && schedulerToken?.secret === schedulerSecret);
+    const hasServiceRoleKey = authHeader === `Bearer ${supabaseServiceKey}`;
+    if (schedulerTokenError || (!hasValidSchedulerSecret && !hasServiceRoleKey)) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     try {
       const { data: runRow, error: runErr } = await supabase
