@@ -8,22 +8,6 @@ const corsHeaders = {
   "Access-Control-Max-Age": "86400",
 };
 
-function parseJwtClaims(token: string): Record<string, unknown> | null {
-  const parts = token.split(".");
-  if (parts.length < 2) return null;
-
-  try {
-    const payload = parts[1]
-      .replaceAll("-", "+")
-      .replaceAll("_", "/")
-      .padEnd(Math.ceil(parts[1].length / 4) * 4, "=");
-
-    return JSON.parse(atob(payload)) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
 interface SiteEntity {
   id: string;
   name: string;
@@ -380,8 +364,6 @@ const handler = async (req: Request): Promise<Response> => {
     supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length).trim() : "";
-    const claims = token ? parseJwtClaims(token) : null;
     const schedulerSecret = req.headers.get("x-scheduler-secret") ?? "";
     const { data: schedulerToken, error: schedulerTokenError } = await supabase
       .from("scheduler_auth_tokens")
@@ -390,8 +372,8 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     const hasValidSchedulerSecret = Boolean(schedulerSecret && schedulerToken?.secret === schedulerSecret);
-    const hasServiceRoleClaim = claims?.role === "service_role";
-    if (schedulerTokenError || (!hasValidSchedulerSecret && !hasServiceRoleClaim)) {
+    const hasServiceRoleKey = authHeader === `Bearer ${supabaseServiceKey}`;
+    if (schedulerTokenError || (!hasValidSchedulerSecret && !hasServiceRoleKey)) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
