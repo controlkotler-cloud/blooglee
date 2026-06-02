@@ -10,4 +10,4 @@ project_id = "gqtikajhhggyoiypkbgw"
   [functions.process-email-queue]
     verify_jwt = true
   [functions.generate-scheduler]
-    verify_jwt = true
+    verify_jwt = false
