@@ -4303,7 +4303,7 @@ Deno.serve(async (req) => {
       .filter(Boolean)
       .join("\n");
 
-    systemPrompt = `${systemPrompt}\n\n${extraEditorialGuidance}`;
+    systemPrompt = `${systemPrompt}\n\n${extraEditorialGuidance}\n\n${buildSeasonalGuardrail(month, dayOfMonth)}`;
 
     // Build user prompt from database
     let userPrompt = await getPrompt(
