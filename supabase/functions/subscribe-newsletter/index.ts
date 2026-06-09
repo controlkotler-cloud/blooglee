@@ -228,7 +228,7 @@ const handler = async (req: Request): Promise<Response> => {
                 <!-- Header -->
                 <div style="background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #F97316 100%); border-radius: 16px 16px 0 0; padding: 40px 30px; text-align: center;">
                   <h1 style="color: white; margin: 0 0 10px 0; font-size: 28px; font-weight: 700;">
-                    ¡Bienvenido/a, ${cleanName}!
+                    ¡Bienvenido/a, ${safeName}!
                   </h1>
                   <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 16px;">
                     Newsletter de Blooglee ${audienceLabel}
