@@ -61,11 +61,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Normalize URL
-    let siteUrl = url.trim().replace(/\/+$/, '');
-    if (!siteUrl.startsWith('http')) {
-      siteUrl = `https://${siteUrl}`;
+    const validated = validatePublicUrl(url);
+    if (!validated.ok) {
+      return new Response(
+        JSON.stringify({ is_wordpress: false, error_type: 'not_found', error: validated.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    // Normalize URL
+    let siteUrl = validated.url.replace(/\/+$/, '');
 
     // Build candidate URLs to check: the given URL + origin (if different)
     const origin = getOrigin(siteUrl);
@@ -74,9 +79,25 @@ Deno.serve(async (req) => {
       candidates.push(origin);
     }
 
-    console.log('Checking WordPress candidates:', candidates);
+    // Re-validate each candidate's hostname (defense-in-depth)
+    const safeCandidates = candidates.filter((c) => {
+      try {
+        return !isLocalOrPrivateHostname(new URL(c).hostname);
+      } catch {
+        return false;
+      }
+    });
 
-    for (const candidate of candidates) {
+    if (safeCandidates.length === 0) {
+      return new Response(
+        JSON.stringify({ is_wordpress: false, error_type: 'not_found', error: 'private_url_not_allowed' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Checking WordPress candidates:', safeCandidates);
+
+    for (const candidate of safeCandidates) {
       const checkResult = await checkWordPress(candidate);
       if (checkResult.is_wordpress) {
         console.log('WordPress detected at:', candidate);
