@@ -972,6 +972,44 @@ const MONTH_NAMES_CA = [
   "Desembre",
 ];
 
+// Seasonal guardrail (Spain / hemisferio norte). Bloque inyectado en los prompts
+// de tema y artículo para evitar que el modelo escriba sobre estaciones futuras
+// lejanas (p.ej. otoño en junio).
+function buildSeasonalGuardrail(month: number, dayOfMonth: number): string {
+  const seasonByMonth: Record<number, { current: string; next: string; allowNext: boolean }> = {
+    1: { current: "invierno", next: "primavera", allowNext: false },
+    2: { current: "invierno", next: "primavera", allowNext: false },
+    3: { current: dayOfMonth < 21 ? "invierno" : "primavera", next: "primavera", allowNext: true },
+    4: { current: "primavera", next: "verano", allowNext: false },
+    5: { current: "primavera", next: "verano", allowNext: false },
+    6: { current: dayOfMonth < 21 ? "primavera" : "verano", next: "verano", allowNext: true },
+    7: { current: "verano", next: "otoño", allowNext: false },
+    8: { current: "verano", next: "otoño", allowNext: false },
+    9: { current: dayOfMonth < 23 ? "verano" : "otoño", next: "otoño", allowNext: true },
+    10: { current: "otoño", next: "invierno", allowNext: false },
+    11: { current: "otoño", next: "invierno", allowNext: false },
+    12: { current: dayOfMonth < 21 ? "otoño" : "invierno", next: "invierno", allowNext: true },
+  };
+  const info = seasonByMonth[month] || seasonByMonth[1];
+  const allSeasons = ["primavera", "verano", "otoño", "invierno"];
+  const forbidden = allSeasons.filter((s) => s !== info.current && s !== info.next);
+  return [
+    "═══════════════════════════════════════",
+    "ESTACIÓN ACTUAL (REGLA CRÍTICA)",
+    "═══════════════════════════════════════",
+    `Hoy estamos en ${info.current.toUpperCase()} (hemisferio norte, España).`,
+    `- PROHIBIDO escribir el artículo enfocado en ${forbidden.join(", ")}, ni en su llegada, preparación, recuperación o transición.`,
+    `- PROHIBIDO usar las palabras "${forbidden.join('", "')}" como tema central, en el título, en el slug, en el meta_description o como gancho del artículo.`,
+    info.allowNext
+      ? `- Solo se permite mencionar la próxima estación (${info.next}) si encaja con el tema y de forma puntual, nunca como eje del artículo.`
+      : `- Está prohibido orientar el contenido a la próxima estación (${info.next}); aún faltan semanas.`,
+    `- Si el pilar es "seasonal", el enfoque debe estar dentro de ${info.current} o de un evento concreto del mes actual (${MONTH_NAMES_ES[month - 1]}) o del siguiente.`,
+    `- Verificación antes de responder: ni el title, ni el seo_title, ni el slug, ni el meta_description, ni el primer párrafo pueden contener: ${forbidden.join(", ")}.`,
+  ].join("\n");
+}
+
+
+
 // ==========================================
 // JSON REPAIR: Escape control chars ONLY inside string literals
 // ==========================================
@@ -4000,11 +4038,13 @@ Deno.serve(async (req) => {
 
       // Get topic prompt from database with cache
       let topicPrompt = await getPrompt(supabase, "saas.topic", enrichedVariables, FALLBACK_PROMPTS.topic);
-      topicPrompt = `${topicPrompt}\n\nTIPO DE NEGOCIO (contexto interno): ${businessType}\n${
+      const seasonalGuardrail = buildSeasonalGuardrail(month, dayOfMonth);
+      topicPrompt = `${topicPrompt}\n\n${seasonalGuardrail}\n\nTIPO DE NEGOCIO (contexto interno): ${businessType}\n${
         contentGoal ? `OBJETIVO DEL CONTENIDO: ${contentGoal}\n` : ""
       }${priorityTopics.length > 0 ? `TEMAS PRIORITARIOS: ${priorityTopics.join(", ")}\n` : ""}${
         angleToAvoid ? `ENFOQUE A EVITAR: ${angleToAvoid}\n` : ""
       }`;
+
 
       // Topic generation with similarity deduplication (up to 3 retries)
       const MAX_TOPIC_ATTEMPTS = 3;
@@ -4263,7 +4303,7 @@ Deno.serve(async (req) => {
       .filter(Boolean)
       .join("\n");
 
-    systemPrompt = `${systemPrompt}\n\n${extraEditorialGuidance}`;
+    systemPrompt = `${systemPrompt}\n\n${extraEditorialGuidance}\n\n${buildSeasonalGuardrail(month, dayOfMonth)}`;
 
     // Build user prompt from database
     let userPrompt = await getPrompt(
