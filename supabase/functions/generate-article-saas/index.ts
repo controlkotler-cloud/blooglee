@@ -4038,11 +4038,13 @@ Deno.serve(async (req) => {
 
       // Get topic prompt from database with cache
       let topicPrompt = await getPrompt(supabase, "saas.topic", enrichedVariables, FALLBACK_PROMPTS.topic);
-      topicPrompt = `${topicPrompt}\n\nTIPO DE NEGOCIO (contexto interno): ${businessType}\n${
+      const seasonalGuardrail = buildSeasonalGuardrail(month, dayOfMonth);
+      topicPrompt = `${topicPrompt}\n\n${seasonalGuardrail}\n\nTIPO DE NEGOCIO (contexto interno): ${businessType}\n${
         contentGoal ? `OBJETIVO DEL CONTENIDO: ${contentGoal}\n` : ""
       }${priorityTopics.length > 0 ? `TEMAS PRIORITARIOS: ${priorityTopics.join(", ")}\n` : ""}${
         angleToAvoid ? `ENFOQUE A EVITAR: ${angleToAvoid}\n` : ""
       }`;
+
 
       // Topic generation with similarity deduplication (up to 3 retries)
       const MAX_TOPIC_ATTEMPTS = 3;
