@@ -1,9 +1,24 @@
+import { isLocalOrPrivateHostname } from "../_shared/ssrf.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Max-Age': '86400',
 };
+
+function validatePublicUrl(raw: string): { ok: true; url: string } | { ok: false; error: string } {
+  try {
+    let s = raw.trim();
+    if (!s.startsWith('http://') && !s.startsWith('https://')) s = `https://${s}`;
+    const u = new URL(s);
+    if (!['http:', 'https:'].includes(u.protocol)) return { ok: false, error: 'unsupported_protocol' };
+    if (isLocalOrPrivateHostname(u.hostname)) return { ok: false, error: 'private_url_not_allowed' };
+    return { ok: true, url: s };
+  } catch {
+    return { ok: false, error: 'invalid_url' };
+  }
+}
 
 /** Extract the origin (scheme + host) from a URL string */
 function getOrigin(urlStr: string): string {
