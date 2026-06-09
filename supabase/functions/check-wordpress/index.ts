@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
     }
 
     // None matched — return the result from the first candidate
-    const fallbackResult = await checkWordPress(candidates[0]);
+    const fallbackResult = await checkWordPress(safeCandidates[0]);
     return new Response(JSON.stringify(fallbackResult), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
