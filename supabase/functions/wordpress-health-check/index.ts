@@ -1,4 +1,6 @@
 // Deno native serve
+import { isLocalOrPrivateHostname } from "../_shared/ssrf.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
