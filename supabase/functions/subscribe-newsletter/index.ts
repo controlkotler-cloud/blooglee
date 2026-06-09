@@ -84,10 +84,10 @@ const handler = async (req: Request): Promise<Response> => {
       source = "footer" 
     } = await req.json();
 
-    // Validate name
-    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    // Validate name (length + type)
+    if (!name || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 120) {
       return new Response(
-        JSON.stringify({ success: false, error: "El nombre es requerido" }),
+        JSON.stringify({ success: false, error: "El nombre es requerido (2-120 caracteres)" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -133,6 +133,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const cleanEmail = email.toLowerCase().trim();
     const cleanName = name.trim();
+    const safeName = cleanName.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     const consentDate = new Date().toISOString();
 
     // Check if already subscribed
@@ -213,7 +214,7 @@ const handler = async (req: Request): Promise<Response> => {
           from: "Blooglee <hola@blooglee.com>",
           reply_to: "info@blooglee.com",
           to: [cleanEmail],
-          subject: `¡Bienvenido/a ${cleanName}! Tu newsletter de Blooglee está lista 🎉`,
+          subject: `¡Bienvenido/a ${cleanName}! Tu newsletter de Blooglee está lista 🎉`.slice(0, 200),
           html: `
             <!DOCTYPE html>
             <html>
@@ -227,7 +228,7 @@ const handler = async (req: Request): Promise<Response> => {
                 <!-- Header -->
                 <div style="background: linear-gradient(135deg, #8B5CF6 0%, #D946EF 50%, #F97316 100%); border-radius: 16px 16px 0 0; padding: 40px 30px; text-align: center;">
                   <h1 style="color: white; margin: 0 0 10px 0; font-size: 28px; font-weight: 700;">
-                    ¡Bienvenido/a, ${cleanName}!
+                    ¡Bienvenido/a, ${safeName}!
                   </h1>
                   <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 16px;">
                     Newsletter de Blooglee ${audienceLabel}

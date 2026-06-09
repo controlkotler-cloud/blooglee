@@ -1,9 +1,24 @@
+import { isLocalOrPrivateHostname } from "../_shared/ssrf.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Max-Age': '86400',
 };
+
+function validatePublicUrl(raw: string): { ok: true; url: string } | { ok: false; error: string } {
+  try {
+    let s = raw.trim();
+    if (!s.startsWith('http://') && !s.startsWith('https://')) s = `https://${s}`;
+    const u = new URL(s);
+    if (!['http:', 'https:'].includes(u.protocol)) return { ok: false, error: 'unsupported_protocol' };
+    if (isLocalOrPrivateHostname(u.hostname)) return { ok: false, error: 'private_url_not_allowed' };
+    return { ok: true, url: s };
+  } catch {
+    return { ok: false, error: 'invalid_url' };
+  }
+}
 
 /** Extract the origin (scheme + host) from a URL string */
 function getOrigin(urlStr: string): string {
@@ -46,11 +61,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Normalize URL
-    let siteUrl = url.trim().replace(/\/+$/, '');
-    if (!siteUrl.startsWith('http')) {
-      siteUrl = `https://${siteUrl}`;
+    const validated = validatePublicUrl(url);
+    if (!validated.ok) {
+      return new Response(
+        JSON.stringify({ is_wordpress: false, error_type: 'not_found', error: validated.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    // Normalize URL
+    let siteUrl = validated.url.replace(/\/+$/, '');
 
     // Build candidate URLs to check: the given URL + origin (if different)
     const origin = getOrigin(siteUrl);
@@ -59,9 +79,25 @@ Deno.serve(async (req) => {
       candidates.push(origin);
     }
 
-    console.log('Checking WordPress candidates:', candidates);
+    // Re-validate each candidate's hostname (defense-in-depth)
+    const safeCandidates = candidates.filter((c) => {
+      try {
+        return !isLocalOrPrivateHostname(new URL(c).hostname);
+      } catch {
+        return false;
+      }
+    });
 
-    for (const candidate of candidates) {
+    if (safeCandidates.length === 0) {
+      return new Response(
+        JSON.stringify({ is_wordpress: false, error_type: 'not_found', error: 'private_url_not_allowed' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Checking WordPress candidates:', safeCandidates);
+
+    for (const candidate of safeCandidates) {
       const checkResult = await checkWordPress(candidate);
       if (checkResult.is_wordpress) {
         console.log('WordPress detected at:', candidate);
@@ -72,7 +108,7 @@ Deno.serve(async (req) => {
     }
 
     // None matched — return the result from the first candidate
-    const fallbackResult = await checkWordPress(candidates[0]);
+    const fallbackResult = await checkWordPress(safeCandidates[0]);
     return new Response(JSON.stringify(fallbackResult), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -1,4 +1,6 @@
 // Deno native serve
+import { isLocalOrPrivateHostname } from "../_shared/ssrf.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -487,7 +489,7 @@ Deno.serve(async (req) => {
         );
       }
       const hostname = parsedUrl.hostname.toLowerCase();
-      if (hostname === 'localhost' || hostname.startsWith('127.') || hostname.startsWith('10.') || hostname.startsWith('192.168.') || hostname.startsWith('172.') || hostname === '0.0.0.0' || hostname === '[::1]') {
+      if (isLocalOrPrivateHostname(hostname)) {
         return new Response(
           JSON.stringify({ error: "Internal/private URLs are not allowed" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
