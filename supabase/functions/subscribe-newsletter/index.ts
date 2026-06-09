@@ -84,10 +84,10 @@ const handler = async (req: Request): Promise<Response> => {
       source = "footer" 
     } = await req.json();
 
-    // Validate name
-    if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    // Validate name (length + type)
+    if (!name || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 120) {
       return new Response(
-        JSON.stringify({ success: false, error: "El nombre es requerido" }),
+        JSON.stringify({ success: false, error: "El nombre es requerido (2-120 caracteres)" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
