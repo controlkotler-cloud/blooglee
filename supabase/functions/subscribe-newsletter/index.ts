@@ -214,7 +214,7 @@ const handler = async (req: Request): Promise<Response> => {
           from: "Blooglee <hola@blooglee.com>",
           reply_to: "info@blooglee.com",
           to: [cleanEmail],
-          subject: `¡Bienvenido/a ${cleanName}! Tu newsletter de Blooglee está lista 🎉`,
+          subject: `¡Bienvenido/a ${cleanName}! Tu newsletter de Blooglee está lista 🎉`.slice(0, 200),
           html: `
             <!DOCTYPE html>
             <html>
