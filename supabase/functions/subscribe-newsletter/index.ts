@@ -133,6 +133,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const cleanEmail = email.toLowerCase().trim();
     const cleanName = name.trim();
+    const safeName = cleanName.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     const consentDate = new Date().toISOString();
 
     // Check if already subscribed
