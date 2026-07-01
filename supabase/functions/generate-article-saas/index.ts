@@ -4057,10 +4057,10 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
+              model: "openai/gpt-5.5",
               messages: [{ role: "user", content: topicPrompt }],
-              temperature: 0.85 + (attempt - 1) * 0.05, // Increase creativity on retries
-              max_tokens: 100,
+              temperature: 0.9 + (attempt - 1) * 0.05, // Increase creativity on retries
+              max_tokens: 400,
             }),
           });
 
