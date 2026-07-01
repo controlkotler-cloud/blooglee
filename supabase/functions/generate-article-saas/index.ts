@@ -4541,7 +4541,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               model: "openai/gpt-5.5",
               messages: [{ role: "user", content: catalanPrompt }],
-              temperature: 0.5,
+              
               max_completion_tokens: lengthTarget.maxTokens + (catalanAttempt - 1) * 2000,
             }),
           });
