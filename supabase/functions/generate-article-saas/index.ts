@@ -4070,7 +4070,6 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               model: "openai/gpt-5.5",
               messages: [{ role: "user", content: topicPrompt }],
-              temperature: 0.9 + (attempt - 1) * 0.05, // Increase creativity on retries
               max_completion_tokens: 400,
             }),
           });
