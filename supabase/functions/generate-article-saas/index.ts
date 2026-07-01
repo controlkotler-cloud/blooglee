@@ -4049,7 +4049,7 @@ Deno.serve(async (req) => {
 
       // Get topic prompt from database with cache
       let topicPrompt = await getPrompt(supabase, "saas.topic", enrichedVariables, FALLBACK_PROMPTS.topic);
-      const seasonalGuardrail = buildSeasonalGuardrail(month, dayOfMonth);
+      const seasonalGuardrail = buildSeasonalGuardrail(new Date().getUTCMonth() + 1, dayOfMonth);
       topicPrompt = `${topicPrompt}\n\n${seasonalGuardrail}\n\nTIPO DE NEGOCIO (contexto interno): ${businessType}\n${
         contentGoal ? `OBJETIVO DEL CONTENIDO: ${contentGoal}\n` : ""
       }${priorityTopics.length > 0 ? `TEMAS PRIORITARIOS: ${priorityTopics.join(", ")}\n` : ""}${
@@ -4197,7 +4197,16 @@ Deno.serve(async (req) => {
         // Filter against used topics to avoid duplicates
         const allUsed = new Set([...usedTopics, ...wpTopics].map((t) => t.toLowerCase()));
         const availableFallbacks = fallbacks.filter((f) => !allUsed.has(f.toLowerCase()));
-        const finalList = availableFallbacks.length > 0 ? availableFallbacks : fallbacks;
+        let finalList = availableFallbacks.length > 0 ? availableFallbacks : fallbacks;
+        // Filtrar fallbacks que mencionen una estación NO permitida ahora (evita "después del verano" en primavera)
+        const _sm = new Date().getUTCMonth() + 1;
+        const _curSeason = ({ 1: "invierno", 2: "invierno", 3: dayOfMonth < 21 ? "invierno" : "primavera", 4: "primavera", 5: "primavera", 6: dayOfMonth < 21 ? "primavera" : "verano", 7: "verano", 8: "verano", 9: dayOfMonth < 23 ? "verano" : "otoño", 10: "otoño", 11: "otoño", 12: dayOfMonth < 21 ? "otoño" : "invierno" } as Record<number, string>)[_sm];
+        const _nextSeason = ({ invierno: "primavera", primavera: "verano", verano: "otoño", otoño: "invierno" } as Record<string, string>)[_curSeason];
+        const _allowNext = ({ 3: true, 6: true, 9: true, 12: true } as Record<number, boolean>)[_sm] || false;
+        const _allowed = _allowNext ? [_curSeason, _nextSeason] : [_curSeason];
+        const _forbiddenSeasons = ["primavera", "verano", "otoño", "invierno"].filter((x) => !_allowed.includes(x));
+        const _seasonSafe = finalList.filter((t) => !_forbiddenSeasons.some((w) => t.toLowerCase().includes(w)));
+        if (_seasonSafe.length > 0) finalList = _seasonSafe;
         topic = finalList[Math.floor(Math.random() * finalList.length)];
         console.log(`Using fallback topic (filtered): "${topic}"`);
       }
@@ -4314,7 +4323,7 @@ Deno.serve(async (req) => {
       .filter(Boolean)
       .join("\n");
 
-    systemPrompt = `${systemPrompt}\n\n${extraEditorialGuidance}\n\n${buildSeasonalGuardrail(month, dayOfMonth)}`;
+    systemPrompt = `${systemPrompt}\n\n${extraEditorialGuidance}\n\n${buildSeasonalGuardrail(new Date().getUTCMonth() + 1, dayOfMonth)}`;
 
     // Build user prompt from database
     let userPrompt = await getPrompt(
