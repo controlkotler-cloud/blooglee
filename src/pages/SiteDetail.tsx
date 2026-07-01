@@ -11,17 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-  ArrowLeft,
-  Globe,
-  MapPin,
-  Loader2,
-  Sparkles,
-  Lock,
-  CheckCircle2,
-  AlertTriangle,
-  History,
-} from "lucide-react";
+import { ArrowLeft, Globe, MapPin, Loader2, Sparkles, Lock, CheckCircle2, AlertTriangle, History } from "lucide-react";
 import { useSites } from "@/hooks/useSites";
 import { useArticlesSaas, useGenerateArticleSaas } from "@/hooks/useArticlesSaas";
 import { useWordPressConfig } from "@/hooks/useWordPressConfigSaas";
@@ -84,7 +74,8 @@ export default function SiteDetail() {
   const generateMutation = useGenerateArticleSaas();
   const { isGenerating: checkGenerating } = useGeneration();
 
-  const canGenerate = !!wpConfig;
+  const canGenerate = !!wpConfig || isAdmin;
+
   const isGenerating = site ? checkGenerating(site.id) : false;
   const currentGenerationKey = site ? buildCurrentGenerationKey(site.publish_frequency) : null;
   const hasPublishedArticleInCurrentPeriod = articles.some(
