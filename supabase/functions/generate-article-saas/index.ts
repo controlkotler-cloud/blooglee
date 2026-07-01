@@ -1204,7 +1204,18 @@ Responde SOLO con JSON válido en este formato exacto:
 
 function detectSectorCategory(sector: string | null | undefined): string {
   if (!sector) return "general";
+
   const s = sector.toLowerCase();
+
+  // --- Modificadores de servicio B2B: el SERVICIO manda sobre el vertical que menciona ---
+
+  // Evita falsos positivos como "asesoría de farmacias" o "reforma de farmacias" → farmacia.
+
+  if (s.includes("asesor") || s.includes("consultor") || s.includes("compraventa") || s.includes("traspaso"))
+    return "asesoria";
+
+  if (s.includes("interiorismo") || s.includes("reforma") || s.includes("arquitect"))
+    return "arquitectura";
 
   // IMPORTANT: Specific sectors first
   if (s.includes("farmacia") || s.includes("parafarm") || s.includes("dermofarm") || s.includes("botica"))
