@@ -4070,7 +4070,6 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               model: "openai/gpt-5.5",
               messages: [{ role: "user", content: topicPrompt }],
-              temperature: 0.9 + (attempt - 1) * 0.05, // Increase creativity on retries
               max_completion_tokens: 400,
             }),
           });
@@ -4365,7 +4364,6 @@ Deno.serve(async (req) => {
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          temperature: 0.7,
           max_completion_tokens: tokens,
         }),
       });
@@ -4543,7 +4541,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               model: "openai/gpt-5.5",
               messages: [{ role: "user", content: catalanPrompt }],
-              temperature: 0.5,
+              
               max_completion_tokens: lengthTarget.maxTokens + (catalanAttempt - 1) * 2000,
             }),
           });
