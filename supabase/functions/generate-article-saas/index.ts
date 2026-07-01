@@ -4071,7 +4071,7 @@ Deno.serve(async (req) => {
               model: "openai/gpt-5.5",
               messages: [{ role: "user", content: topicPrompt }],
               temperature: 0.9 + (attempt - 1) * 0.05, // Increase creativity on retries
-              max_tokens: 400,
+              max_completion_tokens: 400,
             }),
           });
 
@@ -4366,7 +4366,7 @@ Deno.serve(async (req) => {
             { role: "user", content: userPrompt },
           ],
           temperature: 0.7,
-          max_tokens: tokens,
+          max_completion_tokens: tokens,
         }),
       });
       return { content: "", response: resp };
