@@ -1008,8 +1008,6 @@ function buildSeasonalGuardrail(month: number, dayOfMonth: number): string {
   ].join("\n");
 }
 
-
-
 // ==========================================
 // JSON REPAIR: Escape control chars ONLY inside string literals
 // ==========================================
@@ -1214,8 +1212,7 @@ function detectSectorCategory(sector: string | null | undefined): string {
   if (s.includes("asesor") || s.includes("consultor") || s.includes("compraventa") || s.includes("traspaso"))
     return "asesoria";
 
-  if (s.includes("interiorismo") || s.includes("reforma") || s.includes("arquitect"))
-    return "arquitectura";
+  if (s.includes("interiorismo") || s.includes("reforma") || s.includes("arquitect")) return "arquitectura";
 
   // IMPORTANT: Specific sectors first
   if (s.includes("farmacia") || s.includes("parafarm") || s.includes("dermofarm") || s.includes("botica"))
@@ -2081,8 +2078,30 @@ function stripAiSourcesFooter(htmlContent: string): string {
 function limitMonthMentions(htmlContent: string): string {
   if (!htmlContent) return htmlContent;
   const MONTHS = [
-    "enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre",
-    "gener","febrer","març","abril","maig","juny","juliol","agost","setembre","octubre","novembre","desembre",
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+    "gener",
+    "febrer",
+    "març",
+    "abril",
+    "maig",
+    "juny",
+    "juliol",
+    "agost",
+    "setembre",
+    "octubre",
+    "novembre",
+    "desembre",
   ];
   const ALTERNATIVES = ["este mes", "el próximo mes", "en las próximas semanas", "a corto plazo"];
   const MAX_PER_MONTH = 3;
@@ -2487,7 +2506,32 @@ function validateAndFallbackCatalanMeta(article: Record<string, unknown>): void 
     const matches = meta.match(marker);
     if (matches) spanishHits += matches.length;
   }
-
+  function sanitizeSpanishMetaOpening(article: Record<string, unknown>): void {
+    if (!article || typeof article.meta_description !== "string") return;
+    let meta = (article.meta_description as string).trim();
+    const OPENERS = [
+      /^Descubre\s+(cómo|c[oó]mo|por qué|las?|los?|el|la|todo|todos?|todas?)\s+/i,
+      /^Descubre\s+/i,
+      /^Aprende\s+(a|cómo|c[oó]mo|todo)\s+/i,
+      /^Aprende\s+/i,
+      /^No te pierdas\s+/i,
+      /^Encuentra\s+(todo|aquí|las?|los?)\s+/i,
+      /^Conoce\s+(cómo|c[oó]mo|las?|los?|todo)\s+/i,
+      /^Optimiza\s+/i,
+    ];
+    let changed = false;
+    for (const rx of OPENERS) {
+      if (rx.test(meta)) {
+        meta = meta.replace(rx, "").trim();
+        changed = true;
+        break;
+      }
+    }
+    if (!changed || meta.length < 40) return;
+    meta = meta.charAt(0).toUpperCase() + meta.slice(1);
+    article.meta_description = meta;
+    console.log(`[sanitizeSpanishMetaOpening] Removed cliché opener from Spanish meta`);
+  }
   if (spanishHits < 3) return; // Meta razonablemente catalana, no toca
 
   console.log(
@@ -4056,7 +4100,6 @@ Deno.serve(async (req) => {
         angleToAvoid ? `ENFOQUE A EVITAR: ${angleToAvoid}\n` : ""
       }`;
 
-
       // Topic generation with similarity deduplication (up to 3 retries)
       const MAX_TOPIC_ATTEMPTS = 3;
       for (let attempt = 1; attempt <= MAX_TOPIC_ATTEMPTS; attempt++) {
@@ -4199,8 +4242,25 @@ Deno.serve(async (req) => {
         let finalList = availableFallbacks.length > 0 ? availableFallbacks : fallbacks;
         // Filtrar fallbacks que mencionen una estación NO permitida ahora (evita "después del verano" en primavera)
         const _sm = new Date().getUTCMonth() + 1;
-        const _curSeason = ({ 1: "invierno", 2: "invierno", 3: dayOfMonth < 21 ? "invierno" : "primavera", 4: "primavera", 5: "primavera", 6: dayOfMonth < 21 ? "primavera" : "verano", 7: "verano", 8: "verano", 9: dayOfMonth < 23 ? "verano" : "otoño", 10: "otoño", 11: "otoño", 12: dayOfMonth < 21 ? "otoño" : "invierno" } as Record<number, string>)[_sm];
-        const _nextSeason = ({ invierno: "primavera", primavera: "verano", verano: "otoño", otoño: "invierno" } as Record<string, string>)[_curSeason];
+        const _curSeason = (
+          {
+            1: "invierno",
+            2: "invierno",
+            3: dayOfMonth < 21 ? "invierno" : "primavera",
+            4: "primavera",
+            5: "primavera",
+            6: dayOfMonth < 21 ? "primavera" : "verano",
+            7: "verano",
+            8: "verano",
+            9: dayOfMonth < 23 ? "verano" : "otoño",
+            10: "otoño",
+            11: "otoño",
+            12: dayOfMonth < 21 ? "otoño" : "invierno",
+          } as Record<number, string>
+        )[_sm];
+        const _nextSeason = (
+          { invierno: "primavera", primavera: "verano", verano: "otoño", otoño: "invierno" } as Record<string, string>
+        )[_curSeason];
         const _allowNext = ({ 3: true, 6: true, 9: true, 12: true } as Record<number, boolean>)[_sm] || false;
         const _allowed = _allowNext ? [_curSeason, _nextSeason] : [_curSeason];
         const _forbiddenSeasons = ["primavera", "verano", "otoño", "invierno"].filter((x) => !_allowed.includes(x));
@@ -4541,7 +4601,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               model: "openai/gpt-5.5",
               messages: [{ role: "user", content: catalanPrompt }],
-              
+
               max_completion_tokens: lengthTarget.maxTokens + (catalanAttempt - 1) * 2000,
             }),
           });
@@ -4947,6 +5007,7 @@ Deno.serve(async (req) => {
       spanishArticle.content = sanitizeLinkedBrandMisuse(spanishArticle.content, site.name);
       spanishArticle.content = softenEmptyAdjectives(spanishArticle.content);
       spanishArticle.content = limitMonthMentions(spanishArticle.content);
+      sanitizeSpanishMetaOpening(spanishArticle);
       spanishArticle.content = await verifyAndCleanExternalLinks(spanishArticle.content);
       spanishArticle.content = ensureFooterLinks(
         spanishArticle.content,
