@@ -4490,7 +4490,7 @@ Deno.serve(async (req) => {
 
     let spanishArticle;
     let attempts = 0;
-    const MAX_ATTEMPTS = 2;
+    const MAX_ATTEMPTS = 3;
 
     while (attempts < MAX_ATTEMPTS) {
       attempts++;
