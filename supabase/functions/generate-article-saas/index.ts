@@ -4129,7 +4129,7 @@ Deno.serve(async (req) => {
             const topicData = await topicResponse.json();
             const generatedTopic = topicData.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, "") || "";
 
-            if (generatedTopic && generatedTopic.length > 5 && generatedTopic.length <= 100) {
+            if (generatedTopic && generatedTopic.length > 5 && generatedTopic.length <= 160) {
               // Programmatic similarity check against all known topics
               const similarityCheck = isTooSimilar(generatedTopic, allAvoidTopics);
               if (similarityCheck.similar) {
@@ -4490,7 +4490,7 @@ Deno.serve(async (req) => {
 
     let spanishArticle;
     let attempts = 0;
-    const MAX_ATTEMPTS = 2;
+    const MAX_ATTEMPTS = 3;
 
     while (attempts < MAX_ATTEMPTS) {
       attempts++;
@@ -4514,10 +4514,40 @@ Deno.serve(async (req) => {
         throw new Error(`Spanish generation failed: ${spanishResponse.status} - ${errorText}`);
       }
 
-      const spanishData = await spanishResponse.json();
-      const spanishContent = spanishData.choices?.[0]?.message?.content;
+      let spanishData;
+      try {
+        spanishData = await spanishResponse.json();
+      } catch (jsonError) {
+        console.error("Spanish generation response was not valid JSON", {
+          attempt: attempts,
+          error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+        });
+
+        if (attempts < MAX_ATTEMPTS) {
+          currentMaxTokens += 4000;
+          console.warn(`Retrying Spanish generation after invalid gateway JSON with max_tokens=${currentMaxTokens}...`);
+          continue;
+        }
+
+        throw new Error("Spanish generation returned invalid gateway JSON");
+      }
+      const choice = spanishData.choices?.[0];
+      const spanishContent = choice?.message?.content;
 
       if (!spanishContent) {
+        console.error("Spanish generation returned empty content", {
+          attempt: attempts,
+          finish_reason: choice?.finish_reason,
+          usage: spanishData.usage,
+          has_choice: Boolean(choice),
+        });
+
+        if (attempts < MAX_ATTEMPTS) {
+          currentMaxTokens += 4000;
+          console.warn(`Retrying Spanish generation after empty content with max_tokens=${currentMaxTokens}...`);
+          continue;
+        }
+
         throw new Error("No Spanish content generated");
       }
 
