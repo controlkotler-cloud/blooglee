@@ -4608,10 +4608,10 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "openai/gpt-5.5",
+              model: "google/gemini-2.5-pro",
               messages: [{ role: "user", content: catalanPrompt }],
-
-              max_completion_tokens: lengthTarget.maxTokens + (catalanAttempt - 1) * 2000,
+              temperature: 0.7,
+              max_tokens: lengthTarget.maxTokens + (catalanAttempt - 1) * 2000,
             }),
           });
 
