@@ -778,6 +778,11 @@ function buildGenerationKey(frequency: string, month: number, year: number, now:
   }
 }
 
+function buildManualGenerationKey(month: number, year: number): string {
+  const m = String(month).padStart(2, "0");
+  return `manual-${year}-${m}-${Date.now()}-${crypto.randomUUID()}`;
+}
+
 interface SectorContext {
   examples: string[];
   prohibitedTerms: string[];
@@ -5063,7 +5068,9 @@ Deno.serve(async (req) => {
     // Build generation key for deduplication
     const normalizedPublishFrequency = normalizeFrequency(site.publish_frequency);
     const inputGenerationKey = requestBody.generationKey;
-    const generationKey = inputGenerationKey || buildGenerationKey(normalizedPublishFrequency, month, year, today);
+    const generationKey =
+      inputGenerationKey ||
+      (isScheduled ? buildGenerationKey(normalizedPublishFrequency, month, year, today) : buildManualGenerationKey(month, year));
     console.log("Generation key:", generationKey);
 
     const requestedGenerationSource = isScheduled ? "scheduled" : "manual";
