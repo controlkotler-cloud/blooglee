@@ -4427,12 +4427,13 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "openai/gpt-5.5",
+          model: "google/gemini-2.5-pro",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          max_completion_tokens: tokens,
+          temperature: 0.7,
+          max_tokens: tokens,
         }),
       });
       return { content: "", response: resp };
