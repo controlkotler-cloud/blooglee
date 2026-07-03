@@ -2485,6 +2485,34 @@ function sanitizeCatalanArticleFields(article: Record<string, unknown>): void {
     console.log(`[sanitizeCatalanArticleFields] Cleaned ${touched} field(s) from Spanish leakage`);
   }
 }
+
+function sanitizeSpanishMetaOpening(article: Record<string, unknown>): void {
+  if (!article || typeof article.meta_description !== "string") return;
+  let meta = (article.meta_description as string).trim();
+  const OPENERS = [
+    /^Descubre\s+(cómo|c[oó]mo|por qué|las?|los?|el|la|todo|todos?|todas?)\s+/i,
+    /^Descubre\s+/i,
+    /^Aprende\s+(a|cómo|c[oó]mo|todo)\s+/i,
+    /^Aprende\s+/i,
+    /^No te pierdas\s+/i,
+    /^Encuentra\s+(todo|aquí|las?|los?)\s+/i,
+    /^Conoce\s+(cómo|c[oó]mo|las?|los?|todo)\s+/i,
+    /^Optimiza\s+/i,
+  ];
+  let changed = false;
+  for (const rx of OPENERS) {
+    if (rx.test(meta)) {
+      meta = meta.replace(rx, "").trim();
+      changed = true;
+      break;
+    }
+  }
+  if (!changed || meta.length < 40) return;
+  meta = meta.charAt(0).toUpperCase() + meta.slice(1);
+  article.meta_description = meta;
+  console.log(`[sanitizeSpanishMetaOpening] Removed cliché opener from Spanish meta`);
+}
+
 /**
  * Defensa 7: si la meta_description catalana sigue teniendo demasiados marcadores
  * de castellano tras el sanitize, descártala y reconstrúyela usando la primera
@@ -2510,32 +2538,6 @@ function validateAndFallbackCatalanMeta(article: Record<string, unknown>): void 
   for (const marker of SPANISH_MARKERS) {
     const matches = meta.match(marker);
     if (matches) spanishHits += matches.length;
-  }
-  function sanitizeSpanishMetaOpening(article: Record<string, unknown>): void {
-    if (!article || typeof article.meta_description !== "string") return;
-    let meta = (article.meta_description as string).trim();
-    const OPENERS = [
-      /^Descubre\s+(cómo|c[oó]mo|por qué|las?|los?|el|la|todo|todos?|todas?)\s+/i,
-      /^Descubre\s+/i,
-      /^Aprende\s+(a|cómo|c[oó]mo|todo)\s+/i,
-      /^Aprende\s+/i,
-      /^No te pierdas\s+/i,
-      /^Encuentra\s+(todo|aquí|las?|los?)\s+/i,
-      /^Conoce\s+(cómo|c[oó]mo|las?|los?|todo)\s+/i,
-      /^Optimiza\s+/i,
-    ];
-    let changed = false;
-    for (const rx of OPENERS) {
-      if (rx.test(meta)) {
-        meta = meta.replace(rx, "").trim();
-        changed = true;
-        break;
-      }
-    }
-    if (!changed || meta.length < 40) return;
-    meta = meta.charAt(0).toUpperCase() + meta.slice(1);
-    article.meta_description = meta;
-    console.log(`[sanitizeSpanishMetaOpening] Removed cliché opener from Spanish meta`);
   }
   if (spanishHits < 3) return; // Meta razonablemente catalana, no toca
 
