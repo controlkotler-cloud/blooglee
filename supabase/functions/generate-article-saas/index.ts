@@ -4515,9 +4515,23 @@ Deno.serve(async (req) => {
       }
 
       const spanishData = await spanishResponse.json();
-      const spanishContent = spanishData.choices?.[0]?.message?.content;
+      const choice = spanishData.choices?.[0];
+      const spanishContent = choice?.message?.content;
 
       if (!spanishContent) {
+        console.error("Spanish generation returned empty content", {
+          attempt: attempts,
+          finish_reason: choice?.finish_reason,
+          usage: spanishData.usage,
+          has_choice: Boolean(choice),
+        });
+
+        if (attempts < MAX_ATTEMPTS) {
+          currentMaxTokens += 4000;
+          console.warn(`Retrying Spanish generation after empty content with max_tokens=${currentMaxTokens}...`);
+          continue;
+        }
+
         throw new Error("No Spanish content generated");
       }
 
