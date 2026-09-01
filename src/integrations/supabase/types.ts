@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -55,6 +55,7 @@ export type Database = {
       articles: {
         Row: {
           autopublish_enabled: boolean
+          concept_key: string | null
           content_catalan: Json | null
           content_spanish: Json | null
           day_of_month: number | null
@@ -67,9 +68,14 @@ export type Database = {
           image_url: string | null
           month: number
           pexels_query: string | null
+          quality_checked_at: string | null
+          quality_report: Json | null
+          quality_status: string
           site_id: string
           skip_auto_publish: boolean
           topic: string
+          topic_axis: string | null
+          topic_node_id: string | null
           user_id: string
           week_of_month: number | null
           wp_post_url: string | null
@@ -77,6 +83,7 @@ export type Database = {
         }
         Insert: {
           autopublish_enabled?: boolean
+          concept_key?: string | null
           content_catalan?: Json | null
           content_spanish?: Json | null
           day_of_month?: number | null
@@ -89,9 +96,14 @@ export type Database = {
           image_url?: string | null
           month: number
           pexels_query?: string | null
+          quality_checked_at?: string | null
+          quality_report?: Json | null
+          quality_status?: string
           site_id: string
           skip_auto_publish?: boolean
           topic: string
+          topic_axis?: string | null
+          topic_node_id?: string | null
           user_id: string
           week_of_month?: number | null
           wp_post_url?: string | null
@@ -99,6 +111,7 @@ export type Database = {
         }
         Update: {
           autopublish_enabled?: boolean
+          concept_key?: string | null
           content_catalan?: Json | null
           content_spanish?: Json | null
           day_of_month?: number | null
@@ -111,9 +124,14 @@ export type Database = {
           image_url?: string | null
           month?: number
           pexels_query?: string | null
+          quality_checked_at?: string | null
+          quality_report?: Json | null
+          quality_status?: string
           site_id?: string
           skip_auto_publish?: boolean
           topic?: string
+          topic_axis?: string | null
+          topic_node_id?: string | null
           user_id?: string
           week_of_month?: number | null
           wp_post_url?: string | null
@@ -125,6 +143,13 @@ export type Database = {
             columns: ["site_id"]
             isOneToOne: false
             referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "articles_topic_node_id_fkey"
+            columns: ["topic_node_id"]
+            isOneToOne: false
+            referencedRelation: "topic_nodes"
             referencedColumns: ["id"]
           },
         ]
@@ -1274,6 +1299,116 @@ export type Database = {
         }
         Relationships: []
       }
+      topic_maps: {
+        Row: {
+          generated_at: string
+          id: string
+          model: string | null
+          raw: Json | null
+          site_id: string
+          source: string
+          status: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          generated_at?: string
+          id?: string
+          model?: string | null
+          raw?: Json | null
+          site_id: string
+          source?: string
+          status?: string
+          user_id: string
+          version?: number
+        }
+        Update: {
+          generated_at?: string
+          id?: string
+          model?: string | null
+          raw?: Json | null
+          site_id?: string
+          source?: string
+          status?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_maps_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_nodes: {
+        Row: {
+          audience_segment: string | null
+          axis: string
+          coverage_count: number
+          created_at: string
+          id: string
+          last_used_at: string | null
+          map_id: string
+          month_hint: number | null
+          priority: number
+          search_intent: string | null
+          season: string
+          site_id: string
+          status: string
+          subtopic: string
+        }
+        Insert: {
+          audience_segment?: string | null
+          axis: string
+          coverage_count?: number
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          map_id: string
+          month_hint?: number | null
+          priority?: number
+          search_intent?: string | null
+          season?: string
+          site_id: string
+          status?: string
+          subtopic: string
+        }
+        Update: {
+          audience_segment?: string | null
+          axis?: string
+          coverage_count?: number
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          map_id?: string
+          month_hint?: number | null
+          priority?: number
+          search_intent?: string | null
+          season?: string
+          site_id?: string
+          status?: string
+          subtopic?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_nodes_map_id_fkey"
+            columns: ["map_id"]
+            isOneToOne: false
+            referencedRelation: "topic_maps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_nodes_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1423,7 +1558,25 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_topic_coverage: {
+        Row: {
+          articulos: number | null
+          axis: string | null
+          nodos: number | null
+          nodos_cubiertos: number | null
+          site_id: string | null
+          ultimo_uso: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_nodes_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       add_team_member_by_email: {
@@ -1483,6 +1636,13 @@ export type Database = {
       request_autopublish_email_resend: {
         Args: { p_article_id: string }
         Returns: Json
+      }
+      sector_recent_concepts: {
+        Args: { _days?: number; _exclude_site?: string; _sector: string }
+        Returns: {
+          concept_key: string
+          usos: number
+        }[]
       }
       team_member_count: { Args: { target_owner_id: string }; Returns: number }
       validate_beta_token: {
