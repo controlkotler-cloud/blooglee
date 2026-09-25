@@ -465,6 +465,7 @@ Deno.serve(async (req) => {
       .is("wp_post_url", null)
       .eq("skip_auto_publish", false)
       .eq("generation_source", "scheduled")
+      .eq("quality_status", "passed")
       .gte("generated_at", since)
       .order("generated_at", { ascending: !prioritizeRecent })
       .limit(batchSize);

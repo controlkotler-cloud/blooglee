@@ -4121,12 +4121,16 @@ Deno.serve(async (req) => {
               model: "google/gemini-2.5-pro",
               messages: [{ role: "user", content: topicPrompt }],
               temperature: 0.9,
-              max_tokens: 400,
+              max_tokens: 4000,
             }),
           });
 
           if (topicResponse.ok) {
             const topicData = await topicResponse.json();
+            if (topicData.choices?.[0]?.finish_reason === "length") {
+              console.warn(`[topic] Attempt ${attempt}: respuesta truncada (finish_reason=length), se descarta`);
+              continue;
+            }
             const generatedTopic = topicData.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, "") || "";
 
             if (generatedTopic && generatedTopic.length > 5 && generatedTopic.length <= 160) {
