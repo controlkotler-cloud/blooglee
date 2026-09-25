@@ -607,10 +607,10 @@ Responde SOLO con JSON válido (sin markdown):
                     "Content-Type": "application/json",
                   },
                   body: JSON.stringify({
-                    model: "google/gemini-3.6-flash",
+                    model: "google/gemini-2.5-flash",
                     messages: [{ role: "user", content: analysisPrompt }],
                     temperature: 0.3,
-                    max_tokens: 1500,
+                    max_tokens: 200,
                   }),
                 });
 
