@@ -762,7 +762,19 @@ interface RequestBody {
   isScheduled?: boolean;
   userId?: string;
   generationKey?: string;
+  articleModel?: string;
 }
+
+// A/B del modelo que redacta el artículo. Solo se atiende en el sitio de
+// pruebas y con modelos de esta lista; en cualquier otro caso, el de siempre.
+const DEFAULT_ARTICLE_MODEL = "google/gemini-2.5-pro";
+const AB_TEST_SITE_ID = "611bc2ee-57e4-4c7f-bc12-8806b69f0f28";
+const AB_ARTICLE_MODELS = new Set([
+  "google/gemini-2.5-pro",
+  "google/gemini-3.6-flash",
+  "google/gemini-3.8-flash",
+  "google/gemini-3.1-pro-preview",
+]);
 
 /**
  * Builds a deterministic generation key for deduplication.
@@ -3459,6 +3471,11 @@ Deno.serve(async (req) => {
     console.log("Is Scheduled:", isScheduled);
 
     const { siteId, topic: providedTopic, month, year } = requestBody;
+    const articleModel =
+      siteId === AB_TEST_SITE_ID && AB_ARTICLE_MODELS.has(requestBody.articleModel ?? "")
+        ? requestBody.articleModel!
+        : DEFAULT_ARTICLE_MODEL;
+    console.log("Article model:", articleModel);
     console.log("Site ID:", siteId);
     console.log("Month/Year:", month, year);
 
@@ -4071,7 +4088,7 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: articleModel,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
@@ -4282,7 +4299,7 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "google/gemini-2.5-pro",
+              model: articleModel,
               messages: [{ role: "user", content: catalanPrompt }],
               temperature: 0.7,
               max_tokens: lengthTarget.maxTokens + (catalanAttempt - 1) * 2000,
