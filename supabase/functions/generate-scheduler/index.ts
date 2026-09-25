@@ -78,6 +78,13 @@ function getLocalDateParts(
   return { localHour, localMinute, localDayOfWeek, localDayOfMonth, localWeekOfMonth };
 }
 
+// Minuto de arranque estable por sitio (0-55), derivado de su id: reparte la tanda en ~1 h.
+function siteJitterMinutes(siteId: string): number {
+  let h = 0;
+  for (let i = 0; i < siteId.length; i++) h = (h * 31 + siteId.charCodeAt(i)) >>> 0;
+  return h % 56;
+}
+
 function shouldSiteGenerateNow(
   site: SiteEntity,
   now: Date,
@@ -85,51 +92,48 @@ function shouldSiteGenerateNow(
   const tz = site.timezone || "Europe/Madrid";
   const { localHour, localMinute, localDayOfWeek, localDayOfMonth, localWeekOfMonth } = getLocalDateParts(now, tz);
 
-  const targetHour = site.publish_hour_local ?? site.publish_hour_utc ?? 9;
-  const hourReached = localHour >= targetHour;
-  // Start up to 5 minutes early to absorb generation/publication latency without changing content quality.
-  const preWindowReached = targetHour > 0 && localHour === targetHour - 1 && localMinute >= 55;
+  // publish_hour_utc contiene, de facto, la hora LOCAL del sitio (se compara contra localHour
+  // en la zona de `timezone`). publish_hour_local nunca se escribe: no se lee.
+  const targetHour = site.publish_hour_utc ?? 9;
+  const jitter = siteJitterMinutes(site.id);
+  const hourReached = localHour > targetHour || (localHour === targetHour && localMinute >= jitter);
+  // Arranque hasta 5 min antes solo para los sitios cuyo jitter cae al principio de la hora.
+  const preWindowReached = targetHour > 0 && jitter < 5 && localHour === targetHour - 1 && localMinute >= 55;
   const timeReached = hourReached || preWindowReached;
   const frequency = normalizeFrequency(site.publish_frequency);
 
-  let due = false;
+  let dayReached = false;
   switch (frequency) {
     case "daily":
-      due = timeReached;
+      dayReached = true;
       break;
     case "daily_weekdays":
-      due = localDayOfWeek >= 1 && localDayOfWeek <= 5 && timeReached;
+      dayReached = localDayOfWeek >= 1 && localDayOfWeek <= 5;
       break;
     case "weekly":
-      due =
-        localDayOfWeek > (site.publish_day_of_week ?? 1) ||
-        (localDayOfWeek === (site.publish_day_of_week ?? 1) && timeReached);
+      dayReached = localDayOfWeek >= (site.publish_day_of_week ?? 1);
       break;
     case "biweekly":
-      if (localWeekOfMonth !== 1 && localWeekOfMonth !== 3) {
-        due = false;
-      } else {
-        due =
-          localDayOfWeek > (site.publish_day_of_week ?? 1) ||
-          (localDayOfWeek === (site.publish_day_of_week ?? 1) && timeReached);
-      }
+      dayReached =
+        (localWeekOfMonth === 1 || localWeekOfMonth === 3) &&
+        localDayOfWeek >= (site.publish_day_of_week ?? 1);
       break;
     case "monthly":
       if (site.publish_day_of_month !== null && site.publish_day_of_month !== undefined) {
-        due =
-          localDayOfMonth > site.publish_day_of_month || (localDayOfMonth === site.publish_day_of_month && timeReached);
+        dayReached = localDayOfMonth >= site.publish_day_of_month;
       } else {
         const targetDayOfWeek = site.publish_day_of_week ?? 1;
         const targetWeekOfMonth = site.publish_week_of_month ?? 1;
-        if (localWeekOfMonth > targetWeekOfMonth) due = true;
-        else if (localWeekOfMonth < targetWeekOfMonth) due = false;
-        else due = localDayOfWeek > targetDayOfWeek || (localDayOfWeek === targetDayOfWeek && timeReached);
+        dayReached =
+          localWeekOfMonth > targetWeekOfMonth ||
+          (localWeekOfMonth === targetWeekOfMonth && localDayOfWeek >= targetDayOfWeek);
       }
       break;
     default:
-      due = false;
+      dayReached = false;
   }
 
+  const due = dayReached && timeReached;
   return { due, localHour, localMinute, targetHour, tz };
 }
 
@@ -597,9 +601,9 @@ const handler = async (req: Request): Promise<Response> => {
     // Daily WordPress context refresh for all active sites
     // Only run once per day (UTC) to avoid redundant syncs
     try {
-      const currentHourUtc = new Date().getUTCHours();
+      const nowUtc = new Date();
       const REFRESH_HOUR_UTC = 3; // 3 AM UTC
-      if (currentHourUtc === REFRESH_HOUR_UTC) {
+      if (nowUtc.getUTCHours() === REFRESH_HOUR_UTC && nowUtc.getUTCMinutes() < 5) {
         console.log("[scheduler] Running daily WordPress context refresh");
         const { data: configs } = await supabase
           .from("wordpress_configs")
