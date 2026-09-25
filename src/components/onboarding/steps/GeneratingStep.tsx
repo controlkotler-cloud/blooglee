@@ -96,7 +96,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
             console.warn("Saved article_id not found or empty, regenerating...");
             isGeneratingRef.current = true;
             generatedRef.current = true;
-            generateArticle();
+            runGeneration();
           }
         });
       return;
@@ -104,10 +104,10 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
 
     isGeneratingRef.current = true;
     generatedRef.current = true;
-    generateArticle();
+    runGeneration();
   }, [siteId]);
 
-  const generateArticle = async () => {
+  const runGeneration = async () => {
     setStatus("generating");
     const startTime = Date.now();
     track("onboarding_article_generation_started");
