@@ -199,7 +199,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
               Ha habido un problema al generar tu artículo. No te preocupes, vamos a intentarlo de nuevo.
             </p>
-            <Button onClick={generateArticle} variant="outline" className="gap-2">
+            <Button onClick={() => runGeneration()} variant="outline" className="gap-2">
               <RefreshCw className="w-4 h-4" />
               Reintentar
             </Button>
