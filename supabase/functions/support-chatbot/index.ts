@@ -12,7 +12,7 @@ const corsHeaders = {
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 20;
-const CHAT_MODEL_CANDIDATES = ["google/gemini-3-flash-preview", "google/gemini-2.5-flash"];
+const CHAT_MODEL_CANDIDATES = ["google/gemini-3.6-flash", "google/gemini-3-flash-preview"];
 const UPSTREAM_TIMEOUT_MS = 45_000;
 
 const promptCache: Map<string, string> = new Map();
