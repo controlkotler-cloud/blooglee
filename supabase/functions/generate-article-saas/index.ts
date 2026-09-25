@@ -118,7 +118,7 @@ async function fixMetaDescription(metaDesc: string, focusKeyword: string, apiKey
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           {
             role: "user",
@@ -134,7 +134,7 @@ Responde SOLO con la nueva meta description, sin comillas ni explicaciones.`,
           },
         ],
         temperature: 0.3,
-        max_tokens: 1500,
+        max_tokens: 200,
       }),
     });
 
@@ -4621,7 +4621,7 @@ Deno.serve(async (req) => {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                model: "google/gemini-3.6-flash",
+                model: "google/gemini-2.5-flash",
                 messages: [
                   {
                     role: "user",
@@ -4808,7 +4808,7 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-3.6-flash",
+            model: "google/gemini-2.5-flash",
             messages: [
               {
                 role: "user",
@@ -4819,7 +4819,7 @@ Responde solo con este JSON: {"meta_description": "..."}`,
               },
             ],
             temperature: 0.6,
-            max_tokens: 1500,
+            max_tokens: 400,
             response_format: { type: "json_object" },
           }),
         });

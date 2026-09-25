@@ -282,10 +282,10 @@ REGLAS:
         "Authorization": `Bearer ${lovableApiKey}`
       },
       body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
-        max_tokens: 2000
+        max_tokens: 800
       })
     });
 
@@ -430,11 +430,11 @@ RESPONDE SOLO con el query en inglés, sin explicaciones, sin comillas, sin punt
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3.6-flash",
+            model: "google/gemini-2.5-flash",
             messages: [
               { role: "user", content: imageQueryPrompt },
             ],
-            max_tokens: 1000,
+            max_tokens: 50,
           }),
         });
 

@@ -803,7 +803,7 @@ Responde SOLO con este JSON válido:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
       }),
@@ -940,7 +940,7 @@ Escribe el artículo completo ahora:`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.8,
       }),
@@ -1086,7 +1086,7 @@ Genera SOLO este JSON:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.5,
       }),
@@ -1213,7 +1213,7 @@ Escriu l'article complet ara:`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.8,
       }),
@@ -1430,7 +1430,7 @@ const handler = async (req: Request): Promise<Response> => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3.6-flash",
+            model: "google/gemini-2.5-flash",
             messages: [{
               role: "user",
               content: `Generate a short Unsplash search query (3-5 English words) for a blog header image about: "${blogData.title}". Return ONLY the query. Focus on abstract or conceptual imagery.`
