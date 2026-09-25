@@ -134,7 +134,7 @@ export function OnboardingWizard() {
       case 5:
         return <SchedulingStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} siteId={siteId} />;
       case 6:
-        return <TopicStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} />;
+        return <TopicStep onNext={nextStep} onBack={prevStep} saveStepData={saveStepData} stepData={stepData} siteId={siteId} />;
       case 7:
         return <GeneratingStep onNext={nextStep} saveStepData={saveStepData} stepData={stepData} siteId={siteId} />;
       case 8:
