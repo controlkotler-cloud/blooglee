@@ -251,6 +251,108 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // --- Metric 4: Calidad del batch (retenidos por el gate + solapamiento entre sitios) ---
+    // Deduplicado por día: un resumen, no un goteo. Si todo va bien, silencio.
+    try {
+      const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: held } = await supabase
+        .from("articles")
+        .select("id, site_id, topic, quality_report, generated_at")
+        .eq("quality_status", "held")
+        .gte("generated_at", since);
+
+      const { data: todays } = await supabase
+        .from("articles")
+        .select("concept_key, site_id")
+        .gte("generated_at", since)
+        .not("concept_key", "is", null);
+
+      const byConcept: Record<string, Set<string>> = {};
+      for (const a of todays || []) {
+        (byConcept[a.concept_key] ||= new Set()).add(a.site_id);
+      }
+      const overlaps = Object.entries(byConcept)
+        .filter(([, sites]) => sites.size > 1)
+        .map(([concept, sites]) => `${concept} (${sites.size} sitios)`);
+
+      const heldList = held || [];
+      console.log(`${TAG} Calidad: retenidos=${heldList.length}, solapamientos=${overlaps.length}`);
+
+      if (heldList.length > 0 || overlaps.length > 0) {
+        const qualityAlertDay = new Date(now);
+        qualityAlertDay.setUTCHours(0, 0, 0, 0);
+
+        const { error: qInsertErr } = await supabase.from("ops_alert_log").insert({
+          alert_type: "quality_batch",
+          alert_hour: qualityAlertDay.toISOString(),
+          payload: {
+            held: heldList.map((a: any) => ({ id: a.id, site_id: a.site_id, topic: a.topic })),
+            overlaps,
+            checked_at: now.toISOString(),
+          },
+        });
+
+        if (qInsertErr?.code === "23505") {
+          console.log(`${TAG} Quality alert skipped (already sent today)`);
+        } else if (qInsertErr) {
+          console.error(`${TAG} Error inserting quality alert:`, qInsertErr);
+        } else {
+          const qRecipients = opsAlertEmails
+            .split(",")
+            .map((e: string) => e.trim())
+            .filter((e: string) => e.length > 0);
+          if (qRecipients.length > 0 && resendApiKey) {
+            const siteIds = [...new Set(heldList.map((a: any) => a.site_id))];
+            const { data: siteRows } = siteIds.length
+              ? await supabase.from("sites").select("id, name").in("id", siteIds)
+              : { data: [] as Array<{ id: string; name: string }> };
+            const siteName = (id: string) => siteRows?.find((s: any) => s.id === id)?.name || id;
+
+            const heldRows = heldList
+              .map((a: any) => {
+                const failed = (a.quality_report?.failedHard || []).join(", ");
+                return `<tr><td style="padding:8px; border:1px solid #ddd;">${siteName(a.site_id)}</td><td style="padding:8px; border:1px solid #ddd;">${a.topic || ""}</td><td style="padding:8px; border:1px solid #ddd;">${failed || "ver quality_report"}</td></tr>`;
+              })
+              .join("");
+
+            try {
+              await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${resendApiKey}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  from: alertFromEmail,
+                  to: qRecipients,
+                  subject: `[Blooglee] Calidad del batch: ${heldList.length} retenidos, ${overlaps.length} solapamientos`,
+                  html: `
+                    <h2>Calidad del batch (últimas 24 h)</h2>
+                    ${heldList.length > 0 ? `
+                    <h3>Artículos retenidos por el quality gate (no se publican)</h3>
+                    <table style="border-collapse:collapse; width:100%;">
+                      <tr><th style="padding:8px; border:1px solid #ddd;">Sitio</th><th style="padding:8px; border:1px solid #ddd;">Tema</th><th style="padding:8px; border:1px solid #ddd;">Checks fallidos</th></tr>
+                      ${heldRows}
+                    </table>` : ""}
+                    ${overlaps.length > 0 ? `
+                    <h3>Mismo concepto en sitios distintos</h3>
+                    <ul>${overlaps.map((o) => `<li>${o}</li>`).join("")}</ul>` : ""}
+                    <p style="color:#888; font-size:12px;">Este email se envía máximo 1 vez al día.</p>
+                  `,
+                }),
+              });
+              console.log(`${TAG} Quality email sent`);
+            } catch (emailErr) {
+              console.error(`${TAG} Failed to send quality email:`, emailErr);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error(`${TAG} Error en el bloque de calidad:`, e);
+    }
+
     if (!shouldAlert) {
       console.log(`${TAG} No autopublish alert needed. All healthy.`);
       return new Response(

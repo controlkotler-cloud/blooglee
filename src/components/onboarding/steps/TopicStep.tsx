@@ -21,9 +21,10 @@ interface TopicStepProps {
   onBack: () => void;
   saveStepData: (key: string, data: object) => void;
   stepData?: OnboardingStepData;
+  siteId?: string;
 }
 
-export function TopicStep({ onNext, onBack, saveStepData, stepData }: TopicStepProps) {
+export function TopicStep({ onNext, onBack, saveStepData, stepData, siteId }: TopicStepProps) {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -58,6 +59,7 @@ export function TopicStep({ onNext, onBack, saveStepData, stepData }: TopicStepP
     try {
       const { data, error } = await supabase.functions.invoke("suggest-topics", {
         body: {
+          site_id: siteId,
           sector: stepData?.step1?.sector ?? "",
           business_type: stepData?.step1?.business_type ?? "",
           location: stepData?.step1?.location ?? "",
