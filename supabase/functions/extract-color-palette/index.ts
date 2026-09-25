@@ -855,7 +855,7 @@ Responde SOLO con JSON: {"colors":["#xxxxxx","#xxxxxx","#xxxxxx","#xxxxxx"]}`;
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-3.6-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
       }),
@@ -950,7 +950,7 @@ Responde SOLO con el JSON, sin markdown ni explicaciones.`;
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-pro",
+      model: "google/gemini-3.6-flash",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.2,
     }),
