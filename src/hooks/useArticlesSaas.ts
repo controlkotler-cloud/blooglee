@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { generateArticle } from "@/lib/generate-article";
 import { toast } from "sonner";
 import { useGeneration } from "@/contexts/GenerationContext";
 
@@ -122,28 +123,12 @@ export function useGenerateArticleSaas() {
         id: `gen-${params.siteId}`,
       });
 
-      const { data, error } = await supabase.functions.invoke("generate-article-saas", {
-        body: {
-          siteId: params.siteId,
-          topic: params.topic || null,
-          month: new Date().getMonth() + 1,
-          year: new Date().getFullYear(),
-        },
+      return generateArticle({
+        siteId: params.siteId,
+        topic: params.topic || null,
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
       });
-
-      if (error) {
-        // Check if error response contains JSON with more details
-        if (typeof error === "object" && error.message) {
-          throw new Error(error.message);
-        }
-        throw error;
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      return data;
     },
     onSettled: (_, __, params) => {
       removeGenerating(params.siteId);

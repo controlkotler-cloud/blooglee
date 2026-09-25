@@ -4,6 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { RefreshCw } from "lucide-react";
 import { track } from "@/lib/analytics";
+import { generateArticle } from "@/lib/generate-article";
 import type { OnboardingStepData } from "@/hooks/useOnboarding";
 
 const TIPS = [
@@ -95,7 +96,7 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
             console.warn("Saved article_id not found or empty, regenerating...");
             isGeneratingRef.current = true;
             generatedRef.current = true;
-            generateArticle();
+            runGeneration();
           }
         });
       return;
@@ -103,21 +104,17 @@ export function GeneratingStep({ onNext, saveStepData, stepData, siteId }: Gener
 
     isGeneratingRef.current = true;
     generatedRef.current = true;
-    generateArticle();
+    runGeneration();
   }, [siteId]);
 
-  const generateArticle = async () => {
+  const runGeneration = async () => {
     setStatus("generating");
     const startTime = Date.now();
     track("onboarding_article_generation_started");
 
     try {
       const now = new Date();
-      const { data, error } = await supabase.functions.invoke("generate-article-saas", {
-        body: { siteId, topic, month: now.getMonth() + 1, year: now.getFullYear() },
-      });
-
-      if (error) throw error;
+      const data = await generateArticle({ siteId: siteId!, topic, month: now.getMonth() + 1, year: now.getFullYear() });
 
       const articleId = data?.article?.id || data?.articleId || data?.article_id || data?.id;
       if (articleId) await saveStepData("step5", { article_id: articleId });
