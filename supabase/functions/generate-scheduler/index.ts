@@ -637,6 +637,53 @@ const handler = async (req: Request): Promise<Response> => {
       console.warn("[scheduler] Daily WordPress refresh failed:", err);
     }
 
+    // Mapa temático previo: los sitios con generación automática que aún no
+    // tienen mapa activo lo reciben aquí, en tandas pequeñas, para que
+    // generate-article-saas no tenga que construirlo en mitad de una
+    // generación. Cada cuarto de hora, máximo 3 sitios por pasada.
+    try {
+      const nowMap = new Date();
+      if (nowMap.getUTCMinutes() % 15 < 5) {
+        const { data: autoSites } = await supabase
+          .from("sites")
+          .select("id")
+          .eq("auto_generate", true);
+        const { data: activeMaps } = await supabase
+          .from("topic_maps")
+          .select("site_id")
+          .eq("status", "active");
+        const withMap = new Set((activeMaps ?? []).map((m: { site_id: string }) => m.site_id));
+        const pendingMaps = (autoSites ?? [])
+          .filter((s: { id: string }) => !withMap.has(s.id))
+          .slice(0, 3) as Array<{ id: string }>;
+
+        if (pendingMaps.length > 0) {
+          const buildUrl = `${supabaseUrl}/functions/v1/build-topic-map`;
+          const results = await Promise.allSettled(
+            pendingMaps.map((s) =>
+              fetch(buildUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({ site_id: s.id, mode: "create" }),
+              }).then(async (r) => {
+                if (!r.ok) throw new Error(`HTTP ${r.status} en ${s.id}: ${(await r.text()).slice(0, 200)}`);
+              }),
+            ),
+          );
+          const ok = results.filter((r) => r.status === "fulfilled").length;
+          for (const r of results) {
+            if (r.status === "rejected") console.warn("[scheduler] mapa temático fallido:", r.reason?.message || r.reason);
+          }
+          console.log(`[scheduler] Mapas temáticos: ${ok} creados de ${pendingMaps.length} (pendientes antes de esta pasada: ${(autoSites ?? []).length - withMap.size})`);
+        }
+      }
+    } catch (err) {
+      console.warn("[scheduler] Pre-construcción de mapas falló:", err);
+    }
+
     const elapsed = Date.now() - startTime;
     console.log("\n=== SCHEDULER COMPLETE ===");
     console.log(`Time elapsed: ${elapsed}ms`);
