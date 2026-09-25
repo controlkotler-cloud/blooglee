@@ -4957,7 +4957,7 @@ Responde solo con este JSON: {"meta_description": "..."}`,
     console.log("=== ARTICLE GENERATION COMPLETE ===");
     console.log("Article ID:", savedArticle.id);
 
-    await markNodeUsed(supabase, selection.nodeId);
+    await markNodeUsed(serviceClient, selection.nodeId);
 
     // Update pillar index for next generation (rotation)
     if (!providedTopic) {
