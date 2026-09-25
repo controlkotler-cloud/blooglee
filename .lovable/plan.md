@@ -1,63 +1,36 @@
+# Diagnóstico del `shutdown` de 09:37:19Z (solo lectura, sin cambios)
 
-He encontrado la diferencia real: mkpro y farmapro NO usan rutas distintas; ambos pasan por `generate-article-saas`. El comportamiento distinto viene de una combinación de fallos en el pipeline, no del sitio en sí.
+## Corrección al informe anterior
+La generación de prueba SÍ terminó. El artículo se guardó a las 09:39:03 con id `be16b6ff-871f-4f7c-8faf-c161e2fe4e2a`, calidad `passed` y puntuación 93. El nodo es `8cc83c66-…` y el concept_key es `atopica-brotes-corticoide`. Mi consulta anterior se lanzó a los 150 s, cuando el artículo todavía no existía.
 
-Qué está pasando:
-1. El prompt activo en la base de datos sigue desalineado:
-   - `saas.article.user` todavía contiene una regla antigua del tipo “La frase final debe incluir todos los enlaces disponibles”.
-   - Como los prompts de base de datos tienen prioridad sobre los del código, la IA sigue generando su propio cierre con blog/Instagram.
-2. En mkpro hay artículos recientes que terminan con HTML mal cerrado:
-   - El último párrafo no acaba en `</p>`.
-   - Las funciones `stripAiGeneratedClosingCta`, `removeTrailingFooterCtaParagraphs` y `finalDeduplicateClosingParagraphs` solo detectan párrafos completos `<p>...</p>`, así que ese segundo cierre queda invisible y no se limpia.
-3. Hay un bug lógico en la deduplicación final:
-   - `finalDeduplicateClosingParagraphs` calcula qué párrafo debería conservar (`keepIdx`), pero luego en la práctica borra “todos menos el último”.
-   - Eso hace que el resultado dependa del orden exacto en que la IA escribió los cierres.
-4. Farmapro no “lo hace perfecto” por una lógica especial:
-   - Simplemente sus posts recientes suelen llegar con HTML de cierre bien formado, por eso el post-procesado sí consigue limpiarlos.
-5. mkpro además tiene menos contexto editorial configurado que farmapro (menos señales de contenido), lo que puede empujar a la IA a meter más autopromoción, pero no es la causa técnica principal.
+## 1. Logs 09:35:50–09:39:11
+Con las herramientas disponibles no he podido sacar la metadata completa (`reason`, `execution_id`): la consulta sobre la tabla de logs de funciones devuelve 0 filas. Los emparejamientos de abajo están deducidos por los tiempos.
+- `booted` 09:31:03 → `shutdown` 09:33:23: instancia anterior.
+- `booted` 09:33:59 → `shutdown` **09:37:19**: la llamada del sitio "Prueba", que devolvió 403 en 2 s. Es un cierre por inactividad de esa instancia y **no tiene nada que ver** con la generación.
+- `booted` 09:35:51 → `shutdown` 09:39:11: la generación real. El reintento de 09:37:22 es de esta instancia y continuó hasta completar.
 
-Plan de solución definitiva:
-1. Corregir los prompts activos
-   - Actualizar `saas.article.system` y `saas.article.user`.
-   - Eliminar cualquier instrucción que pida meter blog/Instagram en la frase final.
-   - Sustituirla por una prohibición explícita del cierre promocional.
-   - Forzar refresco de caché de prompts.
+Líneas relevantes de la instancia 09:35:51 que no estaban en el informe anterior:
+- 09:38:39 Spanish article parsed successfully on attempt 2
+- 09:38:39 Meta description needs fix: 150 chars → regenerada, 124 chars
+- 09:39:02 AI image attempt 1 response status: 200
+- 09:39:03 [quality] es=OK (93/100)
+- 09:39:03 Created new article be16b6ff-…
+- 09:39:03 **WARNING [topic] no se pudo marcar el nodo como usado: permission denied for function increment_node_coverage**
+- 09:39:04 **ERROR Http: connection closed before message completed** (el cliente ya había cortado a los 150 s)
+- 09:39:04 Notification email sent to control@mkpro.es
 
-2. Normalizar el HTML antes de deduplicar
-   - Añadir una función tipo `normalizeArticleTailHtml()` justo antes de `stripAiGeneratedClosingCta`.
-   - Cerrar `<p>` abiertos al final y limpiar cola HTML rota.
-   - Objetivo: que todos los cierres queden convertidos en bloques detectables.
+Duración total: unos 192 s. En la base de datos no aparece ningún permiso concedido sobre `increment_node_coverage`.
 
-3. Arreglar la deduplicación final
-   - Hacer que `finalDeduplicateClosingParagraphs` conserve realmente `keepIdx`.
-   - Si hay varios cierres candidatos, mantener solo uno.
-   - Priorizar el CTA oficial con enlaces correctos.
-   - Eliminar también párrafos de autopromoción de marca que terminen hablando de blog/Instagram aunque no empiecen como CTA puro.
+## 2. Tanda del 1-sep (05:00–07:00 UTC)
+No está disponible. El visor de logs solo conserva los recientes y la consulta histórica devuelve 0 filas. No puedo dar ni el número de `shutdown` ni el tiempo medio sin inventarlo.
 
-4. Simplificar el pipeline
-   - Dejar `ensureAuthorityLinks` en una única fase final.
-   - Orden recomendado:
-     1. `cleanMarkdownFromHtml`
-     2. `normalizeArticleTailHtml`
-     3. `stripAiGeneratedClosingCta`
-     4. `verifyAndCleanExternalLinks`
-     5. `ensureFooterLinks`
-     6. `ensureAuthorityLinks`
-     7. `finalDeduplicateClosingParagraphs`
-   - Así el footer no dependerá de párrafos previos ya contaminados o mal cerrados.
+## 3. Cómo se invoca desde la app
+- `src/hooks/useArticlesSaas.ts:125`: `await supabase.functions.invoke("generate-article-saas", …)`. **Espera la respuesta.**
+- `src/components/onboarding/steps/GeneratingStep.tsx:116`: la misma llamada con `await`, y también **espera**.
+- `EdgeRuntime.waitUntil`: **no se usa** en ninguna función del proyecto.
 
-5. Validación final
-   - Probar una generación nueva para mkpro y otra para farmapro.
-   - Confirmar en ambos:
-     - un único cierre final
-     - sin segundo párrafo con blog/Instagram
-     - HTML correctamente cerrado
-     - sin mezclar fuentes de autoridad con el CTA
+La función sigue trabajando aunque el cliente corte, como se vio hoy. Pero cuando pasa de 150 s, la app muestra un error aunque el artículo acabe guardándose.
 
-Archivos y piezas afectadas:
-- `supabase/functions/generate-article-saas/index.ts`
-- prompts activos del backend: `saas.article.system` y `saas.article.user`
-- `prompt_cache_version`
-
-Resultado esperado:
-- mkpro y farmapro quedarán alineados porque el cierre ya no dependerá ni del prompt antiguo ni de HTML mal cerrado.
-- Habrá un único pie final con enlaces correctos, sin duplicados.
+## Arreglos propuestos (solo si los apruebas)
+1. Conceder permiso de ejecución de `increment_node_coverage` a `service_role` y `authenticated`, para que se cuente el uso de cada nodo. Hoy ningún nodo se marca, así que el mapa repetirá temas.
+2. Generación manual en segundo plano: la función responde enseguida con `202` y termina el trabajo con `EdgeRuntime.waitUntil`. La app detecta el artículo nuevo refrescando la lista, en vez de esperar la respuesta.
