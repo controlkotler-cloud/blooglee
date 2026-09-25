@@ -1,5 +1,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.0.0";
+import {
+  selectTopic,
+  markNodeUsed,
+  mapNeedsExtension,
+  getTemporalContext,
+  isTooSimilar,
+  normalizeConceptKey,
+} from "../_shared/topic-selection.ts";
+import { runQualityGate, verdictSummary } from "../_shared/quality-gate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -977,41 +986,6 @@ const MONTH_NAMES_CA = [
   "Desembre",
 ];
 
-// Seasonal guardrail (Spain / hemisferio norte). Bloque inyectado en los prompts
-// de tema y artículo para evitar que el modelo escriba sobre estaciones futuras
-// lejanas (p.ej. otoño en junio).
-function buildSeasonalGuardrail(month: number, dayOfMonth: number): string {
-  const seasonByMonth: Record<number, { current: string; next: string; allowNext: boolean }> = {
-    1: { current: "invierno", next: "primavera", allowNext: false },
-    2: { current: "invierno", next: "primavera", allowNext: false },
-    3: { current: dayOfMonth < 21 ? "invierno" : "primavera", next: "primavera", allowNext: true },
-    4: { current: "primavera", next: "verano", allowNext: false },
-    5: { current: "primavera", next: "verano", allowNext: false },
-    6: { current: dayOfMonth < 21 ? "primavera" : "verano", next: "verano", allowNext: true },
-    7: { current: "verano", next: "otoño", allowNext: false },
-    8: { current: "verano", next: "otoño", allowNext: false },
-    9: { current: dayOfMonth < 23 ? "verano" : "otoño", next: "otoño", allowNext: true },
-    10: { current: "otoño", next: "invierno", allowNext: false },
-    11: { current: "otoño", next: "invierno", allowNext: false },
-    12: { current: dayOfMonth < 21 ? "otoño" : "invierno", next: "invierno", allowNext: true },
-  };
-  const info = seasonByMonth[month] || seasonByMonth[1];
-  const allSeasons = ["primavera", "verano", "otoño", "invierno"];
-  const forbidden = allSeasons.filter((s) => s !== info.current && s !== info.next);
-  return [
-    "═══════════════════════════════════════",
-    "ESTACIÓN ACTUAL (REGLA CRÍTICA)",
-    "═══════════════════════════════════════",
-    `Hoy estamos en ${info.current.toUpperCase()} (hemisferio norte, España).`,
-    `- PROHIBIDO escribir el artículo enfocado en ${forbidden.join(", ")}, ni en su llegada, preparación, recuperación o transición.`,
-    `- PROHIBIDO usar las palabras "${forbidden.join('", "')}" como tema central, en el título, en el slug, en el meta_description o como gancho del artículo.`,
-    info.allowNext
-      ? `- Solo se permite mencionar la próxima estación (${info.next}) si encaja con el tema y de forma puntual, nunca como eje del artículo.`
-      : `- Está prohibido orientar el contenido a la próxima estación (${info.next}); aún faltan semanas.`,
-    `- Si el pilar es "seasonal", el enfoque debe estar dentro de ${info.current} o de un evento concreto del mes actual (${MONTH_NAMES_ES[month - 1]}) o del siguiente.`,
-    `- Verificación antes de responder: ni el title, ni el seo_title, ni el slug, ni el meta_description, ni el primer párrafo pueden contener: ${forbidden.join(", ")}.`,
-  ].join("\n");
-}
 
 // ==========================================
 // JSON REPAIR: Escape control chars ONLY inside string literals
@@ -3380,196 +3354,9 @@ function getConceptFromWord(word: string): string | null {
   return null;
 }
 
-function extractConcepts(text: string): Set<string> {
-  const words = text
-    .toLowerCase()
-    .split(/[\s:,\-–—.;!?¿¡()[\]{}]+/)
-    .filter((w) => w.length > 2);
-  const concepts = new Set<string>();
-  for (const word of words) {
-    const concept = getConceptFromWord(word);
-    if (concept) concepts.add(concept);
-  }
-  return concepts;
-}
-
-/**
- * Detects if a concept is over-represented in recent topics.
- * Returns the concept name if any concept appears in 3+ of the last N topics.
- */
-function detectOverusedConcept(
-  newTitle: string,
-  existingTopics: string[],
-  maxRepetitions = 2,
-): { overused: boolean; concept?: string; count?: number } {
-  const newConcepts = extractConcepts(newTitle);
-  if (newConcepts.size === 0) return { overused: false };
-
-  // Count how many existing topics contain each concept
-  const conceptCounts: Record<string, number> = {};
-  for (const concept of newConcepts) {
-    conceptCounts[concept] = 0;
-  }
-
-  for (const existing of existingTopics) {
-    const existingConcepts = extractConcepts(existing);
-    for (const concept of newConcepts) {
-      if (existingConcepts.has(concept)) {
-        conceptCounts[concept]++;
-      }
-    }
-  }
-
-  // Find any concept that exceeds the threshold
-  for (const [concept, count] of Object.entries(conceptCounts)) {
-    if (count >= maxRepetitions) {
-      return { overused: true, concept, count };
-    }
-  }
-
-  return { overused: false };
-}
-
-// TOPIC SIMILARITY CHECK (deduplication)
-// ==========================================
-function isTooSimilar(
-  newTitle: string,
-  existingTopics: string[],
-): { similar: boolean; matchedTopic?: string; similarity?: number } {
-  const stopWords = new Set([
-    "el",
-    "la",
-    "los",
-    "las",
-    "de",
-    "del",
-    "en",
-    "para",
-    "por",
-    "con",
-    "tu",
-    "tus",
-    "un",
-    "una",
-    "y",
-    "o",
-    "a",
-    "que",
-    "es",
-    "como",
-    "cómo",
-    "su",
-    "sus",
-    "al",
-    "se",
-    "lo",
-    "le",
-    "más",
-    "sin",
-    "sobre",
-    "entre",
-    "cada",
-    "todo",
-    "todos",
-    "toda",
-    "todas",
-    "este",
-    "esta",
-    "estos",
-    "estas",
-    "ese",
-    "esa",
-    "esos",
-    "esas",
-    "muy",
-    "ya",
-    "hay",
-    "hace",
-    "solo",
-    "así",
-  ]);
-  const genericWords = new Set([
-    "blog",
-    "contenido",
-    "contenidos",
-    "marketing",
-    "digital",
-    "online",
-    "empresa",
-    "empresas",
-    "negocio",
-    "negocios",
-    "pymes",
-    "pyme",
-    "agencia",
-    "agencias",
-    "cliente",
-    "clientes",
-    "equipo",
-    "equipos",
-    "guía",
-    "guia",
-    "guías",
-    "estrategia",
-    "estrategias",
-    "herramienta",
-    "herramientas",
-    "mejor",
-    "mejores",
-    "clave",
-    "claves",
-    "éxito",
-    "exito",
-    "resultado",
-    "resultados",
-    "año",
-    "años",
-    "mes",
-    "meses",
-    "nuevo",
-    "nueva",
-    "nuevos",
-    "nuevas",
-  ]);
-  const extractWords = (text: string) =>
-    text
-      .toLowerCase()
-      .split(/[\s:,\-–—.;!?¿¡()[\]{}]+/)
-      .filter((w) => w.length > 2 && !stopWords.has(w));
-
-  const newWords = extractWords(newTitle);
-  const newWordsSet = new Set(newWords);
-  if (newWordsSet.size < 3) return { similar: false };
-
-  const newSpecificWords = [...newWordsSet].filter((w) => !genericWords.has(w));
-
-  for (const existing of existingTopics) {
-    const existingWordsSet = new Set(extractWords(existing));
-    if (existingWordsSet.size < 2) continue;
-
-    const intersection = [...newWordsSet].filter((w) => existingWordsSet.has(w));
-    const specificMatches = intersection.filter((w) => !genericWords.has(w));
-    const similarity = intersection.length / Math.max(newWordsSet.size, existingWordsSet.size);
-
-    if (intersection.length >= 3 && specificMatches.length >= 2 && similarity > 0.5) {
-      console.log(
-        `⚠️ Topic too similar to: "${existing}" (${(similarity * 100).toFixed(0)}% match, specific: ${specificMatches.join(", ")})`,
-      );
-      return { similar: true, matchedTopic: existing, similarity };
-    }
-  }
-
-  // CONCEPT-LEVEL CHECK: reject if same core concept appears in 3+ recent topics
-  const conceptCheck = detectOverusedConcept(newTitle, existingTopics, 2);
-  if (conceptCheck.overused) {
-    console.log(
-      `⚠️ Topic "${newTitle}" rejected: concept "${conceptCheck.concept}" already used in ${conceptCheck.count} recent topics`,
-    );
-    return { similar: true, matchedTopic: `[concept: ${conceptCheck.concept}]`, similarity: 1 };
-  }
-
-  return { similar: false };
-}
+// [PARCHE 06-cambios] extractConcepts, detectOverusedConcept e isTooSimilar
+// (deduplicacion local) eliminados: viven ahora en _shared/topic-selection.ts
+// y se importan arriba. getConceptFromWord queda sin uso, se deja inocuo.
 
 // ==========================================
 // MAIN HANDLER
@@ -3995,292 +3782,134 @@ Deno.serve(async (req) => {
       console.log("Could not load sector prohibited terms:", e);
     }
 
-    // Generate topic if not provided
-    let topic = providedTopic;
+    // ==========================================
+    // SELECCIÓN DE TEMA — punto único (mapa temático + cobertura)
+    // ==========================================
+    const temporal = getTemporalContext(new Date(), "ES");
 
-    if (!topic) {
-      console.log("Generating topic with AI...");
+    const avoidTopicsListForPrompt =
+      avoidTopics.length > 0 ? avoidTopics.map((t) => `- ${t}`).join("\n") : "(ninguno especificado)";
 
-      // Use dynamic limit based on publish frequency
-      const topicsLimit = getTopicsLimitForFrequency(site.publish_frequency || "monthly");
-      console.log(`Using topics limit: ${topicsLimit} for frequency: ${site.publish_frequency}`);
+    const prohibitedTermsForPrompt =
+      sectorProhibitedTerms.length > 0
+        ? sectorProhibitedTerms.slice(0, 20).map((t) => `- ${t}`).join("\n")
+        : "(ninguno)";
 
-      const usedTopics = await getUsedTopicsForSite(supabase, siteId, topicsLimit);
-      console.log(`Found ${usedTopics.length} Blooglee topics`);
+    const customTopicDirective = site.custom_topic
+      ? `ENFOQUE TEMÁTICO (contexto interno, NO usar literalmente): El cliente quiere contenido orientado hacia "${site.custom_topic}". Genera un tema que encaje con este enfoque de forma natural, sin repetir la frase del cliente.`
+      : "";
 
-      // Get WordPress topics from context
-      const wpTopics = wpContext?.lastTopics || [];
-      console.log(`Found ${wpTopics.length} WordPress topics from context`);
-      if (wpTopics.length > 0) {
-        console.log("WordPress topics to avoid:", wpTopics.slice(0, 5).join(", "));
-      }
+    const enrichedVariables = {
+      siteName: site.name,
+      businessType,
+      sector,
+      description,
+      descriptionContext,
+      scope,
+      toneType: siteTone,
+      toneDescription,
+      targetAudience: targetAudience
+        ? `Perfil de la audiencia (NO mencionar en el texto, solo usar como contexto): ${targetAudience}`
+        : "Audiencia general",
+      prohibitedTerms: prohibitedTermsForPrompt,
+      avoidTopicsList: avoidTopicsListForPrompt,
+      customTopicDirective,
+    };
 
-      // Build comprehensive avoid list - use full dynamic limit
-      const allAvoidTopics = [
-        ...avoidTopics,
-        ...usedTopics.slice(0, topicsLimit),
-        ...wpTopics, // WordPress topics from sync
-      ];
-      console.log(`Total topics to avoid: ${allAvoidTopics.length}`);
+    // Si el sitio no tiene mapa ACTIVO, se construye antes de continuar.
+    // Se comprueba el mapa, no los nodos sueltos: un nodo puede seguir
+    // existiendo colgado de un mapa retirado.
+    const { data: activeMapRow } = await supabase
+      .from("topic_maps")
+      .select("id")
+      .eq("site_id", siteId)
+      .eq("status", "active")
+      .maybeSingle();
 
-      // Detect overused concepts to warn the AI
-      const conceptFrequency: Record<string, number> = {};
-      for (const t of allAvoidTopics) {
-        const concepts = extractConcepts(t);
-        for (const c of concepts) {
-          conceptFrequency[c] = (conceptFrequency[c] || 0) + 1;
-        }
-      }
-      const overusedConcepts = Object.entries(conceptFrequency)
-        .filter(([_, count]) => count >= 2)
-        .sort((a, b) => b[1] - a[1])
-        .map(([concept, count]) => `${concept} (${count} veces)`)
-        .slice(0, 8);
+    if (!activeMapRow) {
+      console.log("[topic] sitio sin mapa temático: construyendo…");
+      const buildRes = await fetch(`${SUPABASE_URL}/functions/v1/build-topic-map`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ site_id: siteId, mode: "create" }),
+      });
+      console.log("[topic] build-topic-map:", buildRes.status);
+    }
 
-      const overusedConceptsWarning =
-        overusedConcepts.length > 0
-          ? `\n\n🚫 CONCEPTOS SOBREUSADOS (PROHIBIDO usar estos enfoques de nuevo):\n${overusedConcepts.join(", ")}\nDebes elegir un ángulo COMPLETAMENTE DIFERENTE. No reformules el mismo concepto con otras palabras.`
-          : "";
+    const topicPromptTemplate = await getPrompt(supabase, "saas.topic", enrichedVariables, FALLBACK_PROMPTS.topic);
 
-      const usedTopicsSection =
-        allAvoidTopics.length > 0
-          ? `\n\n⚠️ TEMAS YA USADOS (NO REPETIR NI SIMILARES):\n${allAvoidTopics
-              .slice(0, 60)
-              .map((t, i) => `${i + 1}. ${t}`)
-              .join("\n")}${overusedConceptsWarning}`
-          : "";
-
-      // Build avoid topics list for prompt
-      const avoidTopicsListForPrompt =
-        avoidTopics.length > 0 ? avoidTopics.map((t) => `- ${t}`).join("\n") : "(ninguno especificado)";
-
-      // Build prohibited terms string for prompt
-      const prohibitedTermsForPrompt =
-        sectorProhibitedTerms.length > 0
-          ? sectorProhibitedTerms
-              .slice(0, 20)
-              .map((t) => `- ${t}`)
-              .join("\n")
-          : "(ninguno)";
-
-      // Build custom topic directive
-      const customTopicDirective = site.custom_topic
-        ? `ENFOQUE TEMÁTICO (contexto interno, NO usar literalmente): El cliente quiere contenido orientado hacia "${site.custom_topic}". Genera un tema que encaje con este enfoque de forma natural, sin repetir la frase del cliente.`
-        : "";
-
-      // Build enriched topic prompt variables
-      const enrichedVariables = {
+    let selection;
+    try {
+      selection = await selectTopic({
+        supabase,
+        siteId,
+        sector,
         siteName: site.name,
-        businessType: businessType,
-        sector: sector,
-        description: description,
-        descriptionContext: descriptionContext,
-        scope: scope,
-        month: monthNameEs,
-        year: year.toString(),
-        dayOfMonth: dayOfMonth.toString(),
-        usedTopics: usedTopicsSection,
-        pillarType: currentPillar,
-        pillarDescription: pillarDescription,
-        toneType: siteTone,
-        toneDescription: toneDescription,
-        targetAudience: targetAudience
-          ? `Perfil de la audiencia (NO mencionar en el texto, solo usar como contexto): ${targetAudience}`
-          : "Audiencia general",
-        wpStyleNotes: wpStyleNotes ? `ESTILO DETECTADO EN SU BLOG: ${wpStyleNotes}` : "",
-        wpRecentTopics: wpRecentTopics ? `TEMAS RECIENTES DE SU BLOG: ${wpRecentTopics}` : "",
-        contentGoal: contentGoal ? `OBJETIVO DEL CONTENIDO (contexto interno): ${contentGoal}` : "",
-        priorityTopics:
-          priorityTopics.length > 0 ? `TEMAS PRIORITARIOS (contexto interno): ${priorityTopics.join(", ")}` : "",
-        angleToAvoid: angleToAvoid ? `ENFOQUE A EVITAR: ${angleToAvoid}` : "",
-        prohibitedTerms: prohibitedTermsForPrompt,
-        avoidTopicsList: avoidTopicsListForPrompt,
-        customTopicDirective: customTopicDirective,
-      };
+        description: site.description,
+        targetAudience,
+        tone: siteTone,
+        customTopic: site.custom_topic,
+        avoidTopics,
+        priorityTopics,
+        prohibitedTerms: sectorProhibitedTerms,
+        country: "ES",
+        providedTopic,           // onboarding: ahora también pasa por aquí
+        apiKey: LOVABLE_API_KEY!,
+        topicPromptTemplate,
+        logger: (m) => console.log(m),
+      });
+    } catch (e) {
+      // Sin mapa y sin respuesta del modelo no hay tema válido. Se aborta
+      // esta generación con un error explícito en vez de publicar cualquier
+      // cosa: afecta solo a este sitio, cada uno es una invocación aparte.
+      console.error("[topic] selección fallida:", e);
+      return new Response(
+        JSON.stringify({
+          error: "No se pudo determinar el tema del articulo",
+          detail: e instanceof Error ? e.message : String(e),
+          site_id: siteId,
+        }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
-      // Get topic prompt from database with cache
-      let topicPrompt = await getPrompt(supabase, "saas.topic", enrichedVariables, FALLBACK_PROMPTS.topic);
-      const seasonalGuardrail = buildSeasonalGuardrail(new Date().getUTCMonth() + 1, dayOfMonth);
-      topicPrompt = `${topicPrompt}\n\n${seasonalGuardrail}\n\nTIPO DE NEGOCIO (contexto interno): ${businessType}\n${
-        contentGoal ? `OBJETIVO DEL CONTENIDO: ${contentGoal}\n` : ""
-      }${priorityTopics.length > 0 ? `TEMAS PRIORITARIOS: ${priorityTopics.join(", ")}\n` : ""}${
-        angleToAvoid ? `ENFOQUE A EVITAR: ${angleToAvoid}\n` : ""
-      }`;
+    if (selection.warnings.length) {
+      console.warn(`[topic] avisos: ${selection.warnings.join(" · ")}`);
+    }
 
-      // Topic generation with similarity deduplication (up to 3 retries)
-      const MAX_TOPIC_ATTEMPTS = 3;
-      for (let attempt = 1; attempt <= MAX_TOPIC_ATTEMPTS; attempt++) {
-        try {
-          const topicResponse = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-pro",
-              messages: [{ role: "user", content: topicPrompt }],
-              temperature: 0.9,
-              max_tokens: 4000,
-            }),
-          });
+    // `topic` se declara aquí porque el `let topic = providedTopic;` original
+    // desaparece con la sustitución. No se reasigna en ningún punto posterior
+    // del archivo (comprobado), así que const es seguro.
+    const topic = selection.topic;
+    if (selection.warnings.length) console.log("[topic] avisos:", selection.warnings.join(" | "));
+    console.log(`[topic] "${topic}" (origen: ${selection.source}, eje: ${selection.axis || "—"})`);
 
-          if (topicResponse.ok) {
-            const topicData = await topicResponse.json();
-            if (topicData.choices?.[0]?.finish_reason === "length") {
-              console.warn(`[topic] Attempt ${attempt}: respuesta truncada (finish_reason=length), se descarta`);
-              continue;
-            }
-            const generatedTopic = topicData.choices?.[0]?.message?.content?.trim().replace(/^["']|["']$/g, "") || "";
+    // Si el mapa se está agotando, se amplía en segundo plano.
+    if (await mapNeedsExtension(supabase, siteId)) {
+      fetch(`${SUPABASE_URL}/functions/v1/build-topic-map`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ site_id: siteId, mode: "extend" }),
+      }).catch((e) => console.error("[topic] extend falló:", e));
+    }
 
-            if (generatedTopic && generatedTopic.length > 5 && generatedTopic.length <= 160) {
-              // Programmatic similarity check against all known topics
-              const similarityCheck = isTooSimilar(generatedTopic, allAvoidTopics);
-              if (similarityCheck.similar) {
-                console.log(
-                  `⚠️ Attempt ${attempt}/${MAX_TOPIC_ATTEMPTS}: Topic "${generatedTopic}" too similar to "${similarityCheck.matchedTopic}" (${((similarityCheck.similarity || 0) * 100).toFixed(0)}%). Retrying...`,
-                );
-                continue; // Try again
-              }
-              topic = generatedTopic;
-              console.log(`✓ Topic generated (attempt ${attempt}): "${topic}"`);
-              break;
-            } else {
-              console.log(`Topic invalid (empty or wrong length): "${generatedTopic}"`);
-            }
-          }
-        } catch (error) {
-          console.error(`Topic generation error (attempt ${attempt}):`, error);
-        }
-      }
-
-      // Fallback if generation failed - expanded list with dedup
-      if (!topic) {
-        const concreteFallbacks: Record<string, string[]> = {
-          farmacia: [
-            "Cómo organizar el mostrador de dermofarmacia",
-            "Consejos para la atención de alergias estacionales",
-            "Guía de productos para el cuidado solar",
-            "Rutina de cuidado facial recomendada por expertos",
-            "Suplementos nutricionales más consultados",
-            "Cómo elegir el protector solar adecuado",
-            "Primeros auxilios básicos en el hogar",
-            "Alimentación saludable para deportistas amateur",
-            "Cómo prevenir resfriados en invierno",
-            "Guía de hidratación corporal por tipo de piel",
-            "Vitaminas esenciales para cada etapa de la vida",
-            "Consejos para mejorar la calidad del sueño",
-          ],
-          belleza: [
-            "Tendencias en coloración capilar natural",
-            "Cuidado del cabello después del verano",
-            "Guía de cortes según forma del rostro",
-            "Tratamientos capilares sin químicos agresivos",
-            "Cómo mantener el color entre visitas al salón",
-            "Peinados protectores para cabello frágil",
-            "Rutina capilar para cabello rizado",
-            "Aceites naturales para nutrir el cabello",
-            "Cortes de pelo que rejuvenecen",
-            "Cómo elegir el champú adecuado para tu tipo de pelo",
-          ],
-          marketing: [
-            "Estructura de una landing page efectiva",
-            "Cómo redactar asuntos de email que abren",
-            "Guía de palabras clave long-tail",
-            "Estrategia de contenido para redes sociales",
-            "Métricas clave para medir tu marketing digital",
-            "Cómo crear un calendario editorial efectivo",
-            "Copywriting persuasivo para páginas de venta",
-            "Automatización de email marketing paso a paso",
-            "Optimización de fichas de Google Business",
-            "Cómo generar reseñas positivas de clientes",
-          ],
-          hosteleria: [
-            "Carta digital y su impacto en el servicio",
-            "Técnicas de fidelización para restaurantes",
-            "Tendencias gastronómicas de temporada",
-            "Cómo gestionar reseñas online de tu restaurante",
-            "Maridajes creativos para sorprender a tus clientes",
-            "Estrategias para reducir el desperdicio alimentario",
-            "Diseño de menú que maximiza ventas",
-            "Experiencia del cliente en hostelería moderna",
-            "Ingredientes de proximidad como valor diferencial",
-            "Cómo fotografiar platos para redes sociales",
-          ],
-          tecnologia: [
-            "Ciberseguridad básica para pequeñas empresas",
-            "Herramientas de productividad para equipos remotos",
-            "Automatización de procesos repetitivos",
-            "Guía de backup y recuperación de datos",
-            "Cómo elegir software de gestión empresarial",
-            "Integración de herramientas digitales en tu negocio",
-            "Protección de datos personales en la empresa",
-            "Workflows automatizados que ahorran tiempo",
-            "Comunicación interna con herramientas digitales",
-            "Gestión de contraseñas segura para equipos",
-          ],
-          salud: [
-            "Hábitos saludables para trabajadores sedentarios",
-            "Guía de estiramientos para la oficina",
-            "Alimentación consciente en el día a día",
-            "Bienestar emocional en el entorno laboral",
-            "Ejercicios de respiración para reducir estrés",
-            "Ergonomía en el puesto de trabajo",
-            "Hidratación adecuada según tu actividad",
-            "Descanso activo durante la jornada laboral",
-            "Rutinas de ejercicio para principiantes",
-            "Cómo crear un espacio de trabajo saludable",
-          ],
-          default: [
-            "Cómo mejorar la atención al cliente en tu negocio",
-            "Organiza tu espacio de trabajo para más productividad",
-            "Guía para fidelizar a tus clientes actuales",
-            "Estrategias para diferenciarte de la competencia",
-            "Cómo gestionar el tiempo de forma eficiente",
-            "Comunicación efectiva con tu equipo de trabajo",
-            "Procesos internos que puedes simplificar hoy",
-            "Cómo medir la satisfacción de tus clientes",
-            "Consejos para mejorar tu presencia online",
-            "Pequeños cambios que mejoran la experiencia del cliente",
-            "Planificación estratégica para el próximo trimestre",
-            "Cómo crear una propuesta de valor única",
-          ],
-        };
-
-        const fallbacks = concreteFallbacks[sectorCategory] || concreteFallbacks.default;
-        // Filter against used topics to avoid duplicates
-        const allUsed = new Set([...usedTopics, ...wpTopics].map((t) => t.toLowerCase()));
-        const availableFallbacks = fallbacks.filter((f) => !allUsed.has(f.toLowerCase()));
-        let finalList = availableFallbacks.length > 0 ? availableFallbacks : fallbacks;
-        // Filtrar fallbacks que mencionen una estación NO permitida ahora (evita "después del verano" en primavera)
-        const _sm = new Date().getUTCMonth() + 1;
-        const _curSeason = (
-          {
-            1: "invierno",
-            2: "invierno",
-            3: dayOfMonth < 21 ? "invierno" : "primavera",
-            4: "primavera",
-            5: "primavera",
-            6: dayOfMonth < 21 ? "primavera" : "verano",
-            7: "verano",
-            8: "verano",
-            9: dayOfMonth < 23 ? "verano" : "otoño",
-            10: "otoño",
-            11: "otoño",
-            12: dayOfMonth < 21 ? "otoño" : "invierno",
-          } as Record<number, string>
-        )[_sm];
-        const _nextSeason = (
-          { invierno: "primavera", primavera: "verano", verano: "otoño", otoño: "invierno" } as Record<string, string>
-        )[_curSeason];
-        const _allowNext = ({ 3: true, 6: true, 9: true, 12: true } as Record<number, boolean>)[_sm] || false;
-        const _allowed = _allowNext ? [_curSeason, _nextSeason] : [_curSeason];
-        const _forbiddenSeasons = ["primavera", "verano", "otoño", "invierno"].filter((x) => !_allowed.includes(x));
-        const _seasonSafe = finalList.filter((t) => !_forbiddenSeasons.some((w) => t.toLowerCase().includes(w)));
-        if (_seasonSafe.length > 0) finalList = _seasonSafe;
-        topic = finalList[Math.floor(Math.random() * finalList.length)];
-        console.log(`Using fallback topic (filtered): "${topic}"`);
-      }
+    // D-bis: subtema del nodo seleccionado, para anclar el prompt v15 del
+    // artículo (topicAxis / topicSubtopic). Sin esto el placeholder queda
+    // vacío: no rompe, pero pierde el anclaje al mapa.
+    let selectedNodeSubtopic = "";
+    if (selection.nodeId) {
+      const { data: n } = await supabase
+        .from("topic_nodes")
+        .select("subtopic")
+        .eq("id", selection.nodeId)
+        .maybeSingle();
+      selectedNodeSubtopic = n?.subtopic || "";
     }
 
     // Build home URL from blog_url or fallback
@@ -4355,6 +3984,8 @@ Deno.serve(async (req) => {
         blogUrl: site.blog_url || "",
         instagramUrl: site.instagram_url || "",
         topic: topic,
+        topicAxis: selection.axis || "",
+        topicSubtopic: selectedNodeSubtopic || "",
         priorityTopics:
           priorityTopics.length > 0 ? priorityTopics.map((item: string) => `- ${item}`).join("\n") : "(ninguno)",
         angleToAvoid: angleToAvoid || "(ninguno)",
@@ -4394,7 +4025,16 @@ Deno.serve(async (req) => {
       .filter(Boolean)
       .join("\n");
 
-    systemPrompt = `${systemPrompt}\n\n${extraEditorialGuidance}\n\n${buildSeasonalGuardrail(new Date().getUTCMonth() + 1, dayOfMonth)}`;
+    const seasonBlock = [
+      "═══════════════════════════════════════",
+      "CONTEXTO TEMPORAL (REGLA CRÍTICA)",
+      "═══════════════════════════════════════",
+      `Hoy es ${temporal.today}. Estación actual: ${temporal.season}.`,
+      `PROHIBIDO que el título, el seo_title, el slug, la meta_description o el primer párrafo contengan: ${temporal.forbiddenSeasons.join(", ")}.`,
+      temporal.upcomingEvents.length ? `Eventos próximos utilizables: ${temporal.upcomingEvents.join("; ")}.` : "",
+    ].filter(Boolean).join("\n");
+
+    systemPrompt = `${systemPrompt}\n\n${extraEditorialGuidance}\n\n${seasonBlock}`;
 
     // Build user prompt from database
     let userPrompt = await getPrompt(
@@ -5113,6 +4753,102 @@ Deno.serve(async (req) => {
 
     const requestedGenerationSource = isScheduled ? "scheduled" : "manual";
 
+    // ==========================================
+    // QUALITY GATE
+    // ==========================================
+    const { data: prevTitles } = await supabase
+      .from("articles")
+      .select("content_spanish")
+      .eq("site_id", siteId)
+      .order("generated_at", { ascending: false })
+      .limit(20);
+
+    const previousTitles = (prevTitles || [])
+      .map((a: any) => a.content_spanish?.title)
+      .filter(Boolean);
+
+    const minWords = Math.round((lengthTarget.words || 700) * 0.6);
+
+    let verdictEs = runQualityGate({
+      article: spanishArticle,
+      temporal,
+      previousTitles,
+      language: "es",
+      minWords,
+    });
+
+    // --- Nivel 1: reparar la meta sin tocar el artículo -------------------
+    // Es el fallo más frecuente y el más barato de arreglar: una llamada de
+    // 200 tokens en lugar de regenerar 1.500 palabras.
+    // Nivel 2 (regenerar el artículo completo) NO se activa en este parche:
+    // queda documentado en 06-cambios-generate-article-saas.md pero fuera
+    // de esta versión, según la recomendación de desplegar primero solo
+    // el nivel 1 y medir una tanda real.
+    const metaFailed = verdictEs.failedHard.some((f) => f.startsWith("meta_"));
+    if (metaFailed) {
+      try {
+        const fixRes = await fetchWithRetry("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              {
+                role: "user",
+                content: `Reescribe esta meta description para un artículo titulado "${spanishArticle.title}".
+Requisitos estrictos: entre 125 y 145 caracteres, frase completa, sin puntos suspensivos, sin signos de interrogación ni exclamación, sin empezar por Descubre, Aprende o Todo lo que necesitas saber. Debe incluir "${spanishArticle.focus_keyword || ""}" de forma natural.
+Meta actual (${(spanishArticle.meta_description || "").length} caracteres): ${spanishArticle.meta_description}
+Responde solo con este JSON: {"meta_description": "..."}`,
+              },
+            ],
+            temperature: 0.6,
+            max_tokens: 400,
+            response_format: { type: "json_object" },
+          }),
+        });
+
+        if (fixRes.ok) {
+          const fixed = JSON.parse(
+            ((await fixRes.json()).choices?.[0]?.message?.content || "{}")
+              .replace(/^```(?:json)?\s*/, "")
+              .replace(/\s*```$/, ""),
+          )?.meta_description;
+          if (typeof fixed === "string" && fixed.length >= 112 && fixed.length <= 160) {
+            console.log(`[quality] meta reparada: ${spanishArticle.meta_description?.length} → ${fixed.length}`);
+            spanishArticle.meta_description = fixed;
+          }
+        }
+      } catch (e) {
+        console.warn("[quality] no se pudo reparar la meta:", e);
+      }
+
+      // Se vuelve a evaluar tras el intento de reparación (funcione o no).
+      verdictEs = runQualityGate({
+        article: spanishArticle,
+        temporal,
+        previousTitles,
+        language: "es",
+        minWords,
+      });
+    }
+
+    // El catalán también pasa por el gate: es justo el idioma donde ya
+    // aparecieron castellanismos, y publicar solo la mitad de un par de
+    // idiomas rompería el hreflang. Si falla cualquiera de los dos, se
+    // retienen ambos.
+    const verdictCa = catalanArticle
+      ? runQualityGate({ article: catalanArticle, temporal, previousTitles: [], language: "ca", minWords })
+      : null;
+
+    const verdict = {
+      ...verdictEs,
+      status: verdictEs.status === "passed" && (!verdictCa || verdictCa.status === "passed") ? "passed" : "held",
+      failedHard: [...verdictEs.failedHard, ...(verdictCa?.failedHard.map((f) => `ca:${f}`) || [])],
+      catalan: verdictCa || undefined,
+    };
+
+    console.log(`[quality] es=${verdictSummary(verdictEs)}${verdictCa ? ` | ca=${verdictSummary(verdictCa)}` : ""}`);
+
     // Save article to database
     const articleData: Record<string, any> = {
       site_id: siteId,
@@ -5134,6 +4870,12 @@ Deno.serve(async (req) => {
       generation_source: requestedGenerationSource,
       // Manual/onboarding articles must NOT be picked by the auto-publish reconciler.
       skip_auto_publish: !isScheduled,
+      topic_node_id: selection.nodeId,
+      topic_axis: selection.axis,
+      concept_key: selection.conceptKey,
+      quality_status: verdict.status,
+      quality_report: verdict,
+      quality_checked_at: verdict.checkedAt,
     };
 
     // Check if article already exists for this generation key
@@ -5215,6 +4957,8 @@ Deno.serve(async (req) => {
     console.log("=== ARTICLE GENERATION COMPLETE ===");
     console.log("Article ID:", savedArticle.id);
 
+    await markNodeUsed(supabase, selection.nodeId);
+
     // Update pillar index for next generation (rotation)
     if (!providedTopic) {
       // Only update if we auto-generated the topic
@@ -5261,7 +5005,7 @@ Deno.serve(async (req) => {
     } | null = null;
 
     // Auto-publish to WordPress when scheduled (automated generation)
-    if (isScheduled) {
+    if (isScheduled && verdict.status === "passed") {
       try {
         const { data: wpConfig } = await supabase
           .from("wordpress_configs")
@@ -5527,6 +5271,22 @@ Deno.serve(async (req) => {
         };
         console.error("[auto-publish] Non-blocking error:", autoPublishError);
       }
+    } else if (isScheduled) {
+      // DESVIACIÓN vs 06 (bloque F): el snippet del documento insertaba
+      // directamente en site_activity_log con columnas `details` y sin
+      // `user_id`/`description`. La tabla real (ver logSiteActivity más
+      // arriba en este archivo) usa site_id, user_id, action_type,
+      // description, metadata — se usa el helper existente para no
+      // desalinear columnas.
+      console.warn(`[quality] publicación retenida: ${verdict.failedHard.join(", ")}`);
+      await logSiteActivity(
+        supabase,
+        siteId,
+        userId,
+        "quality_hold",
+        "Publicación retenida por el quality gate",
+        { article_id: savedArticle.id, failed: verdict.failedHard, score: verdict.score },
+      );
     }
 
     return new Response(
