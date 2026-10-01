@@ -95,7 +95,7 @@ async function getPrompt(
 // ==========================================
 // META DESCRIPTION FIXER - Uses AI to rewrite instead of truncating
 // ==========================================
-async function fixMetaDescription(metaDesc: string, focusKeyword: string, apiKey: string): Promise<string> {
+async function fixMetaDescription(metaDesc: string, focusKeyword: string, apiKey: string, language: "spanish" | "catalan" = "spanish"): Promise<string> {
   // Step 1: Always clean punctuation
   let cleaned = metaDesc
     .replace(/[!¡?¿]/g, "")
@@ -127,6 +127,8 @@ La frase debe ser COMPLETA, con sentido, sin cortes ni puntos suspensivos.
 Incluye la keyword "${focusKeyword}" de forma natural.
 PROHIBIDO usar signos de exclamación (!) o interrogación (?).
 Tono directo y profesional.
+${language === "catalan" ? `La meta description está en CATALÁN. Escríbela íntegramente en catalán normativo (IEC), sin ninguna palabra en castellano. No la traduzcas al castellano.` : ""}
+
 
 Meta description original: "${cleaned}"
 
@@ -767,7 +769,7 @@ interface RequestBody {
 
 // A/B del modelo que redacta el artículo. Solo se atiende en el sitio de
 // pruebas y con modelos de esta lista; en cualquier otro caso, el de siempre.
-const DEFAULT_ARTICLE_MODEL = "google/gemini-2.5-pro";
+const DEFAULT_ARTICLE_MODEL = "openai/gpt-5.5"; // 1-10-2026: gana la A/B a ciegas a 2.5-pro (3 de 3 temas); la serie 2.5 se retira el 16-10
 const AB_TEST_SITE_ID = "611bc2ee-57e4-4c7f-bc12-8806b69f0f28";
 const AB_ARTICLE_MODELS = new Set([
   "google/gemini-2.5-pro",
@@ -2372,6 +2374,8 @@ function validateAndFallbackCatalanMeta(article: Record<string, unknown>): void 
     /\b(daños|envejecimiento|cutáneo|protección|prácticos|prácticas)\b/gi,
     /\b(Descubre|Encuentra|Aprende|Sorpréndela|Alivia|Mantén)\b/g,
     /\b(con|para|y|sus|tus|sus|mejorar|mejora)\s/g,
+    // Palabras castellanas frecuentes que no existen en catalán (límites con letras acentuadas)
+    /(?<![\p{L}])(cómo|cuándo|por qué|porque|causas|tratamientos?|productos|nuestr[oa]s?|cabello|leer|ocurre|puedes|mejor|desde|hasta|uso|seguro|consejo|descanso|eficaz|antes de|evitar|interacciones|contraindicaciones|sobredosis|atentamente|lea|trata|repón|tras|vacaciones|caducidades)(?![\p{L}])/giu,
   ];
 
   let spanishHits = 0;
@@ -4222,6 +4226,7 @@ Deno.serve(async (req) => {
               catalanArticle.meta_description,
               catalanArticle.focus_keyword || topic,
               LOVABLE_API_KEY!,
+              "catalan",
             );
             console.log(`[catalan] Final meta_description: ${catalanArticle.meta_description.length} chars`);
           }
