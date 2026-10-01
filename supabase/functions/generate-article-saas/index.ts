@@ -1539,6 +1539,9 @@ function enforceSpanishCapitalizationText(text: string): string {
   // Split into words, preserving whitespace and punctuation
   const words = text.split(/(\s+)/);
   let isFirstWord = true;
+  // true si la palabra anterior cerró frase con "?", "!" o "." (p. ej. "¿Piel apagada? La elección")
+  let prevEndsSentence = false;
+  let lastWord = "";
 
   const result = words.map((word) => {
     // Skip whitespace tokens
@@ -1547,8 +1550,31 @@ function enforceSpanishCapitalizationText(text: string): string {
     // Skip empty
     if (!word) return word;
 
+    const afterSentenceEnd = prevEndsSentence;
+    prevEndsSentence = /[.?!]["»”')\]]*$/.test(word) && !/^(etc|vs)\.$/i.test(word);
+    const prevWord = lastWord;
+    lastWord = word.toLowerCase().replace(/[^a-záéíóúüñ]/g, "");
+
+    // Vitaminas: "vitamina D", "vitaminas B12" conservan la letra en mayúscula
+    if (/^vitaminas?$/.test(prevWord) && /^[A-Z][0-9]*[.,:;?!)]*$/.test(word)) {
+      isFirstWord = false;
+      return word;
+    }
+
     // Preserve brands/acronyms
     if (PRESERVE_CASE_PATTERNS.test(word.replace(/[^a-záéíóúüñA-ZÁÉÍÓÚÜÑ]/g, ""))) {
+      isFirstWord = false;
+      return word;
+    }
+
+    // Preserva cualquier sigla escrita en mayúsculas (AHA, PHA, FPS, UVA, ADN, COVID-19)
+    // y palabras con mayúscula interna (CoQ10, iPhone): la lista fija no puede cubrirlas todas.
+    const lettersAndDigits = word.replace(/[^a-záéíóúüñA-ZÁÉÍÓÚÜÑ0-9]/g, "");
+    const letters = lettersAndDigits.replace(/[0-9]/g, "");
+    if (
+      (letters.length >= 2 && letters === letters.toUpperCase() && letters !== letters.toLowerCase()) ||
+      /[a-záéíóúüñ0-9][A-ZÁÉÍÓÚÜÑ]/.test(lettersAndDigits)
+    ) {
       isFirstWord = false;
       return word;
     }
@@ -1564,7 +1590,7 @@ function enforceSpanishCapitalizationText(text: string): string {
     }
 
     // Check if starts after sentence-ending punctuation
-    const isAfterSentenceEnd = leadingPunct.includes("¿") || leadingPunct.includes("¡");
+    const isAfterSentenceEnd = leadingPunct.includes("¿") || leadingPunct.includes("¡") || afterSentenceEnd;
 
     if (isFirstWord || isAfterSentenceEnd) {
       isFirstWord = false;
