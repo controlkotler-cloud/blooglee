@@ -774,6 +774,7 @@ const AB_ARTICLE_MODELS = new Set([
   "google/gemini-3.6-flash",
   "google/gemini-3.8-flash",
   "google/gemini-3.1-pro-preview",
+  "openai/gpt-5.5",
 ]);
 
 /**
