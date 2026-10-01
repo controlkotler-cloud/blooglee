@@ -3947,7 +3947,7 @@ Deno.serve(async (req) => {
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          temperature: 0.7,
+          ...(articleModel.startsWith("openai/") ? {} : { temperature: 0.7 }),
           max_tokens: tokens,
         }),
       });
@@ -4155,7 +4155,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               model: articleModel,
               messages: [{ role: "user", content: catalanPrompt }],
-              temperature: 0.7,
+              ...(articleModel.startsWith("openai/") ? {} : { temperature: 0.7 }),
               max_tokens: lengthTarget.maxTokens + (catalanAttempt - 1) * 2000,
             }),
           });
