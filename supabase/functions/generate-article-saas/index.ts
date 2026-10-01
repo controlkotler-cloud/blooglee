@@ -2116,179 +2116,6 @@ function limitMonthMentions(htmlContent: string): string {
   return result;
 }
 
-function softenEmptyAdjectives(htmlContent: string): string {
-  if (!htmlContent) return htmlContent;
-
-  // Alternativas: [masculino-sg, femenino-sg, masculino-pl, femenino-pl]
-  const ADJECTIVE_ALTERNATIVES: Record<string, Array<[string, string, string, string]>> = {
-    crucial: [
-      ["determinante", "determinante", "determinantes", "determinantes"],
-      ["decisivo", "decisiva", "decisivos", "decisivas"],
-      ["necesario", "necesaria", "necesarios", "necesarias"],
-    ],
-    fundamental: [
-      ["básico", "básica", "básicos", "básicas"],
-      ["central", "central", "centrales", "centrales"],
-      ["principal", "principal", "principales", "principales"],
-    ],
-    esencial: [
-      ["necesario", "necesaria", "necesarios", "necesarias"],
-      ["básico", "básica", "básicos", "básicas"],
-      ["principal", "principal", "principales", "principales"],
-    ],
-    vital: [
-      ["necesario", "necesaria", "necesarios", "necesarias"],
-      ["básico", "básica", "básicos", "básicas"],
-      ["primordial", "primordial", "primordiales", "primordiales"],
-    ],
-    indispensable: [
-      ["imprescindible", "imprescindible", "imprescindibles", "imprescindibles"],
-      ["necesario", "necesaria", "necesarios", "necesarias"],
-      ["básico", "básica", "básicos", "básicas"],
-    ],
-  };
-  /**
-   * Defensa 6: limita la repetición del nombre de un mes concreto en el contenido.
-   * Cuando el focus_keyword incluye un mes ("crema solar junio") la IA repite el mes
-   * 9-10 veces. Esta función capa a max 3 menciones por mes y sustituye las
-   * excedentes por alternativas temporales genéricas.
-   */
-  function limitMonthMentions(htmlContent: string): string {
-    if (!htmlContent) return htmlContent;
-
-    const MONTHS = [
-      // Castellano
-      "enero",
-      "febrero",
-      "marzo",
-      "abril",
-      "mayo",
-      "junio",
-      "julio",
-      "agosto",
-      "septiembre",
-      "octubre",
-      "noviembre",
-      "diciembre",
-      // Catalán
-      "gener",
-      "febrer",
-      "març",
-      "abril",
-      "maig",
-      "juny",
-      "juliol",
-      "agost",
-      "setembre",
-      "octubre",
-      "novembre",
-      "desembre",
-    ];
-
-    // Alternativas neutras (funcionan en ambos idiomas razonablemente)
-    const ALTERNATIVES = ["este mes", "el próximo mes", "en las próximas semanas", "a corto plazo"];
-
-    const MAX_PER_MONTH = 3;
-    let result = htmlContent;
-    let totalReplaced = 0;
-
-    for (const month of MONTHS) {
-      const regex = new RegExp(`\\b${month}\\b`, "gi");
-      let count = 0;
-      let altIdx = 0;
-
-      result = result.replace(regex, (match) => {
-        count++;
-        if (count <= MAX_PER_MONTH) return match;
-        const alt = ALTERNATIVES[altIdx % ALTERNATIVES.length];
-        altIdx++;
-        totalReplaced++;
-        // Preservar mayúscula inicial
-        if (match[0] === match[0].toUpperCase()) {
-          return alt.charAt(0).toUpperCase() + alt.slice(1);
-        }
-        return alt;
-      });
-    }
-
-    if (totalReplaced > 0) {
-      console.log(`[limitMonthMentions] Replaced ${totalReplaced} excess month mention(s)`);
-    }
-    return result;
-  }
-
-  // Palabras femeninas típicas que preceden al adjetivo (pista de género).
-  const FEMININE_HINT_REGEX =
-    /\b(la|una|esta|esa|aquella|cualidad|estrategia|herramienta|práctica|técnica|fase|etapa|acción|decisión|tarea|misión|visión|función|aplicación|interacción|gestión|solución|información|inversión|cuestión|oportunidad|necesidad|calidad|prioridad|identidad|realidad|capacidad|seguridad|privacidad|confianza|empresa|marca|campaña|agencia|audiencia|experiencia|presencia|relevancia|importancia|tendencia|frecuencia|medición|segmentación|personalización|automatización|optimización|transformación|reputación|comunicación|planificación|relación|conversión|retención|transparencia|coherencia|consistencia|persistencia|permanencia|competencia|eficiencia|diferencia|evidencia|preocupación|participación|colaboración|adaptación|integración|visibilidad|responsabilidad|productividad|creatividad|adaptabilidad|flexibilidad|usabilidad|funcionalidad|accesibilidad|escalabilidad|rentabilidad|calidad)\s+(?:muy\s+|bastante\s+|especialmente\s+|verdaderamente\s+)?$/i;
-
-  const MAX_PER_LEMMA = 1;
-  let result = htmlContent;
-  let totalReplaced = 0;
-
-  for (const [lemma, alternatives] of Object.entries(ADJECTIVE_ALTERNATIVES)) {
-    // Construye variantes: singular y plural, minúscula y mayúscula
-    const pluralSuffix = lemma.endsWith("al") ? "ales" : "es";
-    const plural = lemma.slice(0, -(lemma.endsWith("al") ? 2 : 1)) + pluralSuffix;
-    const normalizedPlural =
-      lemma === "crucial"
-        ? "cruciales"
-        : lemma === "fundamental"
-          ? "fundamentales"
-          : lemma === "esencial"
-            ? "esenciales"
-            : lemma === "vital"
-              ? "vitales"
-              : lemma === "indispensable"
-                ? "indispensables"
-                : plural;
-
-    const variants = [
-      { text: lemma, isPlural: false },
-      { text: lemma.charAt(0).toUpperCase() + lemma.slice(1), isPlural: false },
-      { text: normalizedPlural, isPlural: true },
-      {
-        text: normalizedPlural.charAt(0).toUpperCase() + normalizedPlural.slice(1),
-        isPlural: true,
-      },
-    ];
-
-    let count = 0;
-    let altIndex = 0;
-
-    for (const variant of variants) {
-      const regex = new RegExp(`\\b${variant.text}\\b`, "g");
-
-      result = result.replace(regex, (match, offset: number) => {
-        count++;
-        if (count <= MAX_PER_LEMMA) return match;
-
-        // Ventana ampliada: 200 chars previos para detectar género en oraciones largas
-        const before = result.slice(Math.max(0, offset - 200), offset);
-        const isFeminine = FEMININE_HINT_REGEX.test(before);
-        const [masc, fem, mascPl, femPl] = alternatives[altIndex % alternatives.length];
-        altIndex++;
-        totalReplaced++;
-
-        let replacement: string;
-        if (variant.isPlural) {
-          replacement = isFeminine ? femPl : mascPl;
-        } else {
-          replacement = isFeminine ? fem : masc;
-        }
-        if (match[0] === match[0].toUpperCase()) {
-          replacement = replacement.charAt(0).toUpperCase() + replacement.slice(1);
-        }
-        return replacement;
-      });
-    }
-  }
-
-  if (totalReplaced > 0) {
-    console.log(`[softenEmptyAdjectives] Replaced ${totalReplaced} empty adjective repetition(s)`);
-  }
-
-  return result;
-}
 /**
  * Defensa 3: corrige misuse de marca cuando aparece como sustantivo común
  * con artículo determinante ("la mkpro observa", "el mkpro indica").
@@ -4705,7 +4532,6 @@ Deno.serve(async (req) => {
       spanishArticle.content = stripAiGeneratedClosingCta(spanishArticle.content);
       spanishArticle.content = stripAiSourcesFooter(spanishArticle.content);
       spanishArticle.content = sanitizeLinkedBrandMisuse(spanishArticle.content, site.name);
-      spanishArticle.content = softenEmptyAdjectives(spanishArticle.content);
       spanishArticle.content = limitMonthMentions(spanishArticle.content);
       sanitizeSpanishMetaOpening(spanishArticle);
       spanishArticle.content = await verifyAndCleanExternalLinks(spanishArticle.content);
@@ -4727,7 +4553,6 @@ Deno.serve(async (req) => {
       catalanArticle.content = stripAiSourcesFooter(catalanArticle.content);
       catalanArticle.content = sanitizeLinkedBrandMisuse(catalanArticle.content, site.name);
       catalanArticle.content = limitMonthMentions(catalanArticle.content);
-      catalanArticle.content = softenEmptyAdjectives(catalanArticle.content);
       catalanArticle.content = await verifyAndCleanExternalLinks(catalanArticle.content);
       catalanArticle.content = ensureFooterLinks(
         catalanArticle.content,
