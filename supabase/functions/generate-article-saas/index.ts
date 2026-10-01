@@ -4975,6 +4975,72 @@ Responde solo con este JSON: {"meta_description": "..."}`,
             );
 
             console.log(`[auto-publish] Updated wp_post_url: ${publishedPostUrl}`);
+
+            // 1-10-2026: publicar también la versión catalana en sites bilingües (antes nunca llegaba a WP).
+            // Va después de guardar wp_post_url, así persistWpPostUrl no pisa la URL española (no se pasa article_id).
+            if (catalanArticle?.title && catalanArticle?.content && catalanArticle?.slug) {
+              try {
+                const caRes = await fetch(publishUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${serviceRoleKey}`,
+                  },
+                  body: JSON.stringify({
+                    site_id: siteId,
+                    title: catalanArticle.title,
+                    seo_title: catalanArticle.seo_title,
+                    content: catalanArticle.content,
+                    slug: catalanArticle.slug,
+                    status: "publish",
+                    image_url: imageResult?.url || null,
+                    image_alt: catalanArticle.title,
+                    meta_description: catalanArticle.meta_description,
+                    excerpt: catalanArticle.excerpt || catalanArticle.meta_description,
+                    focus_keyword: catalanArticle.focus_keyword,
+                    lang: "ca",
+                  }),
+                });
+                const caText = await caRes.text();
+                let caUrl: string | undefined;
+                try {
+                  caUrl = JSON.parse(caText)?.post_url;
+                } catch (_) {
+                  caUrl = undefined;
+                }
+                if (caRes.ok && caUrl) {
+                  console.log(`[auto-publish][ca] Published: ${caUrl}`);
+                  await logSiteActivity(
+                    supabase,
+                    siteId,
+                    userId,
+                    "autopublish_ca_success",
+                    "Versión catalana publicada automáticamente en WordPress",
+                    { article_id: savedArticle.id, post_url: caUrl, es_post_url: publishedPostUrl },
+                  );
+                } else {
+                  console.error(`[auto-publish][ca] Failed: HTTP ${caRes.status} ${caText.substring(0, 300)}`);
+                  await logSiteActivity(
+                    supabase,
+                    siteId,
+                    userId,
+                    "autopublish_ca_failed",
+                    "Falló la publicación de la versión catalana",
+                    { article_id: savedArticle.id, status: caRes.status, error: caText.substring(0, 500) },
+                  );
+                }
+              } catch (caErr) {
+                console.error("[auto-publish][ca] Exception:", caErr);
+                await logSiteActivity(
+                  supabase,
+                  siteId,
+                  userId,
+                  "autopublish_ca_failed",
+                  "Excepción publicando la versión catalana",
+                  { article_id: savedArticle.id, error: caErr instanceof Error ? caErr.message : String(caErr) },
+                );
+              }
+            }
             autoPublishOutcome = {
               attempted: true,
               success: true,
