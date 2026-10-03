@@ -118,7 +118,7 @@ async function fixMetaDescription(metaDesc: string, focusKeyword: string, apiKey
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "google/gemini-3.1-flash-lite",
         messages: [
           {
             role: "user",
@@ -1150,7 +1150,7 @@ Responde SOLO con JSON válido en este formato exacto:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-3.1-flash-lite",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
       }),
@@ -4480,7 +4480,7 @@ Deno.serve(async (req) => {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                model: "google/gemini-2.5-flash",
+                model: "google/gemini-3.1-flash-lite",
                 messages: [
                   {
                     role: "user",
@@ -4665,7 +4665,7 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            model: "google/gemini-3.1-flash-lite",
             messages: [
               {
                 role: "user",

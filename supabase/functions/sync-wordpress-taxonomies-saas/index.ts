@@ -607,7 +607,7 @@ Responde SOLO con JSON válido (sin markdown):
                     "Content-Type": "application/json",
                   },
                   body: JSON.stringify({
-                    model: "google/gemini-2.5-flash",
+                    model: "google/gemini-3.1-flash-lite",
                     messages: [{ role: "user", content: analysisPrompt }],
                     temperature: 0.3,
                     max_tokens: 200,
