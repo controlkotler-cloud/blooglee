@@ -942,7 +942,6 @@ Escribe el artículo completo ahora:`;
       body: JSON.stringify({
         model: "openai/gpt-5.4-mini",
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.8,
       }),
     });
 
@@ -1215,7 +1214,6 @@ Escriu l'article complet ara:`;
       body: JSON.stringify({
         model: "openai/gpt-5.4-mini",
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.8,
       }),
     });
 
