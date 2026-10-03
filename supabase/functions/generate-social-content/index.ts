@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "openai/gpt-5.4-mini",
         messages: [
           { role: "system", content: BLOOGLEE_SOCIAL_SYSTEM_PROMPT + "\n\n" + platformPrompt },
           { role: "user", content: topicContext },
