@@ -3125,6 +3125,11 @@ function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+// Site solo en catalán: tiene "catalan" y no "spanish" en languages.
+function isCatalanOnlySite(languages?: string[] | null): boolean {
+  return !!languages?.includes("catalan") && !languages.includes("spanish");
+}
+
 function getGenericBusinessTerm(sectorCategory: string, language: "es" | "ca"): string {
   const termsEs: Record<string, string> = {
     farmacia: "farmacia",
@@ -4873,24 +4878,29 @@ Responde solo con este JSON: {"meta_description": "..."}`,
           .eq("site_id", siteId)
           .maybeSingle();
 
-        if (wpConfig && spanishArticle) {
-          console.log("=== AUTO-PUBLISHING TO WORDPRESS ===");
+        // 19-10-2026: sites solo en catalán (languages sin "spanish"). El español se genera como base
+        // pero no se publica: la versión catalana es la principal y su URL va a wp_post_url.
+        const catalanOnly = isCatalanOnlySite(site.languages);
+        const primaryArticle = catalanOnly ? catalanArticle : spanishArticle;
+
+        if (wpConfig && primaryArticle) {
+          console.log(`=== AUTO-PUBLISHING TO WORDPRESS (${catalanOnly ? "ca" : "es"}) ===`);
           const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
           const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
           const publishPayload = {
             site_id: siteId,
-            title: spanishArticle.title,
-            seo_title: spanishArticle.seo_title,
-            content: spanishArticle.content,
-            slug: spanishArticle.slug,
+            title: primaryArticle.title,
+            seo_title: primaryArticle.seo_title,
+            content: primaryArticle.content,
+            slug: primaryArticle.slug,
             status: "publish",
             image_url: imageResult?.url || null,
-            image_alt: spanishArticle.title,
-            meta_description: spanishArticle.meta_description,
-            excerpt: spanishArticle.excerpt || spanishArticle.meta_description,
-            focus_keyword: spanishArticle.focus_keyword,
-            lang: "es",
+            image_alt: primaryArticle.title,
+            meta_description: primaryArticle.meta_description,
+            excerpt: primaryArticle.excerpt || primaryArticle.meta_description,
+            focus_keyword: primaryArticle.focus_keyword,
+            lang: catalanOnly ? "ca" : "es",
           };
 
           const publishUrl = `${supabaseUrl}/functions/v1/publish-to-wordpress-saas`;
@@ -4964,7 +4974,7 @@ Responde solo con este JSON: {"meta_description": "..."}`,
 
             // 1-10-2026: publicar también la versión catalana en sites bilingües (antes nunca llegaba a WP).
             // Va después de guardar wp_post_url, así persistWpPostUrl no pisa la URL española (no se pasa article_id).
-            if (catalanArticle?.title && catalanArticle?.content && catalanArticle?.slug) {
+            if (!catalanOnly && catalanArticle?.title && catalanArticle?.content && catalanArticle?.slug) {
               try {
                 const caRes = await fetch(publishUrl, {
                   method: "POST",
@@ -5036,7 +5046,7 @@ Responde solo con este JSON: {"meta_description": "..."}`,
 
             // === EMAIL TRACKING (always register result) ===
             {
-              const articleTitle = spanishArticle?.title || catalanArticle?.title || topic;
+              const articleTitle = primaryArticle?.title || topic;
               const emailRecipients = userProfile?.email
                 ? [userProfile.email, ...teamEmails.filter((e: string) => e !== userProfile.email)]
                 : [];
@@ -5179,7 +5189,18 @@ Responde solo con este JSON: {"meta_description": "..."}`,
             console.error(`[auto-publish] Failed after ${attempts} attempts: ${lastError}`);
           }
         } else {
-          const reason = !wpConfig ? "no_wordpress_config" : "no_spanish_content";
+          const reason = !wpConfig ? "no_wordpress_config" : catalanOnly ? "catalan_missing" : "no_spanish_content";
+          if (reason === "catalan_missing") {
+            // No se cae al español: un site solo catalán nunca recibe la versión castellana.
+            await logSiteActivity(
+              supabase,
+              siteId,
+              userId,
+              "autopublish_failed",
+              "No se publicó: el site es solo en catalán y falló la versión catalana",
+              { article_id: savedArticle.id, reason: catalanFailureReason || "catalan_missing" },
+            );
+          }
           autoPublishOutcome = {
             attempted: false,
             success: false,

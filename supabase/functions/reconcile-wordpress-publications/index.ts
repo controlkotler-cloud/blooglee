@@ -505,7 +505,7 @@ Deno.serve(async (req) => {
     const siteIds = [...new Set(pendingArticles.map((a: any) => a.site_id))];
 
     const [{ data: sites }, { data: wpConfigs }] = await Promise.all([
-      supabase.from("sites").select("id, name, auto_generate").in("id", siteIds),
+      supabase.from("sites").select("id, name, auto_generate, languages").in("id", siteIds),
       supabase.from("wordpress_configs").select("site_id").in("site_id", siteIds),
     ]);
 
@@ -587,8 +587,12 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // 19-10-2026: un site solo en catalán (languages sin "spanish") nunca publica la versión castellana.
+      const languages: string[] = site.languages || [];
+      const catalanOnly = languages.includes("catalan") && !languages.includes("spanish");
+
       const publishTasks: Array<{ lang: "es" | "ca"; content: SpanishArticleContent }> = [];
-      if (spanish.title && spanish.content && spanish.slug) {
+      if (!catalanOnly && spanish.title && spanish.content && spanish.slug) {
         publishTasks.push({ lang: "es", content: spanish });
       }
       if (catalan.title && catalan.content && catalan.slug) {

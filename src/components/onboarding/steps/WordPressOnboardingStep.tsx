@@ -40,7 +40,10 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
   const [polylangCheck, setPolylangCheck] = useState<DiagnosticCheck | null>(null);
 
   const articleId = stepData?.step5?.article_id as string | undefined;
-  const hasCatalan = !!(stepData?.step_content_prefs as Record<string, unknown> | undefined)?.catalan;
+  const contentPrefs = stepData?.step_content_prefs as Record<string, unknown> | undefined;
+  const hasCatalan = !!contentPrefs?.catalan;
+  // Site solo en catalán: no se publica la versión castellana ni hace falta Polylang.
+  const catalanOnly = hasCatalan && !!contentPrefs?.catalan_only;
   useWordPressConfig(siteId || "");
   const publishMutation = usePublishToWordPressSaas();
 
@@ -95,7 +98,7 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
       const hasIssues =
         Boolean(nextYoast && !nextYoast.ok) ||
         Boolean(nextElementor && !nextElementor.ok) ||
-        Boolean(hasCatalan && nextPolylang && !nextPolylang.ok);
+        Boolean(hasCatalan && !catalanOnly && nextPolylang && !nextPolylang.ok);
 
       return !hasIssues;
     } catch (err) {
@@ -138,7 +141,7 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
       const catalanContent = article.content_catalan as unknown as ArticleContent | null;
 
       const publishTasks: Array<{ lang: "es" | "ca"; content: ArticleContent }> = [];
-      if (spanishContent?.content && spanishContent?.title && spanishContent?.slug) {
+      if (!catalanOnly && spanishContent?.content && spanishContent?.title && spanishContent?.slug) {
         publishTasks.push({ lang: "es", content: spanishContent });
       }
       if (hasCatalan && catalanContent?.content && catalanContent?.title && catalanContent?.slug) {
@@ -267,7 +270,7 @@ export function WordPressOnboardingStep({ onFinish, stepData, siteId }: WordPres
           </Card>
         )}
 
-        {hasCatalan && polylangCheck && !polylangCheck.ok && (
+        {hasCatalan && !catalanOnly && polylangCheck && !polylangCheck.ok && (
           <Card className="border-amber-300 bg-amber-50/60">
             <CardContent className="p-4 space-y-3">
               <div className="flex items-start gap-2">

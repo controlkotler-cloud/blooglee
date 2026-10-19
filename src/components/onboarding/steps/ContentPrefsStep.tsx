@@ -37,6 +37,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
   const savedInstagram = ((savedPrefs?.instagram_url as string) ?? "").trim();
 
   const [catalan, setCatalan] = useState<boolean>((savedPrefs?.catalan as boolean) ?? false);
+  const [catalanOnly, setCatalanOnly] = useState<boolean>((savedPrefs?.catalan_only as boolean) ?? false);
   const [includeFeaturedImage, setIncludeFeaturedImage] = useState<boolean>(
     (savedPrefs?.include_featured_image as boolean) ?? true,
   );
@@ -85,7 +86,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
         setIsSaving(false);
         return;
       }
-      const languages = catalan ? ["spanish", "catalan"] : ["spanish"];
+      const languages = catalan ? (catalanOnly ? ["catalan"] : ["spanish", "catalan"]) : ["spanish"];
       const avoidArray = avoidTopics
         .split(",")
         .map((t) => t.trim())
@@ -101,6 +102,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
 
       await saveStepData("step_content_prefs", {
         catalan,
+        catalan_only: catalan && catalanOnly,
         include_featured_image: includeFeaturedImage,
         instagram_url: instagramUrl,
         avoid_topics: avoidTopics,
@@ -158,7 +160,7 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
           <Label className="text-sm font-semibold">Idiomas del blog</Label>
         </div>
         <p className="text-xs text-muted-foreground">
-          El español está siempre incluido. Activa catalán si también quieres publicar en ese idioma.
+          Por defecto se publica en español. Activa catalán para publicar también en ese idioma, o solo en catalán.
         </p>
         <div className="flex items-center gap-2">
           <Checkbox id="catalan" checked={catalan} onCheckedChange={(checked) => setCatalan(checked === true)} />
@@ -167,6 +169,18 @@ export function ContentPrefsStep({ onNext, onBack, saveStepData, stepData, siteI
           </label>
         </div>
         {catalan && (
+          <div className="flex items-center gap-2 pl-6">
+            <Checkbox
+              id="catalan-only"
+              checked={catalanOnly}
+              onCheckedChange={(checked) => setCatalanOnly(checked === true)}
+            />
+            <label htmlFor="catalan-only" className="text-sm cursor-pointer">
+              Publicar solo en catalán (sin versión en español)
+            </label>
+          </div>
+        )}
+        {catalan && !catalanOnly && (
           <>
             <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
               <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />

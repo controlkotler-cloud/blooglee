@@ -258,6 +258,7 @@ export function SetupChecklist({ site }: SetupChecklistProps) {
       <div className="space-y-6 max-w-2xl mx-auto">
         <FirstPublishStep
           siteId={site.id}
+          languages={site.languages}
           onComplete={() => {
             updateStep("first_publish", "completed");
             setActiveStep(null);

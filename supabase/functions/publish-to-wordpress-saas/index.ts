@@ -449,12 +449,15 @@ Deno.serve(async (req) => {
 
     // Fetch site settings (embed_image_in_content) for content injection
     let siteEmbedImage = false;
+    let siteCatalanOnly = false;
     try {
       const siteQuery = isServiceRole
-        ? supabase.from("sites").select("embed_image_in_content").eq("id", body.site_id).single()
-        : supabase.from("sites").select("embed_image_in_content").eq("id", body.site_id).eq("user_id", userId).single();
+        ? supabase.from("sites").select("embed_image_in_content, languages").eq("id", body.site_id).single()
+        : supabase.from("sites").select("embed_image_in_content, languages").eq("id", body.site_id).eq("user_id", userId).single();
       const { data: siteSettings } = await siteQuery;
       siteEmbedImage = siteSettings?.embed_image_in_content === true;
+      const siteLanguages: string[] = siteSettings?.languages || [];
+      siteCatalanOnly = siteLanguages.includes("catalan") && !siteLanguages.includes("spanish");
       console.log(`[${requestId}] Site embed_image_in_content: ${siteEmbedImage}`);
     } catch (e) {
       console.warn(`[${requestId}] Could not fetch site settings, defaulting embed_image_in_content=false`);
@@ -485,8 +488,8 @@ Deno.serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    // Build the stable slug
-    const slug = body.lang === "ca" ? `${body.slug}-ca` : body.slug;
+    // Build the stable slug. En un site solo catalán no hay versión castellana con la que chocar: sin sufijo -ca.
+    const slug = body.lang === "ca" && !siteCatalanOnly ? `${body.slug}-ca` : body.slug;
 
     // Use service role client for DB updates (bypasses RLS)
     const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
