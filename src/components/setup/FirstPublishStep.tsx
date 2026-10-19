@@ -13,11 +13,14 @@ import { track } from '@/lib/analytics';
 
 interface FirstPublishStepProps {
   siteId: string;
+  languages?: string[];
   onComplete: () => void;
   onBack: () => void;
 }
 
-export function FirstPublishStep({ siteId, onComplete, onBack }: FirstPublishStepProps) {
+export function FirstPublishStep({ siteId, languages, onComplete, onBack }: FirstPublishStepProps) {
+  // Site solo en catalán: se publica la versión catalana, nunca la castellana.
+  const catalanOnly = !!languages?.includes("catalan") && !languages.includes("spanish");
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const publishMutation = usePublishToWordPressSaas();
@@ -71,7 +74,7 @@ export function FirstPublishStep({ siteId, onComplete, onBack }: FirstPublishSte
   const handlePublish = async () => {
     if (!article) return;
 
-    const content = article.content_spanish as unknown as ArticleContent | null;
+    const content = (catalanOnly ? article.content_catalan : article.content_spanish) as unknown as ArticleContent | null;
     if (!content) return;
 
     setIsPublishing(true);
@@ -104,7 +107,7 @@ export function FirstPublishStep({ siteId, onComplete, onBack }: FirstPublishSte
         meta_description: content.meta_description,
         excerpt: content.excerpt || content.meta_description,
         focus_keyword: content.focus_keyword,
-        lang: 'es',
+        lang: catalanOnly ? 'ca' : 'es',
       });
 
       if (result.success && result.post_url) {
@@ -141,7 +144,7 @@ export function FirstPublishStep({ siteId, onComplete, onBack }: FirstPublishSte
     );
   }
 
-  const content = article?.content_spanish as unknown as ArticleContent | null;
+  const content = (catalanOnly ? article?.content_catalan : article?.content_spanish) as unknown as ArticleContent | null;
 
   // Success state
   if (publishResult) {
@@ -248,7 +251,7 @@ export function FirstPublishStep({ siteId, onComplete, onBack }: FirstPublishSte
         </RadioGroup>
       </div>
 
-      <Button onClick={handlePublish} className="w-full" disabled={isPublishing || !article}>
+      <Button onClick={handlePublish} className="w-full" disabled={isPublishing || !article || !content}>
         {isPublishing ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />

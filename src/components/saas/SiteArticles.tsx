@@ -13,6 +13,7 @@ interface SiteArticlesProps {
   siteId: string;
   siteName?: string;
   siteSector?: string;
+  siteLanguages?: string[];
   onGenerateArticle: () => void;
   isGenerating: boolean;
 }
@@ -32,7 +33,7 @@ const months = [
   { value: "12", label: "Diciembre" },
 ];
 
-export function SiteArticles({ siteId, siteName, siteSector, onGenerateArticle, isGenerating }: SiteArticlesProps) {
+export function SiteArticles({ siteId, siteName, siteSector, siteLanguages, onGenerateArticle, isGenerating }: SiteArticlesProps) {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(String(currentDate.getMonth() + 1));
   const [selectedYear, setSelectedYear] = useState(String(currentDate.getFullYear()));
@@ -181,6 +182,7 @@ export function SiteArticles({ siteId, siteName, siteSector, onGenerateArticle, 
         article={publishArticle}
         siteId={siteId}
         siteName={siteName}
+        siteLanguages={siteLanguages}
       />
     </div>
   );

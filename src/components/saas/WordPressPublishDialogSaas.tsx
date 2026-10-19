@@ -24,6 +24,7 @@ interface WordPressPublishDialogSaasProps {
   article: Article | null;
   siteId: string;
   siteName?: string;
+  siteLanguages?: string[];
 }
 
 type PublishStatus = 'publish' | 'draft' | 'future';
@@ -40,9 +41,13 @@ export function WordPressPublishDialogSaas({
   article,
   siteId,
   siteName,
+  siteLanguages,
 }: WordPressPublishDialogSaasProps) {
+  // Site solo en catalán: el diálogo arranca con el catalán marcado y el español desmarcado.
+  const catalanOnly = !!siteLanguages?.includes('catalan') && !siteLanguages.includes('spanish');
+  const defaultLanguages: Language[] = catalanOnly ? ['catalan'] : ['spanish'];
   const [status, setStatus] = useState<PublishStatus>('publish');
-  const [selectedLanguages, setSelectedLanguages] = useState<Language[]>(['spanish']);
+  const [selectedLanguages, setSelectedLanguages] = useState<Language[]>(defaultLanguages);
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
   const [publishResults, setPublishResults] = useState<MultiPublishResult | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -64,6 +69,7 @@ export function WordPressPublishDialogSaas({
   // Reset selections when dialog opens
   useEffect(() => {
     if (open) {
+      setSelectedLanguages(defaultLanguages);
       setSelectedCategoryIds([]);
       setSelectedTagIds([]);
     }
@@ -71,9 +77,8 @@ export function WordPressPublishDialogSaas({
 
   const getContent = (lang: Language): ArticleContent | null => {
     if (!article) return null;
-    return lang === 'catalan' && article.content_catalan
-      ? article.content_catalan
-      : article.content_spanish;
+    // Sin versión catalana no se publica el español etiquetado como catalán.
+    return lang === 'catalan' ? article.content_catalan : article.content_spanish;
   };
 
   const toggleLanguage = (lang: Language) => {
@@ -178,7 +183,7 @@ export function WordPressPublishDialogSaas({
   const handleClose = () => {
     setPublishResults(null);
     setStatus('publish');
-    setSelectedLanguages(['spanish']);
+    setSelectedLanguages(defaultLanguages);
     setScheduleDate(undefined);
     setSelectedCategoryIds([]);
     setSelectedTagIds([]);
@@ -317,7 +322,8 @@ export function WordPressPublishDialogSaas({
           <div className="space-y-3">
             <Label>Idiomas a publicar</Label>
             <div className="space-y-3">
-              {/* Spanish option */}
+              {/* Spanish option (oculta en sites solo catalán) */}
+              {!catalanOnly && (
               <div className="flex items-start gap-3 p-3 rounded-lg border bg-card">
                 <Checkbox
                   id="lang-spanish"
@@ -334,6 +340,10 @@ export function WordPressPublishDialogSaas({
                   )}
                 </div>
               </div>
+              )}
+              {catalanOnly && !hasCatalan && (
+                <p className="text-xs text-destructive">Este artículo no tiene versión en catalán: no se puede publicar.</p>
+              )}
               
               {/* Catalan option */}
               {hasCatalan && catalanContent && (
@@ -516,7 +526,7 @@ export function WordPressPublishDialogSaas({
             </Button>
             <Button
               onClick={handlePublish}
-              disabled={isPublishing || selectedLanguages.length === 0 || (status === 'future' && !scheduleDate)}
+              disabled={isPublishing || selectedLanguages.length === 0 || (catalanOnly && !hasCatalan) || (status === 'future' && !scheduleDate)}
             >
               {isPublishing ? (
                 <>
