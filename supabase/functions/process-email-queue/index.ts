@@ -52,11 +52,19 @@ function parseJwtClaims(token: string): Record<string, unknown> | null {
   }
 }
 
+// Shape of a pgmq message row returned by read_email_batch.
+type PgmqMessage = {
+  msg_id: number
+  read_ct: number
+  enqueued_at: string
+  message: Record<string, unknown>
+}
+
 // Move a message to the dead letter queue and log the reason.
 async function moveToDlq(
   supabase: SupabaseClient,
   queue: string,
-  msg: { msg_id: number; message: Record<string, unknown> },
+  msg: PgmqMessage,
   reason: string
 ): Promise<void> {
   const payload = msg.message
@@ -137,11 +145,11 @@ Deno.serve(async (req) => {
 
   // 2. Process auth_emails first (priority), then transactional_emails
   for (const queue of ['auth_emails', 'transactional_emails']) {
-    const { data: messages, error: readError } = await supabase.rpc('read_email_batch', {
+    const { data: messages, error: readError } = (await supabase.rpc('read_email_batch', {
       queue_name: queue,
       batch_size: batchSize,
       vt: 30,
-    })
+    })) as unknown as { data: PgmqMessage[] | null; error: { message: string } | null }
 
     if (readError) {
       console.error('Failed to read email batch', { queue, error: readError })
