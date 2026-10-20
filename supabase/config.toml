@@ -11,3 +11,5 @@ project_id = "gqtikajhhggyoiypkbgw"
     verify_jwt = true
   [functions.generate-scheduler]
     verify_jwt = false
+  [functions.ops-bridge]
+    verify_jwt = false
