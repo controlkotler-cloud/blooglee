@@ -9,7 +9,7 @@ declare const EdgeRuntime: { waitUntil?: (p: Promise<unknown>) => void } | undef
 
 const SITE_COLS =
   "id, user_id, name, blog_url, auto_generate, publish_frequency, publish_day_of_month, publish_hour_utc, tone, avoid_topics";
-const ART_COLS = "site_id, topic, title:content_spanish->>title, wp_post_url, generated_at, generation_source, month, year";
+const ART_COLS = "id, site_id, topic, title:content_spanish->>title, wp_post_url, generated_at, generation_source, month, year";
 const DIA_MS = 24 * 60 * 60 * 1000;
 
 function json(body: unknown, status = 200): Response {
@@ -43,7 +43,7 @@ async function cargarSitios(supabase: any, now: Date, siteId?: string) {
   const [arts, logs] = await Promise.all([
     supabase.from("articles").select(ART_COLS).in("site_id", ids).gte("generated_at", desde)
       .order("generated_at", { ascending: false }).limit(1000),
-    supabase.from("site_activity_log").select("site_id, action_type, description, created_at").in("site_id", ids)
+    supabase.from("site_activity_log").select("site_id, action_type, description, created_at, metadata").in("site_id", ids)
       .in("action_type", ACCIONES_FALLO).gte("created_at", desde)
       .order("created_at", { ascending: false }).limit(1000),
   ]);

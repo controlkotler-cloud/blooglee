@@ -135,6 +135,7 @@ export function mergeFallos(
 }
 
 export interface ArticuloFila {
+  id?: string;
   topic: string | null;
   title: string | null;
   wp_post_url: string | null;
@@ -147,9 +148,17 @@ export interface ArticuloFila {
 export function moldearSitio(
   site: SitioFila,
   articulos: ArticuloFila[],
-  logs: { action_type: string; description: string | null; created_at: string }[],
+  logs: {
+    action_type: string;
+    description: string | null;
+    created_at: string;
+    metadata?: { article_id?: string } | null;
+  }[],
   now: Date,
 ) {
+  // Un fallo cuyo artículo acabó publicado (reintento o reconciliador) ya no es un fallo.
+  const publicados = new Set(articulos.filter((a) => a.id && a.wp_post_url).map((a) => a.id));
+  const vigentes = logs.filter((l) => !publicados.has(l.metadata?.article_id));
   const ordenados = [...articulos].sort((a, b) => Date.parse(b.generated_at) - Date.parse(a.generated_at));
   const tituloDe = (a: ArticuloFila) => a.title || a.topic || "";
   const ultimo = ordenados[0];
@@ -182,6 +191,6 @@ export function moldearSitio(
       }
       : null,
     proximo_previsto: proximoPrevisto(site, hayEsteMes, now),
-    fallos: mergeFallos(logs, sinPublicar),
+    fallos: mergeFallos(vigentes, sinPublicar),
   };
 }

@@ -144,3 +144,23 @@ test("moldearSitio: forma, último post y sin_publicar", () => {
   assert.equal(vacio.ultimo_post, null);
   assert.equal(vacio.proximo_previsto, "2026-10-20");
 });
+
+test("moldearSitio: un fallo cuyo artículo acabó publicado no sale como fallo", () => {
+  const now = new Date("2026-10-20T12:00:00Z");
+  const site = {
+    id: "s1", name: "F", blog_url: "https://f.es", auto_generate: true, publish_frequency: "monthly",
+    publish_day_of_month: 1, publish_hour_utc: 9, tone: null, avoid_topics: [],
+  };
+  const arts = [{
+    id: "a1", topic: "t", title: "T", wp_post_url: "https://f.es/t/", generated_at: "2026-10-01T07:00:00Z",
+    generation_source: "scheduled", month: 10, year: 2026,
+  }];
+  const logs = [
+    { action_type: "autopublish_failed", description: "401", created_at: "2026-10-01T07:11:00Z", metadata: { article_id: "a1" } },
+    { action_type: "quality_hold", description: "retenido", created_at: "2026-10-01T07:05:00Z", metadata: { article_id: "otro" } },
+    { action_type: "autopublish_failed", description: "sin artículo", created_at: "2026-10-02T07:00:00Z", metadata: null },
+  ];
+  // deno-lint-ignore no-explicit-any
+  const r = moldearSitio(site as any, arts, logs, now);
+  assert.deepEqual(r.fallos.map((f) => f.descripcion), ["sin artículo", "retenido"]);
+});
