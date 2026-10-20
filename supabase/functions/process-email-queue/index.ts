@@ -57,7 +57,7 @@ type PgmqMessage = {
   msg_id: number
   read_ct: number
   enqueued_at: string
-  message: Record<string, unknown>
+  message: Record<string, any>
 }
 
 // Move a message to the dead letter queue and log the reason.
