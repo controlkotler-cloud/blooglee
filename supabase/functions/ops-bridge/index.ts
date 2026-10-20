@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
         if (e1) throw new Error(`sites: ${e1.message}`);
         if (!actual) return json({ error: "sitio no encontrado" }, 404);
         const antes: Record<string, unknown> = {};
-        for (const k of Object.keys(v.valores)) antes[k] = actual[k];
+        for (const k of Object.keys(v.valores)) antes[k] = (actual as Record<string, unknown>)[k];
         const { error: e2 } = await supabase.from("sites").update(v.valores).eq("id", siteId);
         if (e2) throw new Error(`no se pudo guardar: ${e2.message}`);
         await supabase.from("site_activity_log").insert({
