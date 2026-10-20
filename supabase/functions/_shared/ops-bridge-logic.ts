@@ -153,8 +153,8 @@ export function moldearSitio(
   const ordenados = [...articulos].sort((a, b) => Date.parse(b.generated_at) - Date.parse(a.generated_at));
   const tituloDe = (a: ArticuloFila) => a.title || a.topic || "";
   const ultimo = ordenados[0];
-  const hoy = fechaMadrid(now);
-  const hayEsteMes = ordenados.some((a) => a.month === hoy.month && a.year === hoy.year);
+  // Mes en UTC, igual que generate-scheduler al decidir si el mes ya tiene artículo.
+  const hayEsteMes = ordenados.some((a) => a.month === now.getUTCMonth() + 1 && a.year === now.getUTCFullYear());
   const desde60 = now.getTime() - 60 * DIA_MS;
   const hace2h = now.getTime() - 2 * 60 * 60 * 1000;
   const sinPublicar = ordenados

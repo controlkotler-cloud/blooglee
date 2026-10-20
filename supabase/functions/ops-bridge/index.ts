@@ -1,7 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   ACCIONES_FALLO,
-  fechaMadrid,
   moldearSitio,
   validarCambios,
 } from "../_shared/ops-bridge-logic.ts";
@@ -163,8 +162,15 @@ Deno.serve(async (req) => {
         .gte("generated_at", hace15).limit(1);
       if (e4) throw new Error(`articles: ${e4.message}`);
       if (recientes?.length) return json({ error: "ya se está generando" }, 409);
+      // El artículo se inserta al final de la generación (minutos): el doble clic se frena por el registro.
+      const { data: lanzadas, error: e5 } = await supabase.from("site_activity_log").select("id")
+        .eq("site_id", siteId).eq("action_type", "ops_generar").gte("created_at", hace15).limit(1);
+      if (e5) throw new Error(`site_activity_log: ${e5.message}`);
+      if (lanzadas?.length) return json({ error: "ya se está generando" }, 409);
 
-      const { month, year } = fechaMadrid(now);
+      // Mes y año en UTC, como generate-scheduler (hasSiteArticleForPeriod): así el programador lo ve.
+      const month = now.getUTCMonth() + 1;
+      const year = now.getUTCFullYear();
       const generationKey = `ops-${siteId}-${Math.floor(now.getTime() / 1000)}`;
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -189,6 +195,6 @@ Deno.serve(async (req) => {
     return json({ error: "acción desconocida" }, 400);
   } catch (err) {
     console.error("[ops-bridge] error:", err instanceof Error ? err.message : "desconocido");
-    return json({ error: err instanceof Error ? err.message : "error interno" }, 500);
+    return json({ error: "error interno" }, 500);
   }
 });
