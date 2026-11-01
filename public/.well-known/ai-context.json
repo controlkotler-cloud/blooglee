@@ -32,8 +32,7 @@
         "name": "Free",
         "price": 0,
         "sites": 1,
-        "articlesPerMonth": 1,
-        "description": "Prueba gratis sin tarjeta"
+        "articlesPerMonth": 1
       },
       {
         "name": "Starter",
