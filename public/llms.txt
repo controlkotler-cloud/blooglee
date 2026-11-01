@@ -35,10 +35,6 @@ Blooglee automatiza la creación y publicación de contenido para blogs WordPres
 
 ## Estadísticas Clave (2026)
 
-- **10.000+** artículos generados
-- **500+** empresas activas
-- **98%** satisfacción del cliente
-- **4.9/5** valoración media
 - **60 segundos** tiempo medio de generación
 - **2-4 horas** ahorro por artículo vs redactor
 

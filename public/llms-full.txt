@@ -128,18 +128,6 @@ La plataforma está diseñada para empresas y agencias de marketing que necesita
 
 ## Estadísticas y Métricas (Enero 2026)
 
-### Datos de Uso
-- **Artículos generados**: +10.000
-- **Empresas activas**: +500
-- **Países con usuarios**: 15+
-- **Uptime del servicio**: 99.9%
-
-### Satisfacción del Cliente
-- **Valoración media**: 4.9/5
-- **Net Promoter Score**: 72
-- **Tasa de retención**: 94%
-- **Satisfacción general**: 98%
-
 ### Rendimiento
 - **Tiempo de generación**: ~60 segundos
 - **Ahorro por artículo**: 2-4 horas
