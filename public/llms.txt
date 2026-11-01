@@ -153,17 +153,6 @@ ChatGPT es una herramienta general que requiere escribir prompts, copiar conteni
 - Categorías y etiquetas nativas
 - Imagen destacada automática
 
-## Casos de Éxito
-
-### Clínica Estética Luna
-+340% tráfico orgánico en 6 meses usando Blooglee Pro.
-
-### FitLife Studios
-+180% visitas al blog con 4 artículos mensuales automatizados.
-
-### Agencia Momentum
-70% reducción en costes de producción de contenido.
-
 ## Contacto
 
 - **Web**: https://blooglee.com
