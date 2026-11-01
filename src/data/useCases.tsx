@@ -39,11 +39,10 @@ export const agenciasUseCase: UseCasePageProps = {
       </>
     ),
     gradient: "from-violet-500 via-fuchsia-500 to-orange-400",
-    primaryCta: { label: "Probar gratis", to: "/waitlist" },
+    primaryCta: { label: "Contactar", to: "mailto:alejandro@mkpro.es" },
     secondaryCta: { label: "Ver plan Agencia", to: "/pricing" },
   },
   stats: [
-    { value: "-70%", label: "Costes producción", description: "Vs redactores" },
     { value: "40h", label: "Ahorro mensual", description: "Por agencia" },
     { value: "10", label: "Sitios incluidos", description: "Plan Agencia" },
   ],
@@ -116,7 +115,7 @@ export const agenciasUseCase: UseCasePageProps = {
       {
         question: "¿Qué ROI puedo esperar usando Blooglee?",
         answer:
-          "Nuestras agencias clientes ahorran un promedio de 40 horas/mes en producción de contenido, reduciendo costes operativos un 70% comparado con redactores freelance.",
+          "Nuestras agencias clientes ahorran un promedio de 40 horas/mes en producción de contenido.",
       },
       {
         question: "¿Hay API para integraciones personalizadas?",
@@ -164,7 +163,6 @@ export const autonomosUseCase: UseCasePageProps = {
   stats: [
     { value: "19€", label: "Por mes", description: "Plan Starter" },
     { value: "5min", label: "A la semana", description: "Tiempo invertido" },
-    { value: "+60%", label: "Visibilidad local", description: "En 3 meses" },
   ],
   featuresGrid: {
     title: "Diseñado para profesionales como tú",
@@ -291,11 +289,10 @@ export const clinicasUseCase: UseCasePageProps = {
       </>
     ),
     gradient: "from-violet-500 via-fuchsia-500 to-orange-400",
-    primaryCta: { label: "Probar gratis", to: "/waitlist" },
+    primaryCta: { label: "Contactar", to: "mailto:alejandro@mkpro.es" },
     secondaryCta: { label: "Ver precios", to: "/pricing" },
   },
   stats: [
-    { value: "+340%", label: "Tráfico orgánico", description: "En 6 meses" },
     { value: "+45", label: "Artículos publicados", description: "Sin esfuerzo" },
     { value: "15h", label: "Ahorro mensual", description: "En redacción" },
   ],
@@ -307,7 +304,6 @@ export const clinicasUseCase: UseCasePageProps = {
         title: "Clínicas de Medicina Estética",
         description:
           "Genera contenido sobre tratamientos faciales, corporales, cuidados post-tratamiento y novedades en estética.",
-        results: "Clínica Luna: +340% tráfico orgánico",
       },
       {
         title: "Clínicas Dentales",
@@ -318,7 +314,6 @@ export const clinicasUseCase: UseCasePageProps = {
       {
         title: "Centros de Fisioterapia",
         description: "Contenido sobre lesiones deportivas, rehabilitación, ejercicios preventivos y bienestar.",
-        results: "Fisio Barcelona: +200% visibilidad local",
       },
     ],
   },
@@ -402,12 +397,10 @@ export const ecommerceUseCase: UseCasePageProps = {
       </>
     ),
     gradient: "from-violet-500 via-fuchsia-500 to-orange-400",
-    primaryCta: { label: "Probar gratis", to: "/waitlist" },
+    primaryCta: { label: "Contactar", to: "mailto:alejandro@mkpro.es" },
     secondaryCta: { label: "Ver precios", to: "/pricing" },
   },
   stats: [
-    { value: "+280%", label: "Tráfico orgánico", description: "En 6 meses" },
-    { value: "15%", label: "Ventas desde blog", description: "Conversión media" },
     { value: "+50", label: "Artículos SEO", description: "Posicionados" },
   ],
   featuresGrid: {
