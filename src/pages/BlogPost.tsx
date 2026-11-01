@@ -394,7 +394,7 @@ const BlogPost = () => {
                       ¿Tu blog necesita contenido constante?
                     </h4>
                     <p className="text-sm text-foreground/60">
-                      Blooglee genera artículos SEO y los publica en WordPress automáticamente. Prueba gratis.
+                      Blooglee genera artículos SEO y los publica en WordPress automáticamente.
                     </p>
                   </div>
                   <Link

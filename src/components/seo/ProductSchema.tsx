@@ -51,13 +51,6 @@ export const ProductSchema = ({ plans }: ProductSchemaProps) => {
       url: 'https://blooglee.com',
     },
     offers: offers,
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '4.9',
-      ratingCount: '127',
-      bestRating: '5',
-      worstRating: '1',
-    },
     featureList: [
       'Generación de contenido con IA (GPT-5, Gemini)',
       'Publicación directa en WordPress',

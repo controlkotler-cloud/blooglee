@@ -70,13 +70,6 @@ export const SoftwareAppSchema = () => {
         },
       ],
     },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '4.9',
-      ratingCount: '127',
-      bestRating: '5',
-      worstRating: '1',
-    },
     featureList: [
       'Generación de artículos con IA (GPT-5, Google Gemini)',
       'Publicación directa en WordPress con un clic',

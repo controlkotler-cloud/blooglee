@@ -24,7 +24,7 @@ const SITE_NAME = "Blooglee";
 
 export const SEOHead = ({
   title,
-  description = "Blooglee genera artículos de blog con IA y los publica en WordPress automáticamente. Prueba gratis. Ideal para empresas y agencias de marketing.",
+  description = "Blooglee genera artículos de blog con IA y los publica en WordPress automáticamente. Ideal para empresas y agencias de marketing.",
   keywords = "blog automático, generación contenido IA, WordPress, marketing contenidos, SEO, artículos automáticos",
   canonicalUrl,
   ogImage = DEFAULT_OG_IMAGE,
