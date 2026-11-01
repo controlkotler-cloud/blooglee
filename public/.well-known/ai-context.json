@@ -60,10 +60,6 @@
   },
 
   "statistics": {
-    "articlesGenerated": "10000+",
-    "activeCompanies": "500+",
-    "averageRating": 4.9,
-    "customerSatisfaction": "98%",
     "averageGenerationTime": "60 seconds",
     "timeSavedPerArticle": "2-4 hours"
   },

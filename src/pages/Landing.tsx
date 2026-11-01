@@ -150,20 +150,12 @@ const features = [
   },
 ];
 
-// Stats con contexto citable para AEO
-const stats = [
-  { value: "10K+", label: "Artículos generados", context: "10.000+ artículos generados en 2026" },
-  { value: "500+", label: "Empresas activas", context: "500+ empresas confían en Blooglee" },
-  { value: "98%", label: "Satisfacción", context: "98% de clientes satisfechos" },
-  { value: "4.9★", label: "Valoración media", context: "Valoración media de 4.9/5 estrellas" },
-];
-
 const Landing = () => {
   return (
     <PublicLayout>
       <SEOHead
         canonicalUrl="/"
-        description="Blooglee genera artículos de blog con IA y los publica en WordPress automáticamente. Prueba gratis: 1 sitio + 1 artículo. Ideal para empresas y agencias de marketing. 🇪🇸"
+        description="Blooglee genera artículos de blog con IA y los publica en WordPress automáticamente. Ideal para empresas y agencias de marketing. 🇪🇸"
         keywords="blog automático, generación contenido IA, WordPress, marketing contenidos, SEO, artículos automáticos, Blooglee, alternativa NextBlog"
       />
       <FAQSchema faqs={landingFAQs} />
@@ -205,17 +197,17 @@ const Landing = () => {
 
               {/* CTA Buttons - Stacked on mobile */}
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start mb-8 sm:mb-12">
-                <Link
-                  to="/waitlist"
+                <a
+                  href="mailto:alejandro@mkpro.es"
                   className="group relative px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-semibold text-white text-base sm:text-lg overflow-hidden shadow-2xl shadow-violet-500/30 hover:shadow-violet-500/50 transition-shadow"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-orange-400" />
                   <div className="absolute inset-0 bg-gradient-to-r from-orange-400 via-fuchsia-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <span className="relative flex items-center justify-center gap-2">
-                    Prueba gratis · 1 sitio + 1 post
+                    Contactar
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </span>
-                </Link>
+                </a>
                 <Link
                   to="/como-funciona"
                   className="group px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-semibold text-foreground bg-white/80 backdrop-blur-sm border border-violet-200/50 hover:bg-white hover:border-violet-300 transition-all shadow-lg flex items-center justify-center gap-2"
@@ -234,27 +226,6 @@ const Landing = () => {
                 <ProductMockup />
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section - 2x2 grid on mobile */}
-      <section className="relative py-8 sm:py-12 lg:py-16 px-4 sm:px-6 z-10">
-        <div className="container-custom">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-            {stats.map((stat, i) => (
-              <div
-                key={i}
-                className="group relative p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
-              >
-                <div className="relative text-center">
-                  <div className="font-display text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-violet-600 via-fuchsia-500 to-orange-500 bg-clip-text text-transparent mb-0.5 sm:mb-1">
-                    {stat.value}
-                  </div>
-                  <div className="text-xs sm:text-sm text-foreground/60 font-medium">{stat.label}</div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -494,18 +465,17 @@ const Landing = () => {
               </h2>
 
               <p className="text-base sm:text-lg lg:text-xl text-white/80 max-w-2xl mx-auto mb-6 sm:mb-8 lg:mb-10 px-2">
-                Únete a más de 500 empresas que generan contenido con Blooglee. Solicita acceso anticipado desde la
-                lista de espera.
+                Genera y publica artículos para tu blog de WordPress con Blooglee. Escríbenos y te contamos cómo funciona.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-                <Link
-                  to="/waitlist"
+                <a
+                  href="mailto:alejandro@mkpro.es"
                   className="group px-6 sm:px-8 lg:px-10 py-3.5 sm:py-4 lg:py-5 rounded-full font-bold text-violet-600 text-base sm:text-lg bg-white hover:bg-white/90 transition-all shadow-2xl flex items-center justify-center gap-2"
                 >
-                  Empezar gratis ahora
+                  Contactar
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
+                </a>
               </div>
 
               <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3 sm:gap-6 lg:gap-8 mt-6 sm:mt-8 lg:mt-10 text-white/80 text-sm sm:text-base">

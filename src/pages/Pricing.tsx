@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { Check, X, Sparkles, Building2, Users, Rocket, ArrowRight, HelpCircle, ChevronDown } from "lucide-react";
 import { PublicLayout } from "@/components/marketing/PublicLayout";
 import { SEOHead, FAQSchema, ProductSchema } from "@/components/seo";
@@ -94,7 +93,6 @@ const plans = [
       "Notificaciones por email",
       "Soporte dedicado",
     ],
-    cta: "Empezar gratis",
     ctaLink: "/waitlist",
     popular: false,
     color: "from-slate-400 to-slate-500",
@@ -121,7 +119,6 @@ const plans = [
       "Soporte por email (<24h, L-V 9-20h)",
     ],
     excluded: ["Más de 1 sitio web", "Artículos de 2.500 palabras", "Publicación diaria", "Soporte prioritario"],
-    cta: "Elegir Starter",
     ctaLink: "/waitlist",
     popular: false,
     color: "from-cyan-400 to-blue-500",
@@ -143,7 +140,6 @@ const plans = [
       "Sitios adicionales: +6€/mes (hasta 15)",
     ],
     excluded: ["Más de 15 sitios", "Artículos ilimitados", "Soporte preferente"],
-    cta: "Elegir Pro",
     ctaLink: "/waitlist",
     popular: true,
     color: "from-violet-500 to-fuchsia-500",
@@ -164,7 +160,6 @@ const plans = [
       "Soporte preferente (<4h, L-V 9-20h)",
     ],
     excluded: [],
-    cta: "Elegir Agency",
     ctaLink: "/waitlist",
     popular: false,
     color: "from-orange-400 to-amber-500",
@@ -270,6 +265,11 @@ const Pricing = () => {
       {/* Pricing Cards */}
       <section className="pb-16 sm:pb-24 px-4">
         <div className="max-w-7xl mx-auto">
+          <div className="glass-card-strong rounded-2xl p-5 sm:p-6 mb-8 text-center text-foreground/80 font-medium">
+            Las altas están cerradas por ahora. Si te interesa, escríbenos a{" "}
+            <a href="mailto:alejandro@mkpro.es" className="text-primary underline">alejandro@mkpro.es</a> o llama al{" "}
+            <a href="tel:+34605875701" className="text-primary underline">605 87 57 01</a>.
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-4">
             {plans.map((plan, index) => {
               const Icon = plan.icon;
@@ -358,22 +358,6 @@ const Pricing = () => {
 
                     {/* Note */}
                     {plan.note && <p className="text-xs text-foreground/50 text-center mb-3">{plan.note}</p>}
-
-                    {/* CTA */}
-                    <Link
-                      to={plan.ctaLink}
-                      className={cn(
-                        "w-full py-3 px-6 rounded-xl font-semibold text-center transition-all duration-300 flex items-center justify-center gap-2 group/btn mt-auto",
-                        plan.popular
-                          ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white hover:shadow-lg hover:shadow-violet-500/25 hover:-translate-y-0.5"
-                          : plan.name === "Free"
-                            ? "bg-foreground/5 text-foreground hover:bg-foreground/10"
-                            : `bg-gradient-to-r ${plan.color} text-white hover:shadow-lg hover:-translate-y-0.5`,
-                      )}
-                    >
-                      {plan.cta}
-                      <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                    </Link>
 
                     {/* Footer note */}
                     {plan.footerNote && (

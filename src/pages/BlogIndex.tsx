@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { PublicLayout } from "@/components/marketing/PublicLayout";
 import { BlogCard } from "@/components/marketing/BlogCard";
 import { AudienceCards } from "@/components/marketing/AudienceCards";
@@ -278,10 +278,10 @@ const BlogIndex = () => {
               asChild
               className="w-full sm:w-auto shrink-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:opacity-90"
             >
-              <Link to="/waitlist">
-                Empezar gratis
+              <a href="mailto:alejandro@mkpro.es">
+                Contactar
                 <ArrowRight className="w-4 h-4 ml-2" />
-              </Link>
+              </a>
             </Button>
           </div>
         </div>
