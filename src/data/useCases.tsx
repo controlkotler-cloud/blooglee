@@ -87,29 +87,6 @@ export const agenciasUseCase: UseCasePageProps = {
       "Entregas en segundos, nunca más retrasos",
     ],
   },
-  testimonialsBlock: {
-    title: "Lo que dicen las agencias",
-    testimonials: [
-      {
-        name: "Laura Sánchez",
-        role: "Account Director",
-        company: "Agencia Momentum",
-        rating: 5,
-        review:
-          "Gestionamos 8 clientes con Blooglee. Hemos reducido los costes de producción de contenido un 70% y podemos aceptar más proyectos sin ampliar el equipo.",
-        datePublished: "2026-01-15",
-      },
-      {
-        name: "Pablo Fernández",
-        role: "CEO",
-        company: "Digital Growth Agency",
-        rating: 5,
-        review:
-          "Blooglee nos permite escalar el servicio de content marketing sin sacrificar calidad. El white-label es perfecto para mantener nuestra marca.",
-        datePublished: "2026-01-10",
-      },
-    ],
-  },
   leadMagnets: {
     title: "Recursos gratuitos para agencias",
     subtitle: "Descarga plantillas para escalar tu producción de contenido",
@@ -154,7 +131,7 @@ export const agenciasUseCase: UseCasePageProps = {
     buttonLabel: "Empezar ahora",
     buttonTo: "/waitlist",
   },
-  sectionsOrder: ["featuresGrid", "problemSolution", "testimonials", "leadMagnets", "faqs"],
+  sectionsOrder: ["featuresGrid", "problemSolution", "leadMagnets", "faqs"],
 };
 
 export const autonomosUseCase: UseCasePageProps = {
@@ -181,7 +158,7 @@ export const autonomosUseCase: UseCasePageProps = {
       </>
     ),
     gradient: "from-violet-500 via-fuchsia-500 to-orange-400",
-    primaryCta: { label: "Empezar gratis", to: "/waitlist" },
+    primaryCta: { label: "Contactar", to: "mailto:alejandro@mkpro.es" },
     secondaryCta: { label: "Ver precios", to: "/pricing" },
   },
   stats: [
@@ -248,29 +225,6 @@ export const autonomosUseCase: UseCasePageProps = {
       "Posiciona tu negocio en búsquedas locales",
     ],
   },
-  testimonialsBlock: {
-    title: "Autónomos que ya confían en Blooglee",
-    testimonials: [
-      {
-        name: "José Manuel Torres",
-        role: "Abogado",
-        company: "Despacho Torres",
-        rating: 5,
-        review:
-          "Como abogado autónomo, no tenía tiempo ni presupuesto para un blog. Blooglee me permite publicar artículos legales cada semana por menos de lo que cuesta un café al día.",
-        datePublished: "2026-01-15",
-      },
-      {
-        name: "Lucía Hernández",
-        role: "Psicóloga",
-        company: "Consulta Lucía Hernández",
-        rating: 5,
-        review:
-          'El blog ha sido clave para darme a conocer. Pacientes me encuentran buscando temas como "ansiedad laboral" y llegan a mi consulta desde el blog.',
-        datePublished: "2026-01-10",
-      },
-    ],
-  },
   leadMagnets: {
     title: "Recursos gratuitos para autónomos",
     subtitle: "Descarga guías para posicionar tu negocio local",
@@ -310,7 +264,7 @@ export const autonomosUseCase: UseCasePageProps = {
     buttonLabel: "Crear mi blog ahora",
     buttonTo: "/waitlist",
   },
-  sectionsOrder: ["featuresGrid", "sectorChips", "problemSolution", "testimonials", "leadMagnets", "faqs"],
+  sectionsOrder: ["featuresGrid", "sectorChips", "problemSolution", "leadMagnets", "faqs"],
 };
 
 export const clinicasUseCase: UseCasePageProps = {
@@ -380,29 +334,6 @@ export const clinicasUseCase: UseCasePageProps = {
       "Genera artículos en 60 segundos, sin escribir",
       "Desde 19€/mes, 10x más barato que un redactor",
       "SEO optimizado para atraer pacientes locales",
-    ],
-  },
-  testimonialsBlock: {
-    title: "Lo que dicen las clínicas",
-    testimonials: [
-      {
-        name: "Dra. María García",
-        role: "Directora Médica",
-        company: "Clínica Estética Luna",
-        rating: 5,
-        review:
-          "Blooglee ha transformado nuestra presencia digital. Pasamos de 0 a 45 artículos en 6 meses y nuestro tráfico orgánico creció un 340%. Ahora recibimos consultas directas desde el blog.",
-        datePublished: "2026-01-15",
-      },
-      {
-        name: "Dr. Carlos Ruiz",
-        role: "Director",
-        company: "Centro Dermatológico Ruiz",
-        rating: 5,
-        review:
-          "Como dermatólogo, no tenía tiempo para escribir artículos. Blooglee genera contenido de calidad sobre cuidados de la piel que mis pacientes valoran mucho.",
-        datePublished: "2026-01-10",
-      },
     ],
   },
   leadMagnets: {
@@ -519,29 +450,6 @@ export const ecommerceUseCase: UseCasePageProps = {
       "Compatible con WooCommerce, Shopify, Prestashop",
     ],
   },
-  testimonialsBlock: {
-    title: "Tiendas online que ya usan Blooglee",
-    testimonials: [
-      {
-        name: "Elena Martín",
-        role: "CEO",
-        company: "TechGadgets.es",
-        rating: 5,
-        review:
-          "Nuestro blog pasó de 0 a 50 artículos en 6 meses. El tráfico orgánico creció un 280% y las ventas desde el blog representan ya el 15% del total.",
-        datePublished: "2026-01-15",
-      },
-      {
-        name: "David López",
-        role: "Fundador",
-        company: "Deportes Plus Online",
-        rating: 5,
-        review:
-          'Las guías de compra que genera Blooglee posicionan muy bien. Ahora aparecemos en búsquedas como "mejores zapatillas running" y convertimos ese tráfico en ventas.',
-        datePublished: "2026-01-10",
-      },
-    ],
-  },
   leadMagnets: {
     title: "Recursos gratuitos para e-commerce",
     subtitle: "Descarga calendarios y guías para vender más con tu blog",
@@ -578,8 +486,8 @@ export const ecommerceUseCase: UseCasePageProps = {
   finalCta: {
     title: "Vende más con contenido SEO",
     subtitle: "Prueba Blooglee gratis y genera tu primera guía de compra.",
-    buttonLabel: "Empezar gratis",
-    buttonTo: "/waitlist",
+    buttonLabel: "Contactar",
+    buttonTo: "mailto:alejandro@mkpro.es",
   },
-  sectionsOrder: ["featuresGrid", "problemSolution", "testimonials", "leadMagnets", "faqs"],
+  sectionsOrder: ["featuresGrid", "problemSolution", "leadMagnets", "faqs"],
 };

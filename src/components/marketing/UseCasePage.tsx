@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import { LucideIcon, ArrowRight, CheckCircle2, Clock, Users, TrendingUp, Star } from "lucide-react";
+import { LucideIcon, ArrowRight, CheckCircle2, Clock, Users, TrendingUp } from "lucide-react";
 import { PublicLayout } from "@/components/marketing/PublicLayout";
-import { SEOHead, FAQSchema, ReviewSchema } from "@/components/seo";
+import { SEOHead, FAQSchema } from "@/components/seo";
 import { Button } from "@/components/ui/button";
 import { LeadMagnetCard } from "@/components/marketing/LeadMagnetCard";
 import { LeadMagnetModal } from "@/components/marketing/LeadMagnetModal";
@@ -17,15 +17,6 @@ export interface UseCaseFeature {
 export interface UseCaseFAQ {
   question: string;
   answer: string;
-}
-
-export interface UseCaseTestimonial {
-  name: string;
-  role: string;
-  company: string;
-  rating: number;
-  review: string;
-  datePublished?: string;
 }
 
 export interface UseCaseStat {
@@ -75,11 +66,6 @@ export interface UseCaseFeaturesGrid {
   features: UseCaseFeature[];
 }
 
-export interface UseCaseTestimonialsBlock {
-  title: string;
-  testimonials: UseCaseTestimonial[];
-}
-
 export interface UseCaseFAQsBlock {
   faqs: UseCaseFAQ[];
 }
@@ -105,13 +91,12 @@ export interface UseCasePageProps {
   sectorChips?: UseCaseSectorChips;
   successCases?: UseCaseSuccessCases;
   problemSolution: UseCaseProblemSolution;
-  testimonialsBlock: UseCaseTestimonialsBlock;
   leadMagnets: UseCaseLeadMagnets;
   faqsBlock: UseCaseFAQsBlock;
   finalCta: UseCaseFinalCta;
-  // Order of mid sections after hero (default: featuresGrid, problemSolution, testimonials, leadMagnets, faqs, finalCta)
+  // Order of mid sections after hero (default: featuresGrid, problemSolution, leadMagnets, faqs, finalCta)
   sectionsOrder?: Array<
-    "featuresGrid" | "sectorChips" | "successCases" | "problemSolution" | "testimonials" | "leadMagnets" | "faqs"
+    "featuresGrid" | "sectorChips" | "successCases" | "problemSolution" | "leadMagnets" | "faqs"
   >;
 }
 
@@ -125,7 +110,6 @@ export function UseCasePage(props: UseCasePageProps) {
     sectorChips,
     successCases,
     problemSolution,
-    testimonialsBlock,
     leadMagnets,
     faqsBlock,
     finalCta,
@@ -137,18 +121,8 @@ export function UseCasePage(props: UseCasePageProps) {
 
   const HeroIcon = hero.icon;
 
-  // Convert testimonials to schema reviews format
-  const schemaReviews = testimonialsBlock.testimonials.map((t) => ({
-    author: t.name,
-    role: t.role,
-    company: t.company,
-    rating: t.rating,
-    reviewBody: t.review,
-    datePublished: t.datePublished ?? "2026-01-15",
-  }));
-
   const order =
-    sectionsOrder ?? (["featuresGrid", "problemSolution", "testimonials", "leadMagnets", "faqs"] as const);
+    sectionsOrder ?? (["featuresGrid", "problemSolution", "leadMagnets", "faqs"] as const);
 
   const renderSection = (key: string) => {
     switch (key) {
@@ -259,35 +233,6 @@ export function UseCasePage(props: UseCasePageProps) {
             </div>
           </section>
         );
-      case "testimonials":
-        return (
-          <section key="testimonials" className="container mx-auto max-w-7xl px-4 sm:px-6 py-12">
-            <div className="text-center mb-12">
-              <h2 className="font-display text-2xl sm:text-3xl font-bold mb-4">{testimonialsBlock.title}</h2>
-            </div>
-            <div className="grid md:grid-cols-2 gap-6">
-              {testimonialsBlock.testimonials.map((review, i) => (
-                <div
-                  key={i}
-                  className="p-6 rounded-2xl bg-white/70 backdrop-blur-xl border border-white/50 shadow-lg"
-                >
-                  <div className="flex gap-1 mb-4">
-                    {[...Array(review.rating)].map((_, j) => (
-                      <Star key={j} className="w-5 h-5 fill-amber-400 text-amber-400" />
-                    ))}
-                  </div>
-                  <p className="text-foreground/80 mb-4 italic">"{review.review}"</p>
-                  <div>
-                    <div className="font-medium">{review.name}</div>
-                    <div className="text-sm text-foreground/60">
-                      {review.role}, {review.company}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        );
       case "leadMagnets":
         return (
           <section key="leadMagnets" className="container mx-auto max-w-7xl px-4 sm:px-6 py-12">
@@ -339,7 +284,6 @@ export function UseCasePage(props: UseCasePageProps) {
         keywords={seo.keywords}
       />
       <FAQSchema faqs={faqsBlock.faqs} />
-      <ReviewSchema reviews={schemaReviews} />
 
       {/* Hero Section */}
       <section className="container mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
@@ -365,7 +309,7 @@ export function UseCasePage(props: UseCasePageProps) {
               size="lg"
               className={`bg-gradient-to-r ${hero.gradient} hover:opacity-90`}
             >
-              <Link to={hero.primaryCta.to}>
+              <CtaLink to={hero.primaryCta.to}>
                 {hero.primaryCta.label}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
@@ -401,7 +345,7 @@ export function UseCasePage(props: UseCasePageProps) {
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-white mb-4">{finalCta.title}</h2>
             <p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">{finalCta.subtitle}</p>
             <Button asChild size="lg" className="bg-white text-violet-600 hover:bg-white/90">
-              <Link to={finalCta.buttonTo}>
+              <CtaLink to={finalCta.buttonTo}>
                 {finalCta.buttonLabel}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
