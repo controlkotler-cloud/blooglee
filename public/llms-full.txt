@@ -304,58 +304,6 @@ Copy.ai se enfoca en textos cortos de marketing.
 
 ---
 
-## Casos de Éxito Detallados
-
-### Clínica Estética Luna (Madrid)
-- **Sector**: Salud y belleza
-- **Plan**: Pro
-- **Situación inicial**: Blog abandonado, 0 posts en 6 meses
-- **Solución**: 4 artículos/mes sobre tratamientos estéticos
-- **Resultados en 6 meses**:
-  - +340% tráfico orgánico
-  - +15 leads/mes desde el blog
-  - Posicionamiento para 45 keywords
-- **Testimonio**: "Blooglee ha transformado nuestra estrategia de contenido. Ahora tenemos presencia constante en Google sin dedicar tiempo a redactar."
-— María García, Directora de Marketing
-
-### FitLife Studios (Barcelona)
-- **Sector**: Fitness y bienestar
-- **Plan**: Starter
-- **Situación inicial**: Sin recursos para content marketing
-- **Solución**: 4 artículos/mes sobre entrenamiento y nutrición
-- **Resultados en 4 meses**:
-  - +180% visitas al blog
-  - +25% solicitudes de información
-  - Autoridad de marca mejorada
-- **Testimonio**: "La calidad del contenido es impresionante. Mis clientes piensan que tengo un equipo de redactores dedicado."
-— Carlos Rodríguez, CEO
-
-### Agencia Digital Momentum (Valencia)
-- **Sector**: Marketing digital
-- **Plan**: Agencia
-- **Situación inicial**: Costes altos de producción para clientes
-- **Solución**: Gestión de 8 blogs de clientes desde un dashboard
-- **Resultados en 3 meses**:
-  - 40 horas/mes ahorradas en redacción
-  - 70% reducción en costes de producción
-  - Capacidad de aceptar más clientes
-- **Testimonio**: "Blooglee nos permite escalar nuestros servicios de contenido sin aumentar el equipo."
-— Laura Sánchez, Account Director
-
-### Salón Belle (Sevilla)
-- **Sector**: Belleza
-- **Plan**: Starter
-- **Situación inicial**: Propietaria sin tiempo para marketing
-- **Solución**: 4 artículos/mes sobre tendencias y cuidados
-- **Resultados**:
-  - Blog activo por primera vez en 3 años
-  - +50% visibilidad local en Google
-  - Clientes mencionan haber visto el blog
-- **Testimonio**: "Como dueña de un salón de belleza, no tenía tiempo para mantener el blog. Ahora tengo contenido profesional cada semana sin esfuerzo."
-— Ana Martínez, Propietaria
-
----
-
 ## Sectores y Casos de Uso
 
 ### Salud y Bienestar

@@ -115,7 +115,7 @@ export const agenciasUseCase: UseCasePageProps = {
       {
         question: "¿Qué ROI puedo esperar usando Blooglee?",
         answer:
-          "Nuestras agencias clientes ahorran un promedio de 40 horas/mes en producción de contenido.",
+          "Cada artículo se genera en minutos y se publica directamente en tu WordPress, sin redacción manual. El ahorro depende de cuánto contenido produzcas al mes.",
       },
       {
         question: "¿Hay API para integraciones personalizadas?",
@@ -309,7 +309,6 @@ export const clinicasUseCase: UseCasePageProps = {
         title: "Clínicas Dentales",
         description:
           "Artículos sobre higiene bucal, implantes, ortodoncia y prevención de caries para atraer pacientes.",
-        results: "Centro Dental Plus: +15 pacientes/mes desde el blog",
       },
       {
         title: "Centros de Fisioterapia",
