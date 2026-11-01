@@ -12,7 +12,6 @@ import {
   ArrowRight,
   Clock,
   DollarSign,
-  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SEOHead, FAQSchema } from "@/components/seo";
@@ -249,7 +248,7 @@ const FeaturesPage = () => {
         </div>
 
         {/* Stats Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-16 sm:mb-24">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-16 sm:mb-24">
           <div className="text-center p-6 sm:p-8 rounded-2xl bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl">
             <Clock className="w-10 h-10 text-violet-500 mx-auto mb-4" />
             <div className="font-display text-3xl sm:text-4xl font-bold text-violet-600 mb-2">95%</div>
