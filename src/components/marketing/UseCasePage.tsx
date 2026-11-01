@@ -53,7 +53,7 @@ export interface UseCaseSectorChips {
 export interface UseCaseSuccessCase {
   title: string;
   description: string;
-  results: string;
+  results?: string;
 }
 
 export interface UseCaseSuccessCases {
@@ -191,9 +191,11 @@ export function UseCasePage(props: UseCasePageProps) {
                   <CaseIcon className="w-10 h-10 text-fuchsia-500 mb-4" />
                   <h3 className="font-display text-lg font-bold mb-2">{c.title}</h3>
                   <p className="text-foreground/70 mb-4">{c.description}</p>
-                  <div className="text-sm font-medium text-violet-600 bg-violet-50 rounded-lg px-3 py-2">
-                    {c.results}
-                  </div>
+                  {c.results && (
+                    <div className="text-sm font-medium text-violet-600 bg-violet-50 rounded-lg px-3 py-2">
+                      {c.results}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
