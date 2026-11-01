@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { PublicLayout } from "@/components/marketing/PublicLayout";
 import { BlogCard } from "@/components/marketing/BlogCard";
 import { AudienceCards } from "@/components/marketing/AudienceCards";
