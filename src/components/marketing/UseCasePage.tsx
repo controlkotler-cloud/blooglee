@@ -1,3 +1,4 @@
+import type React from "react";
 import { Link } from "react-router-dom";
 import { LucideIcon, ArrowRight, CheckCircle2, Clock, Users, TrendingUp } from "lucide-react";
 import { PublicLayout } from "@/components/marketing/PublicLayout";
@@ -81,6 +82,9 @@ export interface UseCaseFinalCta {
   buttonLabel: string;
   buttonTo: string;
 }
+
+const CtaLink = ({ to, children }: { to: string; children: React.ReactNode }) =>
+  to.startsWith("mailto:") ? <a href={to}>{children}</a> : <Link to={to}>{children}</Link>;
 
 export interface UseCasePageProps {
   sector: string;
@@ -312,7 +316,7 @@ export function UseCasePage(props: UseCasePageProps) {
               <CtaLink to={hero.primaryCta.to}>
                 {hero.primaryCta.label}
                 <ArrowRight className="w-5 h-5 ml-2" />
-              </Link>
+              </CtaLink>
             </Button>
             <Button asChild variant="outline" size="lg">
               <Link to={hero.secondaryCta.to}>{hero.secondaryCta.label}</Link>
@@ -348,7 +352,7 @@ export function UseCasePage(props: UseCasePageProps) {
               <CtaLink to={finalCta.buttonTo}>
                 {finalCta.buttonLabel}
                 <ArrowRight className="w-5 h-5 ml-2" />
-              </Link>
+              </CtaLink>
             </Button>
           </div>
         </div>

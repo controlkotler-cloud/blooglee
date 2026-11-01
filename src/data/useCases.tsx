@@ -375,7 +375,7 @@ export const clinicasUseCase: UseCasePageProps = {
     buttonLabel: "Unirme a la lista de espera",
     buttonTo: "/waitlist",
   },
-  sectionsOrder: ["problemSolution", "successCases", "testimonials", "leadMagnets", "faqs"],
+  sectionsOrder: ["problemSolution", "successCases", "leadMagnets", "faqs"],
 };
 
 export const ecommerceUseCase: UseCasePageProps = {
