@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { Check, X, Sparkles, Building2, Users, Rocket, ArrowRight, HelpCircle, ChevronDown } from "lucide-react";
 import { PublicLayout } from "@/components/marketing/PublicLayout";
 import { SEOHead, FAQSchema, ProductSchema } from "@/components/seo";
