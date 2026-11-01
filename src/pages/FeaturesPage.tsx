@@ -260,11 +260,6 @@ const FeaturesPage = () => {
             <div className="font-display text-3xl sm:text-4xl font-bold text-fuchsia-600 mb-2">80%</div>
             <p className="text-foreground/60">ahorro en costes</p>
           </div>
-          <div className="text-center p-6 sm:p-8 rounded-2xl bg-white/70 backdrop-blur-xl border border-white/50 shadow-xl">
-            <Users className="w-10 h-10 text-orange-500 mx-auto mb-4" />
-            <div className="font-display text-3xl sm:text-4xl font-bold text-orange-600 mb-2">500+</div>
-            <p className="text-foreground/60">artículos creados </p>
-          </div>
         </div>
 
         {/* CTA Section */}
