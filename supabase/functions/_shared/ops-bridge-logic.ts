@@ -60,6 +60,11 @@ export function validarCambios(cambios: unknown): Validacion {
         valores.avoid_topics = limpio;
         break;
       }
+      case "auto_generate":
+        // Solo lo usa «Pasar»/«Devolver» de ops (blooglee_pasar.py): apaga o enciende el programador de UN sitio.
+        if (typeof v !== "boolean") return { ok: false, error: "auto_generate debe ser true o false" };
+        valores.auto_generate = v;
+        break;
       default:
         return { ok: false, error: `campo no permitido: ${k}` };
     }

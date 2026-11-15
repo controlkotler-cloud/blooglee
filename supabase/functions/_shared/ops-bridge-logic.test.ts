@@ -55,12 +55,24 @@ test("validarCambios: valores malos nombran el campo", () => {
     { avoid_topics: Array(21).fill("a") },
     { avoid_topics: ["x".repeat(81)] },
     { avoid_topics: [1] },
+    { auto_generate: "false" },
+    { auto_generate: 0 },
+    { auto_generate: null },
   ];
   for (const m of malos) {
     const r = ok(m);
     assert.equal(r.ok, false, JSON.stringify(m));
     if (!r.ok) assert.ok(r.error.includes(Object.keys(m)[0]), r.error);
   }
+});
+
+test("validarCambios: auto_generate solo booleano (Pasar/Devolver de ops)", () => {
+  const a = ok({ auto_generate: false });
+  assert.equal(a.ok, true);
+  if (a.ok) assert.deepEqual(a.valores, { auto_generate: false });
+  const b = ok({ auto_generate: true });
+  assert.equal(b.ok, true);
+  if (b.ok) assert.deepEqual(b.valores, { auto_generate: true });
 });
 
 test("validarCambios: límites aceptados", () => {
